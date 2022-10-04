@@ -1,0 +1,151 @@
+/*
+ * Copyright (c) 2021 the original author or authors
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+package net.nmoncho.helenus.api.`type`.codec
+
+import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
+import net.nmoncho.helenus.internal.codec._
+import net.nmoncho.helenus.internal.codec.collection._
+import net.nmoncho.helenus.internal.codec.enums.{ EnumerationNominalCodec, EnumerationOrdinalCodec }
+
+import java.net.InetAddress
+import java.nio.ByteBuffer
+import java.time.{ Instant, LocalDate, LocalTime }
+import java.util.UUID
+import scala.collection.immutable.{ SortedMap, SortedSet }
+
+/** Constants and factory methods to obtain instances of the scala's default type codecs.
+  */
+object TypeCodecs {
+
+  /** The default codec that maps CQL type Decimal to Scala's [[BigDecimal]] */
+  val bigDecimalCodec: TypeCodec[BigDecimal] = BigDecimalCodec
+
+  /** The default codec that maps CQL type BigInt to Scala's [[BigInt]] */
+  val bigIntCodec: TypeCodec[BigInt] = BigIntCodec
+
+  /** The default codec that maps CQL type Boolean to Scala's [[Boolean]] */
+  val booleanCodec: TypeCodec[Boolean] = BooleanCodec
+
+  /** The default codec that maps CQL type TinyInt to Scala's [[BigInt]] */
+  val byteCodec: TypeCodec[Byte] = ByteCodec
+
+  /** The default codec that maps CQL type Double to Scala's [[Double]] */
+  val doubleCodec: TypeCodec[Double] = DoubleCodec
+
+  /** The default codec that maps CQL type Float to Scala's [[Float]] */
+  val floatCodec: TypeCodec[Float] = FloatCodec
+
+  /** The default codec that maps CQL type Int to Scala's [[Int]] */
+  val intCodec: TypeCodec[Int] = IntCodec
+
+  /** The default codec that maps CQL type BigInt to Scala's [[Long]] */
+  val longCodec: TypeCodec[Long] = LongCodec
+
+  /** The default codec that maps CQL type SmallInt to Scala's [[Short]] */
+  val shortCodec: TypeCodec[Short] = ShortCodec
+
+  /** The default codec that maps CQL type Text to Scala's [[String]] */
+  val stringCodec: TypeCodec[String] = com.datastax.oss.driver.api.core.`type`.codec.TypeCodecs.TEXT
+
+  /** The default codec that maps CQL type uuid to [[UUID]] */
+  val uuidCodec: TypeCodec[UUID] = com.datastax.oss.driver.api.core.`type`.codec.TypeCodecs.UUID
+
+  /** The default codec that maps CQL type Timestamp to [[Instant]] */
+  val instantCodec: TypeCodec[Instant] =
+    com.datastax.oss.driver.api.core.`type`.codec.TypeCodecs.TIMESTAMP
+
+  /** The default codec that maps CQL type Date to [[LocalDate]] */
+  val localDateCodec: TypeCodec[LocalDate] =
+    com.datastax.oss.driver.api.core.`type`.codec.TypeCodecs.DATE
+
+  /** The default codec that maps CQL type Time to [[LocalTime]] */
+  val localTimeCodec: TypeCodec[LocalTime] =
+    com.datastax.oss.driver.api.core.`type`.codec.TypeCodecs.TIME
+
+  /** The default codec that maps CQL type Blob to [[ByteBuffer]] */
+  val byteBufferCodec: TypeCodec[ByteBuffer] =
+    com.datastax.oss.driver.api.core.`type`.codec.TypeCodecs.BLOB
+
+  /** The default codec that maps CQL type Inet to [[java.net.InetAddress]] */
+  val inetAddressCodec: TypeCodec[InetAddress] =
+    com.datastax.oss.driver.api.core.`type`.codec.TypeCodecs.INET
+
+  /** Builds a new codec for an [[Enumeration]] by name */
+  def enumerationNominalCodec[T <: Enumeration](enumeration: T): TypeCodec[T#Value] =
+    new EnumerationNominalCodec[T](enumeration)
+
+  /** Builds a new codec for an [[Enumeration]] by order */
+  def enumerationOrdinalCodec[T <: Enumeration](enumeration: T): TypeCodec[T#Value] =
+    new EnumerationOrdinalCodec[T](enumeration)
+
+  /** Builds a new codec that wraps another codec's type into [[Option]] instances
+    * (mapping CQL null to [[None]]).
+    */
+  def optionOf[T](inner: TypeCodec[T]): TypeCodec[Option[T]] = OptionCodec(inner)
+
+  /** Builds a new codec that wraps two other codecs type into [[Either]] instances.
+    */
+  def eitherOf[A, B](left: TypeCodec[A], right: TypeCodec[B]): TypeCodec[Either[A, B]] =
+    EitherCodec(left, right)
+
+  /** Builds a new codec that maps a CQL list to a Scala Seq, using the given codec to map each
+    * element.
+    */
+  def seqOf[T](inner: TypeCodec[T]): TypeCodec[Seq[T]] = SeqCodec.frozen(inner)
+
+  /** Builds a new codec that maps a CQL list to a Scala List, using the given codec to map each
+    * element.
+    */
+  def listOf[T](inner: TypeCodec[T]): TypeCodec[List[T]] = ListCodec.frozen(inner)
+
+  /** Builds a new codec that maps a CQL list to a Scala Vector, using the given codec to map each
+    * element.
+    */
+  def vectorOf[T](inner: TypeCodec[T]): TypeCodec[Vector[T]] = VectorCodec.frozen(inner)
+
+  /** Builds a new codec that maps a CQL set to a Scala Set, using the given codec to map each
+    * element.
+    */
+  def setOf[T](inner: TypeCodec[T]): TypeCodec[Set[T]] = SetCodec.frozen(inner)
+
+  /** Builds a new codec that maps a CQL set to a Scala SortedSet, using the given codec to map each
+    * element.
+    */
+  def sortedSetOf[T: Ordering](inner: TypeCodec[T]): TypeCodec[SortedSet[T]] =
+    SortedSetCodec.frozen(inner)
+
+  /** Builds a new codec that maps a CQL map to a Scala map, using the given codecs to map each key
+    * and value.
+    */
+  def mapOf[K, V](keyInner: TypeCodec[K], valueInner: TypeCodec[V]): TypeCodec[Map[K, V]] =
+    MapCodec.frozen(keyInner, valueInner)
+
+  /** Builds a new codec that maps a CQL map to a Scala sorted map, using the given codecs to map each key
+    * and value.
+    */
+  def sorterMapOf[K: Ordering, V](
+      keyInner: TypeCodec[K],
+      valueInner: TypeCodec[V]
+  ): TypeCodec[SortedMap[K, V]] =
+    SortedMapCodec.frozen(keyInner, valueInner)
+
+}
