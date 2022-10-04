@@ -24,6 +24,14 @@ lazy val basicSettings = Seq(
   headerLicense := Some(HeaderLicense.MIT("2021", "the original author or authors")),
   sonatypeCredentialHost := "s01.oss.sonatype.org",
   sonatypeRepository := "https://s01.oss.sonatype.org/service/local",
+  developers := List(
+    Developer(
+      "nMoncho",
+      "Gustavo De Micheli",
+      "gustavo.demicheli@gmail.com",
+      url("https://github.com/nMoncho")
+    )
+  ),
   scalaVersion := scala213,
   crossScalaVersions := supportedScalaVersions,
   scalacOptions := (Opts.compile.encoding("UTF-8") :+
