@@ -1,0 +1,32 @@
+name: Scala CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up JDK 8
+        uses: actions/setup-java@v3
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+          cache: 'sbt'
+
+      - name: Check formatting and headers
+        run: sbt scalafmtCheckAll headerCheckAll
+
+      - name: Check docs
+        run: sbt docs/mdoc
+
+      - name: Test Coverage
+        run: sbt testCoverage
