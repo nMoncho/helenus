@@ -12,15 +12,18 @@ lazy val root = project
   .settings(basicSettings)
   .settings(
     publish / skip := true
-  ).aggregate(docs, core, bench)
+  )
+  .aggregate(docs, core, bench)
 
 lazy val basicSettings = Seq(
-  version := "0.0.1-SNAPSHOT",
   organization := "net.nmoncho",
   description := "Helenus is collection of Scala utilities for Apache Cassandra",
   startYear := Some(2021),
+  homepage := Some(url("https://github.com/nMoncho/helenus")),
   licenses := Seq("MIT License" -> new URL("http://opensource.org/licenses/MIT")),
   headerLicense := Some(HeaderLicense.MIT("2021", "the original author or authors")),
+  sonatypeCredentialHost := "s01.oss.sonatype.org",
+  sonatypeRepository := "https://s01.oss.sonatype.org/service/local",
   scalaVersion := scala213,
   crossScalaVersions := supportedScalaVersions,
   scalacOptions := (Opts.compile.encoding("UTF-8") :+
