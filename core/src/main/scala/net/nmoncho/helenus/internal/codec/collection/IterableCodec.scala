@@ -21,41 +21,72 @@
 
 package net.nmoncho.helenus.internal.codec.collection
 
-import java.nio.ByteBuffer
-
 import com.datastax.oss.driver.api.core.ProtocolVersion
 import com.datastax.oss.driver.api.core.`type`.DataType
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
-import com.datastax.oss.driver.internal.core.`type`.DefaultListType
 import com.datastax.oss.driver.internal.core.`type`.codec.ParseUtils
+import com.datastax.oss.driver.internal.core.`type`.{ DefaultListType, DefaultSetType }
 
+import java.nio.ByteBuffer
 import scala.collection.compat._
+import scala.collection.mutable
 
 abstract class AbstractSeqCodec[T, M[T] <: Seq[T]](
     inner: TypeCodec[T],
     frozen: Boolean
 )(implicit factory: Factory[T, M[T]])
-    extends TypeCodec[M[T]] {
-
-  override def accepts(value: Any): Boolean = value match {
-    case l: M[_] @unchecked => l.forall(inner.accepts)
-    case _ => false
-  }
+    extends IterableCodec[T, M](inner, '[', ']') {
 
   override val getCqlType: DataType = new DefaultListType(inner.getCqlType, frozen)
+}
+
+abstract class AbstractSetCodec[T, M[T] <: Set[T]](
+    inner: TypeCodec[T],
+    frozen: Boolean
+)(implicit factory: Factory[T, M[T]])
+    extends IterableCodec[T, M](inner, '{', '}') {
+
+  override val getCqlType: DataType = new DefaultSetType(inner.getCqlType, frozen)
+}
+
+abstract class IterableCodec[T, M[T] <: Iterable[T]](
+    inner: TypeCodec[T],
+    openingChar: Char,
+    closingChar: Char
+)(
+    implicit factory: Factory[T, M[T]]
+) extends TypeCodec[M[T]] {
+
+  private val separator: Char = ','
 
   override def encode(value: M[T], protocolVersion: ProtocolVersion): ByteBuffer =
     if (value == null) null
     else {
-      // FIXME this seems pretty costly, we iterate the list several times!
-      val buffers = for (item <- value) yield {
-        if (item == null) {
-          throw new IllegalArgumentException("List elements cannot be null")
-        }
-        inner.encode(item, protocolVersion)
+      val (buffers, size, count) = value.foldLeft((Vector.empty[ByteBuffer], 0, 0)) {
+        case ((buffers, totalSize, count), item) =>
+          if (item == null) {
+            throw new IllegalArgumentException("Collection elements cannot be null")
+          }
+
+          val element = inner.encode(item, protocolVersion)
+          val size    = if (element == null) 4 else 4 + element.remaining()
+
+          (buffers :+ element, totalSize + size, count + 1)
       }
 
-      pack(buffers.toArray, value.size, protocolVersion)
+      val result = ByteBuffer.allocate(4 + size)
+      result.putInt(count)
+
+      for (value <- buffers) {
+        if (value == null) {
+          result.putInt(-1)
+        } else {
+          result.putInt(value.remaining().toShort)
+          result.put(value.duplicate())
+        }
+      }
+
+      result.flip()
     }
 
   override def decode(bytes: ByteBuffer, protocolVersion: ProtocolVersion): M[T] = {
@@ -66,10 +97,19 @@ abstract class AbstractSeqCodec[T, M[T] <: Seq[T]](
       val input = bytes.duplicate()
       val size  = input.getInt()
       for (_ <- 0 until size) {
-        builder += inner.decode(
-          readValue(input, protocolVersion),
-          protocolVersion
-        )
+        val size = input.getInt()
+
+        val value =
+          if (size < 0) null
+          else {
+            val copy = input.duplicate()
+            copy.limit(copy.position() + size)
+            input.position(input.position() + size)
+
+            copy
+          }
+
+        builder += inner.decode(value, protocolVersion)
       }
 
       builder.result()
@@ -80,7 +120,15 @@ abstract class AbstractSeqCodec[T, M[T] <: Seq[T]](
     if (value == null) {
       "NULL"
     } else {
-      value.map(inner.format).mkString("[", ",", "]")
+      val sb   = new mutable.StringBuilder().append(openingChar)
+      var tail = false
+      for (item <- value) {
+        if (tail) sb.append(separator)
+        else tail = true
+
+        sb.append(inner.format(item))
+      }
+      sb.append(closingChar).toString()
     }
 
   override def parse(value: String): M[T] =
@@ -89,13 +137,20 @@ abstract class AbstractSeqCodec[T, M[T] <: Seq[T]](
     } else {
       val builder = factory.newBuilder
       var idx     = ParseUtils.skipSpaces(value, 0)
-      if (value.charAt(idx) != '[') {
+
+      if (idx >= value.length) {
         throw new IllegalArgumentException(
-          s"Cannot parse list value from '$value', at character $idx expecting '[' but got '${value.charAt(idx)}''"
+          s"Malformed collection value '$value', missing opening '$openingChar', but got EOF"
+        )
+      } else if (value.charAt(idx) != openingChar) {
+        throw new IllegalArgumentException(
+          s"Cannot parse collection value from '$value', at character $idx expecting '$openingChar' but got '${value
+              .charAt(idx)}''"
         )
       }
+
       idx = ParseUtils.skipSpaces(value, idx + 1)
-      if (value.charAt(idx) == ']') {
+      if (value.charAt(idx) == closingChar) {
         builder.result()
       } else {
         while (idx < value.length) {
@@ -105,20 +160,27 @@ abstract class AbstractSeqCodec[T, M[T] <: Seq[T]](
           idx = ParseUtils.skipSpaces(value, n)
           if (idx >= value.length) {
             throw new IllegalArgumentException(
-              s"Malformed list value '$value', missing closing ']'"
+              s"Malformed collection value '$value', missing closing '$closingChar', but got EOF"
             )
-          } else if (value.charAt(idx) == ']') {
+          } else if (value.charAt(idx) == closingChar) {
             return builder.result()
-          } else if (value.charAt(idx) != ',') {
+          } else if (value.charAt(idx) != separator) {
             throw new IllegalArgumentException(
-              s"Cannot parse list value from '$value', at character $idx expecting ',' but got '${value
+              s"Cannot parse collection value from '$value', at character $idx expecting '$separator' but got '${value
                   .charAt(idx)}'"
             )
           }
           idx = ParseUtils.skipSpaces(value, idx + 1)
         }
-        throw new IllegalArgumentException(s"Malformed list value '$value', missing closing ']'")
+
+        throw new IllegalArgumentException(
+          s"Malformed collection value '$value', missing closing '$closingChar'"
+        )
       }
     }
 
+  override def accepts(value: Any): Boolean = value match {
+    case l: M[_] @unchecked => l.headOption.fold(true)(inner.accepts)
+    case _ => false
+  }
 }
