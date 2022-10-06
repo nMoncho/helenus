@@ -21,10 +21,10 @@
 
 package net.nmoncho.helenus.api.`type`.codec
 
-/** Marker annotation for [[Enumeration]] that want to be encoded by order
+/** Marker annotation for an [[Enumeration]] that wants to be encoded by order
   */
 case class OrdinalEncoded() extends scala.annotation.StaticAnnotation
 
-/** Marker annotation for [[Enumeration]] that want to be encoded by name
+/** Marker annotation for an [[Enumeration]] that wants to be encoded by name
   */
 case class NominalEncoded() extends scala.annotation.StaticAnnotation
