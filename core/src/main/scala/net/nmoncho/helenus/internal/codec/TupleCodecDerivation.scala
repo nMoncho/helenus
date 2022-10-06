@@ -45,6 +45,8 @@ trait TupleCodecDerivation {
     */
   trait TupleComponentCodec[T] {
 
+    protected val separator = ','
+
     /** Encodes value `T` as a [[ByteBuffer]], and appends it to a list
       *
       * @param value value to be encoded
@@ -120,12 +122,12 @@ trait TupleCodecDerivation {
           sb: mutable.StringBuilder
       ): mutable.StringBuilder =
         sb.append(
-          if (value == null || value.head == null) "NULL"
+          if (value == null || value.head == null) NULL
           else codec.format(value.head)
         )
 
       @inline override private[codec] def parse(value: String, idx: Int): (H :: HNil, Int) = {
-        val (parsed, next) = parseWithCodec(codec, value, idx)
+        val (parsed, next) = parseElementWithCodec(codec, value, idx)
 
         (parsed :: HNil) -> next
       }
@@ -175,16 +177,16 @@ trait TupleCodecDerivation {
         value: H :: T,
         sb: mutable.StringBuilder
     ): mutable.StringBuilder =
-      if (value == null) sb.append("NULL")
+      if (value == null) sb.append(NULL)
       else {
         tailCodec.format(
           value.tail,
-          sb.append(headCodec.format(value.head)).append(",")
+          sb.append(headCodec.format(value.head)).append(separator)
         )
       }
 
     @inline override private[codec] def parse(value: String, idx: Int): (H :: T, Int) = {
-      val (parsed, next)   = parseWithCodec(headCodec, value, idx)
+      val (parsed, next)   = parseElementWithCodec(headCodec, value, idx)
       val (tail, nextTail) = tailCodec.parse(value, next)
 
       (parsed :: tail) -> nextTail
@@ -194,12 +196,16 @@ trait TupleCodecDerivation {
   import scala.reflect.runtime.universe._
 
   /** Derives a [[TypeCodec]] for a tuple of type [[A]].
+    *
     * A [[TypeTag]] is used to create a [[GenericType]] instance.
     */
   implicit def tupleCodec[A: IsTuple: TypeTag, R](
       implicit gen: Generic.Aux[A, R],
       codec: TupleComponentCodec[R]
   ): TupleCodec[A] = new TupleCodec[A] {
+
+    private val openingChar = '('
+    private val closingChar = ')'
 
     private lazy val codecs = codec.codecs
 
@@ -236,44 +242,25 @@ trait TupleCodecDerivation {
       else gen.from(codec.decode(buffer, protocolVersion))
 
     override def format(value: A): String =
-      if (value == null) "NULL"
+      if (value == null) NULL
       else {
         val sb = new mutable.StringBuilder()
-        sb.append("(")
+        sb.append(openingChar)
         codec.format(gen.to(value), sb)
-        sb.append(")")
+        sb.append(closingChar)
 
         sb.toString()
       }
 
     override def parse(value: String): A =
-      if (value == null || value.isEmpty || value.equalsIgnoreCase("NULL")) {
+      if (value == null || value.isEmpty || value.equalsIgnoreCase(NULL)) {
         null.asInstanceOf[A]
       } else {
         val start = ParseUtils.skipSpaces(value, 0)
 
-        if (start >= value.length) {
-          throw new IllegalArgumentException(
-            s"Cannot parse tuple value from '$value', expecting '(', but got EOF"
-          )
-        } else if (value.charAt(start) != '(') {
-          throw new IllegalArgumentException(
-            s"Cannot parse tuple value from '$value', at character $start expecting '(' but got '${value
-                .charAt(start)}''"
-          )
-        }
-
+        expectParseChar(value, start, openingChar)
         val (parsed, end) = codec.parse(value, start)
-
-        if (end >= value.length) {
-          throw new IllegalArgumentException(
-            s"Cannot parse tuple value from '$value', expecting ')', but got EOF"
-          )
-        } else if (value.charAt(end) != ')') {
-          throw new IllegalArgumentException(
-            s"Malformed tuple value '$value', expected closing ')' but got '${value.charAt(end)}'"
-          )
-        }
+        expectParseChar(value, end, closingChar)
 
         gen.from(parsed)
       }
@@ -300,10 +287,13 @@ trait TupleCodecDerivation {
     * @tparam T tuple component type
     * @return tuple element, and next parsing position
     */
-  private[codec] def parseWithCodec[T](codec: TypeCodec[T], value: String, idx: Int): (T, Int) = {
-    val start  = ParseUtils.skipSpaces(value, idx + 1)
-    val end    = ParseUtils.skipCQLValue(value, start)
-    val parsed = codec.parse(value.substring(start, end))
+  private[codec] def parseElementWithCodec[T](
+      codec: TypeCodec[T],
+      value: String,
+      idx: Int
+  ): (T, Int) = {
+    val start         = ParseUtils.skipSpaces(value, idx + 1)
+    val (parsed, end) = parseWithCodec(value, codec, start)
 
     val next = ParseUtils.skipSpaces(value, end)
     if (next >= value.length) {
@@ -317,6 +307,8 @@ trait TupleCodecDerivation {
 
   /** [[java.lang.reflect.Type]] implementation using an underlying Scala Reflect [[Type]]
     * This is only used for [[com.datastax.oss.driver.shaded.guava.common.reflect.TypeToken]] and [[GenericType]] for tuples
+    *
+    * <b>Note</b>: I couldn't achieve the same result with [[GenericType]], but could be something to take a look at later.
     */
   private class TypeAdapter(private val tpe: Type) extends java.lang.reflect.Type {
     override def getTypeName: String = tpe.toString

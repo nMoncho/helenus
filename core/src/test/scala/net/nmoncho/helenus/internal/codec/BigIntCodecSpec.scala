@@ -51,13 +51,13 @@ class BigIntCodecSpec
 
     "format" in {
       format(BigInt(1)) shouldBe "1"
-      format(null) shouldBe "NULL"
+      format(null) shouldBe NULL
     }
 
     "parse" in {
       parse("1") shouldBe BigInt(1)
-      parse("NULL") shouldBe null
-      parse("null") shouldBe null
+      parse(NULL) shouldBe null
+      parse(NULL.toLowerCase()) shouldBe null
       parse("") shouldBe null
       parse(null) shouldBe null
     }

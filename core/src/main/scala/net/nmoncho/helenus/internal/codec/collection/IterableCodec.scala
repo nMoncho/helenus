@@ -19,7 +19,8 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package net.nmoncho.helenus.internal.codec.collection
+package net.nmoncho.helenus.internal.codec
+package collection
 
 import com.datastax.oss.driver.api.core.ProtocolVersion
 import com.datastax.oss.driver.api.core.`type`.DataType
@@ -118,7 +119,7 @@ abstract class IterableCodec[T, M[T] <: Iterable[T]](
 
   override def format(value: M[T]): String =
     if (value == null) {
-      "NULL"
+      NULL
     } else {
       val sb   = new mutable.StringBuilder().append(openingChar)
       var tail = false
@@ -132,44 +133,25 @@ abstract class IterableCodec[T, M[T] <: Iterable[T]](
     }
 
   override def parse(value: String): M[T] =
-    if (value == null || value.isEmpty || value.equalsIgnoreCase("NULL")) {
+    if (value == null || value.isEmpty || value.equalsIgnoreCase(NULL)) {
       null.asInstanceOf[M[T]]
     } else {
       val builder = factory.newBuilder
-      var idx     = ParseUtils.skipSpaces(value, 0)
+      var idx     = skipSpacesAndExpect(value, 0, openingChar)
 
-      if (idx >= value.length) {
-        throw new IllegalArgumentException(
-          s"Malformed collection value '$value', missing opening '$openingChar', but got EOF"
-        )
-      } else if (value.charAt(idx) != openingChar) {
-        throw new IllegalArgumentException(
-          s"Cannot parse collection value from '$value', at character $idx expecting '$openingChar' but got '${value
-              .charAt(idx)}''"
-        )
-      }
-
-      idx = ParseUtils.skipSpaces(value, idx + 1)
       if (value.charAt(idx) == closingChar) {
         builder.result()
       } else {
         while (idx < value.length) {
-          val n = ParseUtils.skipCQLValue(value, idx)
-          builder += inner.parse(value.substring(idx, n))
+          val (element, n) = parseWithCodec(value, inner, idx)
+
+          builder += element
 
           idx = ParseUtils.skipSpaces(value, n)
-          if (idx >= value.length) {
-            throw new IllegalArgumentException(
-              s"Malformed collection value '$value', missing closing '$closingChar', but got EOF"
-            )
-          } else if (value.charAt(idx) == closingChar) {
+          if (isParseFinished(value, idx, closingChar, separator)) {
             return builder.result()
-          } else if (value.charAt(idx) != separator) {
-            throw new IllegalArgumentException(
-              s"Cannot parse collection value from '$value', at character $idx expecting '$separator' but got '${value
-                  .charAt(idx)}'"
-            )
           }
+
           idx = ParseUtils.skipSpaces(value, idx + 1)
         }
 

@@ -55,7 +55,8 @@ class VectorCodecSpec extends AnyWordSpec with Matchers with CodecSpecBase[Vecto
 
     "parse" in {
       parse("") shouldBe null
-      parse("NULL") shouldBe null
+      parse(NULL) shouldBe null
+      parse(NULL.toLowerCase) shouldBe null
       parse("[]") shouldBe Vector.empty[Int]
       parse("[1,2,3]") shouldBe Vector(1, 2, 3)
       parse(" [ 1 , 2 , 3 ] ") shouldBe Vector(1, 2, 3)

@@ -54,11 +54,11 @@ class OptionCodec[T](inner: TypeCodec[T]) extends TypeCodec[Option[T]] {
 
   override def format(value: Option[T]): String = value match {
     case Some(value) => inner.format(value)
-    case None => "NULL"
+    case None => NULL
   }
 
   override def parse(value: String): Option[T] =
-    if (value == null || value.isEmpty || value.equalsIgnoreCase("NULL")) None
+    if (value == null || value.isEmpty || value.equalsIgnoreCase(NULL)) None
     else Option(inner.parse(value))
 
   override def accepts(value: Any): Boolean = value match {

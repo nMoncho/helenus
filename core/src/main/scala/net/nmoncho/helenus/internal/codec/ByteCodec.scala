@@ -50,7 +50,7 @@ object ByteCodec extends TypeCodec[Byte] {
 
   def parse(value: String): Byte =
     try {
-      if (value == null || value.isEmpty || value.equalsIgnoreCase("NULL")) 0
+      if (value == null || value.isEmpty || value.equalsIgnoreCase(NULL)) 0
       else value.toByte
     } catch {
       case e: NumberFormatException =>

@@ -50,7 +50,7 @@ object LongCodec extends TypeCodec[Long] {
 
   def parse(value: String): Long =
     try {
-      if (value == null || value.isEmpty || value.equalsIgnoreCase("NULL")) 0
+      if (value == null || value.isEmpty || value.equalsIgnoreCase(NULL)) 0
       else value.toLong
     } catch {
       case e: NumberFormatException =>

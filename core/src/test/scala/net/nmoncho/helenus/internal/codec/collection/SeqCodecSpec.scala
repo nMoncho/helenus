@@ -63,7 +63,8 @@ class SeqCodecSpec extends AnyWordSpec with Matchers with CodecSpecBase[Seq[Int]
 
     "parse" in {
       parse("") shouldBe null
-      parse("NULL") shouldBe null
+      parse(NULL) shouldBe null
+      parse(NULL.toLowerCase) shouldBe null
       parse("[]") shouldBe Seq.empty[Int]
       parse("[1,2,3]") shouldBe Seq(1, 2, 3)
       parse(" [ 1 , 2 , 3 ] ") shouldBe Seq(1, 2, 3)

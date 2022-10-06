@@ -19,7 +19,8 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package net.nmoncho.helenus.internal.codec.collection
+package net.nmoncho.helenus.internal.codec
+package collection
 
 import com.datastax.oss.driver.api.core.ProtocolVersion
 import com.datastax.oss.driver.api.core.`type`.DataType
@@ -122,7 +123,7 @@ abstract class AbstractMapCodec[K, V, M[K, V] <: Map[K, V]](
 
   override def format(map: M[K, V]): String =
     if (map == null) {
-      "NULL"
+      NULL
     } else {
       val sb   = new mutable.StringBuilder().append(openingChar)
       var tail = false
@@ -138,64 +139,33 @@ abstract class AbstractMapCodec[K, V, M[K, V] <: Map[K, V]](
     }
 
   override def parse(value: String): M[K, V] =
-    if (value == null || value.isEmpty || value.equalsIgnoreCase("NULL")) {
+    if (value == null || value.isEmpty || value.equalsIgnoreCase(NULL)) {
       null.asInstanceOf[M[K, V]]
     } else {
       val builder = factory.newBuilder
-      var idx     = ParseUtils.skipSpaces(value, 0)
+      var idx     = skipSpacesAndExpect(value, 0, openingChar)
 
-      if (idx >= value.length) {
-        throw new IllegalArgumentException(
-          s"Malformed map value '$value', missing opening '$openingChar', but got EOF"
-        )
-      } else if (value.charAt(idx) != openingChar) {
-        throw new IllegalArgumentException(
-          s"Cannot parse map value from '$value', at character $idx expecting '$openingChar' but got '${value
-              .charAt(idx)}''"
-        )
-      }
-
-      idx = ParseUtils.skipSpaces(value, idx + 1)
       if (value.charAt(idx) == closingChar) {
         builder.result()
       } else {
         while (idx < value.length) {
           // Parse Key
-          val n = ParseUtils.skipCQLValue(value, idx)
-          val k = keyInner.parse(value.substring(idx, n))
-          idx = ParseUtils.skipSpaces(value, n)
-          if (idx >= value.length) {
-            throw new IllegalArgumentException(
-              s"Cannot parse map value from '$value', at character $idx expecting '$keyValueSeparator' but got EOF"
-            )
-          } else if (value.charAt(idx) != keyValueSeparator) {
-            throw new IllegalArgumentException(
-              s"Cannot parse map value from '$value', at character $idx expecting '$keyValueSeparator' but got '${value
-                  .charAt(idx)}'"
-            )
-          }
+          val (k, nk) = parseWithCodec(value, keyInner, idx)
+
+          idx = skipSpacesAndExpect(value, nk, keyValueSeparator)
 
           // Parse Value
-          idx = ParseUtils.skipSpaces(value, idx + 1)
-          val nv = ParseUtils.skipCQLValue(value, idx)
-          val v  = valueInner.parse(value.substring(idx, nv))
+          val (v, nv) = parseWithCodec(value, valueInner, idx)
+
           builder += k -> v
 
           idx = ParseUtils.skipSpaces(value, nv)
-          if (idx >= value.length) {
-            throw new IllegalArgumentException(
-              s"Malformed map value '$value', missing closing '$closingChar', but got EOF"
-            )
-          } else if (value.charAt(idx) == closingChar) {
+          if (isParseFinished(value, idx, closingChar, entrySeparator)) {
             return builder.result()
-          } else if (value.charAt(idx) != entrySeparator) {
-            throw new IllegalArgumentException(
-              s"Cannot parse map value from '$value', at character $idx expecting '$entrySeparator' but got '${value
-                  .charAt(idx)}''"
-            )
           }
           idx = ParseUtils.skipSpaces(value, idx + 1)
         }
+
         throw new IllegalArgumentException(
           s"Malformed map value '$value', missing closing '$closingChar'"
         )

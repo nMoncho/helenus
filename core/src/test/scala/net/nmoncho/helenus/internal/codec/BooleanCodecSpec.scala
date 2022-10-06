@@ -64,8 +64,8 @@ class BooleanCodecSpec
     "parse" in {
       parse("false") shouldBe false
       parse("true") shouldBe true
-      parse("NULL") shouldBe false
-      parse("null") shouldBe false
+      parse(NULL) shouldBe false
+      parse(NULL.toLowerCase()) shouldBe false
       parse("") shouldBe false
       parse(null) shouldBe false
     }

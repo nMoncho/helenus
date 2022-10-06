@@ -50,7 +50,7 @@ object DoubleCodec extends TypeCodec[Double] {
 
   def parse(value: String): Double =
     try {
-      if (value == null || value.isEmpty || value.equalsIgnoreCase("NULL")) 0
+      if (value == null || value.isEmpty || value.equalsIgnoreCase(NULL)) 0
       else value.toDouble
     } catch {
       case e: NumberFormatException =>

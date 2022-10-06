@@ -62,8 +62,8 @@ class ByteCodecSpec
 
     "parse" in {
       parse("0") shouldBe zero
-      parse("NULL") shouldBe zero
-      parse("null") shouldBe zero
+      parse(NULL) shouldBe zero
+      parse(NULL.toLowerCase()) shouldBe zero
       parse("") shouldBe zero
       parse(null) shouldBe zero
     }

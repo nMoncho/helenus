@@ -50,7 +50,7 @@ object ShortCodec extends TypeCodec[Short] {
 
   def parse(value: String): Short =
     try {
-      if (value == null || value.isEmpty || value.equalsIgnoreCase("NULL")) 0
+      if (value == null || value.isEmpty || value.equalsIgnoreCase(NULL)) 0
       else value.toShort
     } catch {
       case e: NumberFormatException =>

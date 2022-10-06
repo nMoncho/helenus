@@ -50,7 +50,7 @@ object FloatCodec extends TypeCodec[Float] {
 
   def parse(value: String): Float =
     try {
-      if (value == null || value.isEmpty || value.equalsIgnoreCase("NULL")) 0
+      if (value == null || value.isEmpty || value.equalsIgnoreCase(NULL)) 0
       else value.toFloat
     } catch {
       case e: NumberFormatException =>

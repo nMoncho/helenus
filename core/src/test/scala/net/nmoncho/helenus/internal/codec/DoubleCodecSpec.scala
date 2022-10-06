@@ -60,8 +60,8 @@ class DoubleCodecSpec
 
     "parse" in {
       parse("0.0") shouldBe 0.0
-      parse("NULL") shouldBe 0.0
-      parse("null") shouldBe 0.0
+      parse(NULL) shouldBe 0.0
+      parse(NULL.toLowerCase()) shouldBe 0.0
       parse("") shouldBe 0.0
       parse(null) shouldBe 0.0
     }

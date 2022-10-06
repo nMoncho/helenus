@@ -50,7 +50,7 @@ object IntCodec extends TypeCodec[Int] {
 
   def parse(value: String): Int =
     try {
-      if (value == null || value.isEmpty || value.equalsIgnoreCase("NULL")) 0
+      if (value == null || value.isEmpty || value.equalsIgnoreCase(NULL)) 0
       else value.toInt
     } catch {
       case e: NumberFormatException =>

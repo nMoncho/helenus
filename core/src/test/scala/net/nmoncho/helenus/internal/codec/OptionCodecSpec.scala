@@ -60,13 +60,13 @@ class OptionCodecSpec
 
     "format" in {
       format(Some(1)) shouldBe "1"
-      format(None) shouldBe "NULL"
+      format(None) shouldBe NULL
     }
 
     "parse" in {
       parse("1") shouldBe Some(1)
-      parse("NULL") shouldBe None
-      parse("null") shouldBe None
+      parse(NULL) shouldBe None
+      parse(NULL.toLowerCase()) shouldBe None
       parse("") shouldBe None
       parse(null) shouldBe None
     }

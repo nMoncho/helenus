@@ -60,8 +60,8 @@ class FloatCodecSpec
 
     "parse" in {
       parse("0.0") shouldBe 0.0f
-      parse("NULL") shouldBe 0.0f
-      parse("null") shouldBe 0.0f
+      parse(NULL) shouldBe 0.0f
+      parse(NULL.toLowerCase()) shouldBe 0.0f
       parse("") shouldBe 0.0f
       parse(null) shouldBe 0.0f
     }

@@ -53,7 +53,7 @@ object BooleanCodec extends TypeCodec[Boolean] {
 
   def parse(value: String): Boolean =
     try {
-      if (value == null || value.isEmpty || value.equalsIgnoreCase("NULL")) false
+      if (value == null || value.isEmpty || value.equalsIgnoreCase(NULL)) false
       else value.toBoolean
     } catch {
       case e: IllegalArgumentException =>

@@ -64,8 +64,8 @@ class LongCodecSpec
     "parse" in {
       parse("0") shouldBe 0L
       parse("1") shouldBe 1L
-      parse("NULL") shouldBe 0L
-      parse("null") shouldBe 0L
+      parse(NULL) shouldBe 0L
+      parse(NULL.toLowerCase()) shouldBe 0L
       parse("") shouldBe 0L
       parse(null) shouldBe 0L
     }

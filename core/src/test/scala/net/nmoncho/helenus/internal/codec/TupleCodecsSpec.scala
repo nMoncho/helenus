@@ -79,7 +79,8 @@ class TupleCodecsSpec extends AnyWordSpec with Matchers {
       // 'null' parsing
       base.parse(null).asInstanceOf[AnyRef] shouldBe null
       base.parse("").asInstanceOf[AnyRef] shouldBe null
-      base.parse("NULL").asInstanceOf[AnyRef] shouldBe null
+      base.parse(NULL).asInstanceOf[AnyRef] shouldBe null
+      base.parse(NULL.toLowerCase()).asInstanceOf[AnyRef] shouldBe null
 
       testData.foreach { value =>
         base.parse(base.format(value)) shouldBe value

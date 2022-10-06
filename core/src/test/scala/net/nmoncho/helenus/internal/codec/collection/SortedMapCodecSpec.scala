@@ -63,7 +63,8 @@ class SortedMapCodecSpec
 
     "parse" in {
       parse("") shouldBe null
-      parse("NULL") shouldBe null
+      parse(NULL) shouldBe null
+      parse(NULL.toLowerCase) shouldBe null
       parse("{}") shouldBe Map.empty[String, Int]
       parse("{'Foo':1,'Bar':2,'Baz':3}") shouldBe value
       parse(" { 'Foo' : 1 , 'Bar' : 2 , 'Baz' : 3 } ") shouldBe value

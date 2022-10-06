@@ -57,7 +57,8 @@ class SortedSetCodecSpec extends AnyWordSpec with Matchers with CodecSpecBase[So
 
     "parse" in {
       parse("") shouldBe null
-      parse("NULL") shouldBe null
+      parse(NULL) shouldBe null
+      parse(NULL.toLowerCase) shouldBe null
       parse("{}") shouldBe SortedSet.empty[Int]
       parse("{1,2,3}") shouldBe SortedSet(1, 2, 3)
       parse(" { 1 , 2 , 3 } ") shouldBe SortedSet(1, 2, 3)

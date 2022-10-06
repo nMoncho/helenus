@@ -65,7 +65,8 @@ class ListCodecSpec extends AnyWordSpec with Matchers with CodecSpecBase[List[In
 
     "parse" in {
       parse("") shouldBe null
-      parse("NULL") shouldBe null
+      parse(NULL) shouldBe null
+      parse(NULL.toLowerCase) shouldBe null
       parse("[]") shouldBe List.empty[Int]
       parse("[1,2,3]") shouldBe List(1, 2, 3)
       parse(" [ 1 , 2 , 3 ] ") shouldBe List(1, 2, 3)

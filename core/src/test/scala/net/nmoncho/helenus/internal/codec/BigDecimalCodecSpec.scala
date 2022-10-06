@@ -64,13 +64,14 @@ class BigDecimalCodecSpec
     "format" in {
       format(BigDecimal(1)) shouldBe "1"
       format(BigDecimal(128, 4)) shouldBe "0.0128"
-      format(null) shouldBe "NULL"
+      format(null) shouldBe NULL
     }
 
     "parse" in {
       parse("1") shouldBe BigDecimal(1)
       parse("0.0128") shouldBe BigDecimal(128, 4)
-      parse("null") shouldBe null
+      parse(NULL) shouldBe null
+      parse(NULL.toLowerCase()) shouldBe null
       parse("") shouldBe null
       parse(null) shouldBe null
     }

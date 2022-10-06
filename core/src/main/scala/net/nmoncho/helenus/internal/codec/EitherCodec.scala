@@ -39,6 +39,10 @@ import java.nio.ByteBuffer
   */
 class EitherCodec[A, B](left: TypeCodec[A], right: TypeCodec[B]) extends TypeCodec[Either[A, B]] {
 
+  private val separator   = ','
+  private val openingChar = '('
+  private val closingChar = ')'
+
   override def encode(value: Either[A, B], protocolVersion: ProtocolVersion): ByteBuffer =
     if (value == null) null
     else {
@@ -89,65 +93,33 @@ class EitherCodec[A, B](left: TypeCodec[A], right: TypeCodec[B]) extends TypeCod
   )
 
   override def format(value: Either[A, B]): String =
-    if (value == null) "NULL"
+    if (value == null) NULL
     else {
       value.fold(
-        l => s"(${left.format(l)},NULL)",
-        r => s"(NULL,${right.format(r)})"
+        l => s"${openingChar}${left.format(l)}${separator}${NULL}${closingChar}",
+        r => s"${openingChar}${NULL}${separator}${right.format(r)}${closingChar}"
       )
     }
 
   override def parse(value: String): Either[A, B] =
-    if (value == null || value.isEmpty || value.equalsIgnoreCase("NULL")) {
+    if (value == null || value.isEmpty || value.equalsIgnoreCase(NULL)) {
       null.asInstanceOf[Either[A, B]]
     } else {
-      var idx = ParseUtils.skipSpaces(value, 0)
-
-      if (idx >= value.length) {
-        throw new IllegalArgumentException(
-          s"Cannot parse either value from '$value', expecting '(', but got EOF"
-        )
-      } else if (value.charAt(idx) != '(') {
-        throw new IllegalArgumentException(
-          s"Cannot parse either value from '$value', at character $idx expecting '(' but got '${value
-              .charAt(idx)}''"
-        )
-      }
-      idx = ParseUtils.skipSpaces(value, idx + 1)
+      var idx = skipSpacesAndExpect(value, 0, openingChar)
 
       val leftEndIdx    = ParseUtils.skipCQLValue(value, idx)
       val leftSubstring = value.substring(idx, leftEndIdx)
       val leftValue =
-        if (leftSubstring.equalsIgnoreCase("NULL"))
+        if (leftSubstring.equalsIgnoreCase(NULL))
           null.asInstanceOf[A] // need to do this due to `AnyVal` types not returning null
         else left.parse(leftSubstring)
 
-      idx = ParseUtils.skipSpaces(value, leftEndIdx)
-      if (idx >= value.length) {
-        throw new IllegalArgumentException(
-          s"Cannot parse either value from '$value', expecting ',', but got EOF"
-        )
-      } else if (value.charAt(idx) != ',') {
-        throw new IllegalArgumentException(
-          s"Cannot parse either value from '$value', at character $idx expecting ',' but got '${value
-              .charAt(idx)}'"
-        )
-      }
-      idx = ParseUtils.skipSpaces(value, idx + 1)
+      idx = skipSpacesAndExpect(value, leftEndIdx, separator)
 
       val rightEndIdx = ParseUtils.skipCQLValue(value, idx)
       val rightValue  = right.parse(value.substring(idx, rightEndIdx))
 
-      idx = ParseUtils.skipSpaces(value, rightEndIdx)
-      if (idx >= value.length) {
-        throw new IllegalArgumentException(
-          s"Cannot parse either value from '$value', expecting ')', but got EOF"
-        )
-      } else if (value.charAt(idx) != ')') {
-        throw new IllegalArgumentException(
-          s"Malformed either value '$value', expected closing ')' but got '${value.charAt(idx)}'"
-        )
-      }
+      idx = skipSpacesAndExpect(value, rightEndIdx, closingChar)
 
       if (leftValue != null) Left(leftValue) else Right(rightValue)
     }

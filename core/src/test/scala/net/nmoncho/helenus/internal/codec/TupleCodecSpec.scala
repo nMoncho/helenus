@@ -66,7 +66,8 @@ class TupleCodecSpec extends AnyWordSpec with Matchers with CodecSpecBase[(Strin
 
     "parse" in {
       parse("") shouldBe null
-      parse("NULL") shouldBe null
+      parse(NULL) shouldBe null
+      parse(NULL.toLowerCase()) shouldBe null
       parse(null).asInstanceOf[AnyRef] shouldBe null
 
       parse("('foo','bar')") shouldBe "foo" -> "bar"
