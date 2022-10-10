@@ -32,9 +32,9 @@ import java.util.concurrent.TimeUnit
 @BenchmarkMode(Array(Mode.AverageTime))
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
 @State(Scope.Thread)
-@Warmup(iterations = 5, time = 200, timeUnit = TimeUnit.MILLISECONDS)
-@Measurement(iterations = 5, time = 200, timeUnit = TimeUnit.MILLISECONDS)
-@Fork(1)
+@Warmup(iterations = 20, time = 200, timeUnit = TimeUnit.MILLISECONDS)
+@Measurement(iterations = 20, time = 200, timeUnit = TimeUnit.MILLISECONDS)
+@Fork(3)
 class FloatCodecBenchMark {
 
   // format: off
@@ -52,14 +52,20 @@ class FloatCodecBenchMark {
   def prepare(): Unit = input = Math.random().toFloat
 
   @Benchmark
-  def baseline(): Unit = {
+  def baseline(blackHole: Blackhole): Unit = {
     Blackhole.consumeCPU(tokens)
-    dseCodec.decode(dseCodec.encode(input, ProtocolVersion.DEFAULT), ProtocolVersion.DEFAULT)
+
+    blackHole.consume(
+      dseCodec.decode(dseCodec.encode(input, ProtocolVersion.DEFAULT), ProtocolVersion.DEFAULT)
+    )
   }
 
   @Benchmark
-  def bench(): Unit = {
+  def bench(blackHole: Blackhole): Unit = {
     Blackhole.consumeCPU(tokens)
-    FloatCodec.decode(FloatCodec.encode(input, ProtocolVersion.DEFAULT), ProtocolVersion.DEFAULT)
+
+    blackHole.consume(
+      FloatCodec.decode(FloatCodec.encode(input, ProtocolVersion.DEFAULT), ProtocolVersion.DEFAULT)
+    )
   }
 }

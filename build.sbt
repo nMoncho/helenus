@@ -115,6 +115,7 @@ lazy val bench = project
   .settings(
     publish / skip := true,
     libraryDependencies ++= Seq(
-      "com.datastax.oss" % "java-driver-core" % "4.14.1"
+      "com.datastax.oss" % "java-driver-core" % "4.14.1",
+      "org.mockito"      % "mockito-core"     % "4.6.1"
     )
   )

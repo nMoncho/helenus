@@ -11,7 +11,7 @@ avoid introducing a complex API.
 Include the library into you project definition:
 
 ```scala
-libraryDependencies += "net.nmoncho" %% "helenus-core" % "0.1.1"
+libraryDependencies += "net.nmoncho" %% "helenus-core" % "0.1.1+4-5406c1dd+20221010-1034-SNAPSHOT"
 ```
 
 ## Features
@@ -48,10 +48,10 @@ import net.nmoncho.helenus._
 
 // Insert here your CqlSession
 val cqlSession: CqlSession = DocsHelper.cqlSession
-// cqlSession: CqlSession = com.datastax.oss.driver.internal.core.session.DefaultSession@517adb35
+// cqlSession: CqlSession = com.datastax.oss.driver.internal.core.session.DefaultSession@72a5f535
 
 implicit val session: CqlSessionExtension = cqlSession.toScala
-// session: CqlSessionExtension = net.nmoncho.helenus.package$ClqSessionOps$$anon$1@2648f3d0
+// session: CqlSessionExtension = net.nmoncho.helenus.package$ClqSessionOps$$anon$1@78fd38cc
 ```
 
 ### Querying (CQL Templating)
@@ -67,7 +67,7 @@ val age = 18
 // age: Int = 18
 
 cql"SELECT * FROM population_by_country WHERE country = $countryId AND age > $age".execute()
-// res0: ResultSet = com.datastax.oss.driver.internal.core.cql.SinglePageResultSet@5ebceaf6
+// res0: ResultSet = com.datastax.oss.driver.internal.core.cql.SinglePageResultSet@64bf6ad2
 ```
 
 An asychronous version is also available using `asyncCql`.
@@ -83,11 +83,11 @@ You can also query Cassandra with some extension methods, where we treat queries
 val query = "SELECT * FROM population_by_country WHERE country = ? AND age = ?"
    .toCQL
    .prepare[String, Int]
-// query: internal.cql.ScalaPreparedStatement[(String, Int)] = net.nmoncho.helenus.internal.cql.ScalaPreparedStatement@6313319d
+// query: internal.cql.ScalaPreparedStatement[(String, Int)] = net.nmoncho.helenus.internal.cql.ScalaPreparedStatement@26c628a
 
 // Notice there is no boxing required for `Int`
 query(countryId, age).execute()
-// res1: ResultSet = com.datastax.oss.driver.internal.core.cql.SinglePageResultSet@6367a282
+// res1: ResultSet = com.datastax.oss.driver.internal.core.cql.SinglePageResultSet@25e82ca5
 ```
 
 ### Codecs
@@ -96,13 +96,13 @@ You can summon codecs with:
 
 ```scala
 val anIntCodec = Codec[Int]
-// anIntCodec: com.datastax.oss.driver.api.core.type.codec.TypeCodec[Int] = net.nmoncho.helenus.internal.codec.IntCodec$@468cd9c6
+// anIntCodec: com.datastax.oss.driver.api.core.type.codec.TypeCodec[Int] = net.nmoncho.helenus.internal.codec.IntCodec$@37a74688
 val aTupleCodec = Codec[(String, Long)]
 // aTupleCodec: com.datastax.oss.driver.api.core.type.codec.TypeCodec[(String, Long)] = TupleCodec[(TEXT, BIGINT)]
 
 // Either are encoded as tuples
 val anEitherCodec = Codec[Either[String, java.util.UUID]] 
-// anEitherCodec: com.datastax.oss.driver.api.core.type.codec.TypeCodec[Either[String, java.util.UUID]] = net.nmoncho.helenus.internal.codec.EitherCodec@53b3904
+// anEitherCodec: com.datastax.oss.driver.api.core.type.codec.TypeCodec[Either[String, java.util.UUID]] = net.nmoncho.helenus.internal.codec.EitherCodec@49c80cf6
 ```
 
 #### UDT Codecs

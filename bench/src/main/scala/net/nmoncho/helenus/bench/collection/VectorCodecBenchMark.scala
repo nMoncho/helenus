@@ -19,15 +19,17 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package net.nmoncho.helenus.bench
+package net.nmoncho.helenus.bench.collection
 
 import com.datastax.oss.driver.api.core.ProtocolVersion
-import com.datastax.oss.driver.internal.core.`type`.codec.{ SmallIntCodec => DseShortCodec }
-import net.nmoncho.helenus.internal.codec.ShortCodec
+import com.datastax.oss.driver.api.core.`type`.codec.{ TypeCodecs => DseTypeCodecs }
+import net.nmoncho.helenus.api.`type`.codec.TypeCodecs
 import org.openjdk.jmh.annotations._
 import org.openjdk.jmh.infra.Blackhole
 
+import java.util
 import java.util.concurrent.TimeUnit
+import scala.util.Random
 
 @BenchmarkMode(Array(Mode.AverageTime))
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
@@ -35,7 +37,7 @@ import java.util.concurrent.TimeUnit
 @Warmup(iterations = 20, time = 200, timeUnit = TimeUnit.MILLISECONDS)
 @Measurement(iterations = 20, time = 200, timeUnit = TimeUnit.MILLISECONDS)
 @Fork(3)
-class ShortCodecBenchMark {
+class VectorCodecBenchMark {
 
   // format: off
   @Param(Array(
@@ -45,18 +47,29 @@ class ShortCodecBenchMark {
   private var tokens = 0
   // format: on
 
-  private var input: Short = 0
-  private val dseCodec     = new DseShortCodec()
+  private val rnd                                         = new Random(0)
+  private var dseInput: util.ArrayList[java.lang.Integer] = _
+  private var input: Vector[Int]                          = _
+  private val dseCodec                                    = DseTypeCodecs.listOf(DseTypeCodecs.INT)
+  private val codec                                       = TypeCodecs.vectorOf(TypeCodecs.intCodec)
 
   @Setup
-  def prepare(): Unit = input = Math.random().toShort
+  def prepare(): Unit = {
+    dseInput = new util.ArrayList[java.lang.Integer]()
+    input    = Vector()
+    for (_ <- 0 until (tokens + 1)) {
+      val item = rnd.nextInt()
+      dseInput.add(item)
+      input = input :+ item
+    }
+  }
 
   @Benchmark
   def baseline(blackHole: Blackhole): Unit = {
     Blackhole.consumeCPU(tokens)
 
     blackHole.consume(
-      dseCodec.decode(dseCodec.encode(input, ProtocolVersion.DEFAULT), ProtocolVersion.DEFAULT)
+      dseCodec.decode(dseCodec.encode(dseInput, ProtocolVersion.DEFAULT), ProtocolVersion.DEFAULT)
     )
   }
 
@@ -65,7 +78,7 @@ class ShortCodecBenchMark {
     Blackhole.consumeCPU(tokens)
 
     blackHole.consume(
-      ShortCodec.decode(ShortCodec.encode(input, ProtocolVersion.DEFAULT), ProtocolVersion.DEFAULT)
+      codec.decode(codec.encode(input, ProtocolVersion.DEFAULT), ProtocolVersion.DEFAULT)
     )
   }
 }
