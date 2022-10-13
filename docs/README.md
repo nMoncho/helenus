@@ -1,5 +1,7 @@
 # Helenus
 
+![main status](https://github.com/nMoncho/helenus/actions/workflows/main.yaml/badge.svg)
+
 Helenus is collection of Scala utilities for Apache Cassandra. Its goal is to
 make interacting with Cassandra easier, in a type-safe manner, while trying to
 avoid introducing a complex API.
