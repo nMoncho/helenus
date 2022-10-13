@@ -37,14 +37,6 @@ import java.util.concurrent.TimeUnit
 @Fork(3)
 class ShortCodecBenchMark {
 
-  // format: off
-  @Param(Array(
-    "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20",
-    "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39",
-    "40"))
-  private var tokens = 0
-  // format: on
-
   private var input: Short = 0
   private val dseCodec     = new DseShortCodec()
 
@@ -52,20 +44,14 @@ class ShortCodecBenchMark {
   def prepare(): Unit = input = Math.random().toShort
 
   @Benchmark
-  def baseline(blackHole: Blackhole): Unit = {
-    Blackhole.consumeCPU(tokens)
-
+  def baseline(blackHole: Blackhole): Unit =
     blackHole.consume(
       dseCodec.decode(dseCodec.encode(input, ProtocolVersion.DEFAULT), ProtocolVersion.DEFAULT)
     )
-  }
 
   @Benchmark
-  def bench(blackHole: Blackhole): Unit = {
-    Blackhole.consumeCPU(tokens)
-
+  def bench(blackHole: Blackhole): Unit =
     blackHole.consume(
       ShortCodec.decode(ShortCodec.encode(input, ProtocolVersion.DEFAULT), ProtocolVersion.DEFAULT)
     )
-  }
 }

@@ -63,16 +63,23 @@ abstract class IterableCodec[T, M[T] <: Iterable[T]](
   override def encode(value: M[T], protocolVersion: ProtocolVersion): ByteBuffer =
     if (value == null) null
     else {
-      val (buffers, size, count) = value.foldLeft((Vector.empty[ByteBuffer], 0, 0)) {
-        case ((buffers, totalSize, count), item) =>
-          if (item == null) {
-            throw new IllegalArgumentException("Collection elements cannot be null")
-          }
+      // using mutable local state yield performance closer to DSE Java Driver
+      var count   = 0
+      var size    = 0
+      val buffers = mutable.ListBuffer[ByteBuffer]()
+      for (item <- value) {
+        if (item == null) {
+          throw new IllegalArgumentException("Collection elements cannot be null")
+        }
 
-          val element = inner.encode(item, protocolVersion)
-          val size    = if (element == null) 4 else 4 + element.remaining()
+        val element = inner.encode(item, protocolVersion)
+        if (element == null) {
+          throw new NullPointerException("Collection elements cannot encode to CQL NULL")
+        }
 
-          (buffers :+ element, totalSize + size, count + 1)
+        buffers.append(element)
+        size += (if (element == null) 4 else 4 + element.remaining())
+        count += 1
       }
 
       val result = ByteBuffer.allocate(4 + size)

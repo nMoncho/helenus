@@ -65,20 +65,14 @@ class VectorCodecBenchMark {
   }
 
   @Benchmark
-  def baseline(blackHole: Blackhole): Unit = {
-    Blackhole.consumeCPU(tokens)
-
+  def baseline(blackHole: Blackhole): Unit =
     blackHole.consume(
       dseCodec.decode(dseCodec.encode(dseInput, ProtocolVersion.DEFAULT), ProtocolVersion.DEFAULT)
     )
-  }
 
   @Benchmark
-  def bench(blackHole: Blackhole): Unit = {
-    Blackhole.consumeCPU(tokens)
-
+  def bench(blackHole: Blackhole): Unit =
     blackHole.consume(
       codec.decode(codec.encode(input, ProtocolVersion.DEFAULT), ProtocolVersion.DEFAULT)
     )
-  }
 }

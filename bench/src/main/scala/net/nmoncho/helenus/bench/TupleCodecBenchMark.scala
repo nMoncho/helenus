@@ -29,7 +29,6 @@ import com.datastax.oss.driver.api.core.`type`.codec.registry.CodecRegistry
 import com.datastax.oss.driver.api.core.data.TupleValue
 import com.datastax.oss.driver.api.core.detach.AttachmentPoint
 import com.datastax.oss.driver.internal.core.`type`.DefaultTupleType
-import net.nmoncho.helenus.internal.codec.ByteCodec
 import org.openjdk.jmh.annotations._
 import org.openjdk.jmh.infra.Blackhole
 
@@ -65,14 +64,6 @@ class TupleCodecBenchMark {
   // Called by format/parse
   when(codecRegistry.codecFor[java.lang.Integer](DataTypes.INT)).thenReturn(TypeCodecs.INT)
 
-  // format: off
-  @Param(Array(
-    "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20",
-    "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39",
-    "40"))
-  private var tokens = 0
-  // format: on
-
   type Input = (Int, Int, Int, Int, Int)
 
   private val rnd                  = new Random(0)
@@ -99,8 +90,6 @@ class TupleCodecBenchMark {
 
   @Benchmark
   def baseline(blackHole: Blackhole): Unit = {
-    Blackhole.consumeCPU(tokens)
-
     dseInput = tupleType
       .newValue()
       .setInt(0, _1)
@@ -115,11 +104,8 @@ class TupleCodecBenchMark {
   }
 
   @Benchmark
-  def bench(blackHole: Blackhole): Unit = {
-    Blackhole.consumeCPU(tokens)
-
+  def bench(blackHole: Blackhole): Unit =
     blackHole.consume(
       codec.decode(codec.encode(input, ProtocolVersion.DEFAULT), ProtocolVersion.DEFAULT)
     )
-  }
 }

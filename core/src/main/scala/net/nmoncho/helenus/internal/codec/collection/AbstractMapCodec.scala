@@ -50,23 +50,28 @@ abstract class AbstractMapCodec[K, V, M[K, V] <: Map[K, V]](
   override def encode(value: M[K, V], protocolVersion: ProtocolVersion): ByteBuffer =
     if (value == null) null
     else {
-      val (buffers, size) = value.foldLeft((Vector.empty[ByteBuffer], 4)) {
-        case ((buffers, totalSize), (key, value)) =>
-          if (key == null) {
-            throw new IllegalArgumentException("Map keys cannot be null")
-          }
-          if (value == null) {
-            throw new IllegalArgumentException("Map values cannot be null")
-          }
+      var size    = 4
+      val buffers = mutable.ListBuffer[ByteBuffer]()
+      for ((k, v) <- value) {
+        if (k == null) {
+          throw new IllegalArgumentException("Map keys cannot be null")
+        }
+        if (v == null) {
+          throw new IllegalArgumentException("Map values cannot be null")
+        }
 
-          val encodedKey   = keyInner.encode(key, protocolVersion)
-          val encodedValue = valueInner.encode(value, protocolVersion)
-          val size         = (4 + encodedKey.remaining()) + (4 + encodedValue.remaining())
+        val encodedKey   = keyInner.encode(k, protocolVersion)
+        val encodedValue = valueInner.encode(v, protocolVersion)
 
-          (
-            buffers :+ encodedKey :+ encodedValue,
-            totalSize + size
-          )
+        if (encodedKey == null) {
+          throw new NullPointerException("Map keys cannot encode to CQL NULL")
+        } else if (encodedValue == null) {
+          throw new NullPointerException("Map values cannot encode to CQL NULL")
+        }
+
+        size += (4 + encodedKey.remaining()) + (4 + encodedValue.remaining())
+        buffers.append(encodedKey)
+        buffers.append(encodedValue)
       }
 
       val result = ByteBuffer.allocate(size)
