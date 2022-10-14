@@ -1,13 +1,9 @@
 # Helenus Benchmarks
 
 ## Running
-To run the micro-benchmarks, use:
+To run the micro-benchmarks, use the script `run-benchmarks.sh`.
 
-```bash
-sbt bench/jmh:run -rf json
-```
-
-And to run a specific benchmark (e.g. `ListCodecBenchMark`), use:
+To run a specific benchmark (e.g. `ListCodecBenchMark`), use:
 ```bash
 sbt 'bench/jmh:run -rf json .*ListCodecBenchMark'
 ```

@@ -41,7 +41,7 @@ import scala.util.Random
 @Warmup(iterations = 20, time = 200, timeUnit = TimeUnit.MILLISECONDS)
 @Measurement(iterations = 20, time = 200, timeUnit = TimeUnit.MILLISECONDS)
 @Fork(3)
-class TupleCodecBenchMark {
+class TupleCodecBenchmark {
 
   import org.mockito.Mockito._
 

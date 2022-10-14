@@ -37,7 +37,7 @@ import scala.util.Random
 @Warmup(iterations = 20, time = 200, timeUnit = TimeUnit.MILLISECONDS)
 @Measurement(iterations = 20, time = 200, timeUnit = TimeUnit.MILLISECONDS)
 @Fork(3)
-class VectorCodecBenchMark {
+class VectorCodecBenchmark {
 
   // format: off
   @Param(Array(

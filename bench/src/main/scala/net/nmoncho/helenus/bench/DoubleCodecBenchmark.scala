@@ -22,8 +22,8 @@
 package net.nmoncho.helenus.bench
 
 import com.datastax.oss.driver.api.core.ProtocolVersion
-import com.datastax.oss.driver.internal.core.`type`.codec.{ IntCodec => DseIntCodec }
-import net.nmoncho.helenus.internal.codec.IntCodec
+import com.datastax.oss.driver.internal.core.`type`.codec.{ DoubleCodec => DseDoubleCodec }
+import net.nmoncho.helenus.internal.codec.DoubleCodec
 import org.openjdk.jmh.annotations._
 import org.openjdk.jmh.infra.Blackhole
 
@@ -35,13 +35,13 @@ import java.util.concurrent.TimeUnit
 @Warmup(iterations = 20, time = 200, timeUnit = TimeUnit.MILLISECONDS)
 @Measurement(iterations = 20, time = 200, timeUnit = TimeUnit.MILLISECONDS)
 @Fork(3)
-class IntCodecBenchMark {
+class DoubleCodecBenchmark {
 
-  private var input: Int = 0
-  private val dseCodec   = new DseIntCodec()
+  private var input: Double = 0
+  private val dseCodec      = new DseDoubleCodec()
 
   @Setup
-  def prepare(): Unit = input = Math.random().toInt
+  def prepare(): Unit = input = Math.random()
 
   @Benchmark
   def baseline(blackHole: Blackhole): Unit =
@@ -52,6 +52,9 @@ class IntCodecBenchMark {
   @Benchmark
   def bench(blackHole: Blackhole): Unit =
     blackHole.consume(
-      IntCodec.decode(IntCodec.encode(input, ProtocolVersion.DEFAULT), ProtocolVersion.DEFAULT)
+      DoubleCodec.decode(
+        DoubleCodec.encode(input, ProtocolVersion.DEFAULT),
+        ProtocolVersion.DEFAULT
+      )
     )
 }

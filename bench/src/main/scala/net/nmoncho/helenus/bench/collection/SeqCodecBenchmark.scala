@@ -37,7 +37,7 @@ import scala.util.Random
 @Warmup(iterations = 20, time = 200, timeUnit = TimeUnit.MILLISECONDS)
 @Measurement(iterations = 20, time = 200, timeUnit = TimeUnit.MILLISECONDS)
 @Fork(3)
-class SetCodecBenchMark {
+class SeqCodecBenchmark {
 
   // format: off
   @Param(Array(
@@ -47,20 +47,20 @@ class SetCodecBenchMark {
   private var tokens = 0
   // format: on
 
-  private val rnd                                       = new Random(0)
-  private var dseInput: util.HashSet[java.lang.Integer] = _
-  private var input: Set[Int]                           = _
-  private val dseCodec                                  = DseTypeCodecs.setOf(DseTypeCodecs.INT)
-  private val codec                                     = TypeCodecs.setOf(TypeCodecs.intCodec)
+  private val rnd                                          = new Random(0)
+  private var dseInput: util.LinkedList[java.lang.Integer] = _
+  private var input: Seq[Int]                              = _
+  private val dseCodec                                     = DseTypeCodecs.listOf(DseTypeCodecs.INT)
+  private val codec                                        = TypeCodecs.seqOf(TypeCodecs.intCodec)
 
   @Setup
   def prepare(): Unit = {
-    dseInput = new util.HashSet[java.lang.Integer]()
-    input    = Set()
+    dseInput = new util.LinkedList[java.lang.Integer]()
+    input    = Seq()
     for (_ <- 0 until (tokens + 1)) {
       val item = rnd.nextInt()
-      dseInput.add(item)
-      input = input + item
+      dseInput.addFirst(item)
+      input = item +: input
     }
   }
 
