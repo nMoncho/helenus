@@ -28,7 +28,7 @@ import com.datastax.oss.driver.api.core.`type`.{ DataType, UserDefinedType }
 import com.datastax.oss.driver.api.core.data.UdtValue
 import com.datastax.oss.driver.internal.core.`type`.DefaultUserDefinedType
 import com.datastax.oss.driver.internal.core.`type`.codec.{ UdtCodec => DseUdtCodec }
-import net.nmoncho.helenus.api.`type`.codec.Udt
+import net.nmoncho.helenus.api.`type`.codec.{ ColumnMapper, DefaultColumnMapper, Udt }
 import shapeless.labelled.FieldType
 import shapeless.syntax.singleton.mkSingletonOps
 
@@ -50,7 +50,8 @@ trait UdtCodecDerivation {
 
   implicit def udtOf[T <: Product with Serializable: ClassTag](
       implicit udtCodec: UdtCodec[T],
-      annotation: Annotation[Udt, T]
+      annotation: Annotation[Udt, T],
+      columnMapper: ColumnMapper = DefaultColumnMapper
   ): TypeCodec[T] = {
     import scala.jdk.CollectionConverters._
 
@@ -92,57 +93,51 @@ trait UdtCodecDerivation {
 
   implicit def lastUdtElementCodec[K <: Symbol, H](
       implicit codec: TypeCodec[H],
-      witness: Witness.Aux[K]
+      witness: Witness.Aux[K],
+      columnMapper: ColumnMapper = DefaultColumnMapper
   ): UdtCodec[FieldType[K, H] :: HNil] =
     new UdtCodec[FieldType[K, H] :: HNil] {
-      println(codec.getCqlType)
+      private val column = columnMapper.map(witness.value.name)
 
       private[UdtCodecDerivation] val definitions: Seq[(String, DataType)] = Seq(
-        witness.value.name -> codec.getCqlType
+        column -> codec.getCqlType
       )
 
-      override def innerToOuter(value: UdtValue): FieldType[K, H] :: HNil = {
-        val name = witness.value.name
+      override def innerToOuter(value: UdtValue): FieldType[K, H] :: HNil =
+        (witness.value ->> value.get(column, codec)).asInstanceOf[FieldType[K, H]] :: HNil
 
-        (witness.value ->> value.get(name, codec)).asInstanceOf[FieldType[K, H]] :: HNil
-      }
-
-      override def outerToInner(udt: UdtValue, value: FieldType[K, H] :: HNil): UdtValue = {
-        val name = witness.value.name
-        udt.set(name, value.head, codec)
-      }
+      override def outerToInner(udt: UdtValue, value: FieldType[K, H] :: HNil): UdtValue =
+        udt.set(column, value.head, codec)
     }
 
   implicit def hListUdtCodec[K <: Symbol, H, T <: HList](
       implicit codec: TypeCodec[H],
       witness: Witness.Aux[K],
-      udtCodec1: UdtCodec[T]
+      udtCodec1: UdtCodec[T],
+      columnMapper: ColumnMapper = DefaultColumnMapper
   ): UdtCodec[FieldType[K, H] :: T] =
     new UdtCodec[FieldType[K, H] :: T] {
 
-      println(codec.getCqlType)
+      private val column = columnMapper.map(witness.value.name)
 
       private[UdtCodecDerivation] val definitions: Seq[(String, DataType)] =
-        Seq(witness.value.name -> codec.getCqlType) ++ udtCodec1.definitions
+        Seq(column -> codec.getCqlType) ++ udtCodec1.definitions
 
-      override def innerToOuter(value: UdtValue): FieldType[K, H] :: T = {
-        val name = witness.value.name
-        (witness.value ->> value.get(name, codec))
+      override def innerToOuter(value: UdtValue): FieldType[K, H] :: T =
+        (witness.value ->> value.get(column, codec))
           .asInstanceOf[FieldType[K, H]] :: udtCodec1.innerToOuter(value)
-      }
 
-      override def outerToInner(udt: UdtValue, value: FieldType[K, H] :: T): UdtValue = {
-        val name = witness.value.name
+      override def outerToInner(udt: UdtValue, value: FieldType[K, H] :: T): UdtValue =
         udtCodec1.outerToInner(
-          udt.set(name, value.head, codec),
+          udt.set(column, value.head, codec),
           value.tail
         )
-      }
     }
 
   implicit def genericUdtCodec[A <: Product with Serializable, R](
       implicit generic: LabelledGeneric.Aux[A, R],
-      codec: UdtCodec[R]
+      codec: UdtCodec[R],
+      columnMapper: ColumnMapper = DefaultColumnMapper
   ): UdtCodec[A] = new UdtCodec[A] {
 
     private[UdtCodecDerivation] val definitions: Seq[(String, DataType)] = codec.definitions

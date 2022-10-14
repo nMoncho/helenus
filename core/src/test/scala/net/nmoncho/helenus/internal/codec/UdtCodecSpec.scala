@@ -24,7 +24,7 @@ package internal.codec
 
 import com.datastax.oss.driver.api.core.ProtocolVersion
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
-import net.nmoncho.helenus.api.`type`.codec.{ TimeUuid, Udt }
+import net.nmoncho.helenus.api.`type`.codec.{ ColumnMapper, SnakeCase, TimeUuid, Udt }
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
@@ -76,6 +76,8 @@ object UdtCodecSpec {
 
 class CassandraUdtCodecSpec extends AnyWordSpec with Matchers with CassandraSpec {
 
+  implicit val colMapper: ColumnMapper = SnakeCase
+
   @Udt("tests", "ice_cream")
   case class IceCream(name: String, numCherries: Int, cone: Boolean)
 
@@ -106,7 +108,7 @@ class CassandraUdtCodecSpec extends AnyWordSpec with Matchers with CassandraSpec
   override def beforeAll(): Unit = {
     super.beforeAll()
     session.execute(
-      "CREATE TYPE IF NOT EXISTS ice_cream (name TEXT, numCherries INT, cone BOOLEAN)"
+      "CREATE TYPE IF NOT EXISTS ice_cream (name TEXT, num_cherries INT, cone BOOLEAN)"
     )
     session.execute("""CREATE TABLE IF NOT EXISTS udt_table(
         |   id      UUID,
