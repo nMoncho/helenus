@@ -1,6 +1,7 @@
 # Helenus
 
 ![main status](https://github.com/nMoncho/helenus/actions/workflows/main.yaml/badge.svg)
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/net.nmoncho/helenus-code_2.13/badge.svg)](https://maven-badges.herokuapp.com/maven-central/net.nmoncho/helenus-code_2.13)
 
 Helenus is collection of Scala utilities for Apache Cassandra. Its goal is to
 make interacting with Cassandra easier, in a type-safe manner, while trying to
@@ -50,10 +51,10 @@ import net.nmoncho.helenus._
 
 // Insert here your CqlSession
 val cqlSession: CqlSession = DocsHelper.cqlSession
-// cqlSession: CqlSession = com.datastax.oss.driver.internal.core.session.DefaultSession@7e790dc6
+// cqlSession: CqlSession = com.datastax.oss.driver.internal.core.session.DefaultSession@34a4c993
 
 implicit val session: CqlSessionExtension = cqlSession.toScala
-// session: CqlSessionExtension = net.nmoncho.helenus.package$ClqSessionOps$$anon$1@6848e4d0
+// session: CqlSessionExtension = net.nmoncho.helenus.package$ClqSessionOps$$anon$1@55a1f265
 ```
 
 ### Querying (CQL Templating)
@@ -69,7 +70,7 @@ val age = 18
 // age: Int = 18
 
 cql"SELECT * FROM population_by_country WHERE country = $countryId AND age > $age".execute()
-// res0: ResultSet = com.datastax.oss.driver.internal.core.cql.SinglePageResultSet@10e7cc2e
+// res0: ResultSet = com.datastax.oss.driver.internal.core.cql.SinglePageResultSet@3b918978
 ```
 
 An asychronous version is also available using `asyncCql`.
@@ -85,11 +86,11 @@ You can also query Cassandra with some extension methods, where we treat queries
 val query = "SELECT * FROM population_by_country WHERE country = ? AND age = ?"
    .toCQL
    .prepare[String, Int]
-// query: internal.cql.ScalaPreparedStatement[(String, Int)] = net.nmoncho.helenus.internal.cql.ScalaPreparedStatement@6b28212d
+// query: internal.cql.ScalaPreparedStatement[(String, Int)] = net.nmoncho.helenus.internal.cql.ScalaPreparedStatement@41e671cd
 
 // Notice there is no boxing required for `Int`
 query(countryId, age).execute()
-// res1: ResultSet = com.datastax.oss.driver.internal.core.cql.SinglePageResultSet@19236af7
+// res1: ResultSet = com.datastax.oss.driver.internal.core.cql.SinglePageResultSet@34d3dd10
 ```
 
 ### Codecs
@@ -98,13 +99,13 @@ You can summon codecs with:
 
 ```scala
 val anIntCodec = Codec[Int]
-// anIntCodec: com.datastax.oss.driver.api.core.type.codec.TypeCodec[Int] = net.nmoncho.helenus.internal.codec.IntCodec$@1d02a68a
+// anIntCodec: com.datastax.oss.driver.api.core.type.codec.TypeCodec[Int] = net.nmoncho.helenus.internal.codec.IntCodec$@4ac40b64
 val aTupleCodec = Codec[(String, Long)]
 // aTupleCodec: com.datastax.oss.driver.api.core.type.codec.TypeCodec[(String, Long)] = TupleCodec[(TEXT, BIGINT)]
 
 // Either are encoded as tuples
 val anEitherCodec = Codec[Either[String, java.util.UUID]] 
-// anEitherCodec: com.datastax.oss.driver.api.core.type.codec.TypeCodec[Either[String, java.util.UUID]] = net.nmoncho.helenus.internal.codec.EitherCodec@19a1e1b9
+// anEitherCodec: com.datastax.oss.driver.api.core.type.codec.TypeCodec[Either[String, java.util.UUID]] = net.nmoncho.helenus.internal.codec.EitherCodec@f33ff6c
 ```
 
 #### UDT Codecs
@@ -118,9 +119,6 @@ import net.nmoncho.helenus.api.`type`.codec.Udt
 case class IceCream(name: String, numCherries: Int, cone: Boolean)
 
 val iceCreamCodec = Codec[IceCream] // or Codec.udtOf[IceCream]
-// BOOLEAN
-// INT
-// TEXT
 // iceCreamCodec: com.datastax.oss.driver.api.core.type.codec.TypeCodec[IceCream] = UtdCodec[IceCream]
 ```
 
