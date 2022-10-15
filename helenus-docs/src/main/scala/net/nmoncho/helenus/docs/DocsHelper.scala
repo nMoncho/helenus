@@ -47,6 +47,9 @@ object DocsHelper {
          |  PRIMARY KEY (country, age)
          |) WITH CLUSTERING ORDER BY (age ASC)""".stripMargin
     )
+    session.execute(
+      "CREATE TYPE IF NOT EXISTS ice_cream (name TEXT, num_cherries INT, cone BOOLEAN)"
+    )
   }
 
   def cqlSession: CqlSession = this.synchronized {

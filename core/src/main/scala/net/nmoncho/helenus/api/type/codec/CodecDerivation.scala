@@ -21,6 +21,7 @@
 
 package net.nmoncho.helenus.api.`type`.codec
 
+import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import net.nmoncho.helenus.internal.codec.{ TupleCodecDerivation, UdtCodecDerivation }
 import shapeless.{ Annotation, IsTuple, Witness }
@@ -105,10 +106,15 @@ trait CodecDerivation extends TupleCodecDerivation with UdtCodecDerivation { tha
 
   object Codec {
 
-    def udtOf[T <: Product with Serializable: ClassTag](
-        implicit udtCodec: UdtCodec[T],
-        annotation: Annotation[Udt, T]
+    def udtOf[T <: Product with Serializable: ClassTag: UdtCodec](
+        implicit annotation: Annotation[Udt, T],
+        columnMapper: ColumnMapper = DefaultColumnMapper
     ): TypeCodec[T] = that.udtOf[T]
+
+    def udtFrom[T <: Product with Serializable: ClassTag: UdtCodec](session: CqlSession)(
+        implicit annotation: Annotation[Udt, T],
+        columnMapper: ColumnMapper = DefaultColumnMapper
+    ): TypeCodec[T] = that.udtFrom[T](session)
 
     def tupleOf[T: IsTuple](implicit tupleCodec: TupleCodec[T]): TypeCodec[T] =
       that.tupleOf[T]

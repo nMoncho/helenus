@@ -14,7 +14,7 @@ avoid introducing a complex API.
 Include the library into you project definition:
 
 ```scala
-libraryDependencies += "net.nmoncho" %% "helenus-core" % "0.1.1"
+libraryDependencies += "net.nmoncho" %% "helenus-core" % "0.1.1+11-5e34334a+20221015-1945-SNAPSHOT"
 ```
 
 ## Features
@@ -51,10 +51,10 @@ import net.nmoncho.helenus._
 
 // Insert here your CqlSession
 val cqlSession: CqlSession = DocsHelper.cqlSession
-// cqlSession: CqlSession = com.datastax.oss.driver.internal.core.session.DefaultSession@34a4c993
+// cqlSession: CqlSession = com.datastax.oss.driver.internal.core.session.DefaultSession@6bae4907
 
 implicit val session: CqlSessionExtension = cqlSession.toScala
-// session: CqlSessionExtension = net.nmoncho.helenus.package$ClqSessionOps$$anon$1@55a1f265
+// session: CqlSessionExtension = net.nmoncho.helenus.package$ClqSessionOps$$anon$1@7d1442f1
 ```
 
 ### Querying (CQL Templating)
@@ -70,7 +70,7 @@ val age = 18
 // age: Int = 18
 
 cql"SELECT * FROM population_by_country WHERE country = $countryId AND age > $age".execute()
-// res0: ResultSet = com.datastax.oss.driver.internal.core.cql.SinglePageResultSet@3b918978
+// res0: ResultSet = com.datastax.oss.driver.internal.core.cql.SinglePageResultSet@3df0b4c6
 ```
 
 An asychronous version is also available using `asyncCql`.
@@ -86,11 +86,11 @@ You can also query Cassandra with some extension methods, where we treat queries
 val query = "SELECT * FROM population_by_country WHERE country = ? AND age = ?"
    .toCQL
    .prepare[String, Int]
-// query: internal.cql.ScalaPreparedStatement[(String, Int)] = net.nmoncho.helenus.internal.cql.ScalaPreparedStatement@41e671cd
+// query: internal.cql.ScalaPreparedStatement[(String, Int)] = net.nmoncho.helenus.internal.cql.ScalaPreparedStatement@523ac424
 
 // Notice there is no boxing required for `Int`
 query(countryId, age).execute()
-// res1: ResultSet = com.datastax.oss.driver.internal.core.cql.SinglePageResultSet@34d3dd10
+// res1: ResultSet = com.datastax.oss.driver.internal.core.cql.SinglePageResultSet@533a96a9
 ```
 
 ### Codecs
@@ -99,18 +99,19 @@ You can summon codecs with:
 
 ```scala
 val anIntCodec = Codec[Int]
-// anIntCodec: com.datastax.oss.driver.api.core.type.codec.TypeCodec[Int] = net.nmoncho.helenus.internal.codec.IntCodec$@4ac40b64
+// anIntCodec: com.datastax.oss.driver.api.core.type.codec.TypeCodec[Int] = net.nmoncho.helenus.internal.codec.IntCodec$@552769f7
 val aTupleCodec = Codec[(String, Long)]
 // aTupleCodec: com.datastax.oss.driver.api.core.type.codec.TypeCodec[(String, Long)] = TupleCodec[(TEXT, BIGINT)]
 
 // Either are encoded as tuples
 val anEitherCodec = Codec[Either[String, java.util.UUID]] 
-// anEitherCodec: com.datastax.oss.driver.api.core.type.codec.TypeCodec[Either[String, java.util.UUID]] = net.nmoncho.helenus.internal.codec.EitherCodec@f33ff6c
+// anEitherCodec: com.datastax.oss.driver.api.core.type.codec.TypeCodec[Either[String, java.util.UUID]] = net.nmoncho.helenus.internal.codec.EitherCodec@69564378
 ```
 
 #### UDT Codecs
 
-UDTs can be encoded as Case Classes, using the `@Udt` annotation:
+UDTs can be encoded as Case Classes, using the `@Udt` annotation. For a UDT defined as
+`CREATE TYPE docs.ice_cream(name TEXT, num_cherries INT, cone BOOLEAN)` we can obtain its `TypeCodec` as:
 
 ```scala
 import net.nmoncho.helenus.api.`type`.codec.Udt
@@ -120,6 +121,32 @@ case class IceCream(name: String, numCherries: Int, cone: Boolean)
 
 val iceCreamCodec = Codec[IceCream] // or Codec.udtOf[IceCream]
 // iceCreamCodec: com.datastax.oss.driver.api.core.type.codec.TypeCodec[IceCream] = UtdCodec[IceCream]
+```
+
+This automatic derivation relies on the CQL type having the same field order as the case class (ie. in this case names
+aren't  important,  just their types and order). If for some reason, you can't have the same order in both, consider using:
+
+```scala
+@Udt("docs", "ice_cream")
+case class IceCreamShuffled(cone: Boolean, name: String, num_cherries: Int)
+
+val iceCreamCodecShuffled = Codec.udtFrom[IceCreamShuffled](cqlSession)
+// iceCreamCodecShuffled: com.datastax.oss.driver.api.core.type.codec.TypeCodec[IceCreamShuffled] = UtdCodec[IceCreamShuffled]
+```
+
+In this case a `CqlSession` is used to fetch the CQL UDT definition.
+
+Here names _are_ important, since they are used to find the order of a field in the CQL definition. If the case class
+follows CamelCase naming, but the UDT follows SnakeCase, you can map these fields with `ColumnMapper`:
+
+```scala
+@Udt("docs", "ice_cream")
+case class IceCreamShuffledCC(cone: Boolean, name: String, numCherries: Int)
+
+import net.nmoncho.helenus.api.`type`.codec.{ ColumnMapper, SnakeCase }
+
+implicit val snakeCase: ColumnMapper = SnakeCase
+val iceCreamCodecShuffledCC = Codec.udtFrom[IceCreamShuffledCC](cqlSession)
 ```
 
 ### Enumeration Codecs

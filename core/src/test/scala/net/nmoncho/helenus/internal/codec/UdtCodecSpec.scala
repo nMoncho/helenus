@@ -24,6 +24,7 @@ package internal.codec
 
 import com.datastax.oss.driver.api.core.ProtocolVersion
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
+import com.datastax.oss.driver.api.core.cql.Row
 import net.nmoncho.helenus.api.`type`.codec.{ ColumnMapper, SnakeCase, TimeUuid, Udt }
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
@@ -76,33 +77,76 @@ object UdtCodecSpec {
 
 class CassandraUdtCodecSpec extends AnyWordSpec with Matchers with CassandraSpec {
 
-  implicit val colMapper: ColumnMapper = SnakeCase
+  "UdtCodec" should {
+    "work with Cassandra" in {
+      val id = UUID.randomUUID()
+      query(id) shouldBe empty
+
+      val ice = IceCream("Vanilla", 2, cone = false)
+      insert(id, ice, IceCream.codec)
+
+      val Some(row) = query(id)
+      row.get("ice", IceCream.codec) shouldBe ice
+    }
+
+    "work when fields are in different order" in {
+      val id = UUID.randomUUID()
+      query(id) shouldBe empty
+
+      val ice = IceCreamShuffled(2, cone = false, "Vanilla")
+      insert(id, ice, IceCreamShuffled.codec)
+
+      val Some(row) = query(id)
+      row.get("ice", IceCreamShuffled.codec) shouldBe ice
+    }
+
+    "fail on invalid mapping" in {
+      val ice = IceCreamInvalid(2, cone = false, "Vanilla")
+      val exception = intercept[IllegalArgumentException](
+        insert(UUID.randomUUID(), ice, IceCreamInvalid.codec)
+      )
+
+      exception.getMessage should include("cherries_number is not a field in this UDT")
+    }
+  }
+
+  private def query(id: UUID): Option[Row] = {
+    val rs = session.execute(s"SELECT * from udt_table WHERE id = $id")
+    Option(rs.one())
+  }
+
+  private def insert[T](id: UUID, ice: T, codec: TypeCodec[T]): Unit = {
+    val pstmt = session.prepare(s"INSERT INTO udt_table(id, ice) VALUES (?, ?)")
+    val bstmt = pstmt
+      .bind()
+      .set(0, id, uuidCodec)
+      .set(1, ice, codec)
+    session.execute(bstmt)
+  }
 
   @Udt("tests", "ice_cream")
   case class IceCream(name: String, numCherries: Int, cone: Boolean)
 
-  "UdtCodec" should {
-    "work with Cassandra" in {
-      val codec = Codec[IceCream]
+  object IceCream {
+    implicit val codec: TypeCodec[IceCream] = Codec.udtOf[IceCream]
+  }
 
-      val id = UUID.randomUUID()
-      val rs = session.execute(s"SELECT * from udt_table WHERE id = $id")
-      rs.one() shouldBe null
+  @Udt("tests", "ice_cream")
+  case class IceCreamShuffled(numCherries: Int, cone: Boolean, name: String)
 
-      val ice   = IceCream("Vanilla", 2, cone = false)
-      val pstmt = session.prepare(s"INSERT INTO udt_table(id, ice) VALUES (?, ?)")
-      val bstmt = pstmt
-        .bind()
-        .set(0, id, uuidCodec)
-        .set(1, ice, codec)
-      val _ = session.execute(bstmt)
+  object IceCreamShuffled {
+    implicit val colMapper: ColumnMapper = SnakeCase
 
-      val rsWithData = session.execute(s"SELECT ice from udt_table WHERE id = $id")
-      val row        = rsWithData.one()
-      row should not be null
+    implicit val codec: TypeCodec[IceCreamShuffled] = Codec.udtFrom[IceCreamShuffled](session)
+  }
 
-      row.get(0, codec) shouldBe ice
-    }
+  @Udt("tests", "ice_cream")
+  case class IceCreamInvalid(cherriesNumber: Int, cone: Boolean, name: String)
+
+  object IceCreamInvalid {
+    implicit val colMapper: ColumnMapper = SnakeCase
+
+    implicit val codec: TypeCodec[IceCreamInvalid] = Codec.udtFrom[IceCreamInvalid](session)
   }
 
   override def beforeAll(): Unit = {

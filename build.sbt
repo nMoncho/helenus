@@ -7,6 +7,11 @@ addCommandAlias(
   "; clean ; coverage; test; coverageAggregate; coverageReport; coverageOff"
 )
 
+addCommandAlias(
+  "styleFix",
+  "; scalafmtSbt; scalafmtAll; headerCreateAll"
+)
+
 lazy val root = project
   .in(file("."))
   .settings(basicSettings)
@@ -55,6 +60,7 @@ def crossSetting[A](
 lazy val docs = project
   .in(file("helenus-docs"))
   .enablePlugins(MdocPlugin)
+  .disablePlugins(ScoverageSbtPlugin)
   .settings(basicSettings)
   .settings(
     publish / skip := true,
@@ -111,6 +117,7 @@ lazy val core = project
 lazy val bench = project
   .settings(basicSettings)
   .enablePlugins(JmhPlugin)
+  .disablePlugins(ScoverageSbtPlugin)
   .dependsOn(core)
   .settings(
     publish / skip := true,

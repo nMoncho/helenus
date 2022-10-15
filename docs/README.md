@@ -100,7 +100,8 @@ val anEitherCodec = Codec[Either[String, java.util.UUID]]
 
 #### UDT Codecs
 
-UDTs can be encoded as Case Classes, using the `@Udt` annotation:
+UDTs can be encoded as Case Classes, using the `@Udt` annotation. For a UDT defined as
+`CREATE TYPE docs.ice_cream(name TEXT, num_cherries INT, cone BOOLEAN)` we can obtain its `TypeCodec` as:
 
 ```scala mdoc
 import net.nmoncho.helenus.api.`type`.codec.Udt
@@ -109,6 +110,31 @@ import net.nmoncho.helenus.api.`type`.codec.Udt
 case class IceCream(name: String, numCherries: Int, cone: Boolean)
 
 val iceCreamCodec = Codec[IceCream] // or Codec.udtOf[IceCream]
+```
+
+This automatic derivation relies on the CQL type having the same field order as the case class (ie. in this case names
+aren't  important,  just their types and order). If for some reason, you can't have the same order in both, consider using:
+
+```scala mdoc
+@Udt("docs", "ice_cream")
+case class IceCreamShuffled(cone: Boolean, name: String, num_cherries: Int)
+
+val iceCreamCodecShuffled = Codec.udtFrom[IceCreamShuffled](cqlSession)
+```
+
+In this case a `CqlSession` is used to fetch the CQL UDT definition.
+
+Here names _are_ important, since they are used to find the order of a field in the CQL definition. If the case class
+follows CamelCase naming, but the UDT follows SnakeCase, you can map these fields with `ColumnMapper`:
+
+```scala
+@Udt("docs", "ice_cream")
+case class IceCreamShuffledCC(cone: Boolean, name: String, numCherries: Int)
+
+import net.nmoncho.helenus.api.`type`.codec.{ ColumnMapper, SnakeCase }
+
+implicit val snakeCase: ColumnMapper = SnakeCase
+val iceCreamCodecShuffledCC = Codec.udtFrom[IceCreamShuffledCC](cqlSession)
 ```
 
 ### Enumeration Codecs
