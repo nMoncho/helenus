@@ -82,7 +82,7 @@ lazy val core = project
     libraryDependencies ++= Seq(
       "com.datastax.oss"        % "java-driver-core"        % "4.14.1"  % Provided,
       "org.scala-lang.modules" %% "scala-collection-compat" % "2.8.1",
-      "com.chuusai"            %% "shapeless"               % "2.3.9",
+      "com.chuusai"            %% "shapeless"               % "2.3.10",
       "org.scalatest"          %% "scalatest"               % "3.2.14"  % Test,
       "org.scalacheck"         %% "scalacheck"              % "1.17.0"  % Test,
       "org.cassandraunit"       % "cassandra-unit"          % "4.3.1.0" % Test,
