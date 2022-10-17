@@ -69,7 +69,7 @@ lazy val docs = project
     ),
     mdocOut := file("."),
     libraryDependencies ++= Seq(
-      "com.datastax.oss"  % "java-driver-core" % "4.14.1",
+      "com.datastax.oss"  % "java-driver-core" % "4.15.0",
       "org.cassandraunit" % "cassandra-unit"   % "4.3.1.0"
     )
   )
@@ -80,7 +80,7 @@ lazy val core = project
   .settings(
     name := "helenus-core",
     libraryDependencies ++= Seq(
-      "com.datastax.oss"        % "java-driver-core"        % "4.14.1"  % Provided,
+      "com.datastax.oss"        % "java-driver-core"        % "4.15.0"  % Provided,
       "org.scala-lang.modules" %% "scala-collection-compat" % "2.8.1",
       "com.chuusai"            %% "shapeless"               % "2.3.10",
       "org.scalatest"          %% "scalatest"               % "3.2.14"  % Test,
@@ -125,7 +125,7 @@ lazy val bench = project
   .settings(
     publish / skip := true,
     libraryDependencies ++= Seq(
-      "com.datastax.oss" % "java-driver-core" % "4.14.1",
+      "com.datastax.oss" % "java-driver-core" % "4.15.0",
       "org.mockito"      % "mockito-core"     % "4.6.1"
     )
   )
