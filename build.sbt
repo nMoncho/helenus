@@ -84,10 +84,10 @@ lazy val core = project
       "org.scala-lang"          % "scala-reflect"           % "2.13.8",
       "org.scala-lang.modules" %% "scala-collection-compat" % "2.8.0",
       "com.chuusai"            %% "shapeless"               % "2.3.9",
-      "org.scalatest"          %% "scalatest"               % "3.2.12"  % Test,
-      "org.scalacheck"         %% "scalacheck"              % "1.16.0"  % Test,
+      "org.scalatest"          %% "scalatest"               % "3.2.14"  % Test,
+      "org.scalacheck"         %% "scalacheck"              % "1.17.0"  % Test,
       "org.cassandraunit"       % "cassandra-unit"          % "4.3.1.0" % Test,
-      "org.mockito"             % "mockito-core"            % "4.6.1"   % Test,
+      "org.mockito"             % "mockito-core"            % "4.8.0"   % Test,
       "net.java.dev.jna"        % "jna"                     % "5.12.1"  % Test // Fixes M1 JNA issue
     ),
     scalacOptions ++= crossSetting(
