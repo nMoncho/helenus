@@ -1,5 +1,5 @@
-lazy val scala213               = "2.13.8"
-lazy val scala212               = "2.12.16"
+lazy val scala213               = "2.13.10"
+lazy val scala212               = "2.12.17"
 lazy val supportedScalaVersions = List(scala213, scala212)
 
 addCommandAlias(
@@ -81,8 +81,7 @@ lazy val core = project
     name := "helenus-core",
     libraryDependencies ++= Seq(
       "com.datastax.oss"        % "java-driver-core"        % "4.14.1"  % Provided,
-      "org.scala-lang"          % "scala-reflect"           % "2.13.8",
-      "org.scala-lang.modules" %% "scala-collection-compat" % "2.8.0",
+      "org.scala-lang.modules" %% "scala-collection-compat" % "2.8.1",
       "com.chuusai"            %% "shapeless"               % "2.3.9",
       "org.scalatest"          %% "scalatest"               % "3.2.14"  % Test,
       "org.scalacheck"         %% "scalacheck"              % "1.17.0"  % Test,
@@ -106,8 +105,12 @@ lazy val core = project
     },
     libraryDependencies ++= crossSetting(
       scalaVersion.value,
+      if213AndAbove = List(
+        "org.scala-lang" % "scala-reflect" % "2.13.10"
+      ),
       if212AndBelow = List(
-        "org.scala-lang.modules" %% "scala-java8-compat" % "0.9.1"
+        "org.scala-lang.modules" %% "scala-java8-compat" % "1.0.2",
+        "org.scala-lang"          % "scala-reflect"      % "2.12.17"
       )
     ),
     coverageMinimum := 85,
