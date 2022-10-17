@@ -1,6 +1,32 @@
-lazy val scala213               = "2.13.10"
-lazy val scala212               = "2.12.17"
-lazy val supportedScalaVersions = List(scala213, scala212)
+lazy val dependencies = new {
+  object Version {
+    val scala213 = "2.13.10"
+    val scala212 = "2.12.17"
+
+    val cassandraUnit         = "4.3.1.0"
+    val dseJavaDriver         = "4.15.0"
+    val scalaCollectionCompat = "2.8.1"
+    val scalaJava8Compat      = "1.0.2"
+    val shapeless             = "2.3.10"
+
+    // Test Dependencies
+    val mockito    = "4.8.0"
+    val scalaCheck = "1.17.0"
+    val scalaTest  = "3.2.14"
+  }
+
+  val cassandraUnit = "org.cassandraunit" % "cassandra-unit"   % Version.cassandraUnit
+  val dseJavaDriver = "com.datastax.oss"  % "java-driver-core" % Version.dseJavaDriver
+  val scalaReflect  = "org.scala-lang"    % "scala-reflect" // This is Scala version dependent
+  val scalaCollectionCompat =
+    "org.scala-lang.modules" %% "scala-collection-compat" % Version.scalaCollectionCompat
+  val scalaJava8Compat = "org.scala-lang.modules" %% "scala-java8-compat" % Version.scalaJava8Compat
+  val shapeless        = "com.chuusai"            %% "shapeless"          % Version.shapeless
+
+  val mockito    = "org.mockito"     % "mockito-core" % Version.mockito
+  val scalaCheck = "org.scalacheck" %% "scalacheck"   % Version.scalaCheck
+  val scalaTest  = "org.scalatest"  %% "scalatest"    % Version.scalaTest
+}
 
 addCommandAlias(
   "testCoverage",
@@ -37,8 +63,8 @@ lazy val basicSettings = Seq(
       url("https://github.com/nMoncho")
     )
   ),
-  scalaVersion := scala213,
-  crossScalaVersions := supportedScalaVersions,
+  scalaVersion := dependencies.Version.scala213,
+  crossScalaVersions := List(dependencies.Version.scala213, dependencies.Version.scala212),
   scalacOptions := (Opts.compile.encoding("UTF-8") :+
     Opts.compile.deprecation :+
     Opts.compile.unchecked :+
@@ -69,8 +95,8 @@ lazy val docs = project
     ),
     mdocOut := file("."),
     libraryDependencies ++= Seq(
-      "com.datastax.oss"  % "java-driver-core" % "4.15.0",
-      "org.cassandraunit" % "cassandra-unit"   % "4.3.1.0"
+      dependencies.dseJavaDriver,
+      dependencies.cassandraUnit
     )
   )
   .dependsOn(core)
@@ -80,14 +106,15 @@ lazy val core = project
   .settings(
     name := "helenus-core",
     libraryDependencies ++= Seq(
-      "com.datastax.oss"        % "java-driver-core"        % "4.15.0"  % Provided,
-      "org.scala-lang.modules" %% "scala-collection-compat" % "2.8.1",
-      "com.chuusai"            %% "shapeless"               % "2.3.10",
-      "org.scalatest"          %% "scalatest"               % "3.2.14"  % Test,
-      "org.scalacheck"         %% "scalacheck"              % "1.17.0"  % Test,
-      "org.cassandraunit"       % "cassandra-unit"          % "4.3.1.0" % Test,
-      "org.mockito"             % "mockito-core"            % "4.8.0"   % Test,
-      "net.java.dev.jna"        % "jna"                     % "5.12.1"  % Test // Fixes M1 JNA issue
+      dependencies.dseJavaDriver % Provided,
+      dependencies.scalaCollectionCompat,
+      dependencies.shapeless,
+      // Test Dependencies
+      dependencies.cassandraUnit % Test,
+      dependencies.mockito       % Test,
+      dependencies.scalaCheck    % Test,
+      dependencies.scalaTest     % Test,
+      "net.java.dev.jna"         % "jna" % "5.12.1" % Test // Fixes M1 JNA issue
     ),
     scalacOptions ++= crossSetting(
       scalaVersion.value,
@@ -106,11 +133,11 @@ lazy val core = project
     libraryDependencies ++= crossSetting(
       scalaVersion.value,
       if213AndAbove = List(
-        "org.scala-lang" % "scala-reflect" % "2.13.10"
+        dependencies.scalaReflect % dependencies.Version.scala213
       ),
       if212AndBelow = List(
-        "org.scala-lang.modules" %% "scala-java8-compat" % "1.0.2",
-        "org.scala-lang"          % "scala-reflect"      % "2.12.17"
+        dependencies.scalaJava8Compat,
+        dependencies.scalaReflect % dependencies.Version.scala212
       )
     ),
     coverageMinimum := 85,
@@ -125,7 +152,7 @@ lazy val bench = project
   .settings(
     publish / skip := true,
     libraryDependencies ++= Seq(
-      "com.datastax.oss" % "java-driver-core" % "4.15.0",
-      "org.mockito"      % "mockito-core"     % "4.6.1"
+      dependencies.dseJavaDriver,
+      dependencies.mockito
     )
   )
