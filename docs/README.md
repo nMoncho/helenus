@@ -1,7 +1,8 @@
 # Helenus
 
 ![main status](https://github.com/nMoncho/helenus/actions/workflows/main.yaml/badge.svg)
-[![Maven Central](https://maven-badges.herokuapp.com/maven-central/net.nmoncho/helenus-code_2.13/badge.svg)](https://maven-badges.herokuapp.com/maven-central/net.nmoncho/helenus-code_2.13)
+[![Maven Central 2.12](https://maven-badges.herokuapp.com/maven-central/net.nmoncho/helenus-core_2.12/badge.svg)](https://maven-badges.herokuapp.com/maven-central/net.nmoncho/helenus-core_2.12)
+[![Maven Central 2.13](https://maven-badges.herokuapp.com/maven-central/net.nmoncho/helenus-core_2.13/badge.svg)](https://maven-badges.herokuapp.com/maven-central/net.nmoncho/helenus-core_2.13)
 
 Helenus is collection of Scala utilities for Apache Cassandra. Its goal is to
 make interacting with Cassandra easier, in a type-safe manner, while trying to
