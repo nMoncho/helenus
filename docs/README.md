@@ -78,12 +78,32 @@ the table name `population_by_country`)
 You can also query Cassandra with some extension methods, where we treat queries as functions:
 
 ```scala mdoc
-val query = "SELECT * FROM population_by_country WHERE country = ? AND age = ?"
+val query = "SELECT * FROM population_by_country WHERE country = ? AND age >= ?"
    .toCQL
    .prepare[String, Int]
 
 // Notice there is no boxing required for `Int`
-query(countryId, age).execute()
+val rs = query(countryId, age).execute()
+```
+
+### Getting Results (a.k.a. _mapping rows_)
+
+After executing a query, you can obtain its result:
+
+```scala mdoc
+val rows = rs.as[(String, Int, Int)].to(List)
+```
+
+If your projection has more than one field, it must be treated as a tuple, otherwise you can use `.to[T]`:
+
+```scala mdoc
+"SELECT amount FROM population_by_country WHERE country = ? AND age >= ?"
+   .toCQL
+   .prepare[String, Int]
+   .apply(countryId, age)
+   .execute()
+   .as[Int]  // Here we get a single field
+   .to(Set)
 ```
 
 ### Codecs

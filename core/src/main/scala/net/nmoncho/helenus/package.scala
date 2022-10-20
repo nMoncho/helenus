@@ -21,10 +21,9 @@
 
 package net.nmoncho
 
-import com.datastax.oss.driver.api.core.CqlSession
-import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.cql.{ AsyncResultSet, BoundStatement, ResultSet }
-import net.nmoncho.helenus.api.`type`.codec.CodecDerivation
+import com.datastax.oss.driver.api.core.{ CqlSession, PagingIterable }
+import net.nmoncho.helenus.api.`type`.codec.{ CodecDerivation, RowMapper }
 import net.nmoncho.helenus.internal._
 import net.nmoncho.helenus.internal.cql.ParameterValue
 import net.nmoncho.helenus.internal.cql.ScalaPreparedStatement.CQLQuery
@@ -116,5 +115,43 @@ package object helenus extends CodecDerivation {
         query,
         session.session
       )
+  }
+
+  implicit class ResultSetOps(private val rs: ResultSet) extends AnyVal {
+    def as[T](implicit mapper: RowMapper[T]): PagingIterable[T] = rs.map(mapper.apply)
+  }
+
+  /** Extension methods for [[PagingIterable]]
+    *
+    * Mostly how to transform this Cassandra iterable into a more Scala idiomatic structure.
+    */
+  implicit class PagingIterableOps[T](private val pi: PagingIterable[T]) extends AnyVal {
+    import scala.collection.compat._
+
+    /** First potential element of this iterable
+      */
+    def headOption: Option[T] = Option(pi.one())
+
+    /** This [[PagingIterable]] as a Scala [[Iterator]]
+      */
+    def iter: Iterator[T] = {
+      import scala.jdk.CollectionConverters._
+
+      pi.iterator().asScala
+    }
+
+    /** This [[PagingIterable]] as a Scala Collection
+      *
+      * Example
+      * {{{
+      *   import scala.collection.compat._ // Only for Scala 2.12
+      *
+      *   pagingIterable.to(List)
+      *   pagingIterable.to(Set)
+      * }}}
+      */
+    def to[Col[_]](factory: Factory[T, Col[T]])(
+        implicit cbf: BuildFrom[Nothing, T, Col[T]]
+    ): Col[T] = iter.to(factory)
   }
 }

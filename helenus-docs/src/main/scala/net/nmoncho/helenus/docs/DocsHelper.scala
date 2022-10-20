@@ -44,8 +44,15 @@ object DocsHelper {
       s"""CREATE TABLE population_by_country(
          |  country TEXT,
          |  age INT,
+         |  amount INT,
          |  PRIMARY KEY (country, age)
          |) WITH CLUSTERING ORDER BY (age ASC)""".stripMargin
+    )
+    session.execute(
+      "INSERT INTO population_by_country(country, age, amount) VALUES ('nl', 18, 1000)"
+    )
+    session.execute(
+      "INSERT INTO population_by_country(country, age, amount) VALUES ('nl', 21, 900)"
     )
     session.execute(
       "CREATE TYPE IF NOT EXISTS ice_cream (name TEXT, num_cherries INT, cone BOOLEAN)"

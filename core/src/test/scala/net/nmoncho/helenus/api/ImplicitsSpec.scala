@@ -79,6 +79,49 @@ class ImplicitsSpec extends AnyWordSpec with Matchers with CassandraSpec with Sc
         }
       }
     }
+
+    "map rows" in {
+      val uuid = UUID.randomUUID()
+      val name = "foo"
+      val age  = 42
+
+      val query = "SELECT * FROM implicits_tests WHERE id = ?".toCQL
+        .prepare[UUID]
+      val insert = "INSERT INTO implicits_tests(id, age, name) VALUES (?, ?, ?)".toCQL
+        .prepare[UUID, Int, String]
+
+      query(uuid).execute().headOption shouldBe empty
+      insert(uuid, age, name).execute()
+      query(uuid).execute().headOption should not be empty
+
+      withClue("deriving a single column") {
+        "SELECT id FROM implicits_tests WHERE id = ?".toCQL
+          .prepare[UUID]
+          .apply(uuid)
+          .execute()
+          .as[UUID]
+          .headOption shouldBe Some(uuid)
+      }
+
+      withClue("deriving tuples") {
+        "SELECT name, id FROM implicits_tests WHERE id = ?".toCQL
+          .prepare[UUID]
+          .apply(uuid)
+          .execute()
+          .as[(String, UUID)]
+          .headOption shouldBe Some(name -> uuid)
+
+        val result = "SELECT name, id, age FROM implicits_tests WHERE id = ?".toCQL
+          .prepare[UUID]
+          .apply(uuid)
+          .execute()
+          .as[(String, UUID, Int)]
+
+        import scala.collection.compat._ // this import is needed for Scala 2.12, don't remove
+
+        result.to(List) shouldBe List((name, uuid, age))
+      }
+    }
   }
 
   override def beforeAll(): Unit = {
