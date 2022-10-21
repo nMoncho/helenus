@@ -37,6 +37,8 @@ trait RowMapper[T] {
 
 object RowMapper {
 
+  val identity: RowMapper[Row] = (row: Row) => row
+
   sealed trait DerivedRowMapper[T] {
     def apply(idx: Int, row: Row): T
   }

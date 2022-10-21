@@ -83,28 +83,33 @@ val query = "SELECT * FROM population_by_country WHERE country = ? AND age >= ?"
    .prepare[String, Int]
 
 // Notice there is no boxing required for `Int`
-val rs = query(countryId, age).execute()
+val resultSet = query(countryId, age).execute()
 ```
 
-### Getting Results (a.k.a. _mapping rows_)
+Every call to invocation `query` returns a `BoundStatement` that can be executed at a later time. _Why don't we execute
+the statement during application?_ We think that this will lead to better integration with other libraries that use
+statements, like Alpakka.
 
 After executing a query, you can obtain its result:
 
 ```scala mdoc
-val rows = rs.as[(String, Int, Int)].to(List)
+val rows = resultSet.as[(String, Int, Int)].to(List)
 ```
 
-If your projection has more than one field, it must be treated as a tuple, otherwise you can use `.to[T]`:
+If you don't require any integration, and want to do everything in less steps, it's also possible to use the `as` in
+the prepared statement:
 
 ```scala mdoc
-"SELECT amount FROM population_by_country WHERE country = ? AND age >= ?"
+"SELECT * FROM population_by_country WHERE country = ? AND age >= ?"
    .toCQL
    .prepare[String, Int]
-   .apply(countryId, age)
-   .execute()
-   .as[Int]  // Here we get a single field
-   .to(Set)
+   .as[(String, Int, Int)]
+   .execute(countryId, age) // invoke goes here now!
+   .to(List)
 ```
+
+Notice that we don't provide query parameters to `apply` here, but use `execute` instead.
+
 
 ### Codecs
 

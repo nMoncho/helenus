@@ -24,9 +24,11 @@ package net.nmoncho.helenus.internal.cql
 import com.datastax.oss.driver.api.core.cql.{
   BoundStatement,
   BoundStatementBuilder,
-  PreparedStatement
+  PreparedStatement,
+  Row
 }
 import com.datastax.oss.driver.internal.core.cql.EmptyColumnDefinitions
+import net.nmoncho.helenus.api.`type`.codec.RowMapper
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import org.mockito.Mockito._
@@ -76,10 +78,14 @@ class ScalaPreparedStatementSpec extends AnyWordSpec with Matchers {
     }
   }
 
-  private def mockScalaPstmt[U]: (ScalaPreparedStatement[U], PreparedStatement) = {
+  private def mockScalaPstmt[U]: (ScalaPreparedStatement[U, Row], PreparedStatement) = {
     val pstmt = mockPstmt
 
-    new ScalaPreparedStatement[U]((u: U) => mock(classOf[BoundStatement]), pstmt) -> pstmt
+    new ScalaPreparedStatement[U, Row](
+      (u: U) => mock(classOf[BoundStatement]),
+      RowMapper.identity,
+      pstmt
+    ) -> pstmt
   }
 
   private def mockPstmt: PreparedStatement = {

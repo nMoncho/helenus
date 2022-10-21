@@ -22,6 +22,7 @@
 package net.nmoncho.helenus.api
 
 import net.nmoncho.helenus.CassandraSpec
+import net.nmoncho.helenus.internal.cql.ScalaPreparedStatement
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{ Seconds, Span }
@@ -121,6 +122,22 @@ class ImplicitsSpec extends AnyWordSpec with Matchers with CassandraSpec with Sc
 
         result.to(List) shouldBe List((name, uuid, age))
       }
+    }
+
+    "adapt rows" in {
+      val uuid = UUID.randomUUID()
+      val name = "foo"
+      val age  = 42
+
+      val query = "SELECT * FROM implicits_tests WHERE id = ?".toCQL
+        .prepare[UUID]
+        .as[(UUID, Int, String)]
+      val insert = "INSERT INTO implicits_tests(id, age, name) VALUES (?, ?, ?)".toCQL
+        .prepare[UUID, Int, String]
+
+      query.execute(uuid).headOption shouldBe empty
+      insert(uuid, age, name).execute()
+      query.execute(uuid).headOption shouldBe Some((uuid, age, name))
     }
   }
 
