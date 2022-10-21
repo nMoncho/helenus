@@ -14,7 +14,7 @@ avoid introducing a complex API.
 Include the library into you project definition:
 
 ```scala
-libraryDependencies += "net.nmoncho" %% "helenus-core" % "0.2.1"
+libraryDependencies += "net.nmoncho" %% "helenus-core" % "0.3.0"
 ```
 
 ## Features
@@ -51,10 +51,10 @@ import net.nmoncho.helenus._
 
 // Insert here your CqlSession
 val cqlSession: CqlSession = DocsHelper.cqlSession
-// cqlSession: CqlSession = com.datastax.oss.driver.internal.core.session.DefaultSession@686a4c7b
+// cqlSession: CqlSession = com.datastax.oss.driver.internal.core.session.DefaultSession@31f6535
 
 implicit val session: CqlSessionExtension = cqlSession.toScala
-// session: CqlSessionExtension = net.nmoncho.helenus.package$ClqSessionOps$$anon$1@7ecc0a31
+// session: CqlSessionExtension = net.nmoncho.helenus.package$ClqSessionOps$$anon$1@59a4cad9
 ```
 
 ### Querying (CQL Templating)
@@ -70,7 +70,7 @@ val age = 18
 // age: Int = 18
 
 cql"SELECT * FROM population_by_country WHERE country = $countryId AND age > $age".execute()
-// res0: ResultSet = com.datastax.oss.driver.internal.core.cql.SinglePageResultSet@6a6ca614
+// res0: ResultSet = com.datastax.oss.driver.internal.core.cql.SinglePageResultSet@22ee863d
 ```
 
 An asychronous version is also available using `asyncCql`.
@@ -83,15 +83,42 @@ the table name `population_by_country`)
 You can also query Cassandra with some extension methods, where we treat queries as functions:
 
 ```scala
-val query = "SELECT * FROM population_by_country WHERE country = ? AND age = ?"
+val query = "SELECT * FROM population_by_country WHERE country = ? AND age >= ?"
    .toCQL
    .prepare[String, Int]
-// query: internal.cql.ScalaPreparedStatement[(String, Int)] = net.nmoncho.helenus.internal.cql.ScalaPreparedStatement@7340cc1e
+// query: internal.cql.ScalaPreparedStatement[(String, Int), Row] = net.nmoncho.helenus.internal.cql.ScalaPreparedStatement@2776102c
 
 // Notice there is no boxing required for `Int`
-query(countryId, age).execute()
-// res1: ResultSet = com.datastax.oss.driver.internal.core.cql.SinglePageResultSet@5feb447c
+val resultSet = query(countryId, age).execute()
+// resultSet: ResultSet = com.datastax.oss.driver.internal.core.cql.SinglePageResultSet@43ae2827
 ```
+
+Every call to invocation `query` returns a `BoundStatement` that can be executed at a later time. _Why don't we execute
+the statement during application?_ We think that this will lead to better integration with other libraries that use
+statements, like Alpakka.
+
+After executing a query, you can obtain its result:
+
+```scala
+val rows = resultSet.as[(String, Int, Int)].to(List)
+// rows: List[(String, Int, Int)] = List(("nl", 18, 1000), ("nl", 21, 900))
+```
+
+If you don't require any integration, and want to do everything in less steps, it's also possible to use the `as` in
+the prepared statement:
+
+```scala
+"SELECT * FROM population_by_country WHERE country = ? AND age >= ?"
+   .toCQL
+   .prepare[String, Int]
+   .as[(String, Int, Int)]
+   .execute(countryId, age) // invoke goes here now!
+   .to(List)
+// res1: List[(String, Int, Int)] = List(("nl", 18, 1000), ("nl", 21, 900))
+```
+
+Notice that we don't provide query parameters to `apply` here, but use `execute` instead.
+
 
 ### Codecs
 
@@ -99,13 +126,13 @@ You can summon codecs with:
 
 ```scala
 val anIntCodec = Codec[Int]
-// anIntCodec: com.datastax.oss.driver.api.core.type.codec.TypeCodec[Int] = net.nmoncho.helenus.internal.codec.IntCodec$@55c1b23d
+// anIntCodec: com.datastax.oss.driver.api.core.type.codec.TypeCodec[Int] = net.nmoncho.helenus.internal.codec.IntCodec$@421a8f31
 val aTupleCodec = Codec[(String, Long)]
 // aTupleCodec: com.datastax.oss.driver.api.core.type.codec.TypeCodec[(String, Long)] = TupleCodec[(TEXT, BIGINT)]
 
 // Either are encoded as tuples
 val anEitherCodec = Codec[Either[String, java.util.UUID]] 
-// anEitherCodec: com.datastax.oss.driver.api.core.type.codec.TypeCodec[Either[String, java.util.UUID]] = net.nmoncho.helenus.internal.codec.EitherCodec@2fc7e5f7
+// anEitherCodec: com.datastax.oss.driver.api.core.type.codec.TypeCodec[Either[String, java.util.UUID]] = net.nmoncho.helenus.internal.codec.EitherCodec@35ce228a
 ```
 
 #### UDT Codecs
