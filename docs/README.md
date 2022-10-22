@@ -36,32 +36,31 @@ As of this version, Helenus supports the following types:
 - Enumerations: Can be encoded by name or by order. See [Enumeration Codecs](#enumeration-codecs).
 - Tuples: Encoded as regular Cassandra tuples
 - Case Classes: Encoded as regular Cassandra UDTs
-- Others: `Option`, and `Either`.
+- Others: `Option`, and `Either` (encoded as a tuple).
 
 
 ## Usage
 
-Import the necessary packages and classes. Also mark your as an implicit value `CqlSession`:
+To begin using Helenus, import its package object `import net.nmoncho.helenus._`, and extend
+your `CqlSession` with `.toScala`:
 
 ```scala mdoc
 import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.cql._
 import net.nmoncho.helenus.docs._ // This import is not required, it's here to run MDoc
-import net.nmoncho.helenus._
 
 // Insert here your CqlSession
 val cqlSession: CqlSession = DocsHelper.cqlSession
 
+import net.nmoncho.helenus._
 implicit val session: CqlSessionExtension = cqlSession.toScala
 ```
 
 ### Querying (CQL Templating)
 
-You can query Cassandra like you were using [String Interpolation](https://docs.scala-lang.org/overviews/core/string-interpolation.html):
+You can query like you were using [String Interpolation](https://docs.scala-lang.org/overviews/core/string-interpolation.html):
 
 ```scala mdoc
-import net.nmoncho.helenus._
-
 val countryId = "nl"
 val age = 18
 
@@ -73,9 +72,11 @@ An asychronous version is also available using `asyncCql`.
 **NOTE**: CQL template doesn't support interpolating non-bound bound query arguments _yet_ (e.g. you can't interpolate
 the table name `population_by_country`)
 
+**NOTE 2**: This way of querying may be slow, improvements on the way!
+
 ### Querying (Extension method)
 
-You can also query Cassandra with some extension methods, where we treat queries as functions:
+You can also query with some extension methods, treating queries as functions:
 
 ```scala mdoc
 val query = "SELECT * FROM population_by_country WHERE country = ? AND age >= ?"
@@ -83,20 +84,24 @@ val query = "SELECT * FROM population_by_country WHERE country = ? AND age >= ?"
    .prepare[String, Int]
 
 // Notice there is no boxing required for `Int`
-val resultSet = query(countryId, age).execute()
+val olderThan18 = query("nl", 18).execute()
+val olderThan21 = query("nl", 21).execute()
 ```
 
-Every call to invocation `query` returns a `BoundStatement` that can be executed at a later time. _Why don't we execute
-the statement during application?_ We think that this will lead to better integration with other libraries that use
-statements, like Alpakka.
+The `prepare` method take as many type parameters as the query takes bound parameters. If the amount doesn't match, you
+will get an exception from the DSE Java driver, as expected.
+
+Every call to `query` returns a `BoundStatement` that can be executed at a later time. _Why don't we execute
+the statement during application?_ We think this will lead to better integration with other libraries that use
+statements, such as Alpakka.
 
 After executing a query, you can obtain its result:
 
 ```scala mdoc
-val rows = resultSet.as[(String, Int, Int)].to(List)
+val rows = olderThan18.as[(String, Int, Int)].to(List)
 ```
 
-If you don't require any integration, and want to do everything in less steps, it's also possible to use the `as` in
+If you don't require any integration, and want to do everything in less steps, it's also possible to use `as` in
 the prepared statement:
 
 ```scala mdoc
@@ -108,7 +113,8 @@ the prepared statement:
    .to(List)
 ```
 
-Notice that we don't provide query parameters to `apply` here, but use `execute` instead.
+Notice that we don't provide query parameters to `apply` here, but use `execute` instead. We'd like to provide a unified
+API for this, but a `BoundStatement` doesn't provide a way to map results before returning them to its client.
 
 
 ### Codecs
@@ -164,10 +170,10 @@ val iceCreamCodecShuffledCC = Codec.udtFrom[IceCreamShuffledCC](cqlSession)
 
 ### Enumeration Codecs
 
-Enumerations can be encoded either by name, or by order. That means the mapping column
-would be of type `TEXT`, or `INT` respectively.
+Enumerations can be encoded either by name, or by order, mapping the enumeration to a column of
+type `TEXT`, or `INT` respectively.
 
-Mark your enumeration with either `NominalEncoded` or `OrdinalEncoded`:
+Mark your enumeration either with the `NominalEncoded` or the `OrdinalEncoded` annotation:
 
 ```scala mdoc
 import net.nmoncho.helenus.api.`type`.codec._
