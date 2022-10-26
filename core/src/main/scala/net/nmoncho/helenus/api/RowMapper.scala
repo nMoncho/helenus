@@ -23,7 +23,9 @@ package net.nmoncho.helenus.api
 
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.cql.Row
-import shapeless.{ ::, <:!<, Generic, HList, HNil, IsTuple }
+import shapeless.labelled.FieldType
+import shapeless.syntax.singleton.mkSingletonOps
+import shapeless.{ ::, <:!<, Generic, HList, HNil, IsTuple, LabelledGeneric, Witness }
 
 /** Maps a [[Row]] into a [[T]]
   *
@@ -35,33 +37,76 @@ trait RowMapper[T] {
 
 }
 
-object RowMapper {
+trait DerivedRowMapper[T] extends RowMapper[T]
+
+trait CaseClassRowMapperDerivation2 {
+  /* Case Class RowMapper derivation */
+  implicit def lastCCElement[K <: Symbol, H](
+      implicit codec: TypeCodec[H],
+      witness: Witness.Aux[K],
+      columnMapper: ColumnMapper = DefaultColumnMapper
+  ): DerivedRowMapper[FieldType[K, H] :: HNil] = new DerivedRowMapper[FieldType[K, H] :: HNil] {
+    private val column = columnMapper.map(witness.value.name)
+
+    override def apply(row: Row): FieldType[K, H] :: HNil =
+      (witness.value ->> row.get(column, codec)).asInstanceOf[FieldType[K, H]] :: HNil
+  }
+
+  implicit def hListCCRowMapper[K <: Symbol, H, T <: HList](
+      implicit codec: TypeCodec[H],
+      witness: Witness.Aux[K],
+      tailRowMapper: DerivedRowMapper[T],
+      columnMapper: ColumnMapper = DefaultColumnMapper
+  ): DerivedRowMapper[FieldType[K, H] :: T] = new DerivedRowMapper[FieldType[K, H] :: T] {
+    private val column = columnMapper.map(witness.value.name)
+
+    override def apply(row: Row): FieldType[K, H] :: T =
+      (witness.value ->> row.get(column, codec))
+        .asInstanceOf[FieldType[K, H]] :: tailRowMapper(row)
+  }
+
+  implicit def genericCCRowMapper[T, R](
+      implicit gen: LabelledGeneric.Aux[T, R],
+      mapper: DerivedRowMapper[R],
+      columnMapper: ColumnMapper = DefaultColumnMapper
+  ): DerivedRowMapper[T] = { (row: Row) =>
+    gen.from(mapper(row))
+  }
+}
+
+object RowMapper extends CaseClassRowMapperDerivation2 {
 
   val identity: RowMapper[Row] = (row: Row) => row
 
-  sealed trait DerivedRowMapper[T] {
+  def apply[T](implicit mapper: DerivedRowMapper[T]): RowMapper[T] = mapper
+
+  sealed trait DerivedIdxRowMapper[T] extends DerivedRowMapper[T] {
     def apply(idx: Int, row: Row): T
+
+    override def apply(row: Row): T = throw new RuntimeException("invalid operation")
+
   }
 
-  implicit def lastTupleElement[H](implicit codec: TypeCodec[H]): DerivedRowMapper[H :: HNil] =
-    new DerivedRowMapper[H :: HNil] {
-      override def apply(idx: Int, row: Row): H :: HNil =
-        row.get(idx, codec) :: HNil
-    }
+  /* Tuple RowMapper derivation */
+  implicit def lastTupleElement[H](
+      implicit codec: TypeCodec[H]
+  ): DerivedIdxRowMapper[H :: HNil] = new DerivedIdxRowMapper[H :: HNil] {
+    override def apply(idx: Int, row: Row): H :: HNil =
+      row.get(idx, codec) :: HNil
+  }
 
   implicit def hListTupleElement[H, T <: HList](
       implicit codec: TypeCodec[H],
-      tailMapper: DerivedRowMapper[T]
-  ): DerivedRowMapper[H :: T] =
-    new DerivedRowMapper[H :: T] {
-      override def apply(idx: Int, row: Row): H :: T =
-        row.get(idx, codec) :: tailMapper.apply(idx + 1, row)
-    }
+      tailMapper: DerivedIdxRowMapper[T]
+  ): DerivedIdxRowMapper[H :: T] = new DerivedIdxRowMapper[H :: T] {
+    override def apply(idx: Int, row: Row): H :: T =
+      row.get(idx, codec) :: tailMapper.apply(idx + 1, row)
+  }
 
-  implicit def genericRowMapper[T: IsTuple, R](
+  implicit def genericTupleRowMapper[T: IsTuple, R](
       implicit gen: Generic.Aux[T, R],
-      mapper: DerivedRowMapper[R]
-  ): RowMapper[T] =
+      mapper: DerivedIdxRowMapper[R]
+  ): DerivedRowMapper[T] =
     (row: Row) => gen.from(mapper(0, row))
 
   /** Derives a [[RowMapper]] from a [[TypeCodec]] when [[T]] isn't a `Product`
