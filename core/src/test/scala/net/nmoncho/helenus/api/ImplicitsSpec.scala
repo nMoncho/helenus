@@ -139,6 +139,36 @@ class ImplicitsSpec extends AnyWordSpec with Matchers with CassandraSpec with Sc
       insert(uuid, age, name).execute()
       query.execute(uuid).headOption shouldBe Some((uuid, age, name))
     }
+
+    "adapt rows (async)" in {
+      import scala.concurrent.ExecutionContext.Implicits.global
+
+      val uuid = UUID.randomUUID()
+      val name = "foo"
+      val age  = 42
+
+      val query = "SELECT * FROM implicits_tests WHERE id = ?".toCQL
+        .prepare[UUID]
+        .as[(UUID, Int, String)]
+      val insert = "INSERT INTO implicits_tests(id, age, name) VALUES (?, ?, ?)".toCQL
+        .prepare[UUID, Int, String]
+
+      insert(uuid, age, name).execute()
+
+      val result = withClue("first page should have the right results") {
+        whenReady(query.executeAsync(uuid)) { result =>
+          result.currPage.toList shouldBe List((uuid, age, name))
+
+          result
+        }
+      }
+
+      withClue("next page should be empty") {
+        whenReady(result.nextPage) { nextPage =>
+          nextPage.toList shouldBe empty
+        }
+      }
+    }
   }
 
   override def beforeAll(): Unit = {

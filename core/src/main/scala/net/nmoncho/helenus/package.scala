@@ -22,14 +22,15 @@
 package net.nmoncho
 
 import com.datastax.oss.driver.api.core.cql.{ AsyncResultSet, BoundStatement, ResultSet }
-import com.datastax.oss.driver.api.core.{ CqlSession, PagingIterable }
+import com.datastax.oss.driver.api.core.{ CqlSession, MappedAsyncPagingIterable, PagingIterable }
 import net.nmoncho.helenus.api.`type`.codec.{ CodecDerivation, RowMapper }
 import net.nmoncho.helenus.internal._
 import net.nmoncho.helenus.internal.cql.ParameterValue
 import net.nmoncho.helenus.internal.cql.ScalaPreparedStatement.CQLQuery
 
 import scala.collection.mutable
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.{ Await, ExecutionContext, Future }
 
 package object helenus extends CodecDerivation {
 
@@ -121,6 +122,10 @@ package object helenus extends CodecDerivation {
     def as[T](implicit mapper: RowMapper[T]): PagingIterable[T] = rs.map(mapper.apply)
   }
 
+  implicit class AsyncResultSetOps(private val rs: AsyncResultSet) extends AnyVal {
+    def as[T](implicit mapper: RowMapper[T]): MappedAsyncPagingIterable[T] = rs.map(mapper.apply)
+  }
+
   /** Extension methods for [[PagingIterable]]
     *
     * Mostly how to transform this Cassandra iterable into a more Scala idiomatic structure.
@@ -140,7 +145,8 @@ package object helenus extends CodecDerivation {
       pi.iterator().asScala
     }
 
-    /** This [[PagingIterable]] as a Scala Collection
+    /** This [[PagingIterable]] as a Scala Collection; <b>not recommended for queries that return a
+      * large number of elements</b>.
       *
       * Example
       * {{{
@@ -153,5 +159,62 @@ package object helenus extends CodecDerivation {
     def to[Col[_]](factory: Factory[T, Col[T]])(
         implicit cbf: BuildFrom[Nothing, T, Col[T]]
     ): Col[T] = iter.to(factory)
+  }
+
+  implicit class MappedAsyncPagingIterableOps[T](private val pi: MappedAsyncPagingIterable[T])
+      extends AnyVal {
+    import net.nmoncho.helenus.internal.compat.FutureConverters._
+
+    import scala.jdk.CollectionConverters._
+
+    // TODO Add `to` methods for current page, and next page
+
+    /** Current page as a Scala [[Iterator]]
+      */
+    def currPage: Iterator[T] = pi.currentPage().iterator().asScala
+
+    /** Fetches and returns the next page as a Scala [[Iterator]]
+      */
+    def nextPage(implicit ec: ExecutionContext): Future[Iterator[T]] =
+      if (pi.hasMorePages) {
+        pi.fetchNextPage().asScala.map(_.currPage)
+      } else {
+        Future.successful(Iterator())
+      }
+
+    /** Return all results of this [[MappedAsyncPagingIterable]] as a Scala [[Iterator]],
+      * without having to request more pages.
+      *
+      * It will fetch the next page in a blocking fashion after it has exhausted the current page.
+      * <b>NOTE:</b> On Scala 2.12 it will fetch all pages!
+      *
+      * @param timeout how much time to wait for the next page to be ready
+      * @param ec
+      */
+    def iter(timeout: FiniteDuration)(implicit ec: ExecutionContext): Iterator[T] = {
+      import scala.collection.compat._ // Don't remove me
+
+      // FIXME Using `TraversableOnce` Scala 2.12, also it doesn't lazily concat iterators
+      // since `compat` implementation is different
+      def concat(): TraversableOnce[T] =
+        pi
+          .currentPage()
+          .iterator()
+          .asScala
+          .concat {
+            if (pi.hasMorePages) {
+              // TODO add logging
+              println("fetching more pages")
+              Await.ready(pi.fetchNextPage().asScala, timeout)
+
+              concat()
+            } else {
+              println("no more pages")
+              Iterator()
+            }
+          }
+
+      concat().iterator
+    }
   }
 }

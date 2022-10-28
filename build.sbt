@@ -30,7 +30,7 @@ lazy val dependencies = new {
 
 addCommandAlias(
   "testCoverage",
-  "; clean ; coverage; test; coverageAggregate; coverageReport; coverageOff"
+  "; clean ; coverage; test; coverageAggregate; coverageReport; coverageOff; clean"
 )
 
 addCommandAlias(

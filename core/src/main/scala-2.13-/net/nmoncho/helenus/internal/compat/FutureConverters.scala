@@ -10,4 +10,8 @@ object FutureConverters {
     def asScala: Future[T] = scala.compat.java8.FutureConverters.toScala(cs)
   }
 
+  implicit class FutureOps[T](private val f: Future[T]) extends AnyVal {
+    def asJava: CompletionStage[T] = scala.compat.java8.FutureConverters.toJava(f)
+  }
+
 }

@@ -23,9 +23,9 @@ package net.nmoncho.helenus.internal.cql
 
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.cql._
-import com.datastax.oss.driver.api.core.{ CqlSession, PagingIterable }
+import com.datastax.oss.driver.api.core.{ CqlSession, MappedAsyncPagingIterable, PagingIterable }
 import net.nmoncho.helenus.api.`type`.codec.RowMapper
-import net.nmoncho.helenus.internal.CqlSessionSyncExtension
+import net.nmoncho.helenus.internal.{ CqlSessionAsyncExtension, CqlSessionSyncExtension }
 
 import java.nio.ByteBuffer
 import java.util
@@ -52,6 +52,15 @@ class ScalaPreparedStatement[U, T](
     */
   def execute(u: U)(implicit session: CqlSessionSyncExtension): PagingIterable[T] =
     apply(u).execute().as[T](mapper)
+
+  /** Executes [[PreparedStatement]] asynchronously with the provided [[U]] parameters, returning a
+    * [[MappedAsyncPagingIterable]] of [[T]]
+    */
+  def executeAsync(u: U)(
+      implicit session: CqlSessionAsyncExtension,
+      ec: ExecutionContext
+  ): Future[MappedAsyncPagingIterable[T]] =
+    apply(u).executeAsync().map(_.as[T](mapper))
 
   /** Converts a [[ScalaPreparedStatement]] to map [[Row]] results to [[A]]
     */

@@ -45,6 +45,7 @@ To begin using Helenus, import its package object `import net.nmoncho.helenus._`
 your `CqlSession` with `.toScala`:
 
 ```scala mdoc
+import scala.concurrent.ExecutionContext.Implicits.global
 import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.cql._
 import net.nmoncho.helenus.docs._ // This import is not required, it's here to run MDoc
@@ -116,6 +117,15 @@ the prepared statement:
 Notice that we don't provide query parameters to `apply` here, but use `execute` instead. We'd like to provide a unified
 API for this, but a `BoundStatement` doesn't provide a way to map results before returning them to its client.
 
+There is also an async flavour to this method with `executeAsync`:
+
+```scala mdoc
+"SELECT * FROM population_by_country WHERE country = ? AND age >= ?"
+   .toCQL
+   .prepare[String, Int]
+   .as[(String, Int, Int)]
+   .executeAsync(countryId, age) // invoke goes here now!
+```
 
 ### Codecs
 
