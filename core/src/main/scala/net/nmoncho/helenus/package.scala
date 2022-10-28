@@ -23,7 +23,8 @@ package net.nmoncho
 
 import com.datastax.oss.driver.api.core.cql.{ AsyncResultSet, BoundStatement, ResultSet }
 import com.datastax.oss.driver.api.core.{ CqlSession, MappedAsyncPagingIterable, PagingIterable }
-import net.nmoncho.helenus.api.`type`.codec.{ CodecDerivation, RowMapper }
+import net.nmoncho.helenus.api.RowMapper
+import net.nmoncho.helenus.api.`type`.codec.CodecDerivation
 import net.nmoncho.helenus.internal._
 import net.nmoncho.helenus.internal.cql.ParameterValue
 import net.nmoncho.helenus.internal.cql.ScalaPreparedStatement.CQLQuery

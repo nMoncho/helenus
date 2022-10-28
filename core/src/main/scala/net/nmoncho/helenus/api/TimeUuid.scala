@@ -19,15 +19,6 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package net.nmoncho.helenus.api.`type`.codec
+package net.nmoncho.helenus.api
 
-import scala.annotation.StaticAnnotation
-
-/** Metadata Annotation required to register a UDT Codec.
-  *
-  * @param keyspace where the type is defined
-  * @param name name of the CQL type
-  * @param frozen whether this type is frozen at use site or not.
-  */
-case class Udt(keyspace: String = "", name: String = "", frozen: Boolean = true)
-    extends StaticAnnotation
+case class TimeUuid() extends scala.annotation.StaticAnnotation

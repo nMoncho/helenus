@@ -19,6 +19,12 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package net.nmoncho.helenus.api.`type`.codec
+package net.nmoncho.helenus.api
 
-case class TimeUuid() extends scala.annotation.StaticAnnotation
+/** Marker annotation for an [[Enumeration]] that wants to be encoded by order
+  */
+case class OrdinalEncoded() extends scala.annotation.StaticAnnotation
+
+/** Marker annotation for an [[Enumeration]] that wants to be encoded by name
+  */
+case class NominalEncoded() extends scala.annotation.StaticAnnotation

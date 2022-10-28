@@ -145,7 +145,7 @@ UDTs can be encoded as Case Classes, using the `@Udt` annotation. For a UDT defi
 `CREATE TYPE docs.ice_cream(name TEXT, num_cherries INT, cone BOOLEAN)` we can obtain its `TypeCodec` as:
 
 ```scala mdoc
-import net.nmoncho.helenus.api.`type`.codec.Udt
+import net.nmoncho.helenus.api.Udt
 
 @Udt("docs", "ice_cream")
 case class IceCream(name: String, numCherries: Int, cone: Boolean)
@@ -186,7 +186,7 @@ type `TEXT`, or `INT` respectively.
 Mark your enumeration either with the `NominalEncoded` or the `OrdinalEncoded` annotation:
 
 ```scala mdoc
-import net.nmoncho.helenus.api.`type`.codec._
+import net.nmoncho.helenus.api.{ NominalEncoded, OrdinalEncoded }
 
 @NominalEncoded
 object Fingers extends Enumeration {

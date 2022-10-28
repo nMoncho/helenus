@@ -28,7 +28,7 @@ import com.datastax.oss.driver.api.core.cql.{
   Row
 }
 import com.datastax.oss.driver.internal.core.cql.EmptyColumnDefinitions
-import net.nmoncho.helenus.api.`type`.codec.RowMapper
+import net.nmoncho.helenus.api.RowMapper
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import org.mockito.Mockito._

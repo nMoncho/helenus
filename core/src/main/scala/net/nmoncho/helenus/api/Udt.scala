@@ -19,34 +19,15 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package net.nmoncho.helenus.api.`type`.codec
+package net.nmoncho.helenus.api
 
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
+import scala.annotation.StaticAnnotation
 
-class ColumnMapperSpec extends AnyWordSpec with Matchers {
-
-  private val camelCase  = "numCherries"
-  private val snakeCase  = "num_cherries"
-  private val pascalCase = "NumCherries"
-
-  "DefaultColumnMapper" should {
-    "map to camel case" in {
-      withClue("the assumed starting point is camel case") {
-        DefaultColumnMapper.map(camelCase) shouldBe camelCase
-      }
-    }
-  }
-
-  "SnakeCaseMapper" should {
-    "map to snake case" in {
-      SnakeCase.map(camelCase) shouldBe snakeCase
-    }
-  }
-
-  "PascalCaseMapper" should {
-    "map to pascal case" in {
-      PascalCase.map(camelCase) shouldBe pascalCase
-    }
-  }
-}
+/** Metadata Annotation required to register a UDT Codec.
+  *
+  * @param keyspace where the type is defined
+  * @param name name of the CQL type
+  * @param frozen whether this type is frozen at use site or not.
+  */
+case class Udt(keyspace: String = "", name: String = "", frozen: Boolean = true)
+    extends StaticAnnotation

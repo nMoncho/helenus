@@ -19,12 +19,48 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package net.nmoncho.helenus.api.`type`.codec
+package net.nmoncho.helenus.api
 
-/** Marker annotation for an [[Enumeration]] that wants to be encoded by order
-  */
-case class OrdinalEncoded() extends scala.annotation.StaticAnnotation
+import scala.collection.mutable
 
-/** Marker annotation for an [[Enumeration]] that wants to be encoded by name
+/** When mapping a case class to a Table or UDT,
+  * a field can be mapped to column to a different format (e.g. `firstName` to `first_name`).
+  *
+  * A [[ColumnMapper]] can be used for this purpose (inspired by Avro4s).
+  * This trait assumes that the starting point is <b>camel case</b>
   */
-case class NominalEncoded() extends scala.annotation.StaticAnnotation
+sealed trait ColumnMapper {
+  def map(column: String): String
+}
+
+object DefaultColumnMapper extends ColumnMapper {
+  override def map(column: String): String = column
+}
+
+object SnakeCase extends ColumnMapper {
+  final val separator = '_'
+
+  override def map(column: String): String = {
+    val col = mutable.ListBuffer[Char]()
+    col += column.head.toLower
+    column.tail.toCharArray.foreach { c =>
+      if (c.isUpper) {
+        col += separator
+      }
+
+      col += c.toLower
+    }
+
+    col.result().mkString
+  }
+}
+
+object PascalCase extends ColumnMapper {
+  override def map(column: String): String =
+    if (column.length == 1) column.toUpperCase
+    else {
+      val chars = column.toCharArray
+      chars(0) = chars(0).toUpper
+      new String(chars)
+    }
+}

@@ -24,7 +24,8 @@ package internal.codec.enums
 
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.`type`.reflect.GenericType
-import net.nmoncho.helenus.api.`type`.codec.{ OrdinalEncoded, TypeCodecs }
+import net.nmoncho.helenus.api.OrdinalEncoded
+import net.nmoncho.helenus.api.`type`.codec.TypeCodecs
 import net.nmoncho.helenus.internal.codec.CodecSpecBase
 import net.nmoncho.helenus.internal.codec.enums.EnumerationOrdinalCodecSpec.Fingers
 import net.nmoncho.helenus.internal.codec.enums.EnumerationOrdinalCodecSpec.Fingers.Finger

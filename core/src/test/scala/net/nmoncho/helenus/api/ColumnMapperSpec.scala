@@ -19,48 +19,34 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package net.nmoncho.helenus.api.`type`.codec
+package net.nmoncho.helenus.api
 
-import scala.collection.mutable
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
-/** When mapping a case class to a Table or UDT,
-  * a field can be mapped to column to a different format (e.g. `firstName` to `first_name`).
-  *
-  * A [[ColumnMapper]] can be used for this purpose (inspired by Avro4s).
-  * This trait assumes that the starting point is <b>camel case</b>
-  */
-sealed trait ColumnMapper {
-  def map(column: String): String
-}
+class ColumnMapperSpec extends AnyWordSpec with Matchers {
 
-object DefaultColumnMapper extends ColumnMapper {
-  override def map(column: String): String = column
-}
+  private val camelCase  = "numCherries"
+  private val snakeCase  = "num_cherries"
+  private val pascalCase = "NumCherries"
 
-object SnakeCase extends ColumnMapper {
-  final val separator = '_'
-
-  override def map(column: String): String = {
-    val col = mutable.ListBuffer[Char]()
-    col += column.head.toLower
-    column.tail.toCharArray.foreach { c =>
-      if (c.isUpper) {
-        col += separator
+  "DefaultColumnMapper" should {
+    "map to camel case" in {
+      withClue("the assumed starting point is camel case") {
+        DefaultColumnMapper.map(camelCase) shouldBe camelCase
       }
-
-      col += c.toLower
     }
-
-    col.result().mkString
   }
-}
 
-object PascalCase extends ColumnMapper {
-  override def map(column: String): String =
-    if (column.length == 1) column.toUpperCase
-    else {
-      val chars = column.toCharArray
-      chars(0) = chars(0).toUpper
-      new String(chars)
+  "SnakeCaseMapper" should {
+    "map to snake case" in {
+      SnakeCase.map(camelCase) shouldBe snakeCase
     }
+  }
+
+  "PascalCaseMapper" should {
+    "map to pascal case" in {
+      PascalCase.map(camelCase) shouldBe pascalCase
+    }
+  }
 }

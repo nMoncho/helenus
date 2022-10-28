@@ -24,7 +24,7 @@ package internal.codec.enums
 
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.`type`.reflect.GenericType
-import net.nmoncho.helenus.api.`type`.codec.NominalEncoded
+import net.nmoncho.helenus.api.NominalEncoded
 import net.nmoncho.helenus.internal.codec.CodecSpecBase
 import net.nmoncho.helenus.internal.codec.enums.EnumerationNominalCodecSpec.Fingers
 import net.nmoncho.helenus.internal.codec.enums.EnumerationNominalCodecSpec.Fingers.Finger

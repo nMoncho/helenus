@@ -25,7 +25,7 @@ package internal.codec
 import com.datastax.oss.driver.api.core.ProtocolVersion
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.cql.Row
-import net.nmoncho.helenus.api.`type`.codec.{ ColumnMapper, SnakeCase, TimeUuid, Udt }
+import net.nmoncho.helenus.api.{ ColumnMapper, SnakeCase, TimeUuid, Udt }
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 

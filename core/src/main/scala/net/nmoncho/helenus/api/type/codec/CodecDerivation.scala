@@ -23,6 +23,13 @@ package net.nmoncho.helenus.api.`type`.codec
 
 import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
+import net.nmoncho.helenus.api.{
+  ColumnMapper,
+  DefaultColumnMapper,
+  NominalEncoded,
+  OrdinalEncoded,
+  Udt
+}
 import net.nmoncho.helenus.internal.codec.{ TupleCodecDerivation, UdtCodecDerivation }
 import shapeless.{ Annotation, IsTuple, Witness }
 

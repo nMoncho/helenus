@@ -24,7 +24,7 @@ package net.nmoncho.helenus.internal.cql
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.cql._
 import com.datastax.oss.driver.api.core.{ CqlSession, MappedAsyncPagingIterable, PagingIterable }
-import net.nmoncho.helenus.api.`type`.codec.RowMapper
+import net.nmoncho.helenus.api.RowMapper
 import net.nmoncho.helenus.internal.{ CqlSessionAsyncExtension, CqlSessionSyncExtension }
 
 import java.nio.ByteBuffer

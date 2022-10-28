@@ -28,7 +28,7 @@ import com.datastax.oss.driver.api.core.data.UdtValue
 import com.datastax.oss.driver.api.core.{ CqlIdentifier, CqlSession }
 import com.datastax.oss.driver.internal.core.`type`.DefaultUserDefinedType
 import com.datastax.oss.driver.internal.core.`type`.codec.{ UdtCodec => DseUdtCodec }
-import net.nmoncho.helenus.api.`type`.codec.{ ColumnMapper, DefaultColumnMapper, Udt }
+import net.nmoncho.helenus.api.{ ColumnMapper, DefaultColumnMapper, Udt }
 import shapeless.labelled.FieldType
 import shapeless.syntax.singleton.mkSingletonOps
 
