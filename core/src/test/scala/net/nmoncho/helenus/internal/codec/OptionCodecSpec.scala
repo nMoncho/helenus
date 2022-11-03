@@ -193,7 +193,7 @@ class OptionCodecSpec
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    session.execute("""CREATE TABLE IF NOT EXISTS option_table(
+    executeDDL("""CREATE TABLE IF NOT EXISTS option_table(
         |   id         UUID,
         |   opt_int    INT,
         |   opt_str    TEXT,

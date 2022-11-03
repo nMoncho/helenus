@@ -22,7 +22,7 @@
 package net.nmoncho.helenus
 
 import java.util.UUID
-import com.datastax.oss.driver.api.core.CqlSession
+import com.datastax.oss.driver.api.core.{ CqlSession, CqlSessionBuilder }
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.`type`.codec.registry.MutableCodecRegistry
 import com.datastax.oss.driver.api.core.cql.{ ResultSet, Statement }
@@ -32,13 +32,25 @@ import org.apache.cassandra.config.DatabaseDescriptor
 import org.cassandraunit.utils.EmbeddedCassandraServerHelper
 import org.scalatest.{ BeforeAndAfterAll, BeforeAndAfterEach, Suite }
 
+import java.net.InetSocketAddress
+
 trait CassandraSpec extends BeforeAndAfterAll with BeforeAndAfterEach { this: Suite =>
 
   def startTimeout: Long = EmbeddedCassandraServerHelper.DEFAULT_STARTUP_TIMEOUT * 3
 
-  def session: CqlSession = EmbeddedCassandraServerHelper.getSession
+  protected lazy val keyspace: String = randomIdentifier("tests")
 
-  def keyspace: String = "tests"
+  protected lazy val session: CqlSession = CqlSession
+    .builder()
+    .addContactPoint(
+      new InetSocketAddress(
+        EmbeddedCassandraServerHelper.getHost,
+        EmbeddedCassandraServerHelper.getNativeTransportPort
+      )
+    )
+    .withLocalDatacenter("datacenter1")
+    .withKeyspace(keyspace)
+    .build()
 
   override def afterEach(): Unit = {
     super.afterEach()
@@ -79,11 +91,23 @@ trait CassandraSpec extends BeforeAndAfterAll with BeforeAndAfterEach { this: Su
     }
   }
 
-  def randomTableName(prefix: String): String =
+  def randomIdentifier(prefix: String): String =
     s"${prefix}_${UUID.randomUUID().toString}".replaceAll("-", "_")
 
   def execute(query: String): ResultSet =
     session.execute(query)
+
+  /** Executes a DDL statement until success.
+    *
+    * This is a workaround for the exception `DriverTimeoutException: Query timed out after PT2S`
+    */
+  def executeDDL(ddl: String): Unit = try {
+    session.execute(ddl)
+  } catch {
+    case _: Throwable =>
+      Thread.sleep(50)
+      executeDDL(ddl)
+  }
 
   def execute(stmt: Statement[_]): ResultSet =
     session.execute(stmt)

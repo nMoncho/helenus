@@ -98,7 +98,7 @@ class CqlQueryInterpolationSpec
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    session.execute(s"""CREATE TABLE IF NOT EXISTS cql_interpolation_test(
+    executeDDL(s"""CREATE TABLE IF NOT EXISTS cql_interpolation_test(
         |   id     UUID,
         |   age    INT,
         |   name   TEXT,

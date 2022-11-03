@@ -65,17 +65,19 @@ class UdtCodecSpec extends AnyWordSpec with Matchers {
 }
 
 object UdtCodecSpec {
-  @Udt("tests", "ice_cream")
+  @Udt("udt_codec_tests", "ice_cream")
   case class IceCream(name: String, numCherries: Int, cone: Boolean)
 
-  @Udt("tests", "ice_cream")
+  @Udt("udt_codec_tests", "ice_cream")
   case class IceCream2(name: String, numCherries: Int, cone: Boolean, count: (Int, Int))
 
-  @Udt("tests", "ice_cream")
+  @Udt("udt_codec_tests", "ice_cream")
   case class IceCream3(name: String, numCherries: Int, cone: Boolean, @TimeUuid uuid: UUID)
 }
 
 class CassandraUdtCodecSpec extends AnyWordSpec with Matchers with CassandraSpec {
+
+  override protected lazy val keyspace: String = "udt_codec_tests"
 
   "UdtCodec" should {
     "work with Cassandra" in {
@@ -124,14 +126,14 @@ class CassandraUdtCodecSpec extends AnyWordSpec with Matchers with CassandraSpec
     session.execute(bstmt)
   }
 
-  @Udt("tests", "ice_cream")
+  @Udt("udt_codec_tests", "ice_cream")
   case class IceCream(name: String, numCherries: Int, cone: Boolean)
 
   object IceCream {
     implicit val codec: TypeCodec[IceCream] = Codec.udtOf[IceCream]
   }
 
-  @Udt("tests", "ice_cream")
+  @Udt("udt_codec_tests", "ice_cream")
   case class IceCreamShuffled(numCherries: Int, cone: Boolean, name: String)
 
   object IceCreamShuffled {
@@ -140,7 +142,7 @@ class CassandraUdtCodecSpec extends AnyWordSpec with Matchers with CassandraSpec
     implicit val codec: TypeCodec[IceCreamShuffled] = Codec.udtFrom[IceCreamShuffled](session)
   }
 
-  @Udt("tests", "ice_cream")
+  @Udt("udt_codec_tests", "ice_cream")
   case class IceCreamInvalid(cherriesNumber: Int, cone: Boolean, name: String)
 
   object IceCreamInvalid {
@@ -151,10 +153,10 @@ class CassandraUdtCodecSpec extends AnyWordSpec with Matchers with CassandraSpec
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    session.execute(
+    executeDDL(
       "CREATE TYPE IF NOT EXISTS ice_cream (name TEXT, num_cherries INT, cone BOOLEAN)"
     )
-    session.execute("""CREATE TABLE IF NOT EXISTS udt_table(
+    executeDDL("""CREATE TABLE IF NOT EXISTS udt_table(
         |   id      UUID,
         |   ice     ice_cream,
         |   PRIMARY KEY (id)

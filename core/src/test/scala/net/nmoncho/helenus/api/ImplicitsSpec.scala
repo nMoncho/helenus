@@ -22,7 +22,7 @@
 package net.nmoncho.helenus.api
 
 import net.nmoncho.helenus.CassandraSpec
-import net.nmoncho.helenus.api.`type`.codec.RowMapper
+import net.nmoncho.helenus.api.RowMapper
 import net.nmoncho.helenus.internal.cql.ScalaPreparedStatement
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
@@ -192,7 +192,7 @@ class ImplicitsSpec extends AnyWordSpec with Matchers with CassandraSpec with Sc
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    session.execute("""CREATE TABLE IF NOT EXISTS implicits_tests(
+    executeDDL("""CREATE TABLE IF NOT EXISTS implicits_tests(
                       |   id     UUID,
                       |   age    INT,
                       |   name   TEXT,
