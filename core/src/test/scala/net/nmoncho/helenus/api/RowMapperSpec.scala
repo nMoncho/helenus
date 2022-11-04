@@ -21,39 +21,47 @@
 
 package net.nmoncho.helenus.api
 
-import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
-import com.datastax.oss.driver.api.core.cql.Row
-import net.nmoncho.helenus.internal.DerivedRowMapper
-import shapeless.{ <:!<, IsTuple }
+import net.nmoncho.helenus.api.RowMapperSpec.IceCream
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
-/** Maps a [[Row]] into a [[T]]
-  *
-  * @tparam T type to get from a row
-  */
-trait RowMapper[T] {
+class RowMapperSpec extends AnyWordSpec with Matchers {
+  import net.nmoncho.helenus._
 
-  def apply(row: Row): T
+  "RowMapper" should {
+    "semi-auto derive on companion object" in {
+      IceCream.rowMapper should not be null
+
+      withClue("and should be implicitly available, and not be derived twice") {
+        implicitly[RowMapper[IceCream]] shouldBe IceCream.rowMapper
+      }
+    }
+
+    "produce instances for tuples" in {
+      RowMapper[(String, Int)] should not be null
+
+      withClue("and should be implicitly available") {
+        implicitly[RowMapper[(String, Int)]] should not be null
+      }
+    }
+
+    "produce instances for simple types" in {
+      RowMapper[String] should not be null
+
+      withClue("and should be implicitly available") {
+        implicitly[RowMapper[String]] should not be null
+      }
+    }
+  }
 
 }
 
-object RowMapper {
+object RowMapperSpec {
 
-  val identity: RowMapper[Row] = (row: Row) => row
+  import net.nmoncho.helenus._
+  case class IceCream(name: String, numCherries: Int, cone: Boolean)
 
-  def apply[T](implicit mapper: DerivedRowMapper[T]): RowMapper[T] = mapper
-
-  /** Derives a [[RowMapper]] for tuples
-    */
-  implicit def derivedTupleRowMapper[T: IsTuple](
-      implicit mapper: DerivedRowMapper[T]
-  ): RowMapper[T] = mapper
-
-  /** Derives a [[RowMapper]] from a [[TypeCodec]] when [[T]] isn't a `Product`
-    */
-  implicit def simpleRowMapper[T](
-      implicit codec: TypeCodec[T],
-      ev: T <:!< Product
-  ): DerivedRowMapper[T] =
-    (row: Row) => row.get(0, codec)
-
+  object IceCream {
+    implicit val rowMapper: RowMapper[IceCream] = RowMapper[IceCream]
+  }
 }

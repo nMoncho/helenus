@@ -22,8 +22,7 @@
 package net.nmoncho.helenus.api
 
 import net.nmoncho.helenus.CassandraSpec
-import net.nmoncho.helenus.api.RowMapper
-import net.nmoncho.helenus.internal.cql.ScalaPreparedStatement
+import net.nmoncho.helenus.api.ImplicitsSpec.ITRow
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{ Seconds, Span }
@@ -125,8 +124,6 @@ class ImplicitsSpec extends AnyWordSpec with Matchers with CassandraSpec with Sc
       }
     }
 
-    case class ITRow(id: UUID, age: Int, name: String)
-
     "map rows as case classes" in {
       val uuid = UUID.randomUUID()
       val name = "foo"
@@ -198,5 +195,15 @@ class ImplicitsSpec extends AnyWordSpec with Matchers with CassandraSpec with Sc
                       |   name   TEXT,
                       |   PRIMARY KEY (id, age)
                       |)""".stripMargin)
+  }
+}
+
+object ImplicitsSpec {
+
+  import net.nmoncho.helenus._
+  case class ITRow(id: UUID, age: Int, name: String)
+
+  object ITRow {
+    implicit val rowMapper: RowMapper[ITRow] = RowMapper[ITRow]
   }
 }
