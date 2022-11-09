@@ -21,13 +21,16 @@
 
 package net.nmoncho
 
-import com.datastax.oss.driver.api.core.cql.{ AsyncResultSet, BoundStatement, ResultSet }
+import com.datastax.dse.driver.api.core.cql.reactive.{ ReactiveResultSet, ReactiveRow }
+import com.datastax.oss.driver.api.core.cql.{ AsyncResultSet, BoundStatement, ResultSet, Row }
 import com.datastax.oss.driver.api.core.{ CqlSession, MappedAsyncPagingIterable, PagingIterable }
 import net.nmoncho.helenus.api.RowMapper
 import net.nmoncho.helenus.api.`type`.codec.CodecDerivation
 import net.nmoncho.helenus.internal._
 import net.nmoncho.helenus.internal.cql.ParameterValue
 import net.nmoncho.helenus.internal.cql.ScalaPreparedStatement.CQLQuery
+import net.nmoncho.helenus.internal.reactive.MapOperator
+import org.reactivestreams.{ Publisher, Subscriber, Subscription }
 
 import scala.collection.mutable
 import scala.concurrent.duration.FiniteDuration
@@ -108,6 +111,9 @@ package object helenus extends CodecDerivation {
 
     def executeAsync()(implicit session: CqlSessionAsyncExtension): Future[AsyncResultSet] =
       session.session.executeAsync(bstmt).asScala
+
+    def executeReactive()(implicit session: CqlSessionSyncExtension): ReactiveResultSet =
+      session.session.executeReactive(bstmt)
   }
 
   implicit class PreparedStatementSyncStringOps(private val query: String) extends AnyVal {
@@ -125,6 +131,14 @@ package object helenus extends CodecDerivation {
 
   implicit class AsyncResultSetOps(private val rs: AsyncResultSet) extends AnyVal {
     def as[T](implicit mapper: RowMapper[T]): MappedAsyncPagingIterable[T] = rs.map(mapper.apply)
+  }
+
+  implicit class ReactiveResultSetOpt(private val rrs: ReactiveResultSet) extends AnyVal {
+    def as[T](implicit mapper: RowMapper[T]): Publisher[T] = {
+      val op = new MapOperator(rrs, mapper.apply)
+
+      op.publisher
+    }
   }
 
   /** Extension methods for [[PagingIterable]]

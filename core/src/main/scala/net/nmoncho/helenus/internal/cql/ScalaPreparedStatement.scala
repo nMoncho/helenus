@@ -26,6 +26,7 @@ import com.datastax.oss.driver.api.core.cql._
 import com.datastax.oss.driver.api.core.{ CqlSession, MappedAsyncPagingIterable, PagingIterable }
 import net.nmoncho.helenus.api.RowMapper
 import net.nmoncho.helenus.internal.{ CqlSessionAsyncExtension, CqlSessionSyncExtension }
+import org.reactivestreams.Publisher
 
 import java.nio.ByteBuffer
 import java.util
@@ -61,6 +62,12 @@ class ScalaPreparedStatement[U, T](
       ec: ExecutionContext
   ): Future[MappedAsyncPagingIterable[T]] =
     apply(u).executeAsync().map(_.as[T](mapper))
+
+  /** Executes [[PreparedStatement]] in a reactive fashion with the provided [[U]] parameters, returning a
+    * [[Publisher]] of [[T]]
+    */
+  def executeReactive(u: U)(implicit session: CqlSessionSyncExtension): Publisher[T] =
+    apply(u).executeReactive().as[T](mapper)
 
   /** Converts a [[ScalaPreparedStatement]] to map [[Row]] results to [[A]]
     */
