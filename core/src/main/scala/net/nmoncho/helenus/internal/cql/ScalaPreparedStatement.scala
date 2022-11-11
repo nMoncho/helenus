@@ -22,7 +22,7 @@
 package net.nmoncho.helenus.internal.cql
 
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
-import com.datastax.oss.driver.api.core.cql._
+import com.datastax.oss.driver.api.core.cql.{ Row, _ }
 import com.datastax.oss.driver.api.core.{ CqlSession, MappedAsyncPagingIterable, PagingIterable }
 import net.nmoncho.helenus.api.RowMapper
 import net.nmoncho.helenus.internal.{ CqlSessionAsyncExtension, CqlSessionSyncExtension }
@@ -141,6 +141,20 @@ object ScalaPreparedStatement {
     // (2 to 22).map(template).foreach(println(_))
 
     // format: off
+
+    /** Prepares a query without parameters
+      *
+      * @return BoundStatement that can be called like a function
+      */
+    def prepareUnit: ScalaPreparedStatement[Unit, Row] = {
+      val pstmt = session.prepare(query)
+
+      new ScalaPreparedStatement[Unit, Row](
+        _ => pstmt.bind(),
+        RowMapper.identity,
+        pstmt
+      )
+    }
 
     /**
      * Prepares a query that will take 1 query parameter, which can be invoked like:
@@ -375,6 +389,20 @@ object ScalaPreparedStatement {
     // format: on
   }
 
+  implicit class AsyncScalaPreparedStatement[U, T](
+      private val futureStmt: Future[ScalaPreparedStatement[U, T]]
+  ) extends AnyVal {
+
+    /** Converts a [[ScalaPreparedStatement]] to map [[Row]] results to [[A]]
+      */
+    def as[A](
+        implicit mapper: RowMapper[A],
+        ev: T =:= Row,
+        ec: ExecutionContext
+    ): Future[ScalaPreparedStatement[U, A]] =
+      futureStmt.map(_.as[A])
+  }
+
   trait AsyncCQLQuery {
     import net.nmoncho.helenus.internal.compat.FutureConverters._
 
@@ -411,6 +439,15 @@ object ScalaPreparedStatement {
     //  }
     //
     // (2 to 22).map(template).foreach(println(_))
+
+    def prepareUnitAsync(implicit ec: ExecutionContext): Future[ScalaPreparedStatement[Unit, Row]] =
+      session.prepareAsync(query).asScala.map { pstmt =>
+        new ScalaPreparedStatement[Unit, Row](
+          _ => pstmt.bind(),
+          RowMapper.identity,
+          pstmt
+        )
+      }
 
     def prepareAsync[T1](implicit ec: ExecutionContext, t1: TypeCodec[T1]): Future[ScalaPreparedStatement[T1, Row]] =
       session.prepareAsync(query).asScala.map { pstmt =>

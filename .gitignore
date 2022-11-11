@@ -72,3 +72,4 @@ bench/target/
 core/target/
 docs/target/
 helenus-docs/target/
+akka/target/

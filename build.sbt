@@ -9,12 +9,16 @@ lazy val dependencies = new {
     val scalaJava8Compat      = "1.0.2"
     val shapeless             = "2.3.10"
 
+    val akka    = "2.6.19" // 2.7 changed to business license
+    val alpakka = "4.0.0" // 5.x changed to business license
+
     // Test Dependencies
     val mockito    = "4.8.0"
     val scalaCheck = "1.17.0"
     val scalaTest  = "3.2.14"
   }
 
+  // 'core' dependencies
   val cassandraUnit = "org.cassandraunit" % "cassandra-unit"   % Version.cassandraUnit
   val dseJavaDriver = "com.datastax.oss"  % "java-driver-core" % Version.dseJavaDriver
   val scalaReflect  = "org.scala-lang"    % "scala-reflect" // This is Scala version dependent
@@ -23,6 +27,10 @@ lazy val dependencies = new {
   val scalaJava8Compat = "org.scala-lang.modules" %% "scala-java8-compat" % Version.scalaJava8Compat
   val shapeless        = "com.chuusai"            %% "shapeless"          % Version.shapeless
 
+  // 'akka' dependencies
+  val alpakka     = "com.lightbend.akka" %% "akka-stream-alpakka-cassandra" % Version.alpakka
+  val akkaTestKit = "com.typesafe.akka"  %% "akka-testkit"                  % Version.akka
+
   val mockito    = "org.mockito"     % "mockito-core" % Version.mockito
   val scalaCheck = "org.scalacheck" %% "scalacheck"   % Version.scalaCheck
   val scalaTest  = "org.scalatest"  %% "scalatest"    % Version.scalaTest
@@ -30,7 +38,7 @@ lazy val dependencies = new {
 
 addCommandAlias(
   "testCoverage",
-  "; clean ; coverage; test; coverageAggregate; coverageReport; coverageOff; clean"
+  "; clean ; coverage; test; coverageAggregate; coverageReport; coverageOff"
 )
 
 addCommandAlias(
@@ -44,11 +52,12 @@ lazy val root = project
   .settings(
     publish / skip := true
   )
-  .aggregate(docs, core, bench)
+  .aggregate(docs, core, bench, akka)
 
 lazy val basicSettings = Seq(
   organization := "net.nmoncho",
   description := "Helenus is collection of Scala utilities for Apache Cassandra",
+  scalaVersion := dependencies.Version.scala213,
   startYear := Some(2021),
   homepage := Some(url("https://github.com/nMoncho/helenus")),
   licenses := Seq("MIT License" -> new URL("http://opensource.org/licenses/MIT")),
@@ -63,8 +72,6 @@ lazy val basicSettings = Seq(
       url("https://github.com/nMoncho")
     )
   ),
-  scalaVersion := dependencies.Version.scala213,
-  crossScalaVersions := List(dependencies.Version.scala213, dependencies.Version.scala212),
   scalacOptions := (Opts.compile.encoding("UTF-8") :+
     Opts.compile.deprecation :+
     Opts.compile.unchecked :+
@@ -105,6 +112,8 @@ lazy val core = project
   .settings(basicSettings)
   .settings(
     name := "helenus-core",
+    scalaVersion := dependencies.Version.scala213,
+    crossScalaVersions := List(dependencies.Version.scala213, dependencies.Version.scala212),
     libraryDependencies ++= Seq(
       dependencies.dseJavaDriver % Provided,
       dependencies.scalaCollectionCompat,
@@ -154,5 +163,22 @@ lazy val bench = project
     libraryDependencies ++= Seq(
       dependencies.dseJavaDriver,
       dependencies.mockito
+    )
+  )
+
+lazy val akka = project
+  .settings(basicSettings)
+  .dependsOn(core % "compile->compile;test->test")
+  .settings(
+    name := "helenus-akka",
+    scalaVersion := dependencies.Version.scala213,
+    crossScalaVersions := List(dependencies.Version.scala213),
+    // 5.x changed to business license
+    dependencyUpdatesFilter -= moduleFilter(organization = "com.lightbend.akka"),
+    // 2.7.x changed to business license
+    dependencyUpdatesFilter -= moduleFilter(organization = "com.typesafe.akka"),
+    libraryDependencies ++= Seq(
+      dependencies.alpakka     % "provided,test",
+      dependencies.akkaTestKit % Test
     )
   )

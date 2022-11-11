@@ -40,6 +40,9 @@ trait CassandraSpec extends BeforeAndAfterAll with BeforeAndAfterEach { this: Su
 
   protected lazy val keyspace: String = randomIdentifier("tests")
 
+  protected lazy val contactPoint: String =
+    s"${EmbeddedCassandraServerHelper.getHost}:${EmbeddedCassandraServerHelper.getNativeTransportPort}"
+
   protected lazy val session: CqlSession = CqlSession
     .builder()
     .addContactPoint(
