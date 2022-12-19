@@ -22,7 +22,8 @@
 package net.nmoncho.helenus.api.`type`.codec
 
 import com.datastax.oss.driver.api.core.CqlSession
-import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
+import com.datastax.oss.driver.api.core.`type`.codec.{ MappingCodec, TypeCodec }
+import com.datastax.oss.driver.api.core.`type`.reflect.GenericType
 import net.nmoncho.helenus.api.{
   ColumnMapper,
   DefaultColumnMapper,
@@ -112,6 +113,26 @@ trait CodecDerivation extends TupleCodecDerivation with UdtCodecDerivation { tha
     TypeCodecs.sorterMapOf(implicitly[TypeCodec[K]], implicitly[TypeCodec[V]])
 
   object Codec {
+
+    /** Creates a new mapping codec providing support for [[Outer]] based on an existing codec for [[Inner]].
+      *
+      * @param toOuter how to map from [[Inner]] to [[Outer]].
+      * @param toInner how to map from [[Outer]] to [[Inner]].
+      * @param codec The inner codec to use to handle instances of [[Inner]]; must not be null.
+      * @param tag [[Outer]] ClassTag
+      */
+    def mappingCodec[Inner, Outer](
+        toOuter: Inner => Outer,
+        toInner: Outer => Inner
+    )(implicit codec: TypeCodec[Inner], tag: ClassTag[Outer]): TypeCodec[Outer] =
+      new MappingCodec[Inner, Outer](
+        codec,
+        GenericType.of(tag.runtimeClass.asInstanceOf[Class[Outer]])
+      ) {
+        override def innerToOuter(value: Inner): Outer = toOuter(value)
+
+        override def outerToInner(value: Outer): Inner = toInner(value)
+      }
 
     def udtOf[T <: Product with Serializable: ClassTag: UdtCodec](
         implicit annotation: Annotation[Udt, T],
