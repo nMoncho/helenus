@@ -21,7 +21,13 @@
 
 package net.nmoncho.helenus.api
 
-import net.nmoncho.helenus.api.RowMapperSpec.IceCream
+import com.datastax.oss.driver.api.core.cql.Row
+import net.nmoncho.helenus.api.RowMapper.ColumnMapper
+import net.nmoncho.helenus.api.RowMapperSpec.{
+  IceCream,
+  IceCreamWithSpecialProps,
+  IceCreamWithSpecialPropsAsTuple
+}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
@@ -52,6 +58,24 @@ class RowMapperSpec extends AnyWordSpec with Matchers {
         implicitly[RowMapper[String]] should not be null
       }
     }
+
+    "semi-auto derive using a custom ColumnMapper" in {
+      IceCreamWithSpecialProps.rowMapper should not be null
+
+      withClue("and should be implicitly available, and not be derived twice") {
+        implicitly[RowMapper[IceCreamWithSpecialProps]] shouldBe IceCreamWithSpecialProps.rowMapper
+      }
+    }
+
+    "semi-auto derive with a tuple field" in {
+      IceCreamWithSpecialPropsAsTuple.rowMapper should not be null
+
+      withClue("and should be implicitly available, and not be derived twice") {
+        implicitly[
+          RowMapper[IceCreamWithSpecialPropsAsTuple]
+        ] shouldBe IceCreamWithSpecialPropsAsTuple.rowMapper
+      }
+    }
   }
 
 }
@@ -64,4 +88,25 @@ object RowMapperSpec {
   object IceCream {
     implicit val rowMapper: RowMapper[IceCream] = RowMapper[IceCream]
   }
+
+  case class SpecialProps(numCherries: Int, cone: Boolean)
+  object SpecialProps {
+    implicit val columnMapper: ColumnMapper[SpecialProps] = (_: String, row: Row) =>
+      SpecialProps(
+        row.getInt("numCherries"),
+        row.getBoolean("cone")
+      )
+  }
+  case class IceCreamWithSpecialProps(name: String, props: SpecialProps)
+  object IceCreamWithSpecialProps {
+    implicit val rowMapper: RowMapper[IceCreamWithSpecialProps] =
+      RowMapper[IceCreamWithSpecialProps]
+  }
+
+  case class IceCreamWithSpecialPropsAsTuple(name: String, props: (Int, Boolean))
+  object IceCreamWithSpecialPropsAsTuple {
+    implicit val rowMapper: RowMapper[IceCreamWithSpecialPropsAsTuple] =
+      RowMapper[IceCreamWithSpecialPropsAsTuple]
+  }
+
 }

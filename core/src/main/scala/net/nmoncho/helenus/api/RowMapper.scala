@@ -40,6 +40,20 @@ object RowMapper {
 
   val identity: RowMapper[Row] = (row: Row) => row
 
+  /** Knows how to extract a column from a [[Row]] into a Scala type [[A]]
+    * @tparam A target type
+    */
+  trait ColumnMapper[A] {
+    def apply(columnName: String, row: Row): A
+  }
+
+  object ColumnMapper {
+    def default[A](implicit codec: TypeCodec[A]): ColumnMapper[A] = new ColumnMapper[A] {
+      override def apply(columnName: String, row: Row): A =
+        row.get(columnName, codec)
+    }
+  }
+
   def apply[T](implicit mapper: DerivedRowMapper[T]): RowMapper[T] = mapper
 
   /** Derives a [[RowMapper]] for tuples
@@ -51,8 +65,8 @@ object RowMapper {
   /** Derives a [[RowMapper]] from a [[TypeCodec]] when [[T]] isn't a `Product`
     */
   implicit def simpleRowMapper[T](
-      implicit codec: TypeCodec[T],
-      ev: T <:!< Product
+      implicit ev: T <:!< Product,
+      codec: TypeCodec[T]
   ): DerivedRowMapper[T] =
     (row: Row) => row.get(0, codec)
 

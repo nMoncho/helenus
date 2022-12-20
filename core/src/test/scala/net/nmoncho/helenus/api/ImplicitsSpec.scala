@@ -21,8 +21,10 @@
 
 package net.nmoncho.helenus.api
 
+import com.datastax.oss.driver.api.core.cql.Row
 import net.nmoncho.helenus.CassandraSpec
 import net.nmoncho.helenus.api.ImplicitsSpec.ITRow
+import net.nmoncho.helenus.api.RowMapper.ColumnMapper
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{ Seconds, Span }

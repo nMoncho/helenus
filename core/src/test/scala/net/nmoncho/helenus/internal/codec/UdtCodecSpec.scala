@@ -25,7 +25,7 @@ package internal.codec
 import com.datastax.oss.driver.api.core.ProtocolVersion
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.cql.Row
-import net.nmoncho.helenus.api.{ ColumnMapper, SnakeCase, TimeUuid, Udt }
+import net.nmoncho.helenus.api.{ ColumnNamingScheme, SnakeCase, TimeUuid, Udt }
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
@@ -137,7 +137,7 @@ class CassandraUdtCodecSpec extends AnyWordSpec with Matchers with CassandraSpec
   case class IceCreamShuffled(numCherries: Int, cone: Boolean, name: String)
 
   object IceCreamShuffled {
-    implicit val colMapper: ColumnMapper = SnakeCase
+    implicit val colMapper: ColumnNamingScheme = SnakeCase
 
     implicit val codec: TypeCodec[IceCreamShuffled] = Codec.udtFrom[IceCreamShuffled](session)
   }
@@ -146,7 +146,7 @@ class CassandraUdtCodecSpec extends AnyWordSpec with Matchers with CassandraSpec
   case class IceCreamInvalid(cherriesNumber: Int, cone: Boolean, name: String)
 
   object IceCreamInvalid {
-    implicit val colMapper: ColumnMapper = SnakeCase
+    implicit val colMapper: ColumnNamingScheme = SnakeCase
 
     implicit val codec: TypeCodec[IceCreamInvalid] = Codec.udtFrom[IceCreamInvalid](session)
   }

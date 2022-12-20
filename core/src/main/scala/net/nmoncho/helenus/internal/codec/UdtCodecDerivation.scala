@@ -28,7 +28,7 @@ import com.datastax.oss.driver.api.core.data.UdtValue
 import com.datastax.oss.driver.api.core.{ CqlIdentifier, CqlSession }
 import com.datastax.oss.driver.internal.core.`type`.DefaultUserDefinedType
 import com.datastax.oss.driver.internal.core.`type`.codec.{ UdtCodec => DseUdtCodec }
-import net.nmoncho.helenus.api.{ ColumnMapper, DefaultColumnMapper, Udt }
+import net.nmoncho.helenus.api.{ ColumnNamingScheme, DefaultColumnNamingScheme, Udt }
 import shapeless.labelled.FieldType
 import shapeless.syntax.singleton.mkSingletonOps
 
@@ -59,7 +59,7 @@ trait UdtCodecDerivation {
     */
   implicit def udtOf[T <: Product with Serializable: ClassTag: UdtCodec](
       implicit annotation: Annotation[Udt, T],
-      columnMapper: ColumnMapper = DefaultColumnMapper
+      columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme
   ): TypeCodec[T] = mappingCodec[T](generateUserDefinedType[T])
 
   /** Derives a [[TypeCodec]] for type [[T]], by looking to the [[UserDefinedType]] in the [[CqlSession]].
@@ -73,7 +73,7 @@ trait UdtCodecDerivation {
     */
   def udtFrom[T <: Product with Serializable: ClassTag: UdtCodec](session: CqlSession)(
       implicit annotation: Annotation[Udt, T],
-      columnMapper: ColumnMapper = DefaultColumnMapper
+      columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme
   ): TypeCodec[T] = {
     import scala.jdk.OptionConverters._
     val udtAnn = annotation()
@@ -92,7 +92,7 @@ trait UdtCodecDerivation {
       implicit udtCodec: UdtCodec[T],
       annotation: Annotation[Udt, T],
       classTag: ClassTag[T],
-      columnMapper: ColumnMapper = DefaultColumnMapper
+      columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme
   ): TypeCodec[T] = new MappingCodec[UdtValue, T](
     new DseUdtCodec(udt),
     GenericType.of(
@@ -143,7 +143,7 @@ trait UdtCodecDerivation {
   implicit def lastUdtElementCodec[K <: Symbol, H](
       implicit codec: TypeCodec[H],
       witness: Witness.Aux[K],
-      columnMapper: ColumnMapper = DefaultColumnMapper
+      columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme
   ): UdtCodec[FieldType[K, H] :: HNil] =
     new UdtCodec[FieldType[K, H] :: HNil] {
       private val column = columnMapper.map(witness.value.name)
@@ -163,7 +163,7 @@ trait UdtCodecDerivation {
       implicit codec: TypeCodec[H],
       witness: Witness.Aux[K],
       udtCodec1: UdtCodec[T],
-      columnMapper: ColumnMapper = DefaultColumnMapper
+      columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme
   ): UdtCodec[FieldType[K, H] :: T] =
     new UdtCodec[FieldType[K, H] :: T] {
 
@@ -186,7 +186,7 @@ trait UdtCodecDerivation {
   implicit def genericUdtCodec[A <: Product with Serializable, R](
       implicit generic: LabelledGeneric.Aux[A, R],
       codec: UdtCodec[R],
-      columnMapper: ColumnMapper = DefaultColumnMapper
+      columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme
   ): UdtCodec[A] = new UdtCodec[A] {
 
     private[UdtCodecDerivation] val definitions: Seq[(String, DataType)] = codec.definitions

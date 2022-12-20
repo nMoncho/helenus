@@ -23,7 +23,8 @@ package net.nmoncho.helenus.internal
 
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.cql.Row
-import net.nmoncho.helenus.api.{ ColumnMapper, DefaultColumnMapper, RowMapper }
+import net.nmoncho.helenus.api.RowMapper.ColumnMapper
+import net.nmoncho.helenus.api.{ ColumnNamingScheme, DefaultColumnNamingScheme, RowMapper }
 import shapeless.labelled.FieldType
 import shapeless.syntax.singleton.mkSingletonOps
 import shapeless.{ ::, Generic, HList, HNil, IsTuple, LabelledGeneric, Witness }
@@ -31,38 +32,45 @@ import shapeless.{ ::, Generic, HList, HNil, IsTuple, LabelledGeneric, Witness }
 abstract class DerivedRowMapper[T] extends RowMapper[T]
 
 trait CaseClassRowMapperDerivation {
-  /* Case Class RowMapper derivation */
-  implicit def lastCCElement[K <: Symbol, H](
-      implicit codec: TypeCodec[H],
-      witness: Witness.Aux[K],
-      columnMapper: ColumnMapper = DefaultColumnMapper
-  ): DerivedRowMapper[FieldType[K, H] :: HNil] = new DerivedRowMapper[FieldType[K, H] :: HNil] {
-    private val column = columnMapper.map(witness.value.name)
 
-    override def apply(row: Row): FieldType[K, H] :: HNil =
-      (witness.value ->> row.get(column, codec)).asInstanceOf[FieldType[K, H]] :: HNil
+  sealed trait DerivedNameRowMapper[T] extends DerivedRowMapper[T] {
+    def column: String
   }
 
-  implicit def hListCCRowMapper[K <: Symbol, H, T <: HList](
-      implicit codec: TypeCodec[H],
+  /* Case Class RowMapper derivation */
+  implicit def lastCCElement[K <: Symbol, H](
+      implicit colDecoder: ColumnMapper[H],
       witness: Witness.Aux[K],
-      tailRowMapper: DerivedRowMapper[T],
-      columnMapper: ColumnMapper = DefaultColumnMapper
-  ): DerivedRowMapper[FieldType[K, H] :: T] = new DerivedRowMapper[FieldType[K, H] :: T] {
-    private val column = columnMapper.map(witness.value.name)
+      columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme
+  ): DerivedNameRowMapper[FieldType[K, H] :: HNil] =
+    new DerivedNameRowMapper[FieldType[K, H] :: HNil] {
+      override val column: String = columnMapper.map(witness.value.name)
+
+      override def apply(row: Row): FieldType[K, H] :: HNil =
+        (witness.value ->> colDecoder(column, row)).asInstanceOf[FieldType[K, H]] :: HNil
+    }
+
+  implicit def hListCCRowMapper[K <: Symbol, H, T <: HList](
+      implicit colDecoder: ColumnMapper[H],
+      witness: Witness.Aux[K],
+      tailRowMapper: DerivedNameRowMapper[T],
+      columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme
+  ): DerivedNameRowMapper[FieldType[K, H] :: T] = new DerivedNameRowMapper[FieldType[K, H] :: T] {
+    override val column: String = columnMapper.map(witness.value.name)
 
     override def apply(row: Row): FieldType[K, H] :: T =
-      (witness.value ->> row.get(column, codec))
+      (witness.value ->> colDecoder(column, row))
         .asInstanceOf[FieldType[K, H]] :: tailRowMapper(row)
   }
 
   implicit def genericCCRowMapper[T, R](
       implicit gen: LabelledGeneric.Aux[T, R],
-      mapper: DerivedRowMapper[R],
-      columnMapper: ColumnMapper = DefaultColumnMapper
+      mapper: DerivedNameRowMapper[R],
+      columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme
   ): DerivedRowMapper[T] = { (row: Row) =>
     gen.from(mapper(row))
   }
+
 }
 
 object DerivedRowMapper extends CaseClassRowMapperDerivation {
@@ -90,8 +98,9 @@ object DerivedRowMapper extends CaseClassRowMapperDerivation {
       row.get(idx, codec) :: tailMapper.apply(idx + 1, row)
   }
 
-  implicit def genericTupleRowMapper[T: IsTuple, R](
-      implicit gen: Generic.Aux[T, R],
+  implicit def genericTupleRowMapper[T, R](
+      implicit isTuple: IsTuple[T],
+      gen: Generic.Aux[T, R],
       mapper: DerivedIdxRowMapper[R]
   ): DerivedRowMapper[T] =
     (row: Row) => gen.from(mapper(0, row))

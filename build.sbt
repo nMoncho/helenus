@@ -76,7 +76,8 @@ lazy val basicSettings = Seq(
     Opts.compile.deprecation :+
     Opts.compile.unchecked :+
     "-feature" :+
-    "-language:higherKinds"),
+    "-language:higherKinds" :+
+    "-Xlog-implicits"),
   (Test / testOptions) += Tests.Argument("-oF")
 )
 

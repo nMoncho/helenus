@@ -24,15 +24,16 @@ package net.nmoncho.helenus.api.`type`.codec
 import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.`type`.codec.{ MappingCodec, TypeCodec }
 import com.datastax.oss.driver.api.core.`type`.reflect.GenericType
+import net.nmoncho.helenus.api.RowMapper.ColumnMapper
 import net.nmoncho.helenus.api.{
-  ColumnMapper,
-  DefaultColumnMapper,
+  ColumnNamingScheme,
+  DefaultColumnNamingScheme,
   NominalEncoded,
   OrdinalEncoded,
   Udt
 }
 import net.nmoncho.helenus.internal.codec.{ TupleCodecDerivation, UdtCodecDerivation }
-import shapeless.{ Annotation, IsTuple, Witness }
+import shapeless.{ <:!<, Annotation, IsTuple, Witness }
 
 import java.net.InetAddress
 import java.time.{ Instant, LocalDate, LocalTime }
@@ -112,6 +113,22 @@ trait CodecDerivation extends TupleCodecDerivation with UdtCodecDerivation { tha
   implicit def sorterMapOf[K: TypeCodec: Ordering, V: TypeCodec]: TypeCodec[SortedMap[K, V]] =
     TypeCodecs.sorterMapOf(implicitly[TypeCodec[K]], implicitly[TypeCodec[V]])
 
+  /** Derives a [[ColumnMapper]] for a given type [[A]], if it's not a [[Product]] (ie. tuple or case class)
+    */
+  implicit def columnMapper[A](
+      implicit ev: A <:!< Product,
+      codec: TypeCodec[A]
+  ): ColumnMapper[A] =
+    ColumnMapper.default[A]
+
+  /** Derives a [[ColumnMapper]] for a given type [[A]], if it's a tuple
+    */
+  implicit def columnMapperForTuple[A](
+      implicit ev: IsTuple[A],
+      codec: TypeCodec[A]
+  ): ColumnMapper[A] =
+    ColumnMapper.default[A]
+
   object Codec {
 
     /** Creates a new mapping codec providing support for [[Outer]] based on an existing codec for [[Inner]].
@@ -136,12 +153,12 @@ trait CodecDerivation extends TupleCodecDerivation with UdtCodecDerivation { tha
 
     def udtOf[T <: Product with Serializable: ClassTag: UdtCodec](
         implicit annotation: Annotation[Udt, T],
-        columnMapper: ColumnMapper = DefaultColumnMapper
+        columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme
     ): TypeCodec[T] = that.udtOf[T]
 
     def udtFrom[T <: Product with Serializable: ClassTag: UdtCodec](session: CqlSession)(
         implicit annotation: Annotation[Udt, T],
-        columnMapper: ColumnMapper = DefaultColumnMapper
+        columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme
     ): TypeCodec[T] = that.udtFrom[T](session)
 
     def tupleOf[T: IsTuple](implicit tupleCodec: TupleCodec[T]): TypeCodec[T] =
