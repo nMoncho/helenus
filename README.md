@@ -14,7 +14,7 @@ avoid introducing a complex API.
 Include the library into you project definition:
 
 ```scala
-libraryDependencies += "net.nmoncho" %% "helenus-core" % "0.4.0"
+libraryDependencies += "net.nmoncho" %% "helenus-core" % "0.5.0"
 ```
 
 ## Features
@@ -52,11 +52,11 @@ import net.nmoncho.helenus.docs._ // This import is not required, it's here to r
 
 // Insert here your CqlSession
 val cqlSession: CqlSession = DocsHelper.cqlSession
-// cqlSession: CqlSession = com.datastax.oss.driver.internal.core.session.DefaultSession@5d02794b
+// cqlSession: CqlSession = com.datastax.oss.driver.internal.core.session.DefaultSession@39da092f
 
 import net.nmoncho.helenus._
 implicit val session: CqlSessionExtension = cqlSession.toScala
-// session: CqlSessionExtension = net.nmoncho.helenus.package$ClqSessionOps$$anon$1@42a05654
+// session: CqlSessionExtension = net.nmoncho.helenus.package$ClqSessionOps$$anon$1@4874967e
 ```
 
 ### Querying (CQL Templating)
@@ -70,7 +70,7 @@ val age = 18
 // age: Int = 18
 
 cql"SELECT * FROM population_by_country WHERE country = $countryId AND age > $age".execute()
-// res0: ResultSet = com.datastax.oss.driver.internal.core.cql.SinglePageResultSet@2c039948
+// res0: ResultSet = com.datastax.oss.driver.internal.core.cql.SinglePageResultSet@2789c70e
 ```
 
 An asychronous version is also available using `asyncCql`.
@@ -88,13 +88,13 @@ You can also query with some extension methods, treating queries as functions:
 val query = "SELECT * FROM population_by_country WHERE country = ? AND age >= ?"
    .toCQL
    .prepare[String, Int]
-// query: internal.cql.ScalaPreparedStatement[(String, Int), Row] = net.nmoncho.helenus.internal.cql.ScalaPreparedStatement@5a8c0ccd
+// query: internal.cql.ScalaPreparedStatement[(String, Int), Row] = net.nmoncho.helenus.internal.cql.ScalaPreparedStatement@365a7eb9
 
 // Notice there is no boxing required for `Int`
 val olderThan18 = query("nl", 18).execute()
-// olderThan18: ResultSet = com.datastax.oss.driver.internal.core.cql.SinglePageResultSet@48b04344
+// olderThan18: ResultSet = com.datastax.oss.driver.internal.core.cql.SinglePageResultSet@d878e2
 val olderThan21 = query("nl", 21).execute()
-// olderThan21: ResultSet = com.datastax.oss.driver.internal.core.cql.SinglePageResultSet@7c635e1e
+// olderThan21: ResultSet = com.datastax.oss.driver.internal.core.cql.SinglePageResultSet@3ec052ad
 ```
 
 The `prepare` method take as many type parameters as the query takes bound parameters. If the amount doesn't match, you
@@ -135,7 +135,7 @@ There is also an async flavour to this method with `executeAsync`:
    .prepare[String, Int]
    .as[(String, Int, Int)]
    .executeAsync(countryId, age) // invoke goes here now!
-// res2: concurrent.Future[com.datastax.oss.driver.api.core.MappedAsyncPagingIterable[(String, Int, Int)]] = Future(Success(com.datastax.oss.driver.internal.core.AsyncPagingIterableWrapper@3714e775))
+// res2: concurrent.Future[com.datastax.oss.driver.api.core.MappedAsyncPagingIterable[(String, Int, Int)]] = Future(Success(com.datastax.oss.driver.internal.core.AsyncPagingIterableWrapper@32d91b44))
 ```
 
 ### Codecs
@@ -144,13 +144,13 @@ You can summon codecs with:
 
 ```scala
 val anIntCodec = Codec[Int]
-// anIntCodec: com.datastax.oss.driver.api.core.type.codec.TypeCodec[Int] = net.nmoncho.helenus.internal.codec.IntCodec$@32819d63
+// anIntCodec: com.datastax.oss.driver.api.core.type.codec.TypeCodec[Int] = net.nmoncho.helenus.internal.codec.IntCodec$@2d2590aa
 val aTupleCodec = Codec[(String, Long)]
 // aTupleCodec: com.datastax.oss.driver.api.core.type.codec.TypeCodec[(String, Long)] = TupleCodec[(TEXT, BIGINT)]
 
 // Either are encoded as tuples
 val anEitherCodec = Codec[Either[String, java.util.UUID]] 
-// anEitherCodec: com.datastax.oss.driver.api.core.type.codec.TypeCodec[Either[String, java.util.UUID]] = net.nmoncho.helenus.internal.codec.EitherCodec@3ac2d3f6
+// anEitherCodec: com.datastax.oss.driver.api.core.type.codec.TypeCodec[Either[String, java.util.UUID]] = net.nmoncho.helenus.internal.codec.EitherCodec@11925547
 ```
 
 #### UDT Codecs
