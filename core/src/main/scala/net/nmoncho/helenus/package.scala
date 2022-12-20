@@ -125,6 +125,10 @@ package object helenus extends CodecDerivation {
       )
   }
 
+  implicit class RowOps(private val row: Row) extends AnyVal {
+    def as[T](implicit mapper: RowMapper[T]): T = mapper.apply(row)
+  }
+
   implicit class ResultSetOps(private val rs: ResultSet) extends AnyVal {
     def as[T](implicit mapper: RowMapper[T]): PagingIterable[T] = rs.map(mapper.apply)
   }

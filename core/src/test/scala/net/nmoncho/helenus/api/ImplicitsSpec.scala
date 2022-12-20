@@ -124,6 +124,16 @@ class ImplicitsSpec extends AnyWordSpec with Matchers with CassandraSpec with Sc
 
         result.to(List) shouldBe List((name, uuid, age))
       }
+
+      withClue("adapting rows") {
+        "SELECT name, id FROM implicits_tests WHERE id = ?".toCQL
+          .prepare[UUID]
+          .apply(uuid)
+          .execute()
+          .iter
+          .map(_.as[(String, UUID)])
+          .nextOption() shouldBe Some(name -> uuid)
+      }
     }
 
     "map rows as case classes" in {
