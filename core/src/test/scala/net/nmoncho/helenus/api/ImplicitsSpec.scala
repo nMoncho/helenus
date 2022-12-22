@@ -126,13 +126,15 @@ class ImplicitsSpec extends AnyWordSpec with Matchers with CassandraSpec with Sc
       }
 
       withClue("adapting rows") {
-        "SELECT name, id FROM implicits_tests WHERE id = ?".toCQL
+        val it = "SELECT name, id FROM implicits_tests WHERE id = ?".toCQL
           .prepare[UUID]
           .apply(uuid)
           .execute()
           .iter
           .map(_.as[(String, UUID)])
-          .nextOption() shouldBe Some(name -> uuid)
+
+        it.hasNext shouldBe true
+        it.next() shouldBe name -> uuid
       }
     }
 

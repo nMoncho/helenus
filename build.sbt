@@ -5,7 +5,7 @@ lazy val dependencies = new {
 
     val cassandraUnit         = "4.3.1.0"
     val dseJavaDriver         = "4.15.0"
-    val scalaCollectionCompat = "2.8.1"
+    val scalaCollectionCompat = "2.9.0"
     val scalaJava8Compat      = "1.0.2"
     val shapeless             = "2.3.10"
 
@@ -13,7 +13,7 @@ lazy val dependencies = new {
     val alpakka = "4.0.0" // 5.x changed to business license
 
     // Test Dependencies
-    val mockito    = "4.8.0"
+    val mockito    = "4.10.0"
     val scalaCheck = "1.17.0"
     val scalaTest  = "3.2.14"
   }
