@@ -21,6 +21,8 @@
 
 package net.nmoncho.helenus.api.`type`.codec
 
+import com.datastax.dse.driver.api.core.data.geometry.{ LineString, Point, Polygon }
+import com.datastax.dse.driver.api.core.data.time.DateRange
 import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.`type`.codec.{ MappingCodec, TypeCodec }
 import com.datastax.oss.driver.api.core.`type`.reflect.GenericType
@@ -73,6 +75,15 @@ trait CodecDerivation extends TupleCodecDerivation with UdtCodecDerivation { tha
   implicit final val localTimeCodec: TypeCodec[LocalTime] = TypeCodecs.localTimeCodec
 
   implicit final val inetAddressCodec: TypeCodec[InetAddress] = TypeCodecs.inetAddressCodec
+
+  // DSE TypeCodecs
+  implicit final val lineStringCodec: TypeCodec[LineString] = TypeCodecs.lineStringCodec
+
+  implicit final val pointCodec: TypeCodec[Point] = TypeCodecs.pointCodec
+
+  implicit final val polygonCodec: TypeCodec[Polygon] = TypeCodecs.polygonCodec
+
+  implicit final val dateRangeCodec: TypeCodec[DateRange] = TypeCodecs.dateRangeCodec
 
   implicit def enumNominalCodec[T <: Enumeration](
       implicit w: Witness.Aux[T],

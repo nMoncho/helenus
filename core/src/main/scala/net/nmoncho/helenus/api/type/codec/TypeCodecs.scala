@@ -21,6 +21,8 @@
 
 package net.nmoncho.helenus.api.`type`.codec
 
+import com.datastax.dse.driver.api.core.data.geometry.{ LineString, Point, Polygon }
+import com.datastax.dse.driver.api.core.data.time.DateRange
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import net.nmoncho.helenus.internal.codec._
 import net.nmoncho.helenus.internal.codec.collection._
@@ -88,6 +90,19 @@ object TypeCodecs {
   /** The default codec that maps CQL type Inet to [[java.net.InetAddress]] */
   val inetAddressCodec: TypeCodec[InetAddress] =
     com.datastax.oss.driver.api.core.`type`.codec.TypeCodecs.INET
+
+  // DSE TypeCodecs
+  val lineStringCodec: TypeCodec[LineString] =
+    com.datastax.dse.driver.api.core.`type`.codec.DseTypeCodecs.LINE_STRING
+
+  val pointCodec: TypeCodec[Point] =
+    com.datastax.dse.driver.api.core.`type`.codec.DseTypeCodecs.POINT
+
+  val polygonCodec: TypeCodec[Polygon] =
+    com.datastax.dse.driver.api.core.`type`.codec.DseTypeCodecs.POLYGON
+
+  val dateRangeCodec: TypeCodec[DateRange] =
+    com.datastax.dse.driver.api.core.`type`.codec.DseTypeCodecs.DATE_RANGE
 
   /** Builds a new codec for an [[Enumeration]] by name */
   def enumerationNominalCodec[T <: Enumeration](enumeration: T): TypeCodec[T#Value] =
