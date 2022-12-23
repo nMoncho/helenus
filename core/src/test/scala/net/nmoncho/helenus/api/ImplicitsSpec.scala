@@ -23,8 +23,8 @@ package net.nmoncho.helenus.api
 
 import com.datastax.oss.driver.api.core.cql.Row
 import net.nmoncho.helenus.CassandraSpec
-import net.nmoncho.helenus.api.ImplicitsSpec.ITRow
-import net.nmoncho.helenus.api.RowMapper.ColumnMapper
+import net.nmoncho.helenus.api.ImplicitsSpec.{ ITRow, RenamedITRow }
+import net.nmoncho.helenus.api.RowMapper.{ ColumnMapper, NamedRowMapper }
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{ Seconds, Span }
@@ -152,6 +152,15 @@ class ImplicitsSpec extends AnyWordSpec with Matchers with CassandraSpec with Sc
       result.execute(uuid).headOption shouldBe empty
       insert(uuid, age, name).execute()
       result.execute(uuid).headOption shouldBe Some(ITRow(uuid, age, name))
+
+      withClue("and also with a different mapping") {
+        val result = "SELECT name, id, age FROM implicits_tests WHERE id = ?".toCQL
+          .prepare[UUID]
+          .as[RenamedITRow]
+
+        insert(uuid, age, name).execute()
+        result.execute(uuid).headOption shouldBe Some(RenamedITRow(uuid, age, name))
+      }
     }
 
     "adapt rows" in {
@@ -219,5 +228,11 @@ object ImplicitsSpec {
 
   object ITRow {
     implicit val rowMapper: RowMapper[ITRow] = RowMapper[ITRow]
+  }
+
+  case class RenamedITRow(id: UUID, leeftijd: Int, naam: String)
+  object RenamedITRow {
+    implicit val rowMapper: RowMapper[RenamedITRow] =
+      NamedRowMapper[RenamedITRow]("leeftijd" -> "age", "naam" -> "name")
   }
 }

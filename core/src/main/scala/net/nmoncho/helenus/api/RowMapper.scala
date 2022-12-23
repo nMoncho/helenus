@@ -70,4 +70,26 @@ object RowMapper {
   ): DerivedRowMapper[T] =
     (row: Row) => row.get(0, codec)
 
+  // FIXME there is no check if the user maps a field that doesn't exist
+  // This could be fixed with Shapeless, maybe... or macros with a Quill approach
+  /** Use this abstraction when you desire to have more control over how columns are defined in the schema.
+    * If you don't need this feature, please use [[RowMapper]].
+    */
+  object NamedRowMapper {
+    type FieldName  = String
+    type ColumnName = String
+
+    /** Derives a [[RowMapper]] considering the specified name mapping.
+      *
+      * @param first first mapping from field to column
+      * @param rest rest mapping from field to column
+      * @tparam T target type
+      */
+    def apply[T](first: (FieldName, ColumnName), rest: (FieldName, ColumnName)*)(
+        implicit builder: DerivedRowMapper.Builder[T]
+    ): RowMapper[T] = {
+      val mappings = rest.toMap + first
+      builder(mappings)
+    }
+  }
 }
