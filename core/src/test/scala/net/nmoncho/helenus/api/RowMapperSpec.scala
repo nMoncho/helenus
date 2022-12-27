@@ -108,5 +108,4 @@ object RowMapperSpec {
     implicit val rowMapper: RowMapper[IceCreamWithSpecialPropsAsTuple] =
       RowMapper[IceCreamWithSpecialPropsAsTuple]
   }
-
 }

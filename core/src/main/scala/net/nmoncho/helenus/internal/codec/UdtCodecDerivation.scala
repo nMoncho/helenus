@@ -57,7 +57,7 @@ trait UdtCodecDerivation {
     * @param columnMapper how to map case class's field names ot CQL Type's field names
     * @tparam T case class type to derive [[TypeCodec]] for
     */
-  implicit def udtOf[T <: Product with Serializable: ClassTag: UdtCodec](
+  def udtOf[T <: Product with Serializable: ClassTag: UdtCodec](
       implicit annotation: Annotation[Udt, T],
       columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme
   ): TypeCodec[T] = mappingCodec[T](generateUserDefinedType[T])

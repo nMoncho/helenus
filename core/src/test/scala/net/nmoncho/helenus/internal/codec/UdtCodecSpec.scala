@@ -34,7 +34,7 @@ import java.util.UUID
 class UdtCodecSpec extends AnyWordSpec with Matchers {
   import UdtCodecSpec._
 
-  private val codec: TypeCodec[IceCream] = Codec[IceCream]
+  private val codec: TypeCodec[IceCream] = Codec.udtOf[IceCream]
 
   "UdtCodec" should {
 
@@ -50,7 +50,7 @@ class UdtCodecSpec extends AnyWordSpec with Matchers {
     }
 
     "encode-decode a case class with a tuple" in {
-      val codec: TypeCodec[IceCream2] = Codec[IceCream2]
+      val codec: TypeCodec[IceCream2] = Codec.udtOf[IceCream2]
 
       val sundae  = IceCream2("Sundae", 3, cone = false, 1 -> 2)
       val vanilla = IceCream2("Vanilla", 3, cone = true, 2 -> 1)

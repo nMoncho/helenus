@@ -124,20 +124,9 @@ trait CodecDerivation extends TupleCodecDerivation with UdtCodecDerivation { tha
   implicit def sorterMapOf[K: TypeCodec: Ordering, V: TypeCodec]: TypeCodec[SortedMap[K, V]] =
     TypeCodecs.sorterMapOf(implicitly[TypeCodec[K]], implicitly[TypeCodec[V]])
 
-  /** Derives a [[ColumnMapper]] for a given type [[A]], if it's not a [[Product]] (ie. tuple or case class)
+  /** Derives a [[ColumnMapper]] for a given type [[A]], given an available implicit [[TypeCodec]]
     */
-  implicit def columnMapper[A](
-      implicit ev: A <:!< Product,
-      codec: TypeCodec[A]
-  ): ColumnMapper[A] =
-    ColumnMapper.default[A]
-
-  /** Derives a [[ColumnMapper]] for a given type [[A]], if it's a tuple
-    */
-  implicit def columnMapperForTuple[A](
-      implicit ev: IsTuple[A],
-      codec: TypeCodec[A]
-  ): ColumnMapper[A] =
+  implicit def columnMapper[A: TypeCodec]: ColumnMapper[A] =
     ColumnMapper.default[A]
 
   object Codec {
