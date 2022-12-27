@@ -150,7 +150,7 @@ import net.nmoncho.helenus.api.Udt
 @Udt("docs", "ice_cream")
 case class IceCream(name: String, numCherries: Int, cone: Boolean)
 
-val iceCreamCodec = Codec[IceCream] // or Codec.udtOf[IceCream]
+val iceCreamCodec = Codec.udtOf[IceCream]
 ```
 
 This automatic derivation relies on the CQL type having the same field order as the case class (ie. in this case names
