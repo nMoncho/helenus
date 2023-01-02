@@ -41,21 +41,27 @@ object DocsHelper {
     )
     session.execute(s"USE $keyspace")
     session.execute(
-      s"""CREATE TABLE population_by_country(
-         |  country TEXT,
-         |  age INT,
-         |  amount INT,
-         |  PRIMARY KEY (country, age)
-         |) WITH CLUSTERING ORDER BY (age ASC)""".stripMargin
+      """CREATE TYPE address (
+        |    street              TEXT,
+        |    city                TEXT,
+        |    state_or_province   TEXT,
+        |    postal_code         TEXT,
+        |    country             TEXT
+        |)""".stripMargin
     )
     session.execute(
-      "INSERT INTO population_by_country(country, age, amount) VALUES ('nl', 18, 1000)"
+      s"""CREATE TABLE hotels (
+         |    id          TEXT PRIMARY KEY,
+         |    name        TEXT,
+         |    phone       TEXT,
+         |    address     FROZEN<address>,
+         |    pois        SET<TEXT>
+         |) WITH comment = 'Q2. Find information about a hotel'""".stripMargin
     )
+
     session.execute(
-      "INSERT INTO population_by_country(country, age, amount) VALUES ('nl', 21, 900)"
-    )
-    session.execute(
-      "CREATE TYPE IF NOT EXISTS ice_cream (name TEXT, num_cherries INT, cone BOOLEAN)"
+      """INSERT INTO hotels(id, name, phone, address, pois)
+        |VALUES ('h1', 'The New York Hotel Rotterdam', '+31 10 217 3000', {street: 'Meent 78-82', city: 'Rotterdam', state_or_province: 'Zuid-Holland', postal_code: '3011 JM', country: 'Netherlands'}, {'Erasmus Bridge', 'Rotterdam Zoo', 'Markthal Rotterdam'})""".stripMargin
     )
   }
 
