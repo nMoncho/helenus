@@ -21,18 +21,23 @@
 
 package net.nmoncho.helenus.internal.codec
 
-import com.datastax.oss.driver.api.core.`type`.codec.{ MappingCodec, TypeCodec }
+import scala.reflect.ClassTag
+
+import com.datastax.oss.driver.api.core.CqlIdentifier
+import com.datastax.oss.driver.api.core.CqlSession
+import com.datastax.oss.driver.api.core.`type`.DataType
+import com.datastax.oss.driver.api.core.`type`.UserDefinedType
+import com.datastax.oss.driver.api.core.`type`.codec.MappingCodec
+import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.`type`.reflect.GenericType
-import com.datastax.oss.driver.api.core.`type`.{ DataType, UserDefinedType }
 import com.datastax.oss.driver.api.core.data.UdtValue
-import com.datastax.oss.driver.api.core.{ CqlIdentifier, CqlSession }
 import com.datastax.oss.driver.internal.core.`type`.DefaultUserDefinedType
 import com.datastax.oss.driver.internal.core.`type`.codec.{ UdtCodec => DseUdtCodec }
-import net.nmoncho.helenus.api.{ ColumnNamingScheme, DefaultColumnNamingScheme, Udt }
+import net.nmoncho.helenus.api.ColumnNamingScheme
+import net.nmoncho.helenus.api.DefaultColumnNamingScheme
+import net.nmoncho.helenus.api.Udt
 import shapeless.labelled.FieldType
 import shapeless.syntax.singleton.mkSingletonOps
-
-import scala.reflect.ClassTag
 
 /** UDT codec derivation represented as Case Classes.
   */

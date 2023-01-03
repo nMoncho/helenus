@@ -23,11 +23,9 @@ package net.nmoncho.helenus.api
 
 import com.datastax.oss.driver.api.core.cql.Row
 import net.nmoncho.helenus.api.RowMapper.ColumnMapper
-import net.nmoncho.helenus.api.RowMapperSpec.{
-  IceCream,
-  IceCreamWithSpecialProps,
-  IceCreamWithSpecialPropsAsTuple
-}
+import net.nmoncho.helenus.api.RowMapperSpec.IceCream
+import net.nmoncho.helenus.api.RowMapperSpec.IceCreamWithSpecialProps
+import net.nmoncho.helenus.api.RowMapperSpec.IceCreamWithSpecialPropsAsTuple
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 

@@ -24,8 +24,9 @@ package internal.codec
 
 import com.datastax.oss.driver.api.core.ProtocolVersion
 import com.datastax.oss.driver.api.core.`type`.DataTypes
+import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
+import com.datastax.oss.driver.api.core.`type`.codec.TypeCodecs
 import com.datastax.oss.driver.api.core.`type`.codec.registry.CodecRegistry
-import com.datastax.oss.driver.api.core.`type`.codec.{ TypeCodec, TypeCodecs }
 import com.datastax.oss.driver.api.core.data.TupleValue
 import com.datastax.oss.driver.api.core.detach.AttachmentPoint
 import com.datastax.oss.driver.internal.core.`type`.DefaultTupleType

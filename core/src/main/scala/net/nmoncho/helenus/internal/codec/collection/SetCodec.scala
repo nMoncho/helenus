@@ -22,7 +22,8 @@
 package net.nmoncho.helenus.internal.codec.collection
 
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
-import com.datastax.oss.driver.api.core.`type`.reflect.{ GenericType, GenericTypeParameter }
+import com.datastax.oss.driver.api.core.`type`.reflect.GenericType
+import com.datastax.oss.driver.api.core.`type`.reflect.GenericTypeParameter
 import com.datastax.oss.driver.shaded.guava.common.reflect.TypeToken
 
 class SetCodec[T](inner: TypeCodec[T], frozen: Boolean)

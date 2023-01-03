@@ -21,13 +21,12 @@
 
 package net.nmoncho.helenus.internal
 
+import scala.util.Failure
+import scala.util.Try
+
 import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
-
-import scala.util.Try
 import com.datastax.oss.driver.api.core.`type`.codec.registry.MutableCodecRegistry
-
-import scala.util.Failure
 
 trait CqlSessionSyncExtension {
 

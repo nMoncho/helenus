@@ -21,21 +21,28 @@
 
 package net.nmoncho.helenus.akka
 
+import scala.collection.immutable
+import scala.concurrent.Future
+
+import akka.Done
+import akka.NotUsed
 import akka.actor.ActorSystem
-import akka.stream.alpakka.cassandra.scaladsl.{ CassandraSession, CassandraSessionRegistry }
-import akka.stream.alpakka.cassandra.{ CassandraSessionSettings, CassandraWriteSettings }
-import akka.stream.scaladsl.{ FlowWithContext, Sink, Source }
-import akka.{ Done, NotUsed }
-import com.typesafe.config.{ Config, ConfigFactory }
+import akka.stream.alpakka.cassandra.CassandraSessionSettings
+import akka.stream.alpakka.cassandra.CassandraWriteSettings
+import akka.stream.alpakka.cassandra.scaladsl.CassandraSession
+import akka.stream.alpakka.cassandra.scaladsl.CassandraSessionRegistry
+import akka.stream.scaladsl.FlowWithContext
+import akka.stream.scaladsl.Sink
+import akka.stream.scaladsl.Source
+import com.typesafe.config.Config
+import com.typesafe.config.ConfigFactory
 import net.nmoncho.helenus.CassandraSpec
 import net.nmoncho.helenus.api.RowMapper
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.time.{ Seconds, Span }
+import org.scalatest.time.Seconds
+import org.scalatest.time.Span
 import org.scalatest.wordspec.AnyWordSpec
-
-import scala.collection.immutable
-import scala.concurrent.Future
 
 class AlkappaSpec extends AnyWordSpec with Matchers with CassandraSpec with ScalaFutures {
 

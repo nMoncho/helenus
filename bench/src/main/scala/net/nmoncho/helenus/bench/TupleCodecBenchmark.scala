@@ -22,6 +22,10 @@
 package net.nmoncho.helenus
 package bench
 
+import java.util.concurrent.TimeUnit
+
+import scala.util.Random
+
 import com.datastax.oss.driver.api.core.ProtocolVersion
 import com.datastax.oss.driver.api.core.`type`.DataTypes
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodecs
@@ -31,9 +35,6 @@ import com.datastax.oss.driver.api.core.detach.AttachmentPoint
 import com.datastax.oss.driver.internal.core.`type`.DefaultTupleType
 import org.openjdk.jmh.annotations._
 import org.openjdk.jmh.infra.Blackhole
-
-import java.util.concurrent.TimeUnit
-import scala.util.Random
 
 @BenchmarkMode(Array(Mode.AverageTime))
 @OutputTimeUnit(TimeUnit.NANOSECONDS)

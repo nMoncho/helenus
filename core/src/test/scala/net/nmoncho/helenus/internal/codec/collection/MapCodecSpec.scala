@@ -22,10 +22,11 @@
 package net.nmoncho.helenus
 package internal.codec.collection
 
-import com.datastax.oss.driver.api.core.ProtocolVersion
-
 import java.util
-import com.datastax.oss.driver.api.core.`type`.codec.{ TypeCodec, TypeCodecs }
+
+import com.datastax.oss.driver.api.core.ProtocolVersion
+import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
+import com.datastax.oss.driver.api.core.`type`.codec.TypeCodecs
 import net.nmoncho.helenus.internal.codec._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec

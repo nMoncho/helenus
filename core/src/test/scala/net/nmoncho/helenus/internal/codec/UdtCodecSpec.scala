@@ -22,14 +22,17 @@
 package net.nmoncho.helenus
 package internal.codec
 
+import java.util.UUID
+
 import com.datastax.oss.driver.api.core.ProtocolVersion
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.cql.Row
-import net.nmoncho.helenus.api.{ ColumnNamingScheme, SnakeCase, TimeUuid, Udt }
+import net.nmoncho.helenus.api.ColumnNamingScheme
+import net.nmoncho.helenus.api.SnakeCase
+import net.nmoncho.helenus.api.TimeUuid
+import net.nmoncho.helenus.api.Udt
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-
-import java.util.UUID
 
 class UdtCodecSpec extends AnyWordSpec with Matchers {
   import UdtCodecSpec._
@@ -87,8 +90,9 @@ class CassandraUdtCodecSpec extends AnyWordSpec with Matchers with CassandraSpec
       val ice = IceCream("Vanilla", 2, cone = false)
       insert(id, ice, IceCream.codec)
 
-      val Some(row) = query(id)
-      row.get("ice", IceCream.codec) shouldBe ice
+      val rowOpt = query(id)
+      rowOpt shouldBe defined
+      rowOpt.foreach(row => row.get("ice", IceCream.codec) shouldBe ice)
     }
 
     "work when fields are in different order" in {
@@ -98,8 +102,9 @@ class CassandraUdtCodecSpec extends AnyWordSpec with Matchers with CassandraSpec
       val ice = IceCreamShuffled(2, cone = false, "Vanilla")
       insert(id, ice, IceCreamShuffled.codec)
 
-      val Some(row) = query(id)
-      row.get("ice", IceCreamShuffled.codec) shouldBe ice
+      val rowOpt = query(id)
+      rowOpt shouldBe defined
+      rowOpt.foreach(row => row.get("ice", IceCreamShuffled.codec) shouldBe ice)
     }
 
     "fail on invalid mapping" in {
@@ -118,7 +123,7 @@ class CassandraUdtCodecSpec extends AnyWordSpec with Matchers with CassandraSpec
   }
 
   private def insert[T](id: UUID, ice: T, codec: TypeCodec[T]): Unit = {
-    val pstmt = session.prepare(s"INSERT INTO udt_table(id, ice) VALUES (?, ?)")
+    val pstmt = session.prepare("INSERT INTO udt_table(id, ice) VALUES (?, ?)")
     val bstmt = pstmt
       .bind()
       .set(0, id, uuidCodec)

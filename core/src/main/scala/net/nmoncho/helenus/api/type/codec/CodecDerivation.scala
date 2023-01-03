@@ -21,28 +21,36 @@
 
 package net.nmoncho.helenus.api.`type`.codec
 
-import com.datastax.dse.driver.api.core.data.geometry.{ LineString, Point, Polygon }
+import java.net.InetAddress
+import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalTime
+import java.util.UUID
+
+import scala.annotation.implicitNotFound
+import scala.collection.immutable.SortedMap
+import scala.collection.immutable.SortedSet
+import scala.reflect.ClassTag
+
+import com.datastax.dse.driver.api.core.data.geometry.LineString
+import com.datastax.dse.driver.api.core.data.geometry.Point
+import com.datastax.dse.driver.api.core.data.geometry.Polygon
 import com.datastax.dse.driver.api.core.data.time.DateRange
 import com.datastax.oss.driver.api.core.CqlSession
-import com.datastax.oss.driver.api.core.`type`.codec.{ MappingCodec, TypeCodec }
+import com.datastax.oss.driver.api.core.`type`.codec.MappingCodec
+import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.`type`.reflect.GenericType
+import net.nmoncho.helenus.api.ColumnNamingScheme
+import net.nmoncho.helenus.api.DefaultColumnNamingScheme
+import net.nmoncho.helenus.api.NominalEncoded
+import net.nmoncho.helenus.api.OrdinalEncoded
 import net.nmoncho.helenus.api.RowMapper.ColumnMapper
-import net.nmoncho.helenus.api.{
-  ColumnNamingScheme,
-  DefaultColumnNamingScheme,
-  NominalEncoded,
-  OrdinalEncoded,
-  Udt
-}
-import net.nmoncho.helenus.internal.codec.{ TupleCodecDerivation, UdtCodecDerivation }
-import shapeless.{ <:!<, Annotation, IsTuple, Witness }
-
-import java.net.InetAddress
-import java.time.{ Instant, LocalDate, LocalTime }
-import java.util.UUID
-import scala.annotation.implicitNotFound
-import scala.collection.immutable.{ SortedMap, SortedSet }
-import scala.reflect.ClassTag
+import net.nmoncho.helenus.api.Udt
+import net.nmoncho.helenus.internal.codec.TupleCodecDerivation
+import net.nmoncho.helenus.internal.codec.UdtCodecDerivation
+import shapeless.Annotation
+import shapeless.IsTuple
+import shapeless.Witness
 
 trait CodecDerivation extends TupleCodecDerivation with UdtCodecDerivation { that =>
 

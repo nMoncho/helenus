@@ -23,11 +23,19 @@ package net.nmoncho.helenus.internal
 
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.cql.Row
+import net.nmoncho.helenus.api.ColumnNamingScheme
+import net.nmoncho.helenus.api.DefaultColumnNamingScheme
+import net.nmoncho.helenus.api.RowMapper
 import net.nmoncho.helenus.api.RowMapper.ColumnMapper
-import net.nmoncho.helenus.api.{ ColumnNamingScheme, DefaultColumnNamingScheme, RowMapper }
+import shapeless.::
+import shapeless.Generic
+import shapeless.HList
+import shapeless.HNil
+import shapeless.IsTuple
+import shapeless.LabelledGeneric
+import shapeless.Witness
 import shapeless.labelled.FieldType
 import shapeless.syntax.singleton.mkSingletonOps
-import shapeless.{ ::, Generic, HList, HNil, IsTuple, LabelledGeneric, Witness }
 
 abstract class DerivedRowMapper[T] extends RowMapper[T]
 

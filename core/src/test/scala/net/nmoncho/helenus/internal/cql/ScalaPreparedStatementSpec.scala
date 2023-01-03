@@ -21,21 +21,19 @@
 
 package net.nmoncho.helenus.internal.cql
 
-import com.datastax.oss.driver.api.core.cql.{
-  BoundStatement,
-  BoundStatementBuilder,
-  PreparedStatement,
-  Row
-}
-import com.datastax.oss.driver.internal.core.cql.EmptyColumnDefinitions
-import net.nmoncho.helenus.api.RowMapper
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
-import org.mockito.Mockito._
-import org.mockito.ArgumentMatchers._
-
 import java.nio.ByteBuffer
 import java.util.Collections
+
+import com.datastax.oss.driver.api.core.cql.BoundStatement
+import com.datastax.oss.driver.api.core.cql.BoundStatementBuilder
+import com.datastax.oss.driver.api.core.cql.PreparedStatement
+import com.datastax.oss.driver.api.core.cql.Row
+import com.datastax.oss.driver.internal.core.cql.EmptyColumnDefinitions
+import net.nmoncho.helenus.api.RowMapper
+import org.mockito.ArgumentMatchers._
+import org.mockito.Mockito._
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
 class ScalaPreparedStatementSpec extends AnyWordSpec with Matchers {
 

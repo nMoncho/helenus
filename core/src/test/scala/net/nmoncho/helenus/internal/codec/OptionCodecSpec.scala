@@ -23,12 +23,9 @@ package net.nmoncho.helenus
 package internal.codec
 
 import java.util.UUID
-import java.util.function.Consumer
+
 import com.datastax.oss.driver.api.core.`type`.DataTypes
 import com.datastax.oss.driver.api.core.`type`.codec._
-import com.datastax.oss.driver.api.core.`type`.reflect.GenericType
-import com.datastax.oss.driver.api.core.cql.Row
-import com.datastax.oss.driver.shaded.guava.common.reflect.TypeToken
 import net.nmoncho.helenus.CassandraSpec
 import org.scalatest.exceptions.TestFailedException
 import org.scalatest.matchers.should.Matchers

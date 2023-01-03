@@ -21,16 +21,22 @@
 
 package net.nmoncho.helenus.internal.cql
 
-import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
-import com.datastax.oss.driver.api.core.cql.{ Row, _ }
-import com.datastax.oss.driver.api.core.{ CqlSession, MappedAsyncPagingIterable, PagingIterable }
-import net.nmoncho.helenus.api.RowMapper
-import net.nmoncho.helenus.internal.{ CqlSessionAsyncExtension, CqlSessionSyncExtension }
-import org.reactivestreams.Publisher
-
 import java.nio.ByteBuffer
 import java.util
-import scala.concurrent.{ ExecutionContext, Future }
+
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
+
+import com.datastax.oss.driver.api.core.CqlSession
+import com.datastax.oss.driver.api.core.MappedAsyncPagingIterable
+import com.datastax.oss.driver.api.core.PagingIterable
+import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
+import com.datastax.oss.driver.api.core.cql.Row
+import com.datastax.oss.driver.api.core.cql._
+import net.nmoncho.helenus.api.RowMapper
+import net.nmoncho.helenus.internal.CqlSessionAsyncExtension
+import net.nmoncho.helenus.internal.CqlSessionSyncExtension
+import org.reactivestreams.Publisher
 
 /** Wraps a [[PreparedStatement]] while providing an `apply` method to produce
   * a [[BoundStatement]]

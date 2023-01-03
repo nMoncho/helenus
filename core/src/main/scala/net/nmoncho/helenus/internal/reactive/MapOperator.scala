@@ -21,7 +21,9 @@
 
 package net.nmoncho.helenus.internal.reactive
 
-import org.reactivestreams.{ Publisher, Subscriber, Subscription }
+import org.reactivestreams.Publisher
+import org.reactivestreams.Subscriber
+import org.reactivestreams.Subscription
 
 /** Implements a map operation on [[Publisher]]s
   *

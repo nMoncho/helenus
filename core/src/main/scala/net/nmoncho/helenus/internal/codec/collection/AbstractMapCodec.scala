@@ -22,15 +22,16 @@
 package net.nmoncho.helenus.internal.codec
 package collection
 
+import java.nio.ByteBuffer
+
+import scala.collection.compat._
+import scala.collection.mutable
+
 import com.datastax.oss.driver.api.core.ProtocolVersion
 import com.datastax.oss.driver.api.core.`type`.DataType
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.internal.core.`type`.DefaultMapType
 import com.datastax.oss.driver.internal.core.`type`.codec.ParseUtils
-
-import java.nio.ByteBuffer
-import scala.collection.compat._
-import scala.collection.mutable
 
 abstract class AbstractMapCodec[K, V, M[K, V] <: Map[K, V]](
     keyInner: TypeCodec[K],
@@ -143,6 +144,7 @@ abstract class AbstractMapCodec[K, V, M[K, V] <: Map[K, V]](
       sb.append(closingChar).toString()
     }
 
+  @SuppressWarnings(Array("DisableSyntax.return"))
   override def parse(value: String): M[K, V] =
     if (value == null || value.isEmpty || value.equalsIgnoreCase(NULL)) {
       null.asInstanceOf[M[K, V]]

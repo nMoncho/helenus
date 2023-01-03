@@ -21,13 +21,13 @@
 
 package net.nmoncho.helenus.bench
 
+import java.util.concurrent.TimeUnit
+
 import com.datastax.oss.driver.api.core.ProtocolVersion
 import com.datastax.oss.driver.internal.core.`type`.codec.{ IntCodec => DseIntCodec }
 import net.nmoncho.helenus.internal.codec.IntCodec
 import org.openjdk.jmh.annotations._
 import org.openjdk.jmh.infra.Blackhole
-
-import java.util.concurrent.TimeUnit
 
 @BenchmarkMode(Array(Mode.AverageTime))
 @OutputTimeUnit(TimeUnit.NANOSECONDS)

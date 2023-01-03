@@ -21,16 +21,19 @@
 
 package net.nmoncho.helenus
 
-import _root_.akka.{ Done, NotUsed }
+import scala.concurrent.Await
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
+import scala.concurrent.duration.Duration
+
+import _root_.akka.Done
+import _root_.akka.NotUsed
 import _root_.akka.stream.alpakka.cassandra.CassandraWriteSettings
 import _root_.akka.stream.alpakka.cassandra.scaladsl.CassandraSession
 import _root_.akka.stream.scaladsl._
 import _root_.net.nmoncho.helenus.internal.cql.ScalaPreparedStatement
 import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.cql.BatchStatement
-
-import scala.concurrent.duration.Duration
-import scala.concurrent.{ Await, ExecutionContext, Future }
 
 package object akka {
 

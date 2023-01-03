@@ -23,12 +23,6 @@ package net.nmoncho.helenus.internal
 
 import com.datastax.oss.driver.api.core.CqlSession
 
-import scala.concurrent.ExecutionContext
-import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
-import net.nmoncho.helenus.internal.cql.ScalaPreparedStatement
-
-import scala.concurrent.Future
-
 trait CqlSessionAsyncExtension {
 
   def session: CqlSession

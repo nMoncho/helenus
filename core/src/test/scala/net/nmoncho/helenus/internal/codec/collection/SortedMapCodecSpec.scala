@@ -22,12 +22,12 @@
 package net.nmoncho.helenus
 package internal.codec.collection
 
-import com.datastax.oss.driver.api.core.`type`.codec.{ TypeCodec, TypeCodecs }
+import scala.collection.immutable.SortedMap
+
+import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import net.nmoncho.helenus.internal.codec._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-
-import scala.collection.immutable.SortedMap
 
 class SortedMapCodecSpec
     extends AnyWordSpec

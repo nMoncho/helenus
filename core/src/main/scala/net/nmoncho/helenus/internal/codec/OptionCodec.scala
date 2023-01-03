@@ -21,13 +21,14 @@
 
 package net.nmoncho.helenus.internal.codec
 
+import java.nio.ByteBuffer
+
 import com.datastax.oss.driver.api.core.ProtocolVersion
 import com.datastax.oss.driver.api.core.`type`.DataType
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.`type`.reflect.GenericType
-import com.datastax.oss.driver.shaded.guava.common.reflect.{ TypeParameter, TypeToken }
-
-import java.nio.ByteBuffer
+import com.datastax.oss.driver.shaded.guava.common.reflect.TypeParameter
+import com.datastax.oss.driver.shaded.guava.common.reflect.TypeToken
 
 class OptionCodec[T](inner: TypeCodec[T]) extends TypeCodec[Option[T]] {
 

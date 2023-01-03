@@ -21,13 +21,14 @@
 
 package net.nmoncho.helenus.internal
 
-import com.datastax.oss.driver.internal.core.`type`.{ DefaultListType, PrimitiveType }
+import scala.util.Success
+
+import com.datastax.oss.driver.internal.core.`type`.DefaultListType
+import com.datastax.oss.driver.internal.core.`type`.PrimitiveType
 import com.datastax.oss.protocol.internal.ProtocolConstants
 import net.nmoncho.helenus.CassandraSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-
-import scala.util.Success
 
 class CqlSessionSyncExtensionSpec extends AnyWordSpec with Matchers with CassandraSpec {
 

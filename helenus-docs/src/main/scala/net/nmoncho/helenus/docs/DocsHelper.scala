@@ -50,7 +50,7 @@ object DocsHelper {
         |)""".stripMargin
     )
     session.execute(
-      s"""CREATE TABLE hotels (
+      """CREATE TABLE hotels (
          |    id          TEXT PRIMARY KEY,
          |    name        TEXT,
          |    phone       TEXT,

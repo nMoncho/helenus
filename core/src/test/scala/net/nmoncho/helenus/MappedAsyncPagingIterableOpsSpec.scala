@@ -21,13 +21,14 @@
 
 package net.nmoncho.helenus
 
+import scala.concurrent.Await
+import scala.concurrent.Future
+import scala.concurrent.duration.DurationInt
+
 import com.datastax.oss.driver.api.core.MappedAsyncPagingIterable
+import org.mockito.Mockito._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import org.mockito.Mockito._
-
-import scala.concurrent.{ Await, Future }
-import scala.concurrent.duration.DurationInt
 
 class MappedAsyncPagingIterableOpsSpec extends AnyWordSpec with Matchers {
 

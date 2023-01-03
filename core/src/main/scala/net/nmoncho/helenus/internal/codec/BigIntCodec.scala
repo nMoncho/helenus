@@ -21,7 +21,8 @@
 
 package net.nmoncho.helenus.internal.codec
 
-import com.datastax.oss.driver.api.core.`type`.codec.{ MappingCodec, TypeCodecs }
+import com.datastax.oss.driver.api.core.`type`.codec.MappingCodec
+import com.datastax.oss.driver.api.core.`type`.codec.TypeCodecs
 import com.datastax.oss.driver.api.core.`type`.reflect.GenericType
 
 object BigIntCodec

@@ -21,17 +21,20 @@
 
 package net.nmoncho.helenus.internal.reactive
 
+import java.util.concurrent.Flow
+import java.util.concurrent.Flow.Subscription
+import java.util.concurrent.SubmissionPublisher
+
+import scala.collection.mutable.ListBuffer
+
 import net.nmoncho.helenus.CassandraSpec
 import net.nmoncho.helenus.api.RowMapper
 import org.reactivestreams.FlowAdapters
 import org.scalatest.concurrent.Eventually
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.time.{ Seconds, Span }
+import org.scalatest.time.Seconds
+import org.scalatest.time.Span
 import org.scalatest.wordspec.AnyWordSpec
-
-import java.util.concurrent.Flow.Subscription
-import java.util.concurrent.{ Flow, SubmissionPublisher }
-import scala.collection.mutable.ListBuffer
 
 class MapOperatorSpec extends AnyWordSpec with Matchers with Eventually with CassandraSpec {
   import MapOperatorSpec._

@@ -21,18 +21,21 @@
 
 package net.nmoncho.helenus
 
+import java.net.InetSocketAddress
 import java.util.UUID
-import com.datastax.oss.driver.api.core.{ CqlSession, CqlSessionBuilder }
-import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
-import com.datastax.oss.driver.api.core.`type`.codec.registry.MutableCodecRegistry
-import com.datastax.oss.driver.api.core.cql.{ ResultSet, Statement }
 
 import javax.management.InstanceAlreadyExistsException
+
+import com.datastax.oss.driver.api.core.CqlSession
+import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
+import com.datastax.oss.driver.api.core.`type`.codec.registry.MutableCodecRegistry
+import com.datastax.oss.driver.api.core.cql.ResultSet
+import com.datastax.oss.driver.api.core.cql.Statement
 import org.apache.cassandra.config.DatabaseDescriptor
 import org.cassandraunit.utils.EmbeddedCassandraServerHelper
-import org.scalatest.{ BeforeAndAfterAll, BeforeAndAfterEach, Suite }
-
-import java.net.InetSocketAddress
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.BeforeAndAfterEach
+import org.scalatest.Suite
 
 trait CassandraSpec extends BeforeAndAfterAll with BeforeAndAfterEach { this: Suite =>
 

@@ -21,11 +21,12 @@
 
 package net.nmoncho.helenus.internal.codec.collection
 
-import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
-import com.datastax.oss.driver.api.core.`type`.reflect.{ GenericType, GenericTypeParameter }
-import com.datastax.oss.driver.shaded.guava.common.reflect.TypeToken
-
 import scala.collection.immutable.SortedMap
+
+import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
+import com.datastax.oss.driver.api.core.`type`.reflect.GenericType
+import com.datastax.oss.driver.api.core.`type`.reflect.GenericTypeParameter
+import com.datastax.oss.driver.shaded.guava.common.reflect.TypeToken
 
 class SortedMapCodec[K: Ordering, V](
     keyInner: TypeCodec[K],

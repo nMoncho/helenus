@@ -21,7 +21,8 @@
 
 package net.nmoncho.helenus.internal.codec.enums
 
-import com.datastax.oss.driver.api.core.`type`.codec.{ MappingCodec, TypeCodecs }
+import com.datastax.oss.driver.api.core.`type`.codec.MappingCodec
+import com.datastax.oss.driver.api.core.`type`.codec.TypeCodecs
 import com.datastax.oss.driver.api.core.`type`.reflect.GenericType
 
 /** [[com.datastax.oss.driver.api.core.`type`.codec.TypeCodec]] for an [[Enumeration]] mapped to its Int representation.

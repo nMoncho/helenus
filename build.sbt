@@ -47,8 +47,11 @@ addCommandAlias(
 
 addCommandAlias(
   "styleFix",
-  "; scalafmtSbt; scalafmtAll; headerCreateAll"
+  "; scalafmtSbt; scalafmtAll; headerCreateAll; scalafixAll"
 )
+
+ThisBuild / scalafixDependencies += "com.github.liancheng" %% "organize-imports" % "0.6.0"
+ThisBuild / scalafixScalaBinaryVersion := scalaBinaryVersion.value
 
 lazy val root = project
   .in(file("."))
@@ -80,9 +83,12 @@ lazy val basicSettings = Seq(
     Opts.compile.deprecation :+
     Opts.compile.unchecked :+
     "-feature" :+
+    "-Ywarn-unused" :+
     "-language:higherKinds" :+
     "-Xlog-implicits"),
-  (Test / testOptions) += Tests.Argument("-oF")
+  (Test / testOptions) += Tests.Argument("-oF"),
+  semanticdbEnabled := true,
+  semanticdbVersion := scalafixSemanticdb.revision
 )
 
 def crossSetting[A](

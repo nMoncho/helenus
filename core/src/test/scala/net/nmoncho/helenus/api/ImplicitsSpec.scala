@@ -21,17 +21,21 @@
 
 package net.nmoncho.helenus.api
 
-import com.datastax.oss.driver.api.core.cql.Row
-import net.nmoncho.helenus.CassandraSpec
-import net.nmoncho.helenus.api.ImplicitsSpec.{ ITRow, RenamedITRow }
-import net.nmoncho.helenus.api.RowMapper.{ ColumnMapper, NamedRowMapper }
-import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.time.{ Seconds, Span }
-import org.scalatest.wordspec.AnyWordSpec
-
 import java.util.UUID
 
+import scala.annotation.nowarn
+
+import net.nmoncho.helenus.CassandraSpec
+import net.nmoncho.helenus.api.ImplicitsSpec.ITRow
+import net.nmoncho.helenus.api.ImplicitsSpec.RenamedITRow
+import net.nmoncho.helenus.api.RowMapper.NamedRowMapper
+import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.time.Seconds
+import org.scalatest.time.Span
+import org.scalatest.wordspec.AnyWordSpec
+
+@nowarn
 class ImplicitsSpec extends AnyWordSpec with Matchers with CassandraSpec with ScalaFutures {
 
   import net.nmoncho.helenus._

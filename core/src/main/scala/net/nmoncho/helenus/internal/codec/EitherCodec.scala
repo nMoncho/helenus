@@ -21,15 +21,16 @@
 
 package net.nmoncho.helenus.internal.codec
 
+import java.nio.ByteBuffer
+
 import com.datastax.oss.driver.api.core.ProtocolVersion
 import com.datastax.oss.driver.api.core.`type`.DataType
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
-import com.datastax.oss.driver.api.core.`type`.reflect.{ GenericType, GenericTypeParameter }
+import com.datastax.oss.driver.api.core.`type`.reflect.GenericType
+import com.datastax.oss.driver.api.core.`type`.reflect.GenericTypeParameter
 import com.datastax.oss.driver.internal.core.`type`.DefaultTupleType
 import com.datastax.oss.driver.internal.core.`type`.codec.ParseUtils
 import com.datastax.oss.driver.shaded.guava.common.reflect.TypeToken
-
-import java.nio.ByteBuffer
 
 /** [[TypeCodec]] implementation for [[Either]]. Translates to a two element tuple in Cassandra.
   * Another design possibility would be to use a UDT, but that would require users to configure a custom type.

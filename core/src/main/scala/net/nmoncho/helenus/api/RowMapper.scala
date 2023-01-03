@@ -24,7 +24,8 @@ package net.nmoncho.helenus.api
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.cql.Row
 import net.nmoncho.helenus.internal.DerivedRowMapper
-import shapeless.{ <:!<, IsTuple }
+import shapeless.<:!<
+import shapeless.IsTuple
 
 /** Maps a [[Row]] into a [[T]]
   *

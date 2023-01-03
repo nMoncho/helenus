@@ -21,18 +21,25 @@
 
 package net.nmoncho.helenus.api.`type`.codec
 
-import com.datastax.dse.driver.api.core.data.geometry.{ LineString, Point, Polygon }
+import java.net.InetAddress
+import java.nio.ByteBuffer
+import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalTime
+import java.util.UUID
+
+import scala.collection.immutable.SortedMap
+import scala.collection.immutable.SortedSet
+
+import com.datastax.dse.driver.api.core.data.geometry.LineString
+import com.datastax.dse.driver.api.core.data.geometry.Point
+import com.datastax.dse.driver.api.core.data.geometry.Polygon
 import com.datastax.dse.driver.api.core.data.time.DateRange
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import net.nmoncho.helenus.internal.codec._
 import net.nmoncho.helenus.internal.codec.collection._
-import net.nmoncho.helenus.internal.codec.enums.{ EnumerationNominalCodec, EnumerationOrdinalCodec }
-
-import java.net.InetAddress
-import java.nio.ByteBuffer
-import java.time.{ Instant, LocalDate, LocalTime }
-import java.util.UUID
-import scala.collection.immutable.{ SortedMap, SortedSet }
+import net.nmoncho.helenus.internal.codec.enums.EnumerationNominalCodec
+import net.nmoncho.helenus.internal.codec.enums.EnumerationOrdinalCodec
 
 /** Constants and factory methods to obtain instances of the scala's default type codecs.
   */

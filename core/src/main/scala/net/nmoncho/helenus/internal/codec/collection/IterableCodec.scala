@@ -22,15 +22,17 @@
 package net.nmoncho.helenus.internal.codec
 package collection
 
+import java.nio.ByteBuffer
+
+import scala.collection.compat._
+import scala.collection.mutable
+
 import com.datastax.oss.driver.api.core.ProtocolVersion
 import com.datastax.oss.driver.api.core.`type`.DataType
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
+import com.datastax.oss.driver.internal.core.`type`.DefaultListType
+import com.datastax.oss.driver.internal.core.`type`.DefaultSetType
 import com.datastax.oss.driver.internal.core.`type`.codec.ParseUtils
-import com.datastax.oss.driver.internal.core.`type`.{ DefaultListType, DefaultSetType }
-
-import java.nio.ByteBuffer
-import scala.collection.compat._
-import scala.collection.mutable
 
 abstract class AbstractSeqCodec[T, M[T] <: Seq[T]](
     inner: TypeCodec[T],
@@ -139,6 +141,7 @@ abstract class IterableCodec[T, M[T] <: Iterable[T]](
       sb.append(closingChar).toString()
     }
 
+  @SuppressWarnings(Array("DisableSyntax.return"))
   override def parse(value: String): M[T] =
     if (value == null || value.isEmpty || value.equalsIgnoreCase(NULL)) {
       null.asInstanceOf[M[T]]

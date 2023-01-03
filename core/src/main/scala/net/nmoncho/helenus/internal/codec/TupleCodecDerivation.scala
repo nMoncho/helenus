@@ -21,15 +21,16 @@
 
 package net.nmoncho.helenus.internal.codec
 
+import java.nio.ByteBuffer
+
+import scala.collection.mutable
+
 import com.datastax.oss.driver.api.core.ProtocolVersion
 import com.datastax.oss.driver.api.core.`type`.DataType
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.`type`.reflect.GenericType
 import com.datastax.oss.driver.internal.core.`type`.DefaultTupleType
 import com.datastax.oss.driver.internal.core.`type`.codec.ParseUtils
-
-import java.nio.ByteBuffer
-import scala.collection.mutable
 
 trait TupleCodecDerivation {
 

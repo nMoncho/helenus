@@ -21,21 +21,29 @@
 
 package net.nmoncho
 
-import com.datastax.dse.driver.api.core.cql.reactive.{ ReactiveResultSet, ReactiveRow }
-import com.datastax.oss.driver.api.core.cql.{ AsyncResultSet, BoundStatement, ResultSet, Row }
-import com.datastax.oss.driver.api.core.{ CqlSession, MappedAsyncPagingIterable, PagingIterable }
+import scala.annotation.nowarn
+import scala.collection.mutable
+import scala.concurrent.Await
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
+import scala.concurrent.duration.FiniteDuration
+
+import com.datastax.dse.driver.api.core.cql.reactive.ReactiveResultSet
+import com.datastax.oss.driver.api.core.CqlSession
+import com.datastax.oss.driver.api.core.MappedAsyncPagingIterable
+import com.datastax.oss.driver.api.core.PagingIterable
+import com.datastax.oss.driver.api.core.cql.AsyncResultSet
+import com.datastax.oss.driver.api.core.cql.BoundStatement
+import com.datastax.oss.driver.api.core.cql.ResultSet
+import com.datastax.oss.driver.api.core.cql.Row
 import net.nmoncho.helenus.api.RowMapper
 import net.nmoncho.helenus.api.`type`.codec.CodecDerivation
 import net.nmoncho.helenus.internal._
 import net.nmoncho.helenus.internal.cql.ParameterValue
 import net.nmoncho.helenus.internal.cql.ScalaPreparedStatement.CQLQuery
 import net.nmoncho.helenus.internal.reactive.MapOperator
-import org.reactivestreams.{ Publisher, Subscriber, Subscription }
+import org.reactivestreams.Publisher
 import org.slf4j.LoggerFactory
-
-import scala.collection.mutable
-import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.{ Await, ExecutionContext, Future }
 
 package object helenus extends CodecDerivation {
 
@@ -61,7 +69,7 @@ package object helenus extends CodecDerivation {
     * val bstmt = cql"SELECT * FROM some_table WHERE id = $id"
     * }}}
     */
-  implicit class CqlStringInterpolation(val sc: StringContext) extends AnyVal {
+  implicit class CqlStringInterpolation(private val sc: StringContext) extends AnyVal {
 
     def cql(args: ParameterValue*)(implicit session: CqlSessionSyncExtension): BoundStatement = {
       val query = cqlQuery(args)
@@ -157,7 +165,7 @@ package object helenus extends CodecDerivation {
 
     /** First potential element of this iterable
       */
-    def headOption: Option[T] = Option(pi.one())
+    def headOption: Option[T] = Option(pi.one()) // FIXME this should be called `nextOption`
 
     /** This [[PagingIterable]] as a Scala [[Iterator]]
       */
@@ -189,8 +197,6 @@ package object helenus extends CodecDerivation {
 
     import scala.jdk.CollectionConverters._
 
-    // TODO Add `to` methods for current page, and next page
-
     /** Current page as a Scala [[Iterator]]
       */
     def currPage: Iterator[T] = pi.currentPage().iterator().asScala
@@ -213,6 +219,7 @@ package object helenus extends CodecDerivation {
       * @param timeout how much time to wait for the next page to be ready
       * @param ec
       */
+    @nowarn("cat=unused-imports")
     def iter(timeout: FiniteDuration)(implicit ec: ExecutionContext): Iterator[T] = {
       import scala.collection.compat._ // Don't remove me
 

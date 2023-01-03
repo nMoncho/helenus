@@ -21,13 +21,14 @@
 
 package net.nmoncho.helenus.api
 
+import java.util.UUID
+
 import net.nmoncho.helenus.CassandraSpec
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.time.{ Seconds, Span }
+import org.scalatest.time.Seconds
+import org.scalatest.time.Span
 import org.scalatest.wordspec.AnyWordSpec
-
-import java.util.UUID
 
 class CqlQueryInterpolationSpec
     extends AnyWordSpec
@@ -98,7 +99,7 @@ class CqlQueryInterpolationSpec
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    executeDDL(s"""CREATE TABLE IF NOT EXISTS cql_interpolation_test(
+    executeDDL("""CREATE TABLE IF NOT EXISTS cql_interpolation_test(
         |   id     UUID,
         |   age    INT,
         |   name   TEXT,

@@ -22,7 +22,8 @@
 package net.nmoncho.helenus
 package internal.codec
 
-import com.datastax.oss.driver.api.core.`type`.codec.{ TypeCodec, TypeCodecs }
+import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
+import com.datastax.oss.driver.api.core.`type`.codec.TypeCodecs
 import com.datastax.oss.driver.api.core.`type`.reflect.GenericType
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
