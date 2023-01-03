@@ -31,12 +31,15 @@ import net.nmoncho.helenus.internal.cql.ParameterValue
 import net.nmoncho.helenus.internal.cql.ScalaPreparedStatement.CQLQuery
 import net.nmoncho.helenus.internal.reactive.MapOperator
 import org.reactivestreams.{ Publisher, Subscriber, Subscription }
+import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.{ Await, ExecutionContext, Future }
 
 package object helenus extends CodecDerivation {
+
+  private val log = LoggerFactory.getLogger("net.nmoncho.helenus")
 
   trait CqlSessionExtension extends CqlSessionSyncExtension with CqlSessionAsyncExtension {}
 
@@ -222,13 +225,12 @@ package object helenus extends CodecDerivation {
           .asScala
           .concat {
             if (pi.hasMorePages) {
-              // TODO add logging
-              println("fetching more pages")
+              log.debug("fetching more pages")
               Await.ready(pi.fetchNextPage().asScala, timeout)
 
               concat()
             } else {
-              println("no more pages")
+              log.debug("no more pages")
               Iterator()
             }
           }

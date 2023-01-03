@@ -1,0 +1,18 @@
+<configuration>
+    <variable name="logLevel" value="${LOG_LEVEL:-INFO}" />
+    <variable name="cassandraLogLevel" value="${CASSANDRA_LOG_LEVEL:-WARN}" />
+
+    <appender name="stdout" class="ch.qos.logback.core.ConsoleAppender">
+        <layout class="ch.qos.logback.classic.PatternLayout">
+            <pattern>%d{yyyy-MM-dd HH:mm:ss} %-5level %logger{36} - %msg%n</pattern>
+        </layout>
+    </appender>
+
+    <root level="${logLevel}">
+        <appender-ref ref="stdout" />
+    </root>
+
+    <logger name="org.apache.cassandra" level="${cassandraLogLevel}" additivity="false">
+        <appender-ref ref="stdout" />
+    </logger>
+</configuration>

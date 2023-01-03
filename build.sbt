@@ -8,6 +8,7 @@ lazy val dependencies = new {
     val scalaCollectionCompat = "2.9.0"
     val scalaJava8Compat      = "1.0.2"
     val shapeless             = "2.3.10"
+    val slf4j                 = "2.0.6"
 
     val akka    = "2.6.19" // 2.7 changed to business license
     val alpakka = "4.0.0" // 5.x changed to business license
@@ -16,6 +17,7 @@ lazy val dependencies = new {
     val mockito    = "4.10.0"
     val scalaCheck = "1.17.0"
     val scalaTest  = "3.2.14"
+    val logback    = "1.4.5"
   }
 
   // 'core' dependencies
@@ -26,14 +28,16 @@ lazy val dependencies = new {
     "org.scala-lang.modules" %% "scala-collection-compat" % Version.scalaCollectionCompat
   val scalaJava8Compat = "org.scala-lang.modules" %% "scala-java8-compat" % Version.scalaJava8Compat
   val shapeless        = "com.chuusai"            %% "shapeless"          % Version.shapeless
+  val slf4j            = "org.slf4j"               % "slf4j-api"          % Version.slf4j
 
   // 'akka' dependencies
   val alpakka     = "com.lightbend.akka" %% "akka-stream-alpakka-cassandra" % Version.alpakka
   val akkaTestKit = "com.typesafe.akka"  %% "akka-testkit"                  % Version.akka
 
-  val mockito    = "org.mockito"     % "mockito-core" % Version.mockito
-  val scalaCheck = "org.scalacheck" %% "scalacheck"   % Version.scalaCheck
-  val scalaTest  = "org.scalatest"  %% "scalatest"    % Version.scalaTest
+  val mockito    = "org.mockito"     % "mockito-core"    % Version.mockito
+  val scalaCheck = "org.scalacheck" %% "scalacheck"      % Version.scalaCheck
+  val scalaTest  = "org.scalatest"  %% "scalatest"       % Version.scalaTest
+  val logback    = "ch.qos.logback"  % "logback-classic" % Version.logback
 }
 
 addCommandAlias(
@@ -119,11 +123,13 @@ lazy val core = project
       dependencies.dseJavaDriver % Provided,
       dependencies.scalaCollectionCompat,
       dependencies.shapeless,
+      dependencies.slf4j,
       // Test Dependencies
       dependencies.cassandraUnit % Test,
       dependencies.mockito       % Test,
       dependencies.scalaCheck    % Test,
       dependencies.scalaTest     % Test,
+      dependencies.logback       % Test,
       "net.java.dev.jna"         % "jna" % "5.12.1" % Test // Fixes M1 JNA issue
     ),
     scalacOptions ++= crossSetting(
