@@ -46,7 +46,7 @@ class OptionCodec[T](inner: TypeCodec[T]) extends TypeCodec[Option[T]] {
       case Some(value) => inner.encode(value, protocolVersion)
       // This will create a tombstone, although this is how `OptionalCodec` does it.
       // A higher level solution is needed (eg. BSTMT unset)
-      case None => null
+      case None | null => null
     }
 
   override def decode(bytes: ByteBuffer, protocolVersion: ProtocolVersion): Option[T] =
@@ -55,7 +55,7 @@ class OptionCodec[T](inner: TypeCodec[T]) extends TypeCodec[Option[T]] {
 
   override def format(value: Option[T]): String = value match {
     case Some(value) => inner.format(value)
-    case None => NULL
+    case None | null => NULL
   }
 
   override def parse(value: String): Option[T] =

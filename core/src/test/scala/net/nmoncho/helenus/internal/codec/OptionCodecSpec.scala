@@ -22,10 +22,12 @@
 package net.nmoncho.helenus
 package internal.codec
 
+import java.util.Optional
 import java.util.UUID
 
 import com.datastax.oss.driver.api.core.`type`.DataTypes
 import com.datastax.oss.driver.api.core.`type`.codec._
+import com.datastax.oss.driver.internal.core.`type`.codec.extras.OptionalCodec
 import net.nmoncho.helenus.utils.CassandraSpec
 import org.scalatest.exceptions.TestFailedException
 import org.scalatest.matchers.should.Matchers
@@ -37,27 +39,27 @@ class OptionCodecSpec
     with CodecSpecBase[Option[Int]]
     with CassandraSpec {
 
-  // TODO make this on par with Optional Codec
-
   override protected val codec: TypeCodec[Option[Int]] = Codec[Option[Int]]
 
   private val optionStringCodec = Codec[Option[String]]
 
-  "BooleanCodec" should {
+  "OptionCodec" should {
     "encode" in {
       encode(Some(1)) shouldBe Some("0x00000001")
       encode(None) shouldBe None
+      encode(null) shouldBe None
     }
 
     "decode" in {
-      decode(null) shouldBe Some(None)
       decode("0x00000001") shouldBe Some(Some(1))
       decode("0x") shouldBe Some(None)
+      decode(null) shouldBe Some(None)
     }
 
     "format" in {
       format(Some(1)) shouldBe "1"
       format(None) shouldBe NULL
+      format(null) shouldBe NULL
     }
 
     "parse" in {
@@ -80,6 +82,10 @@ class OptionCodecSpec
       codec.accepts(codec.getJavaType) shouldBe true
       codec.accepts(anotherIntCodec.getJavaType) shouldBe true
       codec.accepts(optionStringCodec.getJavaType) shouldBe false
+    }
+
+    "raw type" in {
+      codec.accepts(classOf[Option[_]]) shouldBe true
     }
 
     "accept objects" in {
@@ -199,4 +205,33 @@ class OptionCodecSpec
     registerCodec(codec)
     registerCodec(optionStringCodec)
   }
+}
+
+class OnParOptionCodecSpec
+    extends AnyWordSpec
+    with Matchers
+    with CodecSpecBase[Option[String]]
+    with OnParCodecSpec[Option[String], java.util.Optional[String]] {
+
+  "OptionCodec" should {
+    "on par with Java Codec (encode-decode)" in testEncodeDecode(
+      null,
+      None,
+      Some("foo")
+    )
+
+    "on par with Java Codec (parse-format)" in testParseFormat(
+      null,
+      None,
+      Some("foo")
+    )
+  }
+
+  override protected val codec: TypeCodec[Option[String]] = Codec[Option[String]]
+
+  override def javaCodec: TypeCodec[Optional[String]] = new OptionalCodec[String](TypeCodecs.TEXT)
+
+  override def toJava(t: Option[String]): Optional[String] =
+    if (t == null) null
+    else t.fold(Optional.empty[String]())(Optional.of)
 }
