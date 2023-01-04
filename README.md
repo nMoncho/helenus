@@ -48,7 +48,7 @@ import net.nmoncho.helenus._
 
 // Then convert your session and mark it implicit
 implicit val session: CqlSessionExtension = getSession.toScala
-// session: CqlSessionExtension = net.nmoncho.helenus.package$ClqSessionOps$$anon$1@578a371e
+// session: CqlSessionExtension = net.nmoncho.helenus.package$ClqSessionOps$$anon$1@3f8ec70b
 
 @Udt
 case class Address(street: String, city: String, stateOrProvince: String, postalCode: String, country: String)
@@ -61,17 +61,17 @@ implicit val typeCodec: TypeCodec[Address] = Codec.udtOf[Address]
 
 // We can derive how query results map to case classes
 implicit val rowMapper: RowMapper[Hotel] = RowMapper[Hotel]
-// rowMapper: RowMapper[Hotel] = net.nmoncho.helenus.internal.CaseClassRowMapperDerivation$$anonfun$net$nmoncho$helenus$internal$CaseClassRowMapperDerivation$$$nestedInanonfun$genericCCRowMapperBuilder$1$1@7273abea
+// rowMapper: RowMapper[Hotel] = net.nmoncho.helenus.internal.CaseClassRowMapperDerivation$$anonfun$net$nmoncho$helenus$internal$CaseClassRowMapperDerivation$$$nestedInanonfun$genericCCRowMapperBuilder$1$1@25953dc6
 
 // We can prepare queries with parameters that don't require boxing
 val hotelsById = "SELECT * FROM hotels WHERE id = ?".toCQL
     .prepare[String]
     .as[Hotel]
-// hotelsById: internal.cql.ScalaPreparedStatement[String, Hotel] = net.nmoncho.helenus.internal.cql.ScalaPreparedStatement@21be85bf
+// hotelsById: internal.cql.ScalaPreparedStatement[String, Hotel] = net.nmoncho.helenus.internal.cql.ScalaPreparedStatement@6c486db2
 
-// We can extract a single result using `headOption`, or
+// We can extract a single result using `nextOption`, or
 // use `to(Coll)` to transform the result to a collection
-hotelsById.execute("h1").headOption
+hotelsById.execute("h1").nextOption
 // res0: Option[Hotel] = Some(
 //   value = Hotel(
 //     id = "h1",

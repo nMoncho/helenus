@@ -165,7 +165,7 @@ package object helenus extends CodecDerivation {
 
     /** First potential element of this iterable
       */
-    def headOption: Option[T] = Option(pi.one()) // FIXME this should be called `nextOption`
+    def nextOption: Option[T] = Option(pi.one())
 
     /** This [[PagingIterable]] as a Scala [[Iterator]]
       */

@@ -72,9 +72,9 @@ val hotelsById = "SELECT * FROM hotels WHERE id = ?".toCQL
     .prepare[String]
     .as[Hotel]
 
-// We can extract a single result using `headOption`, or
+// We can extract a single result using `nextOption`, or
 // use `to(Coll)` to transform the result to a collection
-hotelsById.execute("h1").headOption
+hotelsById.execute("h1").nextOption
 ```
 
 For a more detailed guide on how to use Helenus, please read our [wiki](wiki). We also provides
