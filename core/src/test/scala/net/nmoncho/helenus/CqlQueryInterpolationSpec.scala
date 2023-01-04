@@ -19,11 +19,11 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package net.nmoncho.helenus.api
+package net.nmoncho.helenus
 
 import java.util.UUID
 
-import net.nmoncho.helenus.CassandraSpec
+import net.nmoncho.helenus.utils.CassandraSpec
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.Seconds
@@ -35,8 +35,6 @@ class CqlQueryInterpolationSpec
     with Matchers
     with CassandraSpec
     with ScalaFutures {
-
-  import net.nmoncho.helenus._
   private implicit lazy val s: CqlSessionExtension     = session.toScala
   override implicit val patienceConfig: PatienceConfig = PatienceConfig(Span(6, Seconds))
 

@@ -19,91 +19,118 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package net.nmoncho.helenus.api
+package net.nmoncho.helenus
+package api
 
 import com.datastax.oss.driver.api.core.cql.Row
-import net.nmoncho.helenus.api.RowMapper.ColumnMapper
-import net.nmoncho.helenus.api.RowMapperSpec.IceCream
-import net.nmoncho.helenus.api.RowMapperSpec.IceCreamWithSpecialProps
-import net.nmoncho.helenus.api.RowMapperSpec.IceCreamWithSpecialPropsAsTuple
+import net.nmoncho.helenus.models.Address
+import net.nmoncho.helenus.models.Hotel
+import net.nmoncho.helenus.utils.CassandraSpec
+import net.nmoncho.helenus.utils.HotelsTestData
+import org.scalatest.concurrent.Eventually
+import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.time.Seconds
+import org.scalatest.time.Span
 import org.scalatest.wordspec.AnyWordSpec
 
-class RowMapperSpec extends AnyWordSpec with Matchers {
-  import net.nmoncho.helenus._
+class RowMapperSpec
+    extends AnyWordSpec
+    with Matchers
+    with Eventually
+    with CassandraSpec
+    with ScalaFutures {
+
+  import HotelsTestData._
+  import scala.concurrent.ExecutionContext.Implicits.global
+
+  implicit lazy val cqlSession: CqlSessionExtension = session.toScala
+
+  // We create the mapper here to avoid testing the generic derivation
+  implicit val rowMapper: RowMapper[Hotel] = (row: Row) =>
+    Hotel(
+      row.getString("id"),
+      row.getString("name"),
+      row.getString("phone"),
+      Address.Empty,
+      Set.empty[String]
+    )
 
   "RowMapper" should {
-    "semi-auto derive on companion object" in {
-      IceCream.rowMapper should not be null
+    "map rows" in {
+      // this test if when users don't use the short-hand syntax
+      val query = "SELECT name FROM hotels WHERE id = ?".toCQL
+        .prepare[String]
 
-      withClue("and should be implicitly available, and not be derived twice") {
-        implicitly[RowMapper[IceCream]] shouldBe IceCream.rowMapper
+      query(Hotels.h3.id)
+        .execute()
+        .as[String]
+        .headOption shouldBe Some(Hotels.h3.name)
+
+      query(Hotels.h4.id)
+        .execute()
+        .headOption
+        .map(_.as[String]) shouldBe Some(Hotels.h4.name)
+
+      whenReady(query(Hotels.h5.id).executeAsync()) { p =>
+        p.as[String].currPage.nextOption() shouldBe Some(Hotels.h5.name)
       }
     }
 
-    "produce instances for tuples" in {
-      RowMapper[(String, Int)] should not be null
+    "map single column results" in {
+      val query = "SELECT name FROM hotels WHERE id = ?".toCQL
+        .prepare[String]
+        .as[String]
 
-      withClue("and should be implicitly available") {
-        implicitly[RowMapper[(String, Int)]] should not be null
-      }
+      val hotelH1Opt = query.execute(Hotels.h1.id).headOption
+      hotelH1Opt shouldBe defined
+      hotelH1Opt shouldBe Some(Hotels.h1.name)
     }
 
-    "produce instances for simple types" in {
-      RowMapper[String] should not be null
+    "map result to tuples" in {
+      val query = "SELECT name, phone FROM hotels WHERE id = ?".toCQL
+        .prepare[String]
+        .as[(String, String)]
 
-      withClue("and should be implicitly available") {
-        implicitly[RowMapper[String]] should not be null
-      }
+      val hotelH1Opt = query.execute(Hotels.h1.id).headOption
+      hotelH1Opt shouldBe defined
+      hotelH1Opt shouldBe Some(Hotels.h1.name -> Hotels.h1.phone)
     }
 
-    "semi-auto derive using a custom ColumnMapper" in {
-      IceCreamWithSpecialProps.rowMapper should not be null
+    "map result to case classes" in {
+      val query = "SELECT * FROM hotels WHERE id = ?".toCQL
+        .prepare[String]
+        .as[Hotel]
 
-      withClue("and should be implicitly available, and not be derived twice") {
-        implicitly[RowMapper[IceCreamWithSpecialProps]] shouldBe IceCreamWithSpecialProps.rowMapper
-      }
+      val hotelH1Opt = query.execute(Hotels.h1.id).headOption
+      hotelH1Opt shouldBe defined
+      hotelH1Opt.map(_.name) shouldBe Some(Hotels.h1.name)
     }
 
-    "semi-auto derive with a tuple field" in {
-      IceCreamWithSpecialPropsAsTuple.rowMapper should not be null
+    "map result to case classes (async)" in {
+      val query = "SELECT * FROM hotels WHERE id = ?".toCQL
+        .prepare[String]
+        .as[Hotel]
 
-      withClue("and should be implicitly available, and not be derived twice") {
-        implicitly[
-          RowMapper[IceCreamWithSpecialPropsAsTuple]
-        ] shouldBe IceCreamWithSpecialPropsAsTuple.rowMapper
+      whenReady(
+        query
+          .executeAsync(Hotels.h2.id)
+          .map(it => it.currPage.nextOption())
+      ) { h2RowOpt =>
+        h2RowOpt.map(_.name) shouldBe Some(Hotels.h2.name)
       }
     }
   }
 
-}
+  override implicit def patienceConfig: PatienceConfig = PatienceConfig(Span(6, Seconds))
 
-object RowMapperSpec {
-
-  import net.nmoncho.helenus._
-  case class IceCream(name: String, numCherries: Int, cone: Boolean)
-
-  object IceCream {
-    implicit val rowMapper: RowMapper[IceCream] = RowMapper[IceCream]
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+    executeFile("hotels.cql")
+    insertTestData()
   }
 
-  case class SpecialProps(numCherries: Int, cone: Boolean)
-  object SpecialProps {
-    implicit val columnMapper: ColumnMapper[SpecialProps] = (_: String, row: Row) =>
-      SpecialProps(
-        row.getInt("numCherries"),
-        row.getBoolean("cone")
-      )
-  }
-  case class IceCreamWithSpecialProps(name: String, props: SpecialProps)
-  object IceCreamWithSpecialProps {
-    implicit val rowMapper: RowMapper[IceCreamWithSpecialProps] =
-      RowMapper[IceCreamWithSpecialProps]
-  }
-
-  case class IceCreamWithSpecialPropsAsTuple(name: String, props: (Int, Boolean))
-  object IceCreamWithSpecialPropsAsTuple {
-    implicit val rowMapper: RowMapper[IceCreamWithSpecialPropsAsTuple] =
-      RowMapper[IceCreamWithSpecialPropsAsTuple]
+  override def afterEach(): Unit = {
+    // Don't truncate keyspace
   }
 }

@@ -19,34 +19,14 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package net.nmoncho.helenus.internal
+package net.nmoncho.helenus.models
 
-import scala.util.Success
+import net.nmoncho.helenus.api.RowMapper
 
-import com.datastax.oss.driver.internal.core.`type`.DefaultListType
-import com.datastax.oss.driver.internal.core.`type`.PrimitiveType
-import com.datastax.oss.protocol.internal.ProtocolConstants
-import net.nmoncho.helenus.utils.CassandraSpec
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
+final case class Amenity(name: String, description: String)
 
-class CqlSessionSyncExtensionSpec extends AnyWordSpec with Matchers with CassandraSpec {
-
+object Amenity {
   import net.nmoncho.helenus._
 
-  private lazy val cqlExtension = session.toScala
-
-  "CqlSessionSyncExtension" should {
-
-    "register codecs" in {
-      val listStringCodec = Codec[List[String]]
-
-      cqlExtension.registerCodecs(listStringCodec) shouldBe a[Success[_]]
-
-      cqlExtension.session.getContext.getCodecRegistry
-        .codecFor(
-          new DefaultListType(new PrimitiveType(ProtocolConstants.DataType.VARCHAR), true)
-        ) shouldBe listStringCodec
-    }
-  }
+  implicit val rowMapper: RowMapper[Amenity] = RowMapper[Amenity]
 }

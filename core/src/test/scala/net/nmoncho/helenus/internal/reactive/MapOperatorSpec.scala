@@ -27,8 +27,8 @@ import java.util.concurrent.SubmissionPublisher
 
 import scala.collection.mutable.ListBuffer
 
-import net.nmoncho.helenus.CassandraSpec
 import net.nmoncho.helenus.api.RowMapper
+import net.nmoncho.helenus.utils.CassandraSpec
 import org.reactivestreams.FlowAdapters
 import org.scalatest.concurrent.Eventually
 import org.scalatest.matchers.should.Matchers

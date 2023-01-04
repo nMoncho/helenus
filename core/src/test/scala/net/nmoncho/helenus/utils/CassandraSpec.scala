@@ -19,7 +19,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package net.nmoncho.helenus
+package net.nmoncho.helenus.utils
 
 import java.net.InetSocketAddress
 import java.util.UUID
@@ -117,6 +117,14 @@ trait CassandraSpec extends BeforeAndAfterAll with BeforeAndAfterEach { this: Su
 
   def execute(stmt: Statement[_]): ResultSet =
     session.execute(stmt)
+
+  def executeFile(filename: String): Unit =
+    scala.util.Using(scala.io.Source.fromResource(filename)) { src =>
+      val body       = src.getLines().mkString("\n")
+      val statements = body.split(";")
+
+      statements.foreach(executeDDL)
+    }
 
   def registerCodec[T](codec: TypeCodec[T]): Unit =
     session.getContext.getCodecRegistry.asInstanceOf[MutableCodecRegistry].register(codec)

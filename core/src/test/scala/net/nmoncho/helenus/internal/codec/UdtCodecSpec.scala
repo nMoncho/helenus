@@ -31,6 +31,7 @@ import net.nmoncho.helenus.api.ColumnNamingScheme
 import net.nmoncho.helenus.api.SnakeCase
 import net.nmoncho.helenus.api.TimeUuid
 import net.nmoncho.helenus.api.Udt
+import net.nmoncho.helenus.utils.CassandraSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 

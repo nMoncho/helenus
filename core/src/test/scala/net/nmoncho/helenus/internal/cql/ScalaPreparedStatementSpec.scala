@@ -19,89 +19,117 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package net.nmoncho.helenus.internal.cql
-
-import java.nio.ByteBuffer
-import java.util.Collections
+package net.nmoncho.helenus
+package internal.cql
 
 import com.datastax.oss.driver.api.core.cql.BoundStatement
-import com.datastax.oss.driver.api.core.cql.BoundStatementBuilder
-import com.datastax.oss.driver.api.core.cql.PreparedStatement
-import com.datastax.oss.driver.api.core.cql.Row
-import com.datastax.oss.driver.internal.core.cql.EmptyColumnDefinitions
-import net.nmoncho.helenus.api.RowMapper
-import org.mockito.ArgumentMatchers._
-import org.mockito.Mockito._
+import com.datastax.oss.driver.api.core.servererrors.InvalidQueryException
+import net.nmoncho.helenus.utils.CassandraSpec
+import net.nmoncho.helenus.utils.HotelsTestData
+import org.scalatest.concurrent.Eventually
+import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.time.Seconds
+import org.scalatest.time.Span
 import org.scalatest.wordspec.AnyWordSpec
 
-class ScalaPreparedStatementSpec extends AnyWordSpec with Matchers {
+class ScalaPreparedStatementSpec
+    extends AnyWordSpec
+    with Matchers
+    with Eventually
+    with CassandraSpec
+    with ScalaFutures {
 
-  private val id         = ByteBuffer.wrap("pstmt-id".getBytes)
-  private val metadataId = ByteBuffer.wrap("metadata-id".getBytes())
+  import HotelsTestData._
+
+  import scala.concurrent.ExecutionContext.Implicits.global
+
+  implicit lazy val cqlSession: CqlSessionExtension = session.toScala
 
   "ScalaPreparedStatement" should {
-    "delegate method calls" in {
-      val (spstmt, pstmt) = mockScalaPstmt[String]
+    "prepare a query" in {
+      // single parameter query
+      "SELECT * FROM hotels WHERE id = ?".toCQL
+        .prepare[String] shouldBe a[ScalaPreparedStatement[_, _]]
 
-      // trigger interactions
-      spstmt.getId shouldBe id
-      spstmt.getResultMetadataId shouldBe metadataId
+      // multiple parameter query
+      "SELECT * FROM hotels_by_poi WHERE poi_name = ? AND hotel_id = ?".toCQL
+        .prepare[String, String] shouldBe a[ScalaPreparedStatement[_, _]]
 
-      spstmt.getQuery shouldBe "some-query"
+      // should propagate exceptions ('name' is not part of the PK)
+      intercept[InvalidQueryException] {
+        "SELECT * FROM hotels WHERE name = ?".toCQL
+          .prepare[String] shouldBe a[ScalaPreparedStatement[_, _]]
+      }
+    }
 
-      spstmt.getVariableDefinitions shouldBe EmptyColumnDefinitions.INSTANCE
-      spstmt.getResultSetDefinitions shouldBe EmptyColumnDefinitions.INSTANCE
-      spstmt.getPartitionKeyIndices shouldBe a[java.util.List[Integer]]
+    "prepare a query (async)" in {
+      // single parameter query
+      whenReady(
+        "SELECT * FROM hotels WHERE id = ?".toCQL
+          .prepareAsync[String]
+      )(pstmt => pstmt shouldBe a[ScalaPreparedStatement[_, _]])
 
-      spstmt.bind("foo") shouldBe a[BoundStatement]
-      spstmt.boundStatementBuilder("foo") shouldBe a[BoundStatementBuilder]
+      // multiple parameter query
+      whenReady(
+        "SELECT * FROM hotels_by_poi WHERE poi_name = ? AND hotel_id = ?".toCQL
+          .prepareAsync[String, String]
+      )(pstmt => pstmt shouldBe a[ScalaPreparedStatement[_, _]])
 
-      spstmt.setResultMetadata(id, EmptyColumnDefinitions.INSTANCE)
+      // should propagate exceptions ('name' is not part of the PK)
+      whenReady(
+        "SELECT * FROM hotels WHERE name = ?".toCQL
+          .prepareAsync[String]
+          .failed
+      )(failure => failure shouldBe a[InvalidQueryException])
+    }
 
-      // verify interaction
-      verify(pstmt, atLeastOnce()).getId
-      verify(pstmt, atLeastOnce()).getResultMetadataId
+    "work as a function producing BoundStatement" in {
+      val query = "SELECT * FROM hotels WHERE id = ?".toCQL
+        .prepare[String]
 
-      verify(pstmt, atLeastOnce()).getQuery
+      val queryH1 = query(Hotels.h1.id)
+      queryH1 shouldBe a[BoundStatement]
 
-      verify(pstmt, atLeastOnce()).getVariableDefinitions
-      verify(pstmt, atLeastOnce()).getResultSetDefinitions
-      verify(pstmt, atLeastOnce()).getPartitionKeyIndices
+      // with a different hotel
+      val queryH2 = query(Hotels.h2.id)
+      queryH2 shouldBe a[BoundStatement]
 
-      verify(pstmt, atLeastOnce()).bind("foo")
-      verify(pstmt, atLeastOnce()).boundStatementBuilder("foo")
+      withClue("and can be executed") {
+        val h1It     = queryH1.execute()
+        val h1RowOpt = Option(h1It.one())
 
-      verify(pstmt, atLeastOnce()).setResultMetadata(id, EmptyColumnDefinitions.INSTANCE)
+        h1RowOpt shouldBe defined
+        h1RowOpt.map(_.getString("name")) shouldBe Some(Hotels.h1.name)
+      }
+    }
+
+    "execute (short-hand function)" in {
+      val query = "SELECT * FROM hotels WHERE id = ?".toCQL
+        .prepare[String]
+
+      val h2RowOpt = Option(query.execute(Hotels.h2.id).one())
+      h2RowOpt.map(_.getString("name")) shouldBe Some(Hotels.h2.name)
+
+      whenReady(
+        query
+          .executeAsync(Hotels.h2.id)
+          .map(it => it.currPage.nextOption())
+      ) { h2RowOpt =>
+        h2RowOpt.map(_.getString("name")) shouldBe Some(Hotels.h2.name)
+      }
     }
   }
 
-  private def mockScalaPstmt[U]: (ScalaPreparedStatement[U, Row], PreparedStatement) = {
-    val pstmt = mockPstmt
+  override implicit def patienceConfig: PatienceConfig = PatienceConfig(Span(6, Seconds))
 
-    new ScalaPreparedStatement[U, Row](
-      (u: U) => mock(classOf[BoundStatement]),
-      RowMapper.identity,
-      pstmt
-    ) -> pstmt
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+    executeFile("hotels.cql")
+    insertTestData()
   }
 
-  private def mockPstmt: PreparedStatement = {
-    val pstmt = mock(classOf[PreparedStatement])
-
-    when(pstmt.getId).thenReturn(id)
-    when(pstmt.getResultMetadataId).thenReturn(metadataId)
-
-    when(pstmt.getQuery).thenReturn("some-query")
-    when(pstmt.getVariableDefinitions).thenReturn(EmptyColumnDefinitions.INSTANCE)
-    when(pstmt.getResultSetDefinitions).thenReturn(EmptyColumnDefinitions.INSTANCE)
-    when(pstmt.getPartitionKeyIndices).thenReturn(
-      Collections.singletonList(1): java.util.List[Integer]
-    )
-
-    when(pstmt.bind(any())).thenReturn(mock(classOf[BoundStatement]))
-    when(pstmt.boundStatementBuilder(any())).thenReturn(mock(classOf[BoundStatementBuilder]))
-
-    pstmt
+  override def afterEach(): Unit = {
+    // Don't truncate keyspace
   }
 }

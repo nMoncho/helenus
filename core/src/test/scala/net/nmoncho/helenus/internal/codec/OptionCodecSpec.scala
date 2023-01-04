@@ -26,7 +26,7 @@ import java.util.UUID
 
 import com.datastax.oss.driver.api.core.`type`.DataTypes
 import com.datastax.oss.driver.api.core.`type`.codec._
-import net.nmoncho.helenus.CassandraSpec
+import net.nmoncho.helenus.utils.CassandraSpec
 import org.scalatest.exceptions.TestFailedException
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec

@@ -19,34 +19,47 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package net.nmoncho.helenus.internal
+package net.nmoncho.helenus
 
-import scala.util.Success
-
-import com.datastax.oss.driver.internal.core.`type`.DefaultListType
-import com.datastax.oss.driver.internal.core.`type`.PrimitiveType
-import com.datastax.oss.protocol.internal.ProtocolConstants
-import net.nmoncho.helenus.utils.CassandraSpec
+import com.datastax.oss.driver.api.core.PagingIterable
+import org.mockito.Mockito._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-class CqlSessionSyncExtensionSpec extends AnyWordSpec with Matchers with CassandraSpec {
+class PagingIterableOpsSpec extends AnyWordSpec with Matchers {
 
-  import net.nmoncho.helenus._
+  "PagingIterableOps" should {
+    "provide 'headOption'" in {
+      val nonEmpty = mockPagingIterable(List(1, 2, 3, 4, 5))
+      nonEmpty.headOption shouldBe Some(1)
 
-  private lazy val cqlExtension = session.toScala
-
-  "CqlSessionSyncExtension" should {
-
-    "register codecs" in {
-      val listStringCodec = Codec[List[String]]
-
-      cqlExtension.registerCodecs(listStringCodec) shouldBe a[Success[_]]
-
-      cqlExtension.session.getContext.getCodecRegistry
-        .codecFor(
-          new DefaultListType(new PrimitiveType(ProtocolConstants.DataType.VARCHAR), true)
-        ) shouldBe listStringCodec
+      val empty = mockPagingIterable(List.empty[Int])
+      empty.headOption shouldBe None
     }
+
+    "provide a Scala Iterator" in {
+      val pagingIterable = mockPagingIterable(List(1, 2, 3, 4, 5))
+
+      pagingIterable.iter shouldBe a[scala.collection.Iterator[_]]
+    }
+
+    "convert to a collection" in {
+      def pagingIterable = mockPagingIterable(List(1, 2, 3, 4, 5))
+
+      pagingIterable.to(List) shouldBe List(1, 2, 3, 4, 5)
+      pagingIterable.to(Vector) shouldBe Vector(1, 2, 3, 4, 5)
+      pagingIterable.to(Set) shouldBe Set(1, 2, 3, 4, 5)
+    }
+  }
+
+  private def mockPagingIterable[T](iterable: Iterable[T]): PagingIterable[T] = {
+    import scala.jdk.CollectionConverters._
+
+    val pi = mock(classOf[PagingIterable[T]])
+
+    when(pi.one()).thenCallRealMethod()
+    when(pi.iterator()).thenReturn(iterable.iterator.asJava)
+
+    pi
   }
 }
