@@ -42,12 +42,14 @@ class BigIntCodecSpec
     "encode" in {
       encode(BigInt(1)) shouldBe Some("0x01")
       encode(BigInt(128)) shouldBe Some("0x0080")
+      encode(null) shouldBe None
     }
 
     "decode" in {
       decode("0x01") shouldBe Some(BigInt(1))
       decode("0x0080") shouldBe Some(BigInt(128))
-      // decode("0x") shouldBe None FIXME!
+      decode("0x") shouldBe None
+      decode(null) shouldBe None
     }
 
     "format" in {
