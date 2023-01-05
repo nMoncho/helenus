@@ -24,11 +24,8 @@ jobs:
           distribution: 'temurin'
           cache: 'sbt'
 
-      - name: Check formatting and headers
-        run: sbt scalafmtCheckAll headerCheckAll
-
-      - name: Scalafix
-        run: sbt 'scalafixAll --check'
+      - name: Check formatting, scalafix, and headers
+        run: sbt styleCheck
 
       - name: Check docs
         run: sbt docs/mdoc

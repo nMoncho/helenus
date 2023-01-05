@@ -50,6 +50,11 @@ addCommandAlias(
   "; scalafmtSbt; scalafmtAll; headerCreateAll; scalafixAll"
 )
 
+addCommandAlias(
+  "styleCheck",
+  "; scalafmtCheckAll; headerCheckAll; scalafixAll --check"
+)
+
 ThisBuild / scalafixDependencies += "com.github.liancheng" %% "organize-imports" % "0.6.0"
 ThisBuild / scalafixScalaBinaryVersion := scalaBinaryVersion.value
 
