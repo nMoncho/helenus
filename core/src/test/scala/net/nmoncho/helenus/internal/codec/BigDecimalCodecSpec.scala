@@ -53,7 +53,7 @@ class BigDecimalCodecSpec
     "decode" in {
       decode("0x0000000001") shouldBe Some(BigDecimal(1))
       decode("0x000000040080") shouldBe Some(BigDecimal(128, 4))
-      // decode("0x") shouldBe None FIXME!
+      decode("0x") shouldBe None
     }
 
     "fail to decode if not enough bytes" in {

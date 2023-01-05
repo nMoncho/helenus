@@ -21,12 +21,16 @@
 
 package net.nmoncho.helenus
 
+import scala.annotation.nowarn
+
 import com.datastax.oss.driver.api.core.PagingIterable
 import org.mockito.Mockito._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
+@nowarn("cat=unused-imports")
 class PagingIterableOpsSpec extends AnyWordSpec with Matchers {
+  import scala.collection.compat._ // Don't remove me
 
   "PagingIterableOps" should {
     "provide 'headOption'" in {

@@ -22,6 +22,8 @@
 package net.nmoncho.helenus
 package api
 
+import scala.annotation.nowarn
+
 import com.datastax.oss.driver.api.core.cql.Row
 import net.nmoncho.helenus.models.Address
 import net.nmoncho.helenus.models.Hotel
@@ -34,6 +36,7 @@ import org.scalatest.time.Seconds
 import org.scalatest.time.Span
 import org.scalatest.wordspec.AnyWordSpec
 
+@nowarn("cat=unused-imports")
 class RowMapperSpec
     extends AnyWordSpec
     with Matchers
@@ -42,6 +45,7 @@ class RowMapperSpec
     with ScalaFutures {
 
   import HotelsTestData._
+  import scala.collection.compat._ // Don't remove me
   import scala.concurrent.ExecutionContext.Implicits.global
 
   implicit lazy val cqlSession: CqlSessionExtension = session.toScala

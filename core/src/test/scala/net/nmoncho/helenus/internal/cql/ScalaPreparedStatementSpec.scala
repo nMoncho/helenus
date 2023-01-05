@@ -22,6 +22,8 @@
 package net.nmoncho.helenus
 package internal.cql
 
+import scala.annotation.nowarn
+
 import com.datastax.oss.driver.api.core.cql.BoundStatement
 import com.datastax.oss.driver.api.core.servererrors.InvalidQueryException
 import net.nmoncho.helenus.utils.CassandraSpec
@@ -33,6 +35,7 @@ import org.scalatest.time.Seconds
 import org.scalatest.time.Span
 import org.scalatest.wordspec.AnyWordSpec
 
+@nowarn("cat=unused-imports")
 class ScalaPreparedStatementSpec
     extends AnyWordSpec
     with Matchers
@@ -41,6 +44,7 @@ class ScalaPreparedStatementSpec
     with ScalaFutures {
 
   import HotelsTestData._
+  import scala.collection.compat._ // Don't remove me
 
   import scala.concurrent.ExecutionContext.Implicits.global
 
