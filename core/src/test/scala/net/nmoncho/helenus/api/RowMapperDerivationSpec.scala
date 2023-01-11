@@ -26,6 +26,7 @@ import net.nmoncho.helenus.api.RowMapper.ColumnMapper
 import net.nmoncho.helenus.api.RowMapperDerivationSpec.IceCream
 import net.nmoncho.helenus.api.RowMapperDerivationSpec.IceCreamWithSpecialProps
 import net.nmoncho.helenus.api.RowMapperDerivationSpec.IceCreamWithSpecialPropsAsTuple
+import net.nmoncho.helenus.api.RowMapperDerivationSpec.RenamedIceCream
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
@@ -74,6 +75,14 @@ class RowMapperDerivationSpec extends AnyWordSpec with Matchers {
         ] shouldBe IceCreamWithSpecialPropsAsTuple.rowMapper
       }
     }
+
+    "semi-auto derive on companion object with renamed mapping" in {
+      RenamedIceCream.rowMapper should not be null
+
+      withClue("and should be implicitly available, and not be derived twice") {
+        implicitly[RowMapper[RenamedIceCream]] shouldBe RenamedIceCream.rowMapper
+      }
+    }
   }
 
 }
@@ -105,5 +114,12 @@ object RowMapperDerivationSpec {
   object IceCreamWithSpecialPropsAsTuple {
     implicit val rowMapper: RowMapper[IceCreamWithSpecialPropsAsTuple] =
       RowMapper[IceCreamWithSpecialPropsAsTuple]
+  }
+
+  case class RenamedIceCream(naam: String, kers: Int, hoorn: Boolean)
+
+  object RenamedIceCream {
+    implicit val rowMapper: RowMapper[RenamedIceCream] = RowMapper
+      .renamed[RenamedIceCream](_.naam -> "name", _.kers -> "numCherries", _.hoorn -> "cone")
   }
 }

@@ -24,6 +24,7 @@ package net.nmoncho.helenus.api
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.cql.Row
 import net.nmoncho.helenus.internal.DerivedRowMapper
+import net.nmoncho.helenus.internal.macros.{ RowMapper => RowMapperMacros }
 import shapeless.<:!<
 import shapeless.IsTuple
 
@@ -38,6 +39,9 @@ trait RowMapper[T] {
 }
 
 object RowMapper {
+  import scala.language.experimental.macros
+
+  type ColumnName = String
 
   val identity: RowMapper[Row] = (row: Row) => row
 
@@ -57,6 +61,15 @@ object RowMapper {
 
   def apply[T](implicit mapper: DerivedRowMapper[T]): RowMapper[T] = mapper
 
+  /** Derives a [[RowMapper]] considering the specified name mapping.
+    *
+    * @param first first mapping from field to column
+    * @param rest  rest mapping from field to column
+    * @tparam T target type
+    */
+  def renamed[T](first: T => (Any, ColumnName), rest: T => (Any, ColumnName)*): RowMapper[T] =
+    macro RowMapperMacros.renamedMapper[DerivedRowMapper.Builder, T]
+
   /** Derives a [[RowMapper]] for tuples
     */
   implicit def derivedTupleRowMapper[T: IsTuple](
@@ -71,26 +84,4 @@ object RowMapper {
   ): DerivedRowMapper[T] =
     (row: Row) => row.get(0, codec)
 
-  // FIXME there is no check if the user maps a field that doesn't exist
-  // This could be fixed with Shapeless, maybe... or macros with a Quill approach
-  /** Use this abstraction when you desire to have more control over how columns are defined in the schema.
-    * If you don't need this feature, please use [[RowMapper]].
-    */
-  object NamedRowMapper {
-    type FieldName  = String
-    type ColumnName = String
-
-    /** Derives a [[RowMapper]] considering the specified name mapping.
-      *
-      * @param first first mapping from field to column
-      * @param rest rest mapping from field to column
-      * @tparam T target type
-      */
-    def apply[T](first: (FieldName, ColumnName), rest: (FieldName, ColumnName)*)(
-        implicit builder: DerivedRowMapper.Builder[T]
-    ): RowMapper[T] = {
-      val mappings = rest.toMap + first
-      builder(mappings)
-    }
-  }
 }

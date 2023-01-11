@@ -41,9 +41,6 @@ abstract class DerivedRowMapper[T] extends RowMapper[T]
 
 trait CaseClassRowMapperDerivation {
 
-  type FieldToColumn = Map[String, String]
-  trait Builder[A] extends (FieldToColumn => DerivedRowMapper[A])
-
   sealed trait DerivedNameRowMapper[T] extends DerivedRowMapper[T] {
     def column: String
   }
@@ -53,21 +50,22 @@ trait CaseClassRowMapperDerivation {
       implicit colDecoder: ColumnMapper[H],
       witness: Witness.Aux[K],
       columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme
-  ): Builder[FieldType[K, H] :: HNil] = (mapping: FieldToColumn) =>
-    new DerivedNameRowMapper[FieldType[K, H] :: HNil] {
-      override val column: String =
-        mapping.getOrElse(witness.value.name, columnMapper.map(witness.value.name))
+  ): DerivedRowMapper.Builder[FieldType[K, H] :: HNil] =
+    (mapping: DerivedRowMapper.FieldToColumn) =>
+      new DerivedNameRowMapper[FieldType[K, H] :: HNil] {
+        override val column: String =
+          mapping.getOrElse(witness.value.name, columnMapper.map(witness.value.name))
 
-      override def apply(row: Row): FieldType[K, H] :: HNil =
-        (witness.value ->> colDecoder(column, row)).asInstanceOf[FieldType[K, H]] :: HNil
-    }
+        override def apply(row: Row): FieldType[K, H] :: HNil =
+          (witness.value ->> colDecoder(column, row)).asInstanceOf[FieldType[K, H]] :: HNil
+      }
 
   implicit def hListCCRowMapper[K <: Symbol, H, T <: HList](
       implicit colDecoder: ColumnMapper[H],
       witness: Witness.Aux[K],
-      tailRowBuilder: Builder[T],
+      tailRowBuilder: DerivedRowMapper.Builder[T],
       columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme
-  ): Builder[FieldType[K, H] :: T] = (mapping: FieldToColumn) =>
+  ): DerivedRowMapper.Builder[FieldType[K, H] :: T] = (mapping: DerivedRowMapper.FieldToColumn) =>
     new DerivedNameRowMapper[FieldType[K, H] :: T] {
       override val column: String =
         mapping.getOrElse(witness.value.name, columnMapper.map(witness.value.name))
@@ -86,9 +84,9 @@ trait CaseClassRowMapperDerivation {
     */
   implicit def genericCCRowMapperBuilder[T, R](
       implicit gen: LabelledGeneric.Aux[T, R],
-      builder: Builder[R],
+      builder: DerivedRowMapper.Builder[R],
       columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme
-  ): Builder[T] = (mappings: FieldToColumn) => {
+  ): DerivedRowMapper.Builder[T] = (mappings: DerivedRowMapper.FieldToColumn) => {
     val reprRowMapper = builder(mappings)
 
     (row: Row) => gen.from(reprRowMapper(row))
@@ -98,13 +96,17 @@ trait CaseClassRowMapperDerivation {
     */
   implicit def genericCCRowMapper[T, R](
       implicit gen: LabelledGeneric.Aux[T, R],
-      builder: Builder[T],
+      builder: DerivedRowMapper.Builder[T],
       columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme
   ): DerivedRowMapper[T] = builder(Map.empty)
 
 }
 
 object DerivedRowMapper extends CaseClassRowMapperDerivation {
+
+  type FieldToColumn = Map[String, String]
+
+  trait Builder[A] extends (Map[String, String] => DerivedRowMapper[A])
 
   sealed trait DerivedIdxRowMapper[T] extends DerivedRowMapper[T] {
     def apply(idx: Int, row: Row): T
