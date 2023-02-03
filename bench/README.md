@@ -5,7 +5,7 @@ To run the micro-benchmarks, use the script `run-benchmarks.sh`.
 
 To run a specific benchmark (e.g. `ListCodecBenchMark`), use:
 ```bash
-sbt 'bench/jmh:run -rf json .*ListCodecBenchMark'
+sbt 'bench/jmh:run -rf json .*ListCodecBenchmark'
 ```
 
 ## Rationale
