@@ -27,18 +27,21 @@ import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
+import scala.util.Failure
+import scala.util.Try
 
 import com.datastax.dse.driver.api.core.cql.reactive.ReactiveResultSet
 import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.MappedAsyncPagingIterable
 import com.datastax.oss.driver.api.core.PagingIterable
+import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
+import com.datastax.oss.driver.api.core.`type`.codec.registry.MutableCodecRegistry
 import com.datastax.oss.driver.api.core.cql.AsyncResultSet
 import com.datastax.oss.driver.api.core.cql.BoundStatement
 import com.datastax.oss.driver.api.core.cql.ResultSet
 import com.datastax.oss.driver.api.core.cql.Row
 import net.nmoncho.helenus.api.RowMapper
 import net.nmoncho.helenus.api.`type`.codec.CodecDerivation
-import net.nmoncho.helenus.internal._
 import net.nmoncho.helenus.internal.cql.ParameterValue
 import net.nmoncho.helenus.internal.cql.ScalaPreparedStatement.CQLQuery
 import net.nmoncho.helenus.internal.reactive.MapOperator
@@ -49,12 +52,21 @@ package object helenus extends CodecDerivation {
 
   private val log = LoggerFactory.getLogger("net.nmoncho.helenus")
 
-  trait CqlSessionExtension extends CqlSessionSyncExtension with CqlSessionAsyncExtension {}
+  implicit class ClqSessionOps(private val session: CqlSession) extends AnyVal {
 
-  implicit class ClqSessionOps(private val cqlSession: CqlSession) extends AnyVal {
-    def toScala: CqlSessionExtension = new CqlSessionExtension {
-      override val session: CqlSession = cqlSession
-    }
+    /** Registers codecs in the Session's CodecRegistry.
+      */
+    def registerCodecs(codecs: TypeCodec[_]*): Try[Unit] =
+      session.getContext.getCodecRegistry match {
+        case mutableRegistry: MutableCodecRegistry =>
+          Try(mutableRegistry.register(codecs: _*))
+
+        // $COVERAGE-OFF$
+        case _ =>
+          Failure(new IllegalStateException("CodecRegistry isn't mutable"))
+        // $COVERAGE-ON$
+      }
+
   }
 
   /** Creates a [[BoundStatement]] using String Interpolation.
@@ -71,21 +83,21 @@ package object helenus extends CodecDerivation {
     */
   implicit class CqlStringInterpolation(private val sc: StringContext) extends AnyVal {
 
-    def cql(args: ParameterValue*)(implicit session: CqlSessionSyncExtension): BoundStatement = {
+    def cql(args: ParameterValue*)(implicit session: CqlSession): BoundStatement = {
       val query = cqlQuery(args)
 
-      val bstmt = session.session.prepare(query).bind()
+      val bstmt = session.prepare(query).bind()
       setParameters(bstmt, args)
     }
 
     def asyncCql(
         args: ParameterValue*
-    )(implicit session: CqlSessionSyncExtension, ec: ExecutionContext): Future[BoundStatement] = {
+    )(implicit session: CqlSession, ec: ExecutionContext): Future[BoundStatement] = {
       import net.nmoncho.helenus.internal.compat.FutureConverters._
 
       val query = cqlQuery(args)
 
-      session.session.prepareAsync(query).asScala.map { pstmt =>
+      session.prepareAsync(query).asScala.map { pstmt =>
         setParameters(pstmt.bind(), args)
       }
     }
@@ -117,22 +129,22 @@ package object helenus extends CodecDerivation {
   implicit class BoundStatementSyncOps(private val bstmt: BoundStatement) extends AnyVal {
     import net.nmoncho.helenus.internal.compat.FutureConverters._
 
-    def execute()(implicit session: CqlSessionSyncExtension): ResultSet =
-      session.session.execute(bstmt)
+    def execute()(implicit session: CqlSession): ResultSet =
+      session.execute(bstmt)
 
-    def executeAsync()(implicit session: CqlSessionAsyncExtension): Future[AsyncResultSet] =
-      session.session.executeAsync(bstmt).asScala
+    def executeAsync()(implicit session: CqlSession): Future[AsyncResultSet] =
+      session.executeAsync(bstmt).asScala
 
-    def executeReactive()(implicit session: CqlSessionSyncExtension): ReactiveResultSet =
-      session.session.executeReactive(bstmt)
+    def executeReactive()(implicit session: CqlSession): ReactiveResultSet =
+      session.executeReactive(bstmt)
   }
 
   implicit class PreparedStatementSyncStringOps(private val query: String) extends AnyVal {
 
-    def toCQL(implicit session: CqlSessionExtension): CQLQuery =
+    def toCQL(implicit session: CqlSession): CQLQuery =
       CQLQuery(
         query,
-        session.session
+        session
       )
   }
 

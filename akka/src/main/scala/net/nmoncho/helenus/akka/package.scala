@@ -37,13 +37,11 @@ import com.datastax.oss.driver.api.core.cql.BatchStatement
 
 package object akka {
 
-  implicit def toExtension(implicit cassandraSession: CassandraSession): CqlSessionExtension =
-    new CqlSessionExtension {
-      override lazy val session: CqlSession = Await.result(
-        cassandraSession.underlying(),
-        Duration.Inf // FIXME can we configure this?
-      )
-    }
+  implicit def toExtension(implicit cassandraSession: CassandraSession): CqlSession =
+    Await.result(
+      cassandraSession.underlying(),
+      Duration.Inf // FIXME can we configure this?
+    )
 
   implicit class ScalaPreparedStatementAkkaReadSyncOps[U, T](
       private val pstmt: ScalaPreparedStatement[U, T]
@@ -57,8 +55,6 @@ package object akka {
       Source
         .future(session.underlying())
         .flatMapConcat { cqlSession =>
-          implicit val session: CqlSessionExtension = cqlSession.toScala
-
           Source.fromPublisher(pstmt.executeReactive(u))
         }
 

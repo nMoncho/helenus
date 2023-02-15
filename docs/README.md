@@ -53,8 +53,8 @@ def getSession: CqlSession = net.nmoncho.helenus.docs.DocsHelper.cqlSession
 // First import helenus...
 import net.nmoncho.helenus._
 
-// Then convert your session and mark it implicit
-implicit val session: CqlSessionExtension = getSession.toScala
+// Then mark your session implicit
+implicit val session: CqlSession = getSession
 
 @Udt
 case class Address(street: String, city: String, stateOrProvince: String, postalCode: String, country: String)

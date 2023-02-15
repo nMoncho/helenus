@@ -34,16 +34,14 @@ class CqlSessionSyncExtensionSpec extends AnyWordSpec with Matchers with Cassand
 
   import net.nmoncho.helenus._
 
-  private lazy val cqlExtension = session.toScala
-
   "CqlSessionSyncExtension" should {
 
     "register codecs" in {
       val listStringCodec = Codec[List[String]]
 
-      cqlExtension.registerCodecs(listStringCodec) shouldBe a[Success[_]]
+      session.registerCodecs(listStringCodec) shouldBe a[Success[_]]
 
-      cqlExtension.session.getContext.getCodecRegistry
+      session.getContext.getCodecRegistry
         .codecFor(
           new DefaultListType(new PrimitiveType(ProtocolConstants.DataType.VARCHAR), true)
         ) shouldBe listStringCodec

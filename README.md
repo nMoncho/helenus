@@ -46,9 +46,9 @@ As of this version, Helenus supports the following types:
 // First import helenus...
 import net.nmoncho.helenus._
 
-// Then convert your session and mark it implicit
-implicit val session: CqlSessionExtension = getSession.toScala
-// session: CqlSessionExtension = net.nmoncho.helenus.package$ClqSessionOps$$anon$1@3f8ec70b
+// Then mark your session implicit
+implicit val session: CqlSession = getSession
+// session: CqlSession = com.datastax.oss.driver.internal.core.session.DefaultSession@7574c61b
 
 @Udt
 case class Address(street: String, city: String, stateOrProvince: String, postalCode: String, country: String)
@@ -61,13 +61,13 @@ implicit val typeCodec: TypeCodec[Address] = Codec.udtOf[Address]
 
 // We can derive how query results map to case classes
 implicit val rowMapper: RowMapper[Hotel] = RowMapper[Hotel]
-// rowMapper: RowMapper[Hotel] = net.nmoncho.helenus.internal.CaseClassRowMapperDerivation$$anonfun$net$nmoncho$helenus$internal$CaseClassRowMapperDerivation$$$nestedInanonfun$genericCCRowMapperBuilder$1$1@25953dc6
+// rowMapper: RowMapper[Hotel] = net.nmoncho.helenus.internal.CaseClassRowMapperDerivation$$anonfun$net$nmoncho$helenus$internal$CaseClassRowMapperDerivation$$$nestedInanonfun$genericCCRowMapperBuilder$1$1@8c89753
 
 // We can prepare queries with parameters that don't require boxing
 val hotelsById = "SELECT * FROM hotels WHERE id = ?".toCQL
     .prepare[String]
     .as[Hotel]
-// hotelsById: internal.cql.ScalaPreparedStatement[String, Hotel] = net.nmoncho.helenus.internal.cql.ScalaPreparedStatement@6c486db2
+// hotelsById: internal.cql.ScalaPreparedStatement[String, Hotel] = net.nmoncho.helenus.internal.cql.ScalaPreparedStatement@5d086920
 
 // We can extract a single result using `nextOption`, or
 // use `to(Coll)` to transform the result to a collection

@@ -34,8 +34,6 @@ import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.cql.Row
 import com.datastax.oss.driver.api.core.cql._
 import net.nmoncho.helenus.api.RowMapper
-import net.nmoncho.helenus.internal.CqlSessionAsyncExtension
-import net.nmoncho.helenus.internal.CqlSessionSyncExtension
 import org.reactivestreams.Publisher
 
 /** Wraps a [[PreparedStatement]] while providing an `apply` method to produce
@@ -57,14 +55,14 @@ class ScalaPreparedStatement[U, T](
 
   /** Executes [[PreparedStatement]] with the provided [[U]] parameters, returning a [[PagingIterable]] of [[T]]
     */
-  def execute(u: U)(implicit session: CqlSessionSyncExtension): PagingIterable[T] =
+  def execute(u: U)(implicit session: CqlSession): PagingIterable[T] =
     apply(u).execute().as[T](mapper)
 
   /** Executes [[PreparedStatement]] asynchronously with the provided [[U]] parameters, returning a
     * [[MappedAsyncPagingIterable]] of [[T]]
     */
   def executeAsync(u: U)(
-      implicit session: CqlSessionAsyncExtension,
+      implicit session: CqlSession,
       ec: ExecutionContext
   ): Future[MappedAsyncPagingIterable[T]] =
     apply(u).executeAsync().map(_.as[T](mapper))
@@ -72,7 +70,7 @@ class ScalaPreparedStatement[U, T](
   /** Executes [[PreparedStatement]] in a reactive fashion with the provided [[U]] parameters, returning a
     * [[Publisher]] of [[T]]
     */
-  def executeReactive(u: U)(implicit session: CqlSessionSyncExtension): Publisher[T] =
+  def executeReactive(u: U)(implicit session: CqlSession): Publisher[T] =
     apply(u).executeReactive().as[T](mapper)
 
   /** Converts a [[ScalaPreparedStatement]] to map [[Row]] results to [[A]]

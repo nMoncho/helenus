@@ -24,6 +24,7 @@ package api
 
 import scala.annotation.nowarn
 
+import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.cql.Row
 import net.nmoncho.helenus.models.Address
 import net.nmoncho.helenus.models.Hotel
@@ -48,7 +49,7 @@ class RowMapperSpec
   import scala.collection.compat._ // Don't remove me
   import scala.concurrent.ExecutionContext.Implicits.global
 
-  implicit lazy val cqlSession: CqlSessionExtension = session.toScala
+  private implicit lazy val cqlSession: CqlSession = session
 
   // We create the mapper here to avoid testing the generic derivation
   implicit val rowMapper: RowMapper[Hotel] = (row: Row) =>

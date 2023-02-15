@@ -26,7 +26,7 @@ import java.time.LocalDate
 
 import scala.util.Random
 
-import net.nmoncho.helenus.CqlSessionExtension
+import com.datastax.oss.driver.api.core.CqlSession
 
 object HotelsTestData {
 
@@ -34,7 +34,7 @@ object HotelsTestData {
 
   private val rnd = new Random(0)
 
-  def insertTestData()(implicit session: CqlSessionExtension): Unit = {
+  def insertTestData()(implicit session: CqlSession): Unit = {
     val insertHotelByPOI =
       """INSERT INTO hotels_by_poi(poi_name, hotel_id, name, phone, address)
         |VALUES (?, ?, ?, ?, ?)""".stripMargin.toCQL

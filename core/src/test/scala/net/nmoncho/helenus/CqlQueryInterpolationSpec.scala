@@ -23,6 +23,7 @@ package net.nmoncho.helenus
 
 import java.util.UUID
 
+import com.datastax.oss.driver.api.core.CqlSession
 import net.nmoncho.helenus.utils.CassandraSpec
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
@@ -35,7 +36,9 @@ class CqlQueryInterpolationSpec
     with Matchers
     with CassandraSpec
     with ScalaFutures {
-  private implicit lazy val s: CqlSessionExtension     = session.toScala
+
+  private implicit lazy val cqlSession: CqlSession = session
+
   override implicit val patienceConfig: PatienceConfig = PatienceConfig(Span(6, Seconds))
 
   "CQL Query interpolation" should {
