@@ -42,7 +42,9 @@ import com.datastax.oss.driver.api.core.cql.ResultSet
 import com.datastax.oss.driver.api.core.cql.Row
 import net.nmoncho.helenus.api.RowMapper
 import net.nmoncho.helenus.api.`type`.codec.CodecDerivation
+import net.nmoncho.helenus.api.cql.Adapter
 import net.nmoncho.helenus.internal.cql.ParameterValue
+import net.nmoncho.helenus.internal.cql.ScalaPreparedStatement
 import net.nmoncho.helenus.internal.cql.ScalaPreparedStatement.CQLQuery
 import net.nmoncho.helenus.internal.reactive.MapOperator
 import org.reactivestreams.Publisher
@@ -232,8 +234,7 @@ package object helenus extends CodecDerivation {
       * @param ec
       */
     @nowarn("cat=unused-imports")
-    def iter(timeout: FiniteDuration)(implicit ec: ExecutionContext): Iterator[T] = {
-      import scala.collection.compat._ // Don't remove me
+    def iter(timeout: FiniteDuration)(implicit ec: ExecutionContext): Iterator[T] = { // Don't remove me
 
       // FIXME Using `TraversableOnce` Scala 2.12, also it doesn't lazily concat iterators
       // since `compat` implementation is different
@@ -256,5 +257,15 @@ package object helenus extends CodecDerivation {
 
       concat().iterator
     }
+  }
+
+  implicit class FutureScalaPrepareStatementOps[U, T](
+      private val fut: Future[ScalaPreparedStatement[U, T]]
+  ) extends AnyVal {
+    def from[A](
+        implicit ec: ExecutionContext,
+        extractor: Adapter[A, U]
+    ): Future[ScalaPreparedStatement[A, T]] =
+      fut.map(_.from[A])
   }
 }

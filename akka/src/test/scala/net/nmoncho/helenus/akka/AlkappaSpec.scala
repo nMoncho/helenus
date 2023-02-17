@@ -68,12 +68,13 @@ class AlkappaSpec extends AnyWordSpec with Matchers with CassandraSpec with Scal
         .as[IceCream]
         .asReadSource()
 
-      val insert: Sink[(String, Int, Boolean), Future[Done]] =
+      val insert: Sink[IceCream, Future[Done]] =
         "INSERT INTO ice_creams(name, numCherries, cone) VALUES(?, ?, ?)".toCQL
           .prepare[String, Int, Boolean]
+          .from[IceCream]
           .asWriteSink(writeSettings)
 
-      testStream(ijes, query, insert)(ice => (ice.name, ice.numCherries, ice.cone))
+      testStream(ijes, query, insert)(identity)
     }
 
     "work with Akka Streams and Context (sync)" in {
@@ -84,11 +85,10 @@ class AlkappaSpec extends AnyWordSpec with Matchers with CassandraSpec with Scal
       val insert =
         "INSERT INTO ice_creams(name, numCherries, cone) VALUES(?, ?, ?)".toCQL
           .prepare[String, Int, Boolean]
+          .from[IceCream]
           .asWriteFlowWithContext[String](writeSettings)
 
-      testStreamWithContext(ijes, query, insert)(ij =>
-        (ij.name, ij.numCherries, ij.cone) -> ij.name
-      )
+      testStreamWithContext(ijes, query, insert)(ij => ij -> ij.name)
     }
 
     "perform batched writes with Akka Stream (sync)" in {
@@ -96,12 +96,13 @@ class AlkappaSpec extends AnyWordSpec with Matchers with CassandraSpec with Scal
         .as[IceCream]
         .asReadSource()
 
-      val batchedInsert: Sink[(String, Int, Boolean), Future[Done]] =
+      val batchedInsert: Sink[IceCream, Future[Done]] =
         "INSERT INTO ice_creams(name, numCherries, cone) VALUES(?, ?, ?)".toCQL
           .prepare[String, Int, Boolean]
-          .asWriteSinkBatched(writeSettings, _._1.charAt(0))
+          .from[IceCream]
+          .asWriteSinkBatched(writeSettings, _.name.charAt(0))
 
-      testStream(batchIjs, query, batchedInsert)(ice => (ice.name, ice.numCherries, ice.cone))
+      testStream(batchIjs, query, batchedInsert)(identity)
     }
 
     "work with Akka Streams (async)" in {
@@ -109,12 +110,13 @@ class AlkappaSpec extends AnyWordSpec with Matchers with CassandraSpec with Scal
         .as[IceCream]
         .asReadSource()
 
-      val insert: Sink[(String, Int, Boolean), Future[Done]] =
+      val insert: Sink[IceCream, Future[Done]] =
         "INSERT INTO ice_creams(name, numCherries, cone) VALUES(?, ?, ?)".toCQL
           .prepareAsync[String, Int, Boolean]
+          .from[IceCream]
           .asWriteSink(writeSettings)
 
-      testStream(ijes, query, insert)(ice => (ice.name, ice.numCherries, ice.cone))
+      testStream(ijes, query, insert)(identity)
     }
 
     "work with Akka Streams and Context (async)" in {
@@ -125,11 +127,10 @@ class AlkappaSpec extends AnyWordSpec with Matchers with CassandraSpec with Scal
       val insert =
         "INSERT INTO ice_creams(name, numCherries, cone) VALUES(?, ?, ?)".toCQL
           .prepareAsync[String, Int, Boolean]
+          .from[IceCream]
           .asWriteFlowWithContext[String](writeSettings)
 
-      testStreamWithContext(ijes, query, insert)(ij =>
-        (ij.name, ij.numCherries, ij.cone) -> ij.name
-      )
+      testStreamWithContext(ijes, query, insert)(ij => ij -> ij.name)
     }
 
     "perform batched writes with Akka Stream (async)" in {
@@ -137,12 +138,13 @@ class AlkappaSpec extends AnyWordSpec with Matchers with CassandraSpec with Scal
         .as[IceCream]
         .asReadSource()
 
-      val batchedInsert: Sink[(String, Int, Boolean), Future[Done]] =
+      val batchedInsert: Sink[IceCream, Future[Done]] =
         "INSERT INTO ice_creams(name, numCherries, cone) VALUES(?, ?, ?)".toCQL
           .prepareAsync[String, Int, Boolean]
-          .asWriteSinkBatched(writeSettings, _._1.charAt(0))
+          .from[IceCream]
+          .asWriteSinkBatched(writeSettings, _.name.charAt(0))
 
-      testStream(batchIjs, query, batchedInsert)(ice => (ice.name, ice.numCherries, ice.cone))
+      testStream(batchIjs, query, batchedInsert)(identity)
     }
   }
 

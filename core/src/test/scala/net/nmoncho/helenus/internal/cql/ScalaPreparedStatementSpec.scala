@@ -27,6 +27,8 @@ import scala.annotation.nowarn
 import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.cql.BoundStatement
 import com.datastax.oss.driver.api.core.servererrors.InvalidQueryException
+import net.nmoncho.helenus.models.Address
+import net.nmoncho.helenus.models.Hotel
 import net.nmoncho.helenus.utils.CassandraSpec
 import net.nmoncho.helenus.utils.HotelsTestData
 import org.scalatest.concurrent.Eventually
@@ -122,6 +124,30 @@ class ScalaPreparedStatementSpec
           .map(it => it.currPage.nextOption())
       ) { h2RowOpt =>
         h2RowOpt.map(_.getString("name")) shouldBe Some(Hotels.h2.name)
+      }
+    }
+
+    "extract (or adapt) a case class instance" in {
+      val insertHotel =
+        """INSERT INTO hotels(id, name, phone, address, pois)
+          |VALUES (?, ?, ?, ?, ?)""".stripMargin.toCQL
+          .prepare[String, String, String, Address, Set[String]]
+          .from[Hotel]
+
+      withClue("should execute") {
+        insertHotel.execute(Hotels.h2)
+      }
+    }
+
+    "extract (or adapt) a case class instance (async)" in {
+      val insertHotel =
+        """INSERT INTO hotels(id, name, phone, address, pois)
+          |VALUES (?, ?, ?, ?, ?)""".stripMargin.toCQL
+          .prepareAsync[String, String, String, Address, Set[String]]
+          .from[Hotel]
+
+      whenReady(insertHotel.map(_.execute(Hotels.h2))) { _ =>
+        // should execute
       }
     }
   }

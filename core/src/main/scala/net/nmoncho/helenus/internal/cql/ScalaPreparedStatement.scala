@@ -34,6 +34,7 @@ import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.cql.Row
 import com.datastax.oss.driver.api.core.cql._
 import net.nmoncho.helenus.api.RowMapper
+import net.nmoncho.helenus.api.cql.Adapter
 import org.reactivestreams.Publisher
 
 /** Wraps a [[PreparedStatement]] while providing an `apply` method to produce
@@ -77,6 +78,17 @@ class ScalaPreparedStatement[U, T](
     */
   def as[A](implicit mapper: RowMapper[A], ev: T =:= Row): ScalaPreparedStatement[U, A] =
     new ScalaPreparedStatement(fn, mapper, pstmt)
+
+  /** Converts a [[ScalaPreparedStatement]] to take an [[A]] that can be converted to a [[U]].
+    *
+    * This is handy when you're inserting case classes.
+    */
+  def from[A](implicit adapter: Adapter[A, U]): ScalaPreparedStatement[A, T] =
+    new ScalaPreparedStatement[A, T](
+      fn.compose(adapter.adapt),
+      mapper,
+      pstmt
+    )
 
   override def getId: ByteBuffer = pstmt.getId
 

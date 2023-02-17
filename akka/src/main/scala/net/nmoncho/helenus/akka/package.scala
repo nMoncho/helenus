@@ -54,8 +54,9 @@ package object akka {
     def asReadSource(u: U)(implicit session: CassandraSession): Source[T, NotUsed] =
       Source
         .future(session.underlying())
-        .flatMapConcat { cqlSession =>
-          Source.fromPublisher(pstmt.executeReactive(u))
+        .flatMapConcat {
+          cqlSession => // FIXME should delete `toExtension` and just use `CassandraSession`, marking this implicit!
+            Source.fromPublisher(pstmt.executeReactive(u))
         }
 
   }
