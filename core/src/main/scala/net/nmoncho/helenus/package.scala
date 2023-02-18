@@ -148,6 +148,12 @@ package object helenus extends CodecDerivation {
         query,
         session
       )
+
+    def toAsyncCQL(
+        implicit futSession: Future[CqlSession],
+        ec: ExecutionContext
+    ): Future[CQLQuery] =
+      futSession.map(CQLQuery(query, _))
   }
 
   implicit class RowOps(private val row: Row) extends AnyVal {

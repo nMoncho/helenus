@@ -21,10 +21,8 @@
 
 package net.nmoncho.helenus
 
-import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
-import scala.concurrent.duration.Duration
 
 import _root_.akka.Done
 import _root_.akka.NotUsed
@@ -37,11 +35,8 @@ import com.datastax.oss.driver.api.core.cql.BatchStatement
 
 package object akka {
 
-  implicit def toExtension(implicit cassandraSession: CassandraSession): CqlSession =
-    Await.result(
-      cassandraSession.underlying(),
-      Duration.Inf // FIXME can we configure this?
-    )
+  implicit def toExtension(implicit session: CassandraSession): Future[CqlSession] =
+    session.underlying()
 
   implicit class ScalaPreparedStatementAkkaReadSyncOps[U, T](
       private val pstmt: ScalaPreparedStatement[U, T]
@@ -54,9 +49,8 @@ package object akka {
     def asReadSource(u: U)(implicit session: CassandraSession): Source[T, NotUsed] =
       Source
         .future(session.underlying())
-        .flatMapConcat {
-          cqlSession => // FIXME should delete `toExtension` and just use `CassandraSession`, marking this implicit!
-            Source.fromPublisher(pstmt.executeReactive(u))
+        .flatMapConcat { implicit cqlSession =>
+          Source.fromPublisher(pstmt.executeReactive(u))
         }
 
   }
