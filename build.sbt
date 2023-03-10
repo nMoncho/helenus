@@ -14,7 +14,7 @@ lazy val dependencies = new {
     val alpakka = "4.0.0" // 5.x changed to business license
 
     // Test Dependencies
-    val mockito    = "5.1.1"
+    val mockito    = "5.2.0"
     val scalaCheck = "1.17.0"
     val scalaTest  = "3.2.15"
     val logback    = "1.4.5"
