@@ -37,6 +37,7 @@ import akka.stream.scaladsl.Source
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import net.nmoncho.helenus.api.RowMapper
+import net.nmoncho.helenus.api.cql.Adapter
 import net.nmoncho.helenus.utils.CassandraSpec
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
@@ -209,6 +210,8 @@ object AlkappaSpec {
   object IceCream {
     import net.nmoncho.helenus._
     implicit val rowMapper: RowMapper[IceCream] = RowMapper[IceCream]
+    implicit val rowAdapter: Adapter[IceCream, (String, Int, Boolean)] =
+      Adapter.builder[IceCream].build
   }
 
   private val writeSettings = CassandraWriteSettings.defaults

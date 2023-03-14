@@ -27,6 +27,7 @@ import scala.annotation.nowarn
 import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.cql.BoundStatement
 import com.datastax.oss.driver.api.core.servererrors.InvalidQueryException
+import net.nmoncho.helenus.api.cql.Adapter
 import net.nmoncho.helenus.models.Address
 import net.nmoncho.helenus.models.Hotel
 import net.nmoncho.helenus.utils.CassandraSpec
@@ -52,6 +53,9 @@ class ScalaPreparedStatementSpec
   import scala.concurrent.ExecutionContext.Implicits.global
 
   private implicit lazy val cqlSession: CqlSession = session
+
+  private implicit val hotelAdapter
+      : Adapter[Hotel, (String, String, String, Address, Set[String])] = Adapter[Hotel]
 
   "ScalaPreparedStatement" should {
     "prepare a query" in {

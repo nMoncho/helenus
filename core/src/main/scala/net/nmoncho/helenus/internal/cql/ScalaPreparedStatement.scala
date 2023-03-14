@@ -85,7 +85,7 @@ class ScalaPreparedStatement[U, T](
     */
   def from[A](implicit adapter: Adapter[A, U]): ScalaPreparedStatement[A, T] =
     new ScalaPreparedStatement[A, T](
-      fn.compose(adapter.adapt),
+      fn.compose(adapter.apply),
       mapper,
       pstmt
     )
