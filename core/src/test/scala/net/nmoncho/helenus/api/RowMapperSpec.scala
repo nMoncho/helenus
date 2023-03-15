@@ -70,11 +70,11 @@ class RowMapperSpec
       query(Hotels.h3.id)
         .execute()
         .as[String]
-        .nextOption shouldBe Some(Hotels.h3.name)
+        .nextOption() shouldBe Some(Hotels.h3.name)
 
       query(Hotels.h4.id)
         .execute()
-        .nextOption
+        .nextOption()
         .map(_.as[String]) shouldBe Some(Hotels.h4.name)
 
       whenReady(query(Hotels.h5.id).executeAsync()) { p =>
@@ -87,7 +87,7 @@ class RowMapperSpec
         .prepare[String]
         .as[String]
 
-      val hotelH1Opt = query.execute(Hotels.h1.id).nextOption
+      val hotelH1Opt = query.execute(Hotels.h1.id).nextOption()
       hotelH1Opt shouldBe defined
       hotelH1Opt shouldBe Some(Hotels.h1.name)
     }
@@ -97,7 +97,7 @@ class RowMapperSpec
         .prepare[String]
         .as[(String, String)]
 
-      val hotelH1Opt = query.execute(Hotels.h1.id).nextOption
+      val hotelH1Opt = query.execute(Hotels.h1.id).nextOption()
       hotelH1Opt shouldBe defined
       hotelH1Opt shouldBe Some(Hotels.h1.name -> Hotels.h1.phone)
     }
@@ -107,7 +107,7 @@ class RowMapperSpec
         .prepare[String]
         .as[Hotel]
 
-      val hotelH1Opt = query.execute(Hotels.h1.id).nextOption
+      val hotelH1Opt = query.execute(Hotels.h1.id).nextOption()
       hotelH1Opt shouldBe defined
       hotelH1Opt.map(_.name) shouldBe Some(Hotels.h1.name)
     }

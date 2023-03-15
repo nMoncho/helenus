@@ -183,9 +183,9 @@ package object helenus extends CodecDerivation {
   implicit class PagingIterableOps[T](private val pi: PagingIterable[T]) extends AnyVal {
     import scala.collection.compat._
 
-    /** First potential element of this iterable
+    /** Next potential element of this iterable
       */
-    def nextOption: Option[T] = Option(pi.one())
+    def nextOption(): Option[T] = Option(pi.one())
 
     /** This [[PagingIterable]] as a Scala [[Iterator]]
       */

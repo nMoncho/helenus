@@ -35,10 +35,10 @@ class PagingIterableOpsSpec extends AnyWordSpec with Matchers {
   "PagingIterableOps" should {
     "provide 'headOption'" in {
       val nonEmpty = mockPagingIterable(List(1, 2, 3, 4, 5))
-      nonEmpty.nextOption shouldBe Some(1)
+      nonEmpty.nextOption() shouldBe Some(1)
 
       val empty = mockPagingIterable(List.empty[Int])
-      empty.nextOption shouldBe None
+      empty.nextOption() shouldBe None
     }
 
     "provide a Scala Iterator" in {

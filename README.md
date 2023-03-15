@@ -69,9 +69,9 @@ val hotelsById = "SELECT * FROM hotels WHERE id = ?".toCQL
     .as[Hotel]
 // hotelsById: internal.cql.ScalaPreparedStatement[String, Hotel] = net.nmoncho.helenus.internal.cql.ScalaPreparedStatement@5d086920
 
-// We can extract a single result using `nextOption`, or
+// We can extract a single result using `nextOption()`, or
 // use `to(Coll)` to transform the result to a collection
-hotelsById.execute("h1").nextOption
+hotelsById.execute("h1").nextOption()
 // res0: Option[Hotel] = Some(
 //   value = Hotel(
 //     id = "h1",
