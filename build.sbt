@@ -8,7 +8,7 @@ lazy val dependencies = new {
     val scalaCollectionCompat = "2.9.0"
     val scalaJava8Compat      = "1.0.2"
     val shapeless             = "2.3.10"
-    val slf4j                 = "2.0.6"
+    val slf4j                 = "2.0.7"
 
     val akka    = "2.6.19" // 2.7 changed to business license
     val alpakka = "4.0.0" // 5.x changed to business license
