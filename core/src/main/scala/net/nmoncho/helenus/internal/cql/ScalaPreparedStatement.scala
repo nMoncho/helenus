@@ -39,10 +39,13 @@ import org.reactivestreams.Publisher
 
 /** Wraps a [[PreparedStatement]] while providing an `apply` method to produce
   * a [[BoundStatement]]
+  *
+  * @tparam In input type (ie. query params)
+  * @tparam Out output type (ie. query results)
   */
-class ScalaPreparedStatement[U, T](
-    fn: U => BoundStatement,
-    mapper: RowMapper[T],
+class ScalaPreparedStatement[In, Out](
+    fn: In => BoundStatement,
+    mapper: RowMapper[Out],
     pstmt: PreparedStatement
 ) extends PreparedStatement {
 
@@ -52,39 +55,43 @@ class ScalaPreparedStatement[U, T](
     *
     * This method is intended mainly for integration with some other libraries, like Akka Streams.
     */
-  def apply(u: U): BoundStatement = fn(u)
+  def apply(queryParams: In): BoundStatement = fn(queryParams)
 
-  /** Executes [[PreparedStatement]] with the provided [[U]] parameters, returning a [[PagingIterable]] of [[T]]
+  /** Executes [[PreparedStatement]] with the provided [[In]] parameters, returning a [[PagingIterable]] of [[Out]]
     */
-  def execute(u: U)(implicit session: CqlSession): PagingIterable[T] =
-    apply(u).execute().as[T](mapper)
+  def execute(queryParams: In)(implicit session: CqlSession): PagingIterable[Out] =
+    apply(queryParams).execute().as[Out](mapper)
 
-  /** Executes [[PreparedStatement]] asynchronously with the provided [[U]] parameters, returning a
-    * [[MappedAsyncPagingIterable]] of [[T]]
+  /** Executes [[PreparedStatement]] asynchronously with the provided [[In]] parameters, returning a
+    * [[MappedAsyncPagingIterable]] of [[Out]]
     */
-  def executeAsync(u: U)(
+  def executeAsync(queryParams: In)(
       implicit session: CqlSession,
       ec: ExecutionContext
-  ): Future[MappedAsyncPagingIterable[T]] =
-    apply(u).executeAsync().map(_.as[T](mapper))
+  ): Future[MappedAsyncPagingIterable[Out]] =
+    apply(queryParams).executeAsync().map(_.as[Out](mapper))
 
-  /** Executes [[PreparedStatement]] in a reactive fashion with the provided [[U]] parameters, returning a
-    * [[Publisher]] of [[T]]
+  /** Executes [[PreparedStatement]] in a reactive fashion with the provided [[In]] parameters, returning a
+    * [[Publisher]] of [[Out]]
     */
-  def executeReactive(u: U)(implicit session: CqlSession): Publisher[T] =
-    apply(u).executeReactive().as[T](mapper)
+  def executeReactive(queryParams: In)(implicit session: CqlSession): Publisher[Out] =
+    apply(queryParams).executeReactive().as[Out](mapper)
 
-  /** Converts a [[ScalaPreparedStatement]] to map [[Row]] results to [[A]]
+  /** Converts a [[ScalaPreparedStatement]] to map [[Row]] results to [[Out2]]
+    *
+    * @tparam Out2 new output type
     */
-  def as[A](implicit mapper: RowMapper[A], ev: T =:= Row): ScalaPreparedStatement[U, A] =
+  def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): ScalaPreparedStatement[In, Out2] =
     new ScalaPreparedStatement(fn, mapper, pstmt)
 
-  /** Converts a [[ScalaPreparedStatement]] to take an [[A]] that can be converted to a [[U]].
+  /** Converts a [[ScalaPreparedStatement]] to take an [[In2]] that can be converted to a [[In]].
     *
     * This is handy when you're inserting case classes.
+    *
+    * @tparam In2 new input type
     */
-  def from[A](implicit adapter: Adapter[A, U]): ScalaPreparedStatement[A, T] =
-    new ScalaPreparedStatement[A, T](
+  def from[In2](implicit adapter: Adapter[In2, In]): ScalaPreparedStatement[In2, Out] =
+    new ScalaPreparedStatement[In2, Out](
       fn.compose(adapter.apply),
       mapper,
       pstmt
