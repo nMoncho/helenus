@@ -48,26 +48,25 @@ import net.nmoncho.helenus._
 
 // Then mark your session implicit
 implicit val session: CqlSession = getSession
-// session: CqlSession = com.datastax.oss.driver.internal.core.session.DefaultSession@7574c61b
+// session: CqlSession = com.datastax.oss.driver.internal.core.session.DefaultSession@61457494
 
-@Udt
 case class Address(street: String, city: String, stateOrProvince: String, postalCode: String, country: String)
 
 case class Hotel(id: String, name: String, phone: String, address: Address, pois: Set[String])
 
 // We can derive Cassandra TypeCodecs used to map UDTs to case classes
-implicit val typeCodec: TypeCodec[Address] = Codec.udtOf[Address]
+implicit val typeCodec: TypeCodec[Address] = Codec.udtOf[Address]()
 // typeCodec: TypeCodec[Address] = UtdCodec[Address]
 
 // We can derive how query results map to case classes
 implicit val rowMapper: RowMapper[Hotel] = RowMapper[Hotel]
-// rowMapper: RowMapper[Hotel] = net.nmoncho.helenus.internal.CaseClassRowMapperDerivation$$anonfun$net$nmoncho$helenus$internal$CaseClassRowMapperDerivation$$$nestedInanonfun$genericCCRowMapperBuilder$1$1@8c89753
+// rowMapper: RowMapper[Hotel] = net.nmoncho.helenus.internal.CaseClassRowMapperDerivation$$anonfun$net$nmoncho$helenus$internal$CaseClassRowMapperDerivation$$$nestedInanonfun$genericCCRowMapperBuilder$1$1@37e17d97
 
 // We can prepare queries with parameters that don't require boxing
 val hotelsById = "SELECT * FROM hotels WHERE id = ?".toCQL
     .prepare[String]
     .as[Hotel]
-// hotelsById: internal.cql.ScalaPreparedStatement[String, Hotel] = net.nmoncho.helenus.internal.cql.ScalaPreparedStatement@5d086920
+// hotelsById: internal.cql.ScalaPreparedStatement[String, Hotel] = net.nmoncho.helenus.internal.cql.ScalaPreparedStatement@5dfd233a
 
 // We can extract a single result using `nextOption()`, or
 // use `to(Coll)` to transform the result to a collection

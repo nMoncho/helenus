@@ -81,7 +81,10 @@ class ScalaPreparedStatement[In, Out](
     *
     * @tparam Out2 new output type
     */
-  def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): ScalaPreparedStatement[In, Out2] =
+  def as[Out2](
+      implicit mapper: RowMapper[Out2],
+      ev: Out =:= Row
+  ): ScalaPreparedStatement[In, Out2] =
     new ScalaPreparedStatement(fn, mapper, pstmt)
 
   /** Converts a [[ScalaPreparedStatement]] to take an [[In2]] that can be converted to a [[In]].

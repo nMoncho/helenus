@@ -19,7 +19,8 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package net.nmoncho.helenus.internal.codec
+package net.nmoncho.helenus
+package internal.codec
 
 import scala.reflect.ClassTag
 
@@ -35,7 +36,6 @@ import com.datastax.oss.driver.internal.core.`type`.DefaultUserDefinedType
 import com.datastax.oss.driver.internal.core.`type`.codec.{ UdtCodec => DseUdtCodec }
 import net.nmoncho.helenus.api.ColumnNamingScheme
 import net.nmoncho.helenus.api.DefaultColumnNamingScheme
-import net.nmoncho.helenus.api.Udt
 import shapeless.labelled.FieldType
 import shapeless.syntax.singleton.mkSingletonOps
 
@@ -58,44 +58,72 @@ trait UdtCodecDerivation {
     * This assumes that both the case class' fields and the CQL Type's fields have the same order. If this is not the
     * case, consider using [[udtFrom(session)]].
     *
-    * @param annotation used to get the session metadata
+    * @param keyspace     in which keyspace is the CQL type registered in. Optional, only define this parameter if you are
+    *                     going to register this codec, and the CQL type is on a different keyspace than the session.
+    * @param name         CQL Type Name. Optional, defaults to the name of the case class with the column mapper applied.
+    * @param frozen       where this type should be frozen or not.
     * @param columnMapper how to map case class's field names ot CQL Type's field names
     * @tparam T case class type to derive [[TypeCodec]] for
     */
-  def udtOf[T <: Product with Serializable: ClassTag: UdtCodec](
-      implicit annotation: Annotation[Udt, T],
+  def udtOf[T: UdtCodec](
+      keyspace: String,
+      name: String,
+      frozen: Boolean
+  )(
+      implicit classTag: ClassTag[T],
       columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme
-  ): TypeCodec[T] = mappingCodec[T](generateUserDefinedType[T])
+  ): TypeCodec[T] = {
+    val actualName =
+      if (name.isBlank) columnMapper.map(classTag.runtimeClass.getSimpleName)
+      else name
+
+    mappingCodec[T](generateUserDefinedType[T](keyspace, actualName, frozen))
+  }
 
   /** Derives a [[TypeCodec]] for type [[T]], by looking to the [[UserDefinedType]] in the [[CqlSession]].
     *
     * Use this method when the order of the case class' fields is different from the CQL Type's fields.
     *
-    * @param session used to get the session metadata
-    * @param annotation UDT metadata information
+    * @param session      used to get the session metadata
+    * @param keyspace      in which keyspace is the CQL type registered in. Optional, defaults to session's keyspace.
+    * @param name          CQL Type Name. Optional, defaults to the name of the case class with the column mapper applied.
     * @param columnMapper how to map case class's field names ot CQL Type's field names
     * @tparam T case class type to derive [[TypeCodec]] for
     */
-  def udtFrom[T <: Product with Serializable: ClassTag: UdtCodec](session: CqlSession)(
-      implicit annotation: Annotation[Udt, T],
-      columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme
+  def udtFrom[T: UdtCodec](
+      session: CqlSession,
+      keyspace: String,
+      name: String
+  )(
+      implicit columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme,
+      classTag: ClassTag[T]
   ): TypeCodec[T] = {
     import scala.jdk.OptionConverters._
-    val udtAnn = annotation()
+
+    val actualName =
+      if (name.isBlank) columnMapper.map(classTag.runtimeClass.getSimpleName)
+      else name
+
+    val actualMetadata = Option(keyspace)
+      .filter(_.trim.nonEmpty)
+      .flatMap(session.keyspace)
+      .orElse(
+        session.sessionKeyspace
+      )
 
     (for {
-      keyspace <- session.getMetadata.getKeyspace(udtAnn.keyspace).toScala
-      udt <- keyspace.getUserDefinedType(udtAnn.name).toScala
+      actualKeyspace <- actualMetadata
+
+      udt <- actualKeyspace.getUserDefinedType(actualName).toScala
     } yield mappingCodec[T](udt)).getOrElse(
       throw new IllegalArgumentException(
-        s"Cannot create TypeCodec for ${implicitly[ClassTag[T]].runtimeClass}. Couldn't find type [${udtAnn.name}] in keyspace [${udtAnn.keyspace}]"
+        s"Cannot create TypeCodec for ${implicitly[ClassTag[T]].runtimeClass}. Couldn't find type [$actualName] in keyspace [$actualMetadata]"
       )
     )
   }
 
-  private def mappingCodec[T <: Product with Serializable](udt: UserDefinedType)(
+  private def mappingCodec[T](udt: UserDefinedType)(
       implicit udtCodec: UdtCodec[T],
-      annotation: Annotation[Udt, T],
       classTag: ClassTag[T],
       columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme
   ): TypeCodec[T] = new MappingCodec[UdtValue, T](
@@ -117,18 +145,15 @@ trait UdtCodecDerivation {
       s"UtdCodec[${implicitly[ClassTag[T]].runtimeClass.getSimpleName}]"
   }
 
-  /** Generate a [[UserDefinedType]] from an [[Udt]] annotation.
+  /** Generate a [[UserDefinedType]]
     *
     * This assumes the UDT has the same type order definition as the case class. Name fields aren't important during
     * decode/encode, only <b>order</b> is important
     */
-  private def generateUserDefinedType[T](
-      implicit udtCodec: UdtCodec[T],
-      annotation: Annotation[Udt, T]
+  private def generateUserDefinedType[T](keyspace: String, name: String, frozen: Boolean)(
+      implicit udtCodec: UdtCodec[T]
   ): UserDefinedType = {
     import scala.jdk.CollectionConverters._
-
-    val udtAnn = annotation()
 
     val (identifiers, dataTypes) =
       udtCodec.definitions.foldRight(List.empty[CqlIdentifier] -> List.empty[DataType]) {
@@ -137,9 +162,9 @@ trait UdtCodecDerivation {
       }
 
     new DefaultUserDefinedType(
-      CqlIdentifier.fromInternal(udtAnn.keyspace),
-      CqlIdentifier.fromInternal(udtAnn.name),
-      false,
+      CqlIdentifier.fromInternal(keyspace),
+      CqlIdentifier.fromInternal(name),
+      frozen,
       identifiers.asJava,
       dataTypes.asJava
     )
@@ -188,18 +213,18 @@ trait UdtCodecDerivation {
         )
     }
 
-  implicit def genericUdtCodec[A <: Product with Serializable, R](
+  implicit def genericUdtCodec[A, R](
       implicit generic: LabelledGeneric.Aux[A, R],
-      codec: UdtCodec[R],
+      codec: Lazy[UdtCodec[R]],
       columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme
   ): UdtCodec[A] = new UdtCodec[A] {
 
-    private[UdtCodecDerivation] val definitions: Seq[(String, DataType)] = codec.definitions
+    private[UdtCodecDerivation] val definitions: Seq[(String, DataType)] = codec.value.definitions
 
     override def innerToOuter(value: UdtValue): A =
-      generic.from(codec.innerToOuter(value))
+      generic.from(codec.value.innerToOuter(value))
 
     override def outerToInner(udt: UdtValue, value: A): UdtValue =
-      codec.outerToInner(udt, generic.to(value))
+      codec.value.outerToInner(udt, generic.to(value))
   }
 }

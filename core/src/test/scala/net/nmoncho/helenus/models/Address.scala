@@ -22,9 +22,7 @@
 package net.nmoncho.helenus.models
 
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
-import net.nmoncho.helenus.api.Udt
 
-@Udt
 final case class Address(
     street: String,
     city: String,
@@ -38,5 +36,5 @@ object Address {
 
   final val Empty: Address = Address("", "", "", "", "")
 
-  implicit val typeCodec: TypeCodec[Address] = Codec.udtOf[Address]
+  implicit val typeCodec: TypeCodec[Address] = Codec.udtOf[Address]()
 }

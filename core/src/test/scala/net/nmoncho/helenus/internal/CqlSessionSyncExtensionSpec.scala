@@ -26,6 +26,7 @@ import scala.util.Success
 import com.datastax.oss.driver.internal.core.`type`.DefaultListType
 import com.datastax.oss.driver.internal.core.`type`.PrimitiveType
 import com.datastax.oss.protocol.internal.ProtocolConstants
+import net.nmoncho.helenus.models.Address
 import net.nmoncho.helenus.utils.CassandraSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
@@ -45,6 +46,12 @@ class CqlSessionSyncExtensionSpec extends AnyWordSpec with Matchers with Cassand
         .codecFor(
           new DefaultListType(new PrimitiveType(ProtocolConstants.DataType.VARCHAR), true)
         ) shouldBe listStringCodec
+    }
+
+    "register UDT codecs" in {
+      val keyspace = session.sessionKeyspace.map(_.getName.asInternal()).getOrElse("")
+
+      session.registerCodecs(Codec.udtOf[Address](keyspace)) shouldBe a[Success[_]]
     }
   }
 }

@@ -29,8 +29,6 @@ import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.cql.Row
 import net.nmoncho.helenus.api.ColumnNamingScheme
 import net.nmoncho.helenus.api.SnakeCase
-import net.nmoncho.helenus.api.TimeUuid
-import net.nmoncho.helenus.api.Udt
 import net.nmoncho.helenus.utils.CassandraSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
@@ -38,7 +36,7 @@ import org.scalatest.wordspec.AnyWordSpec
 class UdtCodecSpec extends AnyWordSpec with Matchers {
   import UdtCodecSpec._
 
-  private val codec: TypeCodec[IceCream] = Codec.udtOf[IceCream]
+  private val codec: TypeCodec[IceCream] = Codec.udtOf[IceCream]()
 
   "UdtCodec" should {
 
@@ -54,7 +52,7 @@ class UdtCodecSpec extends AnyWordSpec with Matchers {
     }
 
     "encode-decode a case class with a tuple" in {
-      val codec: TypeCodec[IceCream2] = Codec.udtOf[IceCream2]
+      val codec: TypeCodec[IceCream2] = Codec.udtOf[IceCream2]()
 
       val sundae  = IceCream2("Sundae", 3, cone = false, 1 -> 2)
       val vanilla = IceCream2("Vanilla", 3, cone = true, 2 -> 1)
@@ -69,14 +67,11 @@ class UdtCodecSpec extends AnyWordSpec with Matchers {
 }
 
 object UdtCodecSpec {
-  @Udt("udt_codec_tests", "ice_cream")
   case class IceCream(name: String, numCherries: Int, cone: Boolean)
 
-  @Udt("udt_codec_tests", "ice_cream")
   case class IceCream2(name: String, numCherries: Int, cone: Boolean, count: (Int, Int))
 
-  @Udt("udt_codec_tests", "ice_cream")
-  case class IceCream3(name: String, numCherries: Int, cone: Boolean, @TimeUuid uuid: UUID)
+  case class IceCream3(name: String, numCherries: Int, cone: Boolean, uuid: UUID)
 }
 
 class CassandraUdtCodecSpec extends AnyWordSpec with Matchers with CassandraSpec {
@@ -132,29 +127,28 @@ class CassandraUdtCodecSpec extends AnyWordSpec with Matchers with CassandraSpec
     session.execute(bstmt)
   }
 
-  @Udt("udt_codec_tests", "ice_cream")
   case class IceCream(name: String, numCherries: Int, cone: Boolean)
 
   object IceCream {
-    implicit val codec: TypeCodec[IceCream] = Codec.udtOf[IceCream]
+    implicit val codec: TypeCodec[IceCream] = Codec.udtOf[IceCream]()
   }
 
-  @Udt("udt_codec_tests", "ice_cream")
   case class IceCreamShuffled(numCherries: Int, cone: Boolean, name: String)
 
   object IceCreamShuffled {
     implicit val colMapper: ColumnNamingScheme = SnakeCase
 
-    implicit val codec: TypeCodec[IceCreamShuffled] = Codec.udtFrom[IceCreamShuffled](session)
+    implicit val codec: TypeCodec[IceCreamShuffled] =
+      Codec.udtFrom[IceCreamShuffled](session, name = "ice_cream")
   }
 
-  @Udt("udt_codec_tests", "ice_cream")
   case class IceCreamInvalid(cherriesNumber: Int, cone: Boolean, name: String)
 
   object IceCreamInvalid {
     implicit val colMapper: ColumnNamingScheme = SnakeCase
 
-    implicit val codec: TypeCodec[IceCreamInvalid] = Codec.udtFrom[IceCreamInvalid](session)
+    implicit val codec: TypeCodec[IceCreamInvalid] =
+      Codec.udtFrom[IceCreamInvalid](session, name = "ice_cream")
   }
 
   override def beforeAll(): Unit = {

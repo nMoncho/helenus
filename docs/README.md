@@ -44,7 +44,7 @@ As of this version, Helenus supports the following types:
 ```scala mdoc:invisible
 import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
-import net.nmoncho.helenus.api.{ RowMapper, Udt }
+import net.nmoncho.helenus.api.RowMapper
 
 def getSession: CqlSession = net.nmoncho.helenus.docs.DocsHelper.cqlSession
 ```
@@ -56,13 +56,12 @@ import net.nmoncho.helenus._
 // Then mark your session implicit
 implicit val session: CqlSession = getSession
 
-@Udt
 case class Address(street: String, city: String, stateOrProvince: String, postalCode: String, country: String)
 
 case class Hotel(id: String, name: String, phone: String, address: Address, pois: Set[String])
 
 // We can derive Cassandra TypeCodecs used to map UDTs to case classes
-implicit val typeCodec: TypeCodec[Address] = Codec.udtOf[Address]
+implicit val typeCodec: TypeCodec[Address] = Codec.udtOf[Address]()
 
 // We can derive how query results map to case classes
 implicit val rowMapper: RowMapper[Hotel] = RowMapper[Hotel]

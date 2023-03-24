@@ -45,7 +45,6 @@ import net.nmoncho.helenus.api.DefaultColumnNamingScheme
 import net.nmoncho.helenus.api.NominalEncoded
 import net.nmoncho.helenus.api.OrdinalEncoded
 import net.nmoncho.helenus.api.RowMapper.ColumnMapper
-import net.nmoncho.helenus.api.Udt
 import net.nmoncho.helenus.internal.codec.TupleCodecDerivation
 import net.nmoncho.helenus.internal.codec.UdtCodecDerivation
 import shapeless.Annotation
@@ -159,15 +158,44 @@ trait CodecDerivation extends TupleCodecDerivation with UdtCodecDerivation { tha
         override def outerToInner(value: Outer): Inner = toInner(value)
       }
 
-    def udtOf[T <: Product with Serializable: ClassTag: UdtCodec](
-        implicit annotation: Annotation[Udt, T],
-        columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme
-    ): TypeCodec[T] = that.udtOf[T]
+    /** Creates a [[TypeCodec]] for a case class
+      *
+      * The case class fields need to be in the same order as CQL type. If they aren't, please use [[Codec.udtFrom()]].
+      *
+      * @param keyspace  in which keyspace is the CQL type registered in. Optional, only define this parameter if you are
+      *                  going to register this codec, and the CQL type is on a different keyspace than the session.
+      * @param name      CQL Type Name. Optional, defaults to the name of the case class with the column mapper applied.
+      * @param frozen    where this type should be frozen or not.
+      * @param columnMapper how to map the case class fields to the CQL Type, and it's name if not specified
+      * @tparam T type of the case class
+      * @return [[TypeCodec]] for the desired case class
+      */
+    def udtOf[T: ClassTag: UdtCodec](
+        keyspace: String = "",
+        name: String     = "",
+        frozen: Boolean  = true
+    )(
+        implicit columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme
+    ): TypeCodec[T] = that.udtOf[T](keyspace, name, frozen)
 
-    def udtFrom[T <: Product with Serializable: ClassTag: UdtCodec](session: CqlSession)(
-        implicit annotation: Annotation[Udt, T],
-        columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme
-    ): TypeCodec[T] = that.udtFrom[T](session)
+    /** Creates a [[TypeCodec]] for a case class
+      *
+      * Use this method when case class fields are <b>not</b> defined in the same order as CQL type.
+      *
+      * @param session       used to get the session metadata
+      * @param keyspace      in which keyspace is the CQL type registered in. Optional, defaults to session's keyspace.
+      * @param name          CQL Type Name. Optional, defaults to the name of the case class with the column mapper applied.
+      * @param columnMapper how to map the case class fields to the CQL Type, and it's name if not specified
+      * @tparam T
+      * @return
+      */
+    def udtFrom[T: ClassTag: UdtCodec](
+        session: CqlSession,
+        keyspace: String = "",
+        name: String     = ""
+    )(
+        implicit columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme
+    ): TypeCodec[T] = that.udtFrom[T](session, keyspace, name)
 
     def tupleOf[T: IsTuple](implicit tupleCodec: TupleCodec[T]): TypeCodec[T] =
       that.tupleOf[T]
@@ -176,7 +204,6 @@ trait CodecDerivation extends TupleCodecDerivation with UdtCodecDerivation { tha
     def apply[T](
         implicit @implicitNotFound(
           "If ${T} is a simple type, then it isn't defined in `net.nmoncho.helenus`. " +
-            "If ${T} is a UDT/Case Class, it must tagged with @Udt. " +
             "If ${T} is an Enumeration, it must tagged with some enum annotation. " +
             "Also make sure you aren't shadowing any implicit definition"
         )

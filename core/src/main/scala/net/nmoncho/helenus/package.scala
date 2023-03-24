@@ -40,6 +40,7 @@ import com.datastax.oss.driver.api.core.cql.AsyncResultSet
 import com.datastax.oss.driver.api.core.cql.BoundStatement
 import com.datastax.oss.driver.api.core.cql.ResultSet
 import com.datastax.oss.driver.api.core.cql.Row
+import com.datastax.oss.driver.api.core.metadata.schema.KeyspaceMetadata
 import net.nmoncho.helenus.api.RowMapper
 import net.nmoncho.helenus.api.`type`.codec.CodecDerivation
 import net.nmoncho.helenus.api.cql.Adapter
@@ -55,6 +56,20 @@ package object helenus extends CodecDerivation {
   private val log = LoggerFactory.getLogger("net.nmoncho.helenus")
 
   implicit class ClqSessionOps(private val session: CqlSession) extends AnyVal {
+
+    def sessionKeyspace: Option[KeyspaceMetadata] = {
+      val opt: java.util.Optional[String] = session.getKeyspace.map(_.asInternal())
+
+      if (opt.isPresent) keyspace(opt.get())
+      else None
+    }
+
+    def keyspace(name: String): Option[KeyspaceMetadata] = {
+      val opt = session.getMetadata.getKeyspace(name)
+
+      if (opt.isPresent) Some(opt.get())
+      else None
+    }
 
     /** Registers codecs in the Session's CodecRegistry.
       */
