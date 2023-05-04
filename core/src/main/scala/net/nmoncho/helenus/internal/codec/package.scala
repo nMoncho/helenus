@@ -57,7 +57,7 @@ package object codec {
   def expectParseChar(value: String, index: Int, expected: Char): Unit =
     if (index >= value.length) {
       throw new IllegalArgumentException(
-        s"Cannot parse value from '$value', expecting '(', but got EOF"
+        s"Cannot parse value from '$value', expecting '$expected', but got EOF"
       )
     } else if (value.charAt(index) != expected) {
       throw new IllegalArgumentException(

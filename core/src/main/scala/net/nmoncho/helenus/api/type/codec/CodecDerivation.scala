@@ -45,13 +45,14 @@ import net.nmoncho.helenus.api.DefaultColumnNamingScheme
 import net.nmoncho.helenus.api.NominalEncoded
 import net.nmoncho.helenus.api.OrdinalEncoded
 import net.nmoncho.helenus.api.RowMapper.ColumnMapper
+import net.nmoncho.helenus.internal.codec.IdenticalUDTCodec
+import net.nmoncho.helenus.internal.codec.NonIdenticalUDTCodec
 import net.nmoncho.helenus.internal.codec.TupleCodecDerivation
-import net.nmoncho.helenus.internal.codec.UdtCodecDerivation
 import shapeless.Annotation
 import shapeless.IsTuple
 import shapeless.Witness
 
-trait CodecDerivation extends TupleCodecDerivation with UdtCodecDerivation { that =>
+trait CodecDerivation extends TupleCodecDerivation { that =>
 
   implicit final val bigDecimalCodec: TypeCodec[BigDecimal] = TypeCodecs.bigDecimalCodec
 
@@ -170,13 +171,13 @@ trait CodecDerivation extends TupleCodecDerivation with UdtCodecDerivation { tha
       * @tparam T type of the case class
       * @return [[TypeCodec]] for the desired case class
       */
-    def udtOf[T: ClassTag: UdtCodec](
+    def udtOf[T: ClassTag: IdenticalUDTCodec](
         keyspace: String = "",
         name: String     = "",
         frozen: Boolean  = true
     )(
         implicit columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme
-    ): TypeCodec[T] = that.udtOf[T](keyspace, name, frozen)
+    ): TypeCodec[T] = IdenticalUDTCodec[T](keyspace, name, frozen)
 
     /** Creates a [[TypeCodec]] for a case class
       *
@@ -189,13 +190,13 @@ trait CodecDerivation extends TupleCodecDerivation with UdtCodecDerivation { tha
       * @tparam T
       * @return
       */
-    def udtFrom[T: ClassTag: UdtCodec](
+    def udtFrom[T: ClassTag: NonIdenticalUDTCodec](
         session: CqlSession,
         keyspace: String = "",
         name: String     = ""
     )(
         implicit columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme
-    ): TypeCodec[T] = that.udtFrom[T](session, keyspace, name)
+    ): TypeCodec[T] = NonIdenticalUDTCodec[T](session, keyspace, name)
 
     def tupleOf[T: IsTuple](implicit tupleCodec: TupleCodec[T]): TypeCodec[T] =
       that.tupleOf[T]

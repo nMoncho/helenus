@@ -70,8 +70,6 @@ object UdtCodecSpec {
   case class IceCream(name: String, numCherries: Int, cone: Boolean)
 
   case class IceCream2(name: String, numCherries: Int, cone: Boolean, count: (Int, Int))
-
-  case class IceCream3(name: String, numCherries: Int, cone: Boolean, uuid: UUID)
 }
 
 class CassandraUdtCodecSpec extends AnyWordSpec with Matchers with CassandraSpec {

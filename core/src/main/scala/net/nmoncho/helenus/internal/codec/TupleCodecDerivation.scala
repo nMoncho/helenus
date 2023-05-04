@@ -210,12 +210,12 @@ trait TupleCodecDerivation {
 
     private lazy val codecs = codec.codecs
 
-    override def getJavaType: GenericType[A] =
+    override val getJavaType: GenericType[A] =
       GenericType
         .of(new TypeAdapter(implicitly[TypeTag[A]].tpe))
         .asInstanceOf[GenericType[A]]
 
-    override def getCqlType: DataType = {
+    override val getCqlType: DataType = {
       import scala.jdk.CollectionConverters._
 
       new DefaultTupleType(codecs.map(_.getCqlType).asJava)
