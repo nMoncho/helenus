@@ -65,78 +65,84 @@ class AlkappaSpec extends AnyWordSpec with Matchers with CassandraSpec with Scal
     import system.dispatcher
 
     "work with Akka Streams (sync)" in {
-      val query: Source[IceCream, NotUsed] = "SELECT * FROM ice_creams".toAsyncCQL
-        .map(_.prepareUnit.as[IceCream])
+      val query: Source[IceCream, NotUsed] = "SELECT * FROM ice_creams".toAsyncCQL.prepareUnit
+        .as[IceCream]
         .asReadSource()
 
       val insert: Sink[IceCream, Future[Done]] =
         "INSERT INTO ice_creams(name, numCherries, cone) VALUES(?, ?, ?)".toAsyncCQL
-          .map(_.prepare[String, Int, Boolean].from[IceCream])
+          .prepare[String, Int, Boolean]
+          .from[IceCream]
           .asWriteSink(writeSettings)
 
       testStream(ijes, query, insert)(identity)
     }
 
     "work with Akka Streams and Context (sync)" in {
-      val query: Source[IceCream, NotUsed] = "SELECT * FROM ice_creams".toAsyncCQL
-        .flatMap(_.prepareUnitAsync.as[IceCream])
+      val query: Source[IceCream, NotUsed] = "SELECT * FROM ice_creams".toAsyncCQL.prepareUnit
+        .as[IceCream]
         .asReadSource()
 
       val insert =
         "INSERT INTO ice_creams(name, numCherries, cone) VALUES(?, ?, ?)".toAsyncCQL
-          .map(_.prepare[String, Int, Boolean].from[IceCream])
+          .prepare[String, Int, Boolean]
+          .from[IceCream]
           .asWriteFlowWithContext[String](writeSettings)
 
       testStreamWithContext(ijes, query, insert)(ij => ij -> ij.name)
     }
 
     "perform batched writes with Akka Stream (sync)" in {
-      val query: Source[IceCream, NotUsed] = "SELECT * FROM ice_creams".toAsyncCQL
-        .flatMap(_.prepareUnitAsync.as[IceCream])
+      val query: Source[IceCream, NotUsed] = "SELECT * FROM ice_creams".toAsyncCQL.prepareUnit
+        .as[IceCream]
         .asReadSource()
 
       val batchedInsert: Sink[IceCream, Future[Done]] =
         "INSERT INTO ice_creams(name, numCherries, cone) VALUES(?, ?, ?)".toAsyncCQL
-          .map(_.prepare[String, Int, Boolean].from[IceCream])
+          .prepare[String, Int, Boolean]
+          .from[IceCream]
           .asWriteSinkBatched(writeSettings, _.name.charAt(0))
 
       testStream(batchIjs, query, batchedInsert)(identity)
     }
 
     "work with Akka Streams (async)" in {
-      val query: Source[IceCream, NotUsed] = "SELECT * FROM ice_creams".toAsyncCQL
-        .flatMap(_.prepareUnitAsync.as[IceCream])
+      val query: Source[IceCream, NotUsed] = "SELECT * FROM ice_creams".toAsyncCQL.prepareUnit
+        .as[IceCream]
         .asReadSource()
 
       val insert: Sink[IceCream, Future[Done]] =
         "INSERT INTO ice_creams(name, numCherries, cone) VALUES(?, ?, ?)".toAsyncCQL
-          .flatMap(_.prepareAsync[String, Int, Boolean].from[IceCream])
+          .prepare[String, Int, Boolean]
+          .from[IceCream]
           .asWriteSink(writeSettings)
 
       testStream(ijes, query, insert)(identity)
     }
 
     "work with Akka Streams and Context (async)" in {
-      val query: Source[IceCream, NotUsed] = "SELECT * FROM ice_creams".toAsyncCQL
-        .flatMap(_.prepareUnitAsync.as[IceCream])
+      val query: Source[IceCream, NotUsed] = "SELECT * FROM ice_creams".toAsyncCQL.prepareUnit
+        .as[IceCream]
         .asReadSource()
 
       val insert =
         "INSERT INTO ice_creams(name, numCherries, cone) VALUES(?, ?, ?)".toAsyncCQL
-          .flatMap(_.prepareAsync[String, Int, Boolean].from[IceCream])
+          .prepare[String, Int, Boolean]
+          .from[IceCream]
           .asWriteFlowWithContext[String](writeSettings)
 
       testStreamWithContext(ijes, query, insert)(ij => ij -> ij.name)
     }
 
     "perform batched writes with Akka Stream (async)" in {
-      val query: Source[IceCream, NotUsed] = "SELECT * FROM ice_creams".toAsyncCQL
-        .flatMap(_.prepareUnitAsync.as[IceCream])
+      val query: Source[IceCream, NotUsed] = "SELECT * FROM ice_creams".toAsyncCQL.prepareUnit
+        .as[IceCream]
         .asReadSource()
 
       val batchedInsert: Sink[IceCream, Future[Done]] =
         "INSERT INTO ice_creams(name, numCherries, cone) VALUES(?, ?, ?)".toAsyncCQL
-          .flatMap(_.prepareAsync[String, Int, Boolean].from[IceCream])
+          .prepare[String, Int, Boolean]
+          .from[IceCream]
           .asWriteSinkBatched(writeSettings, _.name.charAt(0))
 
       testStream(batchIjs, query, batchedInsert)(identity)

@@ -38,15 +38,15 @@ package object akka {
   implicit def toExtension(implicit session: CassandraSession): Future[CqlSession] =
     session.underlying()
 
-  implicit class ScalaPreparedStatementAkkaReadSyncOps[U, T](
-      private val pstmt: ScalaPreparedStatement[U, T]
+  implicit class ScalaPreparedStatementAkkaReadSyncOps[In, Out](
+      private val pstmt: ScalaPreparedStatement[In, Out]
   ) extends AnyVal {
 
     /** A `Source` reading from Cassandra
       *
       * @param u query parameters
       */
-    def asReadSource(u: U)(implicit session: CassandraSession): Source[T, NotUsed] =
+    def asReadSource(u: In)(implicit session: CassandraSession): Source[Out, NotUsed] =
       Source
         .future(session.underlying())
         .flatMapConcat { implicit cqlSession =>
@@ -55,18 +55,18 @@ package object akka {
 
   }
 
-  implicit class ScalaPreparedStatementAkkaReadAsyncOps[U, T](
-      private val pstmt: Future[ScalaPreparedStatement[U, T]]
+  implicit class ScalaPreparedStatementAkkaReadAsyncOps[In, Out](
+      private val pstmt: Future[ScalaPreparedStatement[In, Out]]
   ) extends AnyVal {
 
     /** A `Source` reading from Cassandra
       *
       * @param u query parameters
       */
-    def asReadSource(u: U)(
+    def asReadSource(u: In)(
         implicit session: CassandraSession,
         ec: ExecutionContext
-    ): Source[T, NotUsed] = {
+    ): Source[Out, NotUsed] = {
       Source.futureSource(
         pstmt.map(
           _.asReadSource(u)

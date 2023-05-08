@@ -24,12 +24,14 @@ package net.nmoncho.helenus.internal.cql
 import java.nio.ByteBuffer
 import java.util.Collections
 
+import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.cql.BoundStatement
 import com.datastax.oss.driver.api.core.cql.BoundStatementBuilder
 import com.datastax.oss.driver.api.core.cql.PreparedStatement
 import com.datastax.oss.driver.api.core.cql.Row
 import com.datastax.oss.driver.internal.core.cql.EmptyColumnDefinitions
 import net.nmoncho.helenus.api.RowMapper
+import net.nmoncho.helenus.api.`type`.codec.TypeCodecs
 import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito._
 import org.scalatest.matchers.should.Matchers
@@ -42,7 +44,7 @@ class ScalaPreparedStatementInteractionSpec extends AnyWordSpec with Matchers {
 
   "ScalaPreparedStatement" should {
     "delegate method calls" in {
-      val (spstmt, pstmt) = mockScalaPstmt[String]
+      val (spstmt, pstmt) = mockScalaPstmt[String](TypeCodecs.stringCodec)
 
       // trigger interactions
       spstmt.getId shouldBe id
@@ -76,13 +78,15 @@ class ScalaPreparedStatementInteractionSpec extends AnyWordSpec with Matchers {
     }
   }
 
-  private def mockScalaPstmt[U]: (ScalaPreparedStatement[U, Row], PreparedStatement) = {
+  private def mockScalaPstmt[U](
+      codec: TypeCodec[U]
+  ): (ScalaPreparedStatement[U, Row], PreparedStatement) = {
     val pstmt = mockPstmt
 
-    new ScalaPreparedStatement[U, Row](
-      (u: U) => mock(classOf[BoundStatement]),
+    new ScalaPreparedStatement1[U, Row](
+      pstmt,
       RowMapper.identity,
-      pstmt
+      codec
     ) -> pstmt
   }
 
