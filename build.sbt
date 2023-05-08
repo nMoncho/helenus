@@ -10,8 +10,11 @@ lazy val dependencies = new {
     val shapeless             = "2.3.10"
     val slf4j                 = "2.0.6"
 
-    val akka    = "2.6.19" // 2.7 changed to business license
+    val akka    = "2.6.20" // 2.7 changed to business license
     val alpakka = "4.0.0" // 5.x changed to business license
+
+    val akkaBusl    = "2.8.1"
+    val alpakkaBusl = "6.0.0"
 
     // Test Dependencies
     val mockito    = "5.2.0"
@@ -33,6 +36,10 @@ lazy val dependencies = new {
   // 'akka' dependencies
   val alpakka     = "com.lightbend.akka" %% "akka-stream-alpakka-cassandra" % Version.alpakka
   val akkaTestKit = "com.typesafe.akka"  %% "akka-testkit"                  % Version.akka
+
+  // 'akka-busl' dependencies
+  val alpakkaBusl = "com.lightbend.akka" %% "akka-stream-alpakka-cassandra" % Version.alpakkaBusl
+  val akkaTestKitBusl = "com.typesafe.akka" %% "akka-testkit" % Version.akkaBusl
 
   val mockito    = "org.mockito"     % "mockito-core"    % Version.mockito
   val scalaCheck = "org.scalacheck" %% "scalacheck"      % Version.scalaCheck
@@ -64,7 +71,7 @@ lazy val root = project
   .settings(
     publish / skip := true
   )
-  .aggregate(docs, core, bench, akka)
+  .aggregate(docs, core, bench, akka, akkaBusl)
 
 lazy val basicSettings = Seq(
   organization := "net.nmoncho",
@@ -197,6 +204,24 @@ lazy val akka = project
     dependencyUpdatesFilter -= moduleFilter(organization = "com.typesafe.akka"),
     libraryDependencies ++= Seq(
       dependencies.alpakka     % "provided,test",
-      dependencies.akkaTestKit % Test
+      dependencies.akkaTestKit % Test,
+      // Adding this until Alpakka aligns version with Akka TestKit
+      "com.typesafe.akka" %% "akka-stream" % dependencies.Version.akka
+    )
+  )
+
+lazy val akkaBusl = project
+  .in(file("akka-busl"))
+  .settings(basicSettings)
+  .dependsOn(core % "compile->compile;test->test")
+  .settings(
+    name := "helenus-akka-busl",
+    scalaVersion := dependencies.Version.scala213,
+    crossScalaVersions := List(dependencies.Version.scala213),
+    libraryDependencies ++= Seq(
+      dependencies.alpakkaBusl     % "provided,test",
+      dependencies.akkaTestKitBusl % Test,
+      // Adding this until Alpakka aligns version with Akka TestKit
+      "com.typesafe.akka" %% "akka-stream" % dependencies.Version.akkaBusl
     )
   )
