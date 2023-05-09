@@ -45,9 +45,9 @@ import net.nmoncho.helenus.api.DefaultColumnNamingScheme
 import net.nmoncho.helenus.api.NominalEncoded
 import net.nmoncho.helenus.api.OrdinalEncoded
 import net.nmoncho.helenus.api.RowMapper.ColumnMapper
-import net.nmoncho.helenus.internal.codec.IdenticalUDTCodec
-import net.nmoncho.helenus.internal.codec.NonIdenticalUDTCodec
 import net.nmoncho.helenus.internal.codec.TupleCodecDerivation
+import net.nmoncho.helenus.internal.codec.udt.IdenticalUDTCodec
+import net.nmoncho.helenus.internal.codec.udt.NonIdenticalUDTCodec
 import shapeless.Annotation
 import shapeless.IsTuple
 import shapeless.Witness

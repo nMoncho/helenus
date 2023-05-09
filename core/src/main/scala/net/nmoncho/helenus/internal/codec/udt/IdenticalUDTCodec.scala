@@ -20,7 +20,7 @@
  */
 
 package net.nmoncho.helenus
-package internal.codec
+package internal.codec.udt
 
 import java.nio.ByteBuffer
 
@@ -36,6 +36,9 @@ import com.datastax.oss.driver.internal.core.`type`.DefaultUserDefinedType
 import com.datastax.oss.driver.internal.core.`type`.codec.ParseUtils
 import net.nmoncho.helenus.api.ColumnNamingScheme
 import net.nmoncho.helenus.api.DefaultColumnNamingScheme
+import net.nmoncho.helenus.internal.codec.NULL
+import net.nmoncho.helenus.internal.codec.expectParseChar
+import net.nmoncho.helenus.internal.codec.parseWithCodec
 import shapeless.labelled.FieldType
 import shapeless.syntax.singleton.mkSingletonOps
 
@@ -115,7 +118,7 @@ object IdenticalUDTCodec {
       implicit codec: IdenticalUDTCodec[A],
       tag: ClassTag[A],
       columnNamingScheme: ColumnNamingScheme = DefaultColumnNamingScheme
-  ): TypeCodec[A] = new TypeCodec[A] {
+  ): TypeCodec[A] = new TypeCodec[A] with UDTCodec[A] {
 
     private val actualName =
       if (name.isBlank) columnNamingScheme.map(tag.runtimeClass.getSimpleName)

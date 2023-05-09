@@ -20,7 +20,7 @@
  */
 
 package net.nmoncho.helenus
-package internal.codec
+package internal.codec.udt
 
 import scala.reflect.ClassTag
 
@@ -94,7 +94,6 @@ object NonIdenticalUDTCodec {
       tag: ClassTag[A],
       columnNamingScheme: ColumnNamingScheme = DefaultColumnNamingScheme
   ): TypeCodec[A] = {
-
     import scala.jdk.OptionConverters._
 
     val clazz = tag.runtimeClass.asInstanceOf[Class[A]]
@@ -116,7 +115,7 @@ object NonIdenticalUDTCodec {
       udt <- actualKeyspace.getUserDefinedType(actualName).toScala
       dseCodec    = new DseUdtCodec(udt)
       genericType = GenericType.of(clazz)
-    } yield new MappingCodec[UdtValue, A](dseCodec, genericType) {
+    } yield new MappingCodec[UdtValue, A](dseCodec, genericType) with UDTCodec[A] {
 
       override val getCqlType: UserDefinedType =
         super.getCqlType.asInstanceOf[UserDefinedType]

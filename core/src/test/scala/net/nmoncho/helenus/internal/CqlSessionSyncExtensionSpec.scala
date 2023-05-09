@@ -51,7 +51,13 @@ class CqlSessionSyncExtensionSpec extends AnyWordSpec with Matchers with Cassand
     "register UDT codecs" in {
       val keyspace = session.sessionKeyspace.map(_.getName.asInternal()).getOrElse("")
 
-      session.registerCodecs(Codec.udtOf[Address](keyspace)) shouldBe a[Success[_]]
+      withClue("registering codec with a keyspace") {
+        session.registerCodecs(Codec.udtOf[Address](keyspace)) shouldBe a[Success[_]]
+      }
+
+      withClue("registering codec without a specific keyspace") {
+        session.registerCodecs(Codec.udtOf[Address]()) shouldBe a[Success[_]]
+      }
     }
   }
 }
