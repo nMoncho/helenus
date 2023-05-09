@@ -45,6 +45,7 @@ import net.nmoncho.helenus.api.RowMapper
 import net.nmoncho.helenus.api.`type`.codec.CodecDerivation
 import net.nmoncho.helenus.api.cql.Adapter
 import net.nmoncho.helenus.api.cql.ScalaPreparedStatement.CQLQuery
+import net.nmoncho.helenus.internal.codec.udt.UDTCodec
 import net.nmoncho.helenus.internal.cql._
 import net.nmoncho.helenus.internal.reactive.MapOperator
 import org.reactivestreams.Publisher
@@ -75,7 +76,25 @@ package object helenus extends CodecDerivation {
     def registerCodecs(codecs: TypeCodec[_]*): Try[Unit] =
       session.getContext.getCodecRegistry match {
         case mutableRegistry: MutableCodecRegistry =>
-          Try(mutableRegistry.register(codecs: _*))
+          Try {
+            val keyspace = session.sessionKeyspace
+            codecs.foreach {
+              case codec: UDTCodec[_] if codec.isKeyspaceBlank =>
+                keyspace
+                  .map(k => codec.forKeyspace(k.getName.asInternal()))
+                  .orElse {
+                    log.warn(
+                      "Codec [{}] won't be registered since it's not pointing to a Keyspace, and the session is not connected either",
+                      codec
+                    )
+                    None
+                  }
+                  .foreach(codec => mutableRegistry.register(codec))
+
+              case codec =>
+                mutableRegistry.register(codec)
+            }
+          }
 
         // $COVERAGE-OFF$
         case _ =>
