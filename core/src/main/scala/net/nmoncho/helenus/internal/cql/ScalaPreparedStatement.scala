@@ -30,6 +30,7 @@ import com.datastax.oss.driver.api.core.PagingIterable
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.cql._
 import net.nmoncho.helenus.api.RowMapper
+import net.nmoncho.helenus.internal.cql.ScalaPreparedStatement.BoundStatementOps
 import org.reactivestreams.Publisher
 
 // format: off
@@ -71,6 +72,25 @@ abstract class ScalaPreparedStatement[In, Out](pstmt: PreparedStatement, mapper:
     apply(t1).executeReactive().as[Out](mapper)
 }
 
+object ScalaPreparedStatement {
+
+  implicit private[cql] class BoundStatementOps(private val bs: BoundStatement) extends AnyVal {
+
+    /** Sets or binds the specified value only if it's not NULL, avoiding a tombstone insert.
+     *
+     * @param index position of bound parameter
+     * @param value value to be bound
+     * @param codec how to encode the provided value
+     * @tparam T
+     * @return a modified version of this [[BoundStatement]]
+     */
+    def setIfDefined[T](index: Int, value: T, codec: TypeCodec[T]): BoundStatement = {
+      if (value == null || value == None) bs else bs.set(index, value, codec)
+    }
+  }
+
+}
+
 trait AsPrepareStatement[Out] {
   type AsOut[T] <: AsPrepareStatement[T]
 
@@ -90,7 +110,7 @@ trait AsPrepareStatement[Out] {
 //    val typeCodecs = (1 to typeParameterCount).map(i => s"t${i}Codec: TypeCodec[T$i]").mkString(", ")
 //    val codecParams = (1 to typeParameterCount).map(i => s"t${i}Codec").mkString(", ")
 //    val parameterList = (1 to typeParameterCount).map(i => s"t$i: T$i").mkString(", ")
-//    val parameterBindings = (0 until typeParameterCount).map(i => s".set($i, t${i + 1}, t${i + 1}Codec)").mkString("")
+//    val parameterBindings = (0 until typeParameterCount).map(i => s".setIfDefined($i, t${i + 1}, t${i + 1}Codec)").mkString("")
 //    val methodParameters = (1 to typeParameterCount).map(i => s"t$i").mkString(", ")
 //
 //    val classTemplate = s"""
@@ -175,7 +195,7 @@ class ScalaPreparedStatement1[T1, Out](pstmt: PreparedStatement, mapper: RowMapp
 
   /** Bounds an input [[T1]] value and returns a [[BoundStatement]] */
   def apply(t1: T1): BoundStatement =
-    pstmt.bind().set(0, t1, t1Codec)
+    pstmt.bind().setIfDefined(0, t1, t1Codec)
 
   def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): ScalaPreparedStatement1[T1, Out2] =
     new ScalaPreparedStatement1(pstmt, mapper, t1Codec)
@@ -192,7 +212,7 @@ class ScalaPreparedStatement2[T1, T2, Out](pstmt: PreparedStatement, mapper: Row
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2): BoundStatement =
-    pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec)
+    pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec)
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
@@ -231,7 +251,7 @@ class ScalaPreparedStatement3[T1, T2, T3, Out](pstmt: PreparedStatement, mapper:
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3): BoundStatement =
-    pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec)
+    pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec)
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
@@ -270,7 +290,7 @@ class ScalaPreparedStatement4[T1, T2, T3, T4, Out](pstmt: PreparedStatement, map
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4): BoundStatement =
-    pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec)
+    pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec)
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
@@ -309,7 +329,7 @@ class ScalaPreparedStatement5[T1, T2, T3, T4, T5, Out](pstmt: PreparedStatement,
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5): BoundStatement =
-    pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec)
+    pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec)
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
@@ -348,7 +368,7 @@ class ScalaPreparedStatement6[T1, T2, T3, T4, T5, T6, Out](pstmt: PreparedStatem
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6): BoundStatement =
-    pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec)
+    pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec)
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
@@ -387,7 +407,7 @@ class ScalaPreparedStatement7[T1, T2, T3, T4, T5, T6, T7, Out](pstmt: PreparedSt
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7): BoundStatement =
-    pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec)
+    pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec)
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
@@ -426,7 +446,7 @@ class ScalaPreparedStatement8[T1, T2, T3, T4, T5, T6, T7, T8, Out](pstmt: Prepar
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8): BoundStatement =
-    pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec)
+    pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec)
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
@@ -465,7 +485,7 @@ class ScalaPreparedStatement9[T1, T2, T3, T4, T5, T6, T7, T8, T9, Out](pstmt: Pr
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9): BoundStatement =
-    pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec)
+    pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec)
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
@@ -504,7 +524,7 @@ class ScalaPreparedStatement10[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, Out](pst
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10): BoundStatement =
-    pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec)
+    pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec)
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
@@ -543,7 +563,7 @@ class ScalaPreparedStatement11[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, Out
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11): BoundStatement =
-    pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec)
+    pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec)
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
@@ -582,7 +602,7 @@ class ScalaPreparedStatement12[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12): BoundStatement =
-    pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec).set(11, t12, t12Codec)
+    pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec)
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
@@ -621,7 +641,7 @@ class ScalaPreparedStatement13[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13): BoundStatement =
-    pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec).set(11, t12, t12Codec).set(12, t13, t13Codec)
+    pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec)
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
@@ -660,7 +680,7 @@ class ScalaPreparedStatement14[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14): BoundStatement =
-    pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec).set(11, t12, t12Codec).set(12, t13, t13Codec).set(13, t14, t14Codec)
+    pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec)
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
@@ -699,7 +719,7 @@ class ScalaPreparedStatement15[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15): BoundStatement =
-    pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec).set(11, t12, t12Codec).set(12, t13, t13Codec).set(13, t14, t14Codec).set(14, t15, t15Codec)
+    pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec)
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
@@ -738,7 +758,7 @@ class ScalaPreparedStatement16[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16): BoundStatement =
-    pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec).set(11, t12, t12Codec).set(12, t13, t13Codec).set(13, t14, t14Codec).set(14, t15, t15Codec).set(15, t16, t16Codec)
+    pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec).setIfDefined(15, t16, t16Codec)
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
@@ -777,7 +797,7 @@ class ScalaPreparedStatement17[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17): BoundStatement =
-    pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec).set(11, t12, t12Codec).set(12, t13, t13Codec).set(13, t14, t14Codec).set(14, t15, t15Codec).set(15, t16, t16Codec).set(16, t17, t17Codec)
+    pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec).setIfDefined(15, t16, t16Codec).setIfDefined(16, t17, t17Codec)
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
@@ -816,7 +836,7 @@ class ScalaPreparedStatement18[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18): BoundStatement =
-    pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec).set(11, t12, t12Codec).set(12, t13, t13Codec).set(13, t14, t14Codec).set(14, t15, t15Codec).set(15, t16, t16Codec).set(16, t17, t17Codec).set(17, t18, t18Codec)
+    pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec).setIfDefined(15, t16, t16Codec).setIfDefined(16, t17, t17Codec).setIfDefined(17, t18, t18Codec)
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
@@ -855,7 +875,7 @@ class ScalaPreparedStatement19[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19): BoundStatement =
-    pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec).set(11, t12, t12Codec).set(12, t13, t13Codec).set(13, t14, t14Codec).set(14, t15, t15Codec).set(15, t16, t16Codec).set(16, t17, t17Codec).set(17, t18, t18Codec).set(18, t19, t19Codec)
+    pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec).setIfDefined(15, t16, t16Codec).setIfDefined(16, t17, t17Codec).setIfDefined(17, t18, t18Codec).setIfDefined(18, t19, t19Codec)
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
@@ -894,7 +914,7 @@ class ScalaPreparedStatement20[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20): BoundStatement =
-    pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec).set(11, t12, t12Codec).set(12, t13, t13Codec).set(13, t14, t14Codec).set(14, t15, t15Codec).set(15, t16, t16Codec).set(16, t17, t17Codec).set(17, t18, t18Codec).set(18, t19, t19Codec).set(19, t20, t20Codec)
+    pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec).setIfDefined(15, t16, t16Codec).setIfDefined(16, t17, t17Codec).setIfDefined(17, t18, t18Codec).setIfDefined(18, t19, t19Codec).setIfDefined(19, t20, t20Codec)
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
@@ -933,7 +953,7 @@ class ScalaPreparedStatement21[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21): BoundStatement =
-    pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec).set(11, t12, t12Codec).set(12, t13, t13Codec).set(13, t14, t14Codec).set(14, t15, t15Codec).set(15, t16, t16Codec).set(16, t17, t17Codec).set(17, t18, t18Codec).set(18, t19, t19Codec).set(19, t20, t20Codec).set(20, t21, t21Codec)
+    pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec).setIfDefined(15, t16, t16Codec).setIfDefined(16, t17, t17Codec).setIfDefined(17, t18, t18Codec).setIfDefined(18, t19, t19Codec).setIfDefined(19, t20, t20Codec).setIfDefined(20, t21, t21Codec)
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
@@ -972,7 +992,7 @@ class ScalaPreparedStatement22[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21, t22: T22): BoundStatement =
-    pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec).set(11, t12, t12Codec).set(12, t13, t13Codec).set(13, t14, t14Codec).set(14, t15, t15Codec).set(15, t16, t16Codec).set(16, t17, t17Codec).set(17, t18, t18Codec).set(18, t19, t19Codec).set(19, t20, t20Codec).set(20, t21, t21Codec).set(21, t22, t22Codec)
+    pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec).setIfDefined(15, t16, t16Codec).setIfDefined(16, t17, t17Codec).setIfDefined(17, t18, t18Codec).setIfDefined(18, t19, t19Codec).setIfDefined(19, t20, t20Codec).setIfDefined(20, t21, t21Codec).setIfDefined(21, t22, t22Codec)
 
   /** Executes this [[PreparedStatement]] with the provided values
    *

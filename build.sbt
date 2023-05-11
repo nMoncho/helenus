@@ -5,22 +5,22 @@ lazy val dependencies = new {
 
     val cassandraUnit         = "4.3.1.0"
     val dseJavaDriver         = "4.15.0"
-    val scalaCollectionCompat = "2.9.0"
+    val scalaCollectionCompat = "2.10.0"
     val scalaJava8Compat      = "1.0.2"
     val shapeless             = "2.3.10"
-    val slf4j                 = "2.0.6"
+    val slf4j                 = "2.0.7"
 
     val akka    = "2.6.20" // 2.7 changed to business license
     val alpakka = "4.0.0" // 5.x changed to business license
 
-    val akkaBusl    = "2.8.1"
-    val alpakkaBusl = "6.0.0"
+    val akkaBusl    = "2.8.2"
+    val alpakkaBusl = "6.0.1"
 
     // Test Dependencies
-    val mockito    = "5.2.0"
+    val mockito    = "5.3.1"
     val scalaCheck = "1.17.0"
     val scalaTest  = "3.2.15"
-    val logback    = "1.4.5"
+    val logback    = "1.4.7"
   }
 
   // 'core' dependencies

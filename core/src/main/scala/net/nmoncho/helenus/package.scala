@@ -276,7 +276,7 @@ package object helenus extends CodecDerivation {
       * @param ec
       */
     @nowarn("cat=unused-imports")
-    def iter(timeout: FiniteDuration)(implicit ec: ExecutionContext): Iterator[T] = { // Don't remove me
+    def iter(timeout: FiniteDuration)(implicit ec: ExecutionContext): Iterator[T] = {
       import scala.collection.compat._ // Don't remove me
       // FIXME Using `TraversableOnce` Scala 2.12, also it doesn't lazily concat iterators
       // since `compat` implementation is different
