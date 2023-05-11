@@ -144,13 +144,15 @@ class ScalaPreparedStatementSpec
     }
 
     "extract (or adapt) a case class instance (async)" in {
+      import scala.concurrent.ExecutionContext.Implicits.global
+
       val insertHotel =
         """INSERT INTO hotels(id, name, phone, address, pois)
           |VALUES (?, ?, ?, ?, ?)""".stripMargin.toCQL
           .prepareAsync[String, String, String, Address, Set[String]]
           .from[Hotel]
 
-      whenReady(insertHotel.map(_.execute(Hotels.h2))) { _ =>
+      whenReady(insertHotel.executeAsync(Hotels.h2)) { _ =>
         // should execute
       }
     }
