@@ -96,14 +96,14 @@ class ScalaPreparedStatementSpec
     }
 
     "work as a function producing BoundStatement" in {
-      val query = "SELECT * FROM hotels WHERE id = ?".toCQL
+      val queryById = "SELECT * FROM hotels WHERE id = ?".toCQL
         .prepare[String]
 
-      val queryH1 = query(Hotels.h1.id)
+      val queryH1 = queryById(Hotels.h1.id)
       queryH1 shouldBe a[BoundStatement]
 
       // with a different hotel
-      val queryH2 = query(Hotels.h2.id)
+      val queryH2 = queryById(Hotels.h2.id)
       queryH2 shouldBe a[BoundStatement]
 
       withClue("and can be executed") {
@@ -116,15 +116,42 @@ class ScalaPreparedStatementSpec
     }
 
     "execute (short-hand function)" in {
-      val query = "SELECT * FROM hotels WHERE id = ?".toCQL
+      val queryAll  = "SELECT * FROM hotels".toCQL.prepareUnit
+      val allRowOpt = Option(queryAll.execute().one())
+      Hotels.all.map(h => Some(h.name)) should contain(allRowOpt.map(_.getString("name")))
+
+      whenReady(
+        queryAll
+          .executeAsync()
+          .map(it => it.currPage.nextOption())
+      ) { allRowOpt =>
+        Hotels.all.map(h => Some(h.name)) should contain(allRowOpt.map(_.getString("name")))
+      }
+
+      val queryByID = "SELECT * FROM hotels WHERE id = ?".toCQL
         .prepare[String]
 
-      val h2RowOpt = Option(query.execute(Hotels.h2.id).one())
+      val h2RowOpt = Option(queryByID.execute(Hotels.h2.id).one())
       h2RowOpt.map(_.getString("name")) shouldBe Some(Hotels.h2.name)
 
       whenReady(
-        query
+        queryByID
           .executeAsync(Hotels.h2.id)
+          .map(it => it.currPage.nextOption())
+      ) { h2RowOpt =>
+        h2RowOpt.map(_.getString("name")) shouldBe Some(Hotels.h2.name)
+      }
+
+      // This only to test `ScalaPreparedStatement2`
+      val queryByIDAndName = "SELECT * FROM hotels WHERE id = ? AND name = ? ALLOW FILTERING".toCQL
+        .prepare[String, String]
+
+      val h2IdNameRowOpt = Option(queryByIDAndName.execute(Hotels.h2.id, Hotels.h2.name).one())
+      h2IdNameRowOpt.map(_.getString("name")) shouldBe Some(Hotels.h2.name)
+
+      whenReady(
+        queryByIDAndName
+          .executeAsync(Hotels.h2.id, Hotels.h2.name)
           .map(it => it.currPage.nextOption())
       ) { h2RowOpt =>
         h2RowOpt.map(_.getString("name")) shouldBe Some(Hotels.h2.name)

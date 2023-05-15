@@ -22,6 +22,7 @@
 package net.nmoncho.helenus.akka
 
 import scala.collection.immutable
+import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
 import akka.Done
@@ -34,6 +35,7 @@ import akka.stream.alpakka.cassandra.scaladsl.CassandraSessionRegistry
 import akka.stream.scaladsl.FlowWithContext
 import akka.stream.scaladsl.Sink
 import akka.stream.scaladsl.Source
+import com.datastax.oss.driver.api.core.CqlSession
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import net.nmoncho.helenus.api.RowMapper
@@ -64,27 +66,36 @@ class AlkappaSpec extends AnyWordSpec with Matchers with CassandraSpec with Scal
   "Helenus" should {
     import system.dispatcher
 
-    "work with Akka Streams (sync)" in {
-      val query: Source[IceCream, NotUsed] = "SELECT * FROM ice_creams".toAsyncCQL.prepareUnit
+    "work with Akka Streams (sync)" in withSession { implicit session =>
+      val query: Source[IceCream, NotUsed] = "SELECT * FROM ice_creams".toCQL.prepareUnit
         .as[IceCream]
         .asReadSource()
 
       val insert: Sink[IceCream, Future[Done]] =
-        "INSERT INTO ice_creams(name, numCherries, cone) VALUES(?, ?, ?)".toAsyncCQL
+        "INSERT INTO ice_creams(name, numCherries, cone) VALUES(?, ?, ?)".toCQL
           .prepare[String, Int, Boolean]
           .from[IceCream]
           .asWriteSink(writeSettings)
 
       testStream(ijes, query, insert)(identity)
+
+      val queryName: Source[IceCream, NotUsed] = "SELECT * FROM ice_creams WHERE name = ?".toCQL
+        .prepare[String]
+        .as[IceCream]
+        .asReadSource("vanilla")
+
+      whenReady(queryName.runWith(Sink.seq[IceCream])) { result =>
+        result should not be empty
+      }
     }
 
-    "work with Akka Streams and Context (sync)" in {
-      val query: Source[IceCream, NotUsed] = "SELECT * FROM ice_creams".toAsyncCQL.prepareUnit
+    "work with Akka Streams and Context (sync)" in withSession { implicit session =>
+      val query: Source[IceCream, NotUsed] = "SELECT * FROM ice_creams".toCQL.prepareUnit
         .as[IceCream]
         .asReadSource()
 
       val insert =
-        "INSERT INTO ice_creams(name, numCherries, cone) VALUES(?, ?, ?)".toAsyncCQL
+        "INSERT INTO ice_creams(name, numCherries, cone) VALUES(?, ?, ?)".toCQL
           .prepare[String, Int, Boolean]
           .from[IceCream]
           .asWriteFlowWithContext[String](writeSettings)
@@ -92,13 +103,13 @@ class AlkappaSpec extends AnyWordSpec with Matchers with CassandraSpec with Scal
       testStreamWithContext(ijes, query, insert)(ij => ij -> ij.name)
     }
 
-    "perform batched writes with Akka Stream (sync)" in {
-      val query: Source[IceCream, NotUsed] = "SELECT * FROM ice_creams".toAsyncCQL.prepareUnit
+    "perform batched writes with Akka Stream (sync)" in withSession { implicit session =>
+      val query: Source[IceCream, NotUsed] = "SELECT * FROM ice_creams".toCQL.prepareUnit
         .as[IceCream]
         .asReadSource()
 
       val batchedInsert: Sink[IceCream, Future[Done]] =
-        "INSERT INTO ice_creams(name, numCherries, cone) VALUES(?, ?, ?)".toAsyncCQL
+        "INSERT INTO ice_creams(name, numCherries, cone) VALUES(?, ?, ?)".toCQL
           .prepare[String, Int, Boolean]
           .from[IceCream]
           .asWriteSinkBatched(writeSettings, _.name.charAt(0))
@@ -132,6 +143,16 @@ class AlkappaSpec extends AnyWordSpec with Matchers with CassandraSpec with Scal
           .asWriteFlowWithContext[String](writeSettings)
 
       testStreamWithContext(ijes, query, insert)(ij => ij -> ij.name)
+
+      val queryName: Source[IceCream, NotUsed] =
+        "SELECT * FROM ice_creams WHERE name = ?".toAsyncCQL
+          .prepare[String]
+          .as[IceCream]
+          .asReadSource("vanilla")
+
+      whenReady(queryName.runWith(Sink.seq[IceCream])) { result =>
+        result should not be empty
+      }
     }
 
     "perform batched writes with Akka Stream (async)" in {
@@ -148,6 +169,9 @@ class AlkappaSpec extends AnyWordSpec with Matchers with CassandraSpec with Scal
       testStream(batchIjs, query, batchedInsert)(identity)
     }
   }
+
+  private def withSession(fn: CqlSession => Unit)(implicit ec: ExecutionContext): Unit =
+    whenReady(as.underlying().map(fn))(_ => /* Do nothing, test should be inside */ ())
 
   /** Inserts data with a sink, and reads it back with source to compare it
     */
@@ -194,19 +218,19 @@ class AlkappaSpec extends AnyWordSpec with Matchers with CassandraSpec with Scal
   override def beforeAll(): Unit = {
     super.beforeAll()
     executeDDL("""CREATE TABLE IF NOT EXISTS ice_creams(
-        |  name         TEXT PRIMARY KEY,
-        |  numCherries  INT,
-        |  cone         BOOLEAN
-        |)""".stripMargin)
+                 |  name         TEXT PRIMARY KEY,
+                 |  numCherries  INT,
+                 |  cone         BOOLEAN
+                 |)""".stripMargin)
   }
 
   private def cassandraConfig: Config = ConfigFactory
     .parseString(s"""
-       |datastax-java-driver.basic {
-       |  contact-points = ["$contactPoint"]
-       |  session-keyspace = "$keyspace"
-       |  load-balancing-policy.local-datacenter = "datacenter1"
-       |}""".stripMargin)
+                    |datastax-java-driver.basic {
+                    |  contact-points = ["$contactPoint"]
+                    |  session-keyspace = "$keyspace"
+                    |  load-balancing-policy.local-datacenter = "datacenter1"
+                    |}""".stripMargin)
     .withFallback(ConfigFactory.load())
 }
 
