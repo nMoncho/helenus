@@ -302,7 +302,7 @@ package object helenus extends CodecDerivation {
   }
 
   implicit class AsyncScalaPreparedStatementWithResultAdapterOps[In, Out](
-      private val fut: Future[ScalaPreparedStatementWithResultAdapter[In, Out]]
+      private val fut: Future[ScalaPreparedStatement[In, Out]]
   ) extends AnyVal {
 
     /** Adapts this [[ScalaPreparedStatement]] converting [[In2]] values with the provided adapter
@@ -315,7 +315,7 @@ package object helenus extends CodecDerivation {
     def from[In2](
         implicit ec: ExecutionContext,
         adapter: Adapter[In2, In]
-    ): Future[ScalaPreparedStatement[In2, Out]] =
+    ): Future[AdaptedScalaPreparedStatement[In2, In, Out]] =
       fut.map(_.from[In2])
   }
 
@@ -406,8 +406,10 @@ package object helenus extends CodecDerivation {
   // (2 to 22).foreach(template)
 
   // format: off
-  implicit class AsyncAsPreparedStatement[T1, Out](private val fut: Future[ScalaPreparedStatement[T1, Out]]) extends AnyVal {
-    def executeAsync(t1: T1)(implicit cqlSession: Future[CqlSession], ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] = cqlSession.flatMap {implicit s => fut.flatMap(_.executeAsync(t1))}
+  implicit class AsyncAdaptedAsPreparedStatement[In2, In, Out](private val fut: Future[AdaptedScalaPreparedStatement[In2, In, Out]]) extends AnyVal {
+    def as[Out2](implicit ec: ExecutionContext, mapper: RowMapper[Out2], ev: Out =:= Row): Future[AdaptedScalaPreparedStatement[In2, In, Out2]] = fut.map(_.as[Out2])
+
+    def executeAsync(t1: In2)(implicit cqlSession: Future[CqlSession], ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] = cqlSession.flatMap {implicit s => fut.flatMap(_.executeAsync(t1))}
   }
 
   implicit class AsyncAsPreparedStatementUnit[Out](private val fut: Future[ScalaPreparedStatementUnit[Out]]) extends AnyVal {

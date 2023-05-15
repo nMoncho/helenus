@@ -58,7 +58,7 @@ class ScalaPreparedStatementSpec
       : Adapter[Hotel, (String, String, String, Address, Set[String])] = Adapter[Hotel]
 
   "ScalaPreparedStatement" should {
-    "prepare a query" ignore {
+    "prepare a query" in {
       // single parameter query
       "SELECT * FROM hotels WHERE id = ?".toCQL
         .prepare[String] shouldBe a[ScalaPreparedStatement[_, _]]
@@ -74,7 +74,7 @@ class ScalaPreparedStatementSpec
       }
     }
 
-    "prepare a query (async)" ignore {
+    "prepare a query (async)" in {
       // single parameter query
       whenReady(
         "SELECT * FROM hotels WHERE id = ?".toCQL

@@ -30,6 +30,8 @@ import _root_.akka.stream.alpakka.cassandra.CassandraWriteSettings
 import _root_.akka.stream.alpakka.cassandra.scaladsl.CassandraSession
 import _root_.akka.stream.scaladsl._
 import _root_.net.nmoncho.helenus.internal.cql.ScalaPreparedStatement
+import _root_.net.nmoncho.helenus.internal.cql.ScalaPreparedStatement1
+import _root_.net.nmoncho.helenus.internal.cql.ScalaPreparedStatementUnit
 import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.cql.BatchStatement
 
@@ -39,7 +41,7 @@ package object akka {
     session.underlying()
 
   implicit class ScalaPreparedStatementAkkaReadSyncOps[In, Out](
-      private val pstmt: ScalaPreparedStatement[In, Out]
+      private val pstmt: ScalaPreparedStatement1[In, Out]
   ) extends AnyVal {
 
     /** A `Source` reading from Cassandra
@@ -56,7 +58,7 @@ package object akka {
   }
 
   implicit class ScalaPreparedStatementAkkaReadAsyncOps[In, Out](
-      private val pstmt: Future[ScalaPreparedStatement[In, Out]]
+      private val pstmt: Future[ScalaPreparedStatement1[In, Out]]
   ) extends AnyVal {
 
     /** A `Source` reading from Cassandra
@@ -70,6 +72,31 @@ package object akka {
       Source.futureSource(
         pstmt.map(
           _.asReadSource(u)
+        )
+      )
+    }.mapMaterializedValue(_ => NotUsed)
+
+  }
+
+  implicit class ScalaPreparedStatementUnitAkkaReadAsyncOps[Out](
+      private val pstmt: Future[ScalaPreparedStatementUnit[Out]]
+  ) extends AnyVal {
+
+    /** A `Source` reading from Cassandra
+      *
+      * @param u query parameters
+      */
+    def asReadSource()(
+        implicit session: CassandraSession,
+        ec: ExecutionContext
+    ): Source[Out, NotUsed] = {
+      Source.futureSource(
+        pstmt.map(x =>
+          Source
+            .future(session.underlying())
+            .flatMapConcat { implicit cqlSession =>
+              Source.fromPublisher(x.executeReactive())
+            }
         )
       )
     }.mapMaterializedValue(_ => NotUsed)
@@ -94,7 +121,7 @@ package object akka {
           Flow[U]
             .mapAsync(writeSettings.parallelism) { element =>
               session
-                .executeWrite(pstmt(element))
+                .executeWrite(pstmt.tupled(element))
                 .map(_ => element)(ExecutionContext.parasitic)
             }
         }
@@ -110,7 +137,7 @@ package object akka {
           .lazyFlow { () =>
             Flow[(U, Ctx)].mapAsync(writeSettings.parallelism) { case tuple @ (element, _) =>
               session
-                .executeWrite(pstmt(element))
+                .executeWrite(pstmt.tupled(element))
                 .map(_ => tuple)(ExecutionContext.parasitic)
             }
           }
@@ -147,7 +174,7 @@ package object akka {
             .map(_.groupBy(groupingKey).values.toList)
             .mapConcat(identity)
             .mapAsyncUnordered(writeSettings.parallelism) { list =>
-              val boundStatements = list.map(pstmt.apply)
+              val boundStatements = list.map(pstmt.tupled)
               val batchStatement =
                 BatchStatement.newInstance(writeSettings.batchType).addAll(boundStatements.asJava)
               session.executeWriteBatch(batchStatement).map(_ => list)(ExecutionContext.parasitic)
@@ -214,7 +241,7 @@ package object akka {
             .mapAsync(writeSettings.parallelism) { element =>
               for {
                 pstmt <- futurePstmt
-                _ <- session.executeWrite(pstmt(element))
+                _ <- session.executeWrite(pstmt.tupled(element))
               } yield element
             }
         }
@@ -232,7 +259,7 @@ package object akka {
             Flow[(U, Ctx)].mapAsync(writeSettings.parallelism) { case tuple @ (element, _) =>
               for {
                 pstmt <- futurePstmt
-                _ <- session.executeWrite(pstmt(element))
+                _ <- session.executeWrite(pstmt.tupled(element))
               } yield tuple
             }
           }
@@ -271,7 +298,7 @@ package object akka {
             .mapAsyncUnordered(writeSettings.parallelism) { list =>
               for {
                 boundStatements <- Future.traverse(list)(element =>
-                  futurePstmt.map(_.apply(element))
+                  futurePstmt.map(_.tupled(element))
                 )
                 batchStatement =
                   BatchStatement.newInstance(writeSettings.batchType).addAll(boundStatements.asJava)

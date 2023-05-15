@@ -21,6 +21,9 @@
 
 package net.nmoncho.helenus.internal.cql
 
+import java.nio.ByteBuffer
+import java.util
+
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
@@ -30,46 +33,68 @@ import com.datastax.oss.driver.api.core.PagingIterable
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.cql._
 import net.nmoncho.helenus.api.RowMapper
+import net.nmoncho.helenus.api.cql.Adapter
 import net.nmoncho.helenus.internal.cql.ScalaPreparedStatement.BoundStatementOps
 import org.reactivestreams.Publisher
 
 // format: off
 
-/** Defines the basic methods for a [[PreparedStatement]] with only one query parameter.
+/** A `ScalaPreparedStatement` extends and wraps a [[PreparedStatement]], delegating all methods to the contained instance
+ *
+ * This class serves as the basic abstraction for <em>all</em> statements.
  *
  * @param pstmt wrapped instance
- * @param mapper maps [[Row]]s into [[Out]] values
- * @tparam In input value
- * @tparam Out output value
+ * @param mapper how to map results into [[Out]] values
+ * @tparam In statement input value
+ * @tparam Out statement output value
  */
-abstract class ScalaPreparedStatement[In, Out](pstmt: PreparedStatement, mapper: RowMapper[Out]) extends PreparedStatementWrapper(pstmt) {
+abstract class ScalaPreparedStatement[In, Out](pstmt: PreparedStatement, mapper: RowMapper[Out]) extends PreparedStatement {
 
-  import net.nmoncho.helenus._
+  type AsOut[T] <: ScalaPreparedStatement[_, T]
 
-  /** Bounds an input [[In]] value and returns a [[BoundStatement]] */
-  def apply(t1: In): BoundStatement
+  // Since this is no longer exposed to users, we can use the tupled `apply` function
+  def tupled: In => BoundStatement
 
-  /** Executes this [[PreparedStatement]] with the provided value.
+  /** Adapts this [[ScalaPreparedStatement]] converting [[In2]] values with the provided adapter
+   * into a [[In]] value (ie. the original type of this statement)
    *
-   * @return [[PagingIterable]] of [[Out]] output values
+   * @param adapter how to adapt an [[In2]] value into [[In]] value
+   * @tparam In2 new input type
+   * @return adapted [[ScalaPreparedStatement]] with new [[In2]] input type
    */
-  def execute(t1: In)(implicit session: CqlSession): PagingIterable[Out] =
-    apply(t1).execute().as[Out](mapper)
+  def from[In2](implicit adapter: Adapter[In2, In]): AdaptedScalaPreparedStatement[In2, In, Out] =
+    new AdaptedScalaPreparedStatement[In2, In, Out](this, mapper, adapter)
 
-  /** Executes this [[PreparedStatement]] in a asynchronous fashion using
-   * the provided [[In]] input value
-   *
-   * @return a future of [[MappedAsyncPagingIterable]]
+  /** Maps the result from this [[PreparedStatement]] with a different [[Out2]]
+   * as long as there is an implicit [[RowMapper]] and [[Out]] is [[Row]] (this is
+   * meant to avoid calling `as` twice)
    */
-  def executeAsync(t1: In)(implicit session: CqlSession, ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] =
-    apply(t1).executeAsync().map(_.as[Out](mapper))
+  def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2]
 
-  /** Executes this [[PreparedStatement]] in a reactive fashion
-   *
-   * @return [[Publisher]] of [[Out]] output values
-   */
-  def executeReactive(t1: In)(implicit session: CqlSession): Publisher[Out] =
-    apply(t1).executeReactive().as[Out](mapper)
+  // ----------------------------------------------------------------------------
+  //  Wrapped `PreparedStatement` methods
+  // ----------------------------------------------------------------------------
+
+  override def getId: ByteBuffer = pstmt.getId
+
+  override def getQuery: String = pstmt.getQuery
+
+  override def getVariableDefinitions: ColumnDefinitions = pstmt.getVariableDefinitions
+
+  override def getPartitionKeyIndices: util.List[Integer] = pstmt.getPartitionKeyIndices
+
+  override def getResultMetadataId: ByteBuffer = pstmt.getResultMetadataId
+
+  override def getResultSetDefinitions: ColumnDefinitions = pstmt.getResultSetDefinitions
+
+  override def setResultMetadata(id: ByteBuffer, definitions: ColumnDefinitions): Unit =
+    pstmt.setResultMetadata(id, definitions)
+
+  override def bind(values: AnyRef*): BoundStatement =
+    pstmt.bind(values: _*)
+
+  override def boundStatementBuilder(values: AnyRef*): BoundStatementBuilder =
+    pstmt.boundStatementBuilder(values: _*)
 }
 
 object ScalaPreparedStatement {
@@ -91,57 +116,54 @@ object ScalaPreparedStatement {
 
 }
 
-trait AsPrepareStatement[Out] {
-  type AsOut[T] <: AsPrepareStatement[T]
+/** Adapts the input for a [[ScalaPreparedStatement]] from [[In2]] to [[In]] through an [[Adapter]].
+ *
+ * This useful when inserting `case classes` into tables
+ *
+ * @param pstmt wrapped instance
+ * @param mapper how to map results into [[Out]] values
+ * @param adapter how to adapt [[In2]] to [[In]]
+ * @tparam In2 new input value
+ * @tparam In statement input value
+ * @tparam Out statement output value
+ */
+class AdaptedScalaPreparedStatement[In2, In, Out](pstmt: ScalaPreparedStatement[In, _], mapper: RowMapper[Out], adapter: Adapter[In2, In])
+    extends ScalaPreparedStatement[In2, Out](pstmt, mapper) {
 
-  /** Maps the result from this [[PreparedStatement]] with a different [[Out2]]
-   * as long as there is an implicit [[RowMapper]] and [[Out]] is [[Row]] (this is
-   * meant to avoid calling `as` twice)
+  import net.nmoncho.helenus._
+
+  override type AsOut[T] = AdaptedScalaPreparedStatement[In2, In, T]
+
+  override val tupled: In2 => BoundStatement = apply
+
+  /** Bounds an input [[In]] value and returns a [[BoundStatement]] */
+  def apply(t1: In2): BoundStatement = pstmt.tupled(adapter(t1))
+
+  /** Executes this [[PreparedStatement]] with the provided value.
+   *
+   * @return [[PagingIterable]] of [[Out]] output values
    */
-  def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2]
-}
+  def execute(t1: In2)(implicit session: CqlSession): PagingIterable[Out] =
+    apply(t1).execute().as[Out](mapper)
 
-// **********************************************************************
-// To generate methods to Tuple2 and above, use this template method.
-// **********************************************************************
-//
-// def template(typeParameterCount: Int): Unit = {
-//    val typeParameters = (1 to typeParameterCount).map(i => s"T$i").mkString(", ")
-//    val typeCodecs = (1 to typeParameterCount).map(i => s"t${i}Codec: TypeCodec[T$i]").mkString(", ")
-//    val codecParams = (1 to typeParameterCount).map(i => s"t${i}Codec").mkString(", ")
-//    val parameterList = (1 to typeParameterCount).map(i => s"t$i: T$i").mkString(", ")
-//    val parameterBindings = (0 until typeParameterCount).map(i => s".setIfDefined($i, t${i + 1}, t${i + 1}Codec)").mkString("")
-//    val methodParameters = (1 to typeParameterCount).map(i => s"t$i").mkString(", ")
-//
-//    val classTemplate = s"""
-//        |class ScalaPreparedStatement$typeParameterCount[$typeParameters, Out](pstmt: PreparedStatement, mapper: RowMapper[Out], $typeCodecs)
-//        |    extends ScalaPreparedStatementWithResultAdapter[($typeParameters), Out](pstmt, mapper) {
-//        |
-//        |  import net.nmoncho.helenus._
-//        |
-//        |  override protected def tupled: (($typeParameters)) => BoundStatement = (apply _).tupled
-//        |
-//        |  def apply($parameterList): BoundStatement =
-//        |    pstmt.bind()$parameterBindings
-//        |
-//        |  def execute($parameterList)(implicit session: CqlSession): PagingIterable[Out] =
-//        |    apply($methodParameters).execute().as[Out](mapper)
-//        |
-//        |  def executeAsync($parameterList)(implicit session: CqlSession, ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] =
-//        |    apply($methodParameters).executeAsync().map(_.as[Out](mapper))
-//        |
-//        |  def executeReactive($parameterList)(implicit session: CqlSession): Publisher[Out] =
-//        |    apply($methodParameters).executeReactive().as[Out](mapper)
-//        |
-//        |  def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): ScalaPreparedStatement$typeParameterCount[$typeParameters, Out2] =
-//        |    new ScalaPreparedStatement$typeParameterCount(pstmt, mapper, $codecParams)
-//        |}
-//        |""".stripMargin
-//
-//    println(classTemplate)
-//}
-//
-//(2 to 22).foreach(template)
+  /** Executes this [[PreparedStatement]] in a asynchronous fashion using
+   * the provided [[In]] input value
+   *
+   * @return a future of [[MappedAsyncPagingIterable]]
+   */
+  def executeAsync(t1: In2)(implicit session: CqlSession, ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] =
+    apply(t1).executeAsync().map(_.as[Out](mapper))
+
+  /** Executes this [[PreparedStatement]] in a reactive fashion
+   *
+   * @return [[Publisher]] of [[Out]] output values
+   */
+  def executeReactive(t1: In2)(implicit session: CqlSession): Publisher[Out] =
+    apply(t1).executeReactive().as[Out](mapper)
+
+  override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
+    new AdaptedScalaPreparedStatement[In2, In, Out2](pstmt, mapper, adapter)
+}
 
 /** A [[PreparedStatement]] without input parameters
  *
@@ -150,14 +172,16 @@ trait AsPrepareStatement[Out] {
  * @tparam Out output value
  */
 class ScalaPreparedStatementUnit[Out](pstmt: PreparedStatement, mapper: RowMapper[Out])
-  extends ScalaPreparedStatement[Unit, Out](pstmt, mapper) with AsPrepareStatement[Out] {
+    extends ScalaPreparedStatement[Unit, Out](pstmt, mapper) {
 
   import net.nmoncho.helenus._
 
   override type AsOut[T] = ScalaPreparedStatementUnit[T]
 
+  override val tupled: Unit => BoundStatement = _ => apply
+
   /** Returns a [[BoundStatement]] */
-  override def apply(u: Unit): BoundStatement = pstmt.bind()
+  def apply(): BoundStatement = pstmt.bind()
 
   /** Executes this [[PreparedStatement]]
    *
@@ -184,31 +208,109 @@ class ScalaPreparedStatementUnit[Out](pstmt: PreparedStatement, mapper: RowMappe
    * as long as there is an implicit [[RowMapper]] and [[Out]] is [[Row]] (this is
    * meant to avoid calling `as` twice)
    */
-  def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): ScalaPreparedStatementUnit[Out2] =
+  def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
     new ScalaPreparedStatementUnit[Out2](pstmt, mapper)
 }
 
+/** A [[PreparedStatement]] with one input parameter
+ *
+ * @param pstmt wrapped instance
+ * @param mapper maps [[Row]]s into [[Out]] values
+ * @param t1Codec how to encode [[T1]] values
+ * @tparam T1 input value
+ * @tparam Out output value
+ */
 class ScalaPreparedStatement1[T1, Out](pstmt: PreparedStatement, mapper: RowMapper[Out], t1Codec: TypeCodec[T1])
-    extends ScalaPreparedStatement[T1, Out](pstmt, mapper) with AsPrepareStatement[Out] {
+    extends ScalaPreparedStatement[T1, Out](pstmt, mapper) {
+
+  import net.nmoncho.helenus._
 
   override type AsOut[T] = ScalaPreparedStatement1[T1, T]
+
+  override def tupled: T1 => BoundStatement = apply
 
   /** Bounds an input [[T1]] value and returns a [[BoundStatement]] */
   def apply(t1: T1): BoundStatement =
     pstmt.bind().setIfDefined(0, t1, t1Codec)
 
-  def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): ScalaPreparedStatement1[T1, Out2] =
+  /** Executes this [[PreparedStatement]] with the provided value.
+   *
+   * @return [[PagingIterable]] of [[Out]] output values
+   */
+  def execute(t1: T1)(implicit session: CqlSession): PagingIterable[Out] =
+    apply(t1).execute().as[Out](mapper)
+
+  /** Executes this [[PreparedStatement]] in a asynchronous fashion using
+   * the provided [[T1]] input value
+   *
+   * @return a future of [[MappedAsyncPagingIterable]]
+   */
+  def executeAsync(t1: T1)(implicit session: CqlSession, ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] =
+    apply(t1).executeAsync().map(_.as[Out](mapper))
+
+  /** Executes this [[PreparedStatement]] in a reactive fashion
+   *
+   * @return [[Publisher]] of [[Out]] output values
+   */
+  def executeReactive(t1: T1)(implicit session: CqlSession): Publisher[Out] =
+    apply(t1).executeReactive().as[Out](mapper)
+
+  def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
     new ScalaPreparedStatement1(pstmt, mapper, t1Codec)
 }
 
+// **********************************************************************
+// To generate methods to Tuple2 and above, use this template method.
+// **********************************************************************
+//
+// def template(typeParameterCount: Int): Unit = {
+//    val typeParameters = (1 to typeParameterCount).map(i => s"T$i").mkString(", ")
+//    val typeCodecs = (1 to typeParameterCount).map(i => s"t${i}Codec: TypeCodec[T$i]").mkString(", ")
+//    val codecParams = (1 to typeParameterCount).map(i => s"t${i}Codec").mkString(", ")
+//    val parameterList = (1 to typeParameterCount).map(i => s"t$i: T$i").mkString(", ")
+//    val parameterBindings = (0 until typeParameterCount).map(i => s".setIfDefined($i, t${i + 1}, t${i + 1}Codec)").mkString("")
+//    val methodParameters = (1 to typeParameterCount).map(i => s"t$i").mkString(", ")
+//
+//    val classTemplate = s"""
+//        |class ScalaPreparedStatement$typeParameterCount[$typeParameters, Out](pstmt: PreparedStatement, mapper: RowMapper[Out], $typeCodecs)
+//        |    extends ScalaPreparedStatement[($typeParameters), Out](pstmt, mapper) {
+//        |
+//        |  import net.nmoncho.helenus._
+//        |
+//        |  override type AsOut[T] = ScalaPreparedStatement$typeParameterCount[$typeParameters, T]
+//        |
+//        |  override val tupled: (($typeParameters)) => BoundStatement = (apply _).tupled
+//        |
+//        |  def apply($parameterList): BoundStatement =
+//        |    pstmt.bind()$parameterBindings
+//        |
+//        |  def execute($parameterList)(implicit session: CqlSession): PagingIterable[Out] =
+//        |    apply($methodParameters).execute().as[Out](mapper)
+//        |
+//        |  def executeAsync($parameterList)(implicit session: CqlSession, ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] =
+//        |    apply($methodParameters).executeAsync().map(_.as[Out](mapper))
+//        |
+//        |  def executeReactive($parameterList)(implicit session: CqlSession): Publisher[Out] =
+//        |    apply($methodParameters).executeReactive().as[Out](mapper)
+//        |
+//        |  def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
+//        |    new ScalaPreparedStatement$typeParameterCount(pstmt, mapper, $codecParams)
+//        |}
+//        |""".stripMargin
+//
+//    println(classTemplate)
+//}
+//
+//(2 to 22).foreach(template)
+
 class ScalaPreparedStatement2[T1, T2, Out](pstmt: PreparedStatement, mapper: RowMapper[Out], t1Codec: TypeCodec[T1], t2Codec: TypeCodec[T2])
-    extends ScalaPreparedStatementWithResultAdapter[(T1, T2), Out](pstmt, mapper) with AsPrepareStatement[Out] {
+    extends ScalaPreparedStatement[(T1, T2), Out](pstmt, mapper) {
 
   import net.nmoncho.helenus._
 
   override type AsOut[T] = ScalaPreparedStatement2[T1, T2, T]
 
-  override protected def tupled: ((T1, T2)) => BoundStatement = (apply _).tupled
+  override def tupled: ((T1, T2)) => BoundStatement = (apply _).tupled
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2): BoundStatement =
@@ -235,19 +337,19 @@ class ScalaPreparedStatement2[T1, T2, Out](pstmt: PreparedStatement, mapper: Row
   def executeReactive(t1: T1, t2: T2)(implicit session: CqlSession): Publisher[Out] =
     apply(t1, t2).executeReactive().as[Out](mapper)
 
-  def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): ScalaPreparedStatement2[T1, T2, Out2] =
-    new ScalaPreparedStatement2(pstmt, mapper, t1Codec, t2Codec)
+  def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
+    new ScalaPreparedStatement2[T1, T2, Out2](pstmt, mapper, t1Codec, t2Codec)
 }
 
 // $COVERAGE-OFF$
 class ScalaPreparedStatement3[T1, T2, T3, Out](pstmt: PreparedStatement, mapper: RowMapper[Out], t1Codec: TypeCodec[T1], t2Codec: TypeCodec[T2], t3Codec: TypeCodec[T3])
-  extends ScalaPreparedStatementWithResultAdapter[(T1, T2, T3), Out](pstmt, mapper) with AsPrepareStatement[Out] {
+  extends ScalaPreparedStatement[(T1, T2, T3), Out](pstmt, mapper) {
 
   import net.nmoncho.helenus._
 
   override type AsOut[T] = ScalaPreparedStatement3[T1, T2, T3, T]
 
-  override protected def tupled: ((T1, T2, T3)) => BoundStatement = (apply _).tupled
+  override def tupled: ((T1, T2, T3)) => BoundStatement = (apply _).tupled
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3): BoundStatement =
@@ -280,13 +382,13 @@ class ScalaPreparedStatement3[T1, T2, T3, Out](pstmt: PreparedStatement, mapper:
 
 
 class ScalaPreparedStatement4[T1, T2, T3, T4, Out](pstmt: PreparedStatement, mapper: RowMapper[Out], t1Codec: TypeCodec[T1], t2Codec: TypeCodec[T2], t3Codec: TypeCodec[T3], t4Codec: TypeCodec[T4])
-  extends ScalaPreparedStatementWithResultAdapter[(T1, T2, T3, T4), Out](pstmt, mapper) with AsPrepareStatement[Out] {
+  extends ScalaPreparedStatement[(T1, T2, T3, T4), Out](pstmt, mapper) {
 
   import net.nmoncho.helenus._
 
   override type AsOut[T] = ScalaPreparedStatement4[T1, T2, T3, T4, T]
 
-  override protected def tupled: ((T1, T2, T3, T4)) => BoundStatement = (apply _).tupled
+  override def tupled: ((T1, T2, T3, T4)) => BoundStatement = (apply _).tupled
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4): BoundStatement =
@@ -319,13 +421,13 @@ class ScalaPreparedStatement4[T1, T2, T3, T4, Out](pstmt: PreparedStatement, map
 
 
 class ScalaPreparedStatement5[T1, T2, T3, T4, T5, Out](pstmt: PreparedStatement, mapper: RowMapper[Out], t1Codec: TypeCodec[T1], t2Codec: TypeCodec[T2], t3Codec: TypeCodec[T3], t4Codec: TypeCodec[T4], t5Codec: TypeCodec[T5])
-  extends ScalaPreparedStatementWithResultAdapter[(T1, T2, T3, T4, T5), Out](pstmt, mapper) with AsPrepareStatement[Out] {
+  extends ScalaPreparedStatement[(T1, T2, T3, T4, T5), Out](pstmt, mapper) {
 
   import net.nmoncho.helenus._
 
   override type AsOut[T] = ScalaPreparedStatement5[T1, T2, T3, T4, T5, T]
 
-  override protected def tupled: ((T1, T2, T3, T4, T5)) => BoundStatement = (apply _).tupled
+  override def tupled: ((T1, T2, T3, T4, T5)) => BoundStatement = (apply _).tupled
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5): BoundStatement =
@@ -358,13 +460,13 @@ class ScalaPreparedStatement5[T1, T2, T3, T4, T5, Out](pstmt: PreparedStatement,
 
 
 class ScalaPreparedStatement6[T1, T2, T3, T4, T5, T6, Out](pstmt: PreparedStatement, mapper: RowMapper[Out], t1Codec: TypeCodec[T1], t2Codec: TypeCodec[T2], t3Codec: TypeCodec[T3], t4Codec: TypeCodec[T4], t5Codec: TypeCodec[T5], t6Codec: TypeCodec[T6])
-  extends ScalaPreparedStatementWithResultAdapter[(T1, T2, T3, T4, T5, T6), Out](pstmt, mapper) with AsPrepareStatement[Out] {
+  extends ScalaPreparedStatement[(T1, T2, T3, T4, T5, T6), Out](pstmt, mapper) {
 
   import net.nmoncho.helenus._
 
   override type AsOut[T] = ScalaPreparedStatement6[T1, T2, T3, T4, T5, T6, T]
 
-  override protected def tupled: ((T1, T2, T3, T4, T5, T6)) => BoundStatement = (apply _).tupled
+  override def tupled: ((T1, T2, T3, T4, T5, T6)) => BoundStatement = (apply _).tupled
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6): BoundStatement =
@@ -397,13 +499,13 @@ class ScalaPreparedStatement6[T1, T2, T3, T4, T5, T6, Out](pstmt: PreparedStatem
 
 
 class ScalaPreparedStatement7[T1, T2, T3, T4, T5, T6, T7, Out](pstmt: PreparedStatement, mapper: RowMapper[Out], t1Codec: TypeCodec[T1], t2Codec: TypeCodec[T2], t3Codec: TypeCodec[T3], t4Codec: TypeCodec[T4], t5Codec: TypeCodec[T5], t6Codec: TypeCodec[T6], t7Codec: TypeCodec[T7])
-  extends ScalaPreparedStatementWithResultAdapter[(T1, T2, T3, T4, T5, T6, T7), Out](pstmt, mapper) with AsPrepareStatement[Out] {
+  extends ScalaPreparedStatement[(T1, T2, T3, T4, T5, T6, T7), Out](pstmt, mapper) {
 
   import net.nmoncho.helenus._
 
   override type AsOut[T] = ScalaPreparedStatement7[T1, T2, T3, T4, T5, T6, T7, T]
 
-  override protected def tupled: ((T1, T2, T3, T4, T5, T6, T7)) => BoundStatement = (apply _).tupled
+  override def tupled: ((T1, T2, T3, T4, T5, T6, T7)) => BoundStatement = (apply _).tupled
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7): BoundStatement =
@@ -436,13 +538,13 @@ class ScalaPreparedStatement7[T1, T2, T3, T4, T5, T6, T7, Out](pstmt: PreparedSt
 
 
 class ScalaPreparedStatement8[T1, T2, T3, T4, T5, T6, T7, T8, Out](pstmt: PreparedStatement, mapper: RowMapper[Out], t1Codec: TypeCodec[T1], t2Codec: TypeCodec[T2], t3Codec: TypeCodec[T3], t4Codec: TypeCodec[T4], t5Codec: TypeCodec[T5], t6Codec: TypeCodec[T6], t7Codec: TypeCodec[T7], t8Codec: TypeCodec[T8])
-  extends ScalaPreparedStatementWithResultAdapter[(T1, T2, T3, T4, T5, T6, T7, T8), Out](pstmt, mapper) with AsPrepareStatement[Out] {
+  extends ScalaPreparedStatement[(T1, T2, T3, T4, T5, T6, T7, T8), Out](pstmt, mapper) {
 
   import net.nmoncho.helenus._
 
   override type AsOut[T] = ScalaPreparedStatement8[T1, T2, T3, T4, T5, T6, T7, T8, T]
 
-  override protected def tupled: ((T1, T2, T3, T4, T5, T6, T7, T8)) => BoundStatement = (apply _).tupled
+  override def tupled: ((T1, T2, T3, T4, T5, T6, T7, T8)) => BoundStatement = (apply _).tupled
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8): BoundStatement =
@@ -475,13 +577,13 @@ class ScalaPreparedStatement8[T1, T2, T3, T4, T5, T6, T7, T8, Out](pstmt: Prepar
 
 
 class ScalaPreparedStatement9[T1, T2, T3, T4, T5, T6, T7, T8, T9, Out](pstmt: PreparedStatement, mapper: RowMapper[Out], t1Codec: TypeCodec[T1], t2Codec: TypeCodec[T2], t3Codec: TypeCodec[T3], t4Codec: TypeCodec[T4], t5Codec: TypeCodec[T5], t6Codec: TypeCodec[T6], t7Codec: TypeCodec[T7], t8Codec: TypeCodec[T8], t9Codec: TypeCodec[T9])
-  extends ScalaPreparedStatementWithResultAdapter[(T1, T2, T3, T4, T5, T6, T7, T8, T9), Out](pstmt, mapper) with AsPrepareStatement[Out] {
+  extends ScalaPreparedStatement[(T1, T2, T3, T4, T5, T6, T7, T8, T9), Out](pstmt, mapper) {
 
   import net.nmoncho.helenus._
 
   override type AsOut[T] = ScalaPreparedStatement9[T1, T2, T3, T4, T5, T6, T7, T8, T9, T]
 
-  override protected def tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9)) => BoundStatement = (apply _).tupled
+  override def tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9)) => BoundStatement = (apply _).tupled
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9): BoundStatement =
@@ -514,13 +616,13 @@ class ScalaPreparedStatement9[T1, T2, T3, T4, T5, T6, T7, T8, T9, Out](pstmt: Pr
 
 
 class ScalaPreparedStatement10[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, Out](pstmt: PreparedStatement, mapper: RowMapper[Out], t1Codec: TypeCodec[T1], t2Codec: TypeCodec[T2], t3Codec: TypeCodec[T3], t4Codec: TypeCodec[T4], t5Codec: TypeCodec[T5], t6Codec: TypeCodec[T6], t7Codec: TypeCodec[T7], t8Codec: TypeCodec[T8], t9Codec: TypeCodec[T9], t10Codec: TypeCodec[T10])
-  extends ScalaPreparedStatementWithResultAdapter[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10), Out](pstmt, mapper) with AsPrepareStatement[Out] {
+  extends ScalaPreparedStatement[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10), Out](pstmt, mapper) {
 
   import net.nmoncho.helenus._
 
   override type AsOut[T] = ScalaPreparedStatement10[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T]
 
-  override protected def tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10)) => BoundStatement = (apply _).tupled
+  override def tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10)) => BoundStatement = (apply _).tupled
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10): BoundStatement =
@@ -553,13 +655,13 @@ class ScalaPreparedStatement10[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, Out](pst
 
 
 class ScalaPreparedStatement11[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, Out](pstmt: PreparedStatement, mapper: RowMapper[Out], t1Codec: TypeCodec[T1], t2Codec: TypeCodec[T2], t3Codec: TypeCodec[T3], t4Codec: TypeCodec[T4], t5Codec: TypeCodec[T5], t6Codec: TypeCodec[T6], t7Codec: TypeCodec[T7], t8Codec: TypeCodec[T8], t9Codec: TypeCodec[T9], t10Codec: TypeCodec[T10], t11Codec: TypeCodec[T11])
-  extends ScalaPreparedStatementWithResultAdapter[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11), Out](pstmt, mapper) with AsPrepareStatement[Out] {
+  extends ScalaPreparedStatement[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11), Out](pstmt, mapper) {
 
   import net.nmoncho.helenus._
 
   override type AsOut[T] = ScalaPreparedStatement11[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T]
 
-  override protected def tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11)) => BoundStatement = (apply _).tupled
+  override def tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11)) => BoundStatement = (apply _).tupled
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11): BoundStatement =
@@ -592,13 +694,13 @@ class ScalaPreparedStatement11[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, Out
 
 
 class ScalaPreparedStatement12[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, Out](pstmt: PreparedStatement, mapper: RowMapper[Out], t1Codec: TypeCodec[T1], t2Codec: TypeCodec[T2], t3Codec: TypeCodec[T3], t4Codec: TypeCodec[T4], t5Codec: TypeCodec[T5], t6Codec: TypeCodec[T6], t7Codec: TypeCodec[T7], t8Codec: TypeCodec[T8], t9Codec: TypeCodec[T9], t10Codec: TypeCodec[T10], t11Codec: TypeCodec[T11], t12Codec: TypeCodec[T12])
-  extends ScalaPreparedStatementWithResultAdapter[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12), Out](pstmt, mapper) with AsPrepareStatement[Out] {
+  extends ScalaPreparedStatement[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12), Out](pstmt, mapper) {
 
   import net.nmoncho.helenus._
 
   override type AsOut[T] = ScalaPreparedStatement12[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T]
 
-  override protected def tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12)) => BoundStatement = (apply _).tupled
+  override def tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12)) => BoundStatement = (apply _).tupled
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12): BoundStatement =
@@ -631,13 +733,13 @@ class ScalaPreparedStatement12[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
 
 
 class ScalaPreparedStatement13[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, Out](pstmt: PreparedStatement, mapper: RowMapper[Out], t1Codec: TypeCodec[T1], t2Codec: TypeCodec[T2], t3Codec: TypeCodec[T3], t4Codec: TypeCodec[T4], t5Codec: TypeCodec[T5], t6Codec: TypeCodec[T6], t7Codec: TypeCodec[T7], t8Codec: TypeCodec[T8], t9Codec: TypeCodec[T9], t10Codec: TypeCodec[T10], t11Codec: TypeCodec[T11], t12Codec: TypeCodec[T12], t13Codec: TypeCodec[T13])
-  extends ScalaPreparedStatementWithResultAdapter[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13), Out](pstmt, mapper) with AsPrepareStatement[Out] {
+  extends ScalaPreparedStatement[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13), Out](pstmt, mapper) {
 
   import net.nmoncho.helenus._
 
   override type AsOut[T] = ScalaPreparedStatement13[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T]
 
-  override protected def tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13)) => BoundStatement = (apply _).tupled
+  override def tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13)) => BoundStatement = (apply _).tupled
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13): BoundStatement =
@@ -670,13 +772,13 @@ class ScalaPreparedStatement13[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
 
 
 class ScalaPreparedStatement14[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, Out](pstmt: PreparedStatement, mapper: RowMapper[Out], t1Codec: TypeCodec[T1], t2Codec: TypeCodec[T2], t3Codec: TypeCodec[T3], t4Codec: TypeCodec[T4], t5Codec: TypeCodec[T5], t6Codec: TypeCodec[T6], t7Codec: TypeCodec[T7], t8Codec: TypeCodec[T8], t9Codec: TypeCodec[T9], t10Codec: TypeCodec[T10], t11Codec: TypeCodec[T11], t12Codec: TypeCodec[T12], t13Codec: TypeCodec[T13], t14Codec: TypeCodec[T14])
-  extends ScalaPreparedStatementWithResultAdapter[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14), Out](pstmt, mapper) with AsPrepareStatement[Out] {
+  extends ScalaPreparedStatement[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14), Out](pstmt, mapper) {
 
   import net.nmoncho.helenus._
 
   override type AsOut[T] = ScalaPreparedStatement14[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T]
 
-  override protected def tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14)) => BoundStatement = (apply _).tupled
+  override def tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14)) => BoundStatement = (apply _).tupled
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14): BoundStatement =
@@ -709,13 +811,13 @@ class ScalaPreparedStatement14[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
 
 
 class ScalaPreparedStatement15[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, Out](pstmt: PreparedStatement, mapper: RowMapper[Out], t1Codec: TypeCodec[T1], t2Codec: TypeCodec[T2], t3Codec: TypeCodec[T3], t4Codec: TypeCodec[T4], t5Codec: TypeCodec[T5], t6Codec: TypeCodec[T6], t7Codec: TypeCodec[T7], t8Codec: TypeCodec[T8], t9Codec: TypeCodec[T9], t10Codec: TypeCodec[T10], t11Codec: TypeCodec[T11], t12Codec: TypeCodec[T12], t13Codec: TypeCodec[T13], t14Codec: TypeCodec[T14], t15Codec: TypeCodec[T15])
-  extends ScalaPreparedStatementWithResultAdapter[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15), Out](pstmt, mapper) with AsPrepareStatement[Out] {
+  extends ScalaPreparedStatement[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15), Out](pstmt, mapper) {
 
   import net.nmoncho.helenus._
 
   override type AsOut[T] = ScalaPreparedStatement15[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T]
 
-  override protected def tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15)) => BoundStatement = (apply _).tupled
+  override def tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15)) => BoundStatement = (apply _).tupled
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15): BoundStatement =
@@ -748,13 +850,13 @@ class ScalaPreparedStatement15[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
 
 
 class ScalaPreparedStatement16[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, Out](pstmt: PreparedStatement, mapper: RowMapper[Out], t1Codec: TypeCodec[T1], t2Codec: TypeCodec[T2], t3Codec: TypeCodec[T3], t4Codec: TypeCodec[T4], t5Codec: TypeCodec[T5], t6Codec: TypeCodec[T6], t7Codec: TypeCodec[T7], t8Codec: TypeCodec[T8], t9Codec: TypeCodec[T9], t10Codec: TypeCodec[T10], t11Codec: TypeCodec[T11], t12Codec: TypeCodec[T12], t13Codec: TypeCodec[T13], t14Codec: TypeCodec[T14], t15Codec: TypeCodec[T15], t16Codec: TypeCodec[T16])
-  extends ScalaPreparedStatementWithResultAdapter[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16), Out](pstmt, mapper) with AsPrepareStatement[Out] {
+  extends ScalaPreparedStatement[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16), Out](pstmt, mapper) {
 
   import net.nmoncho.helenus._
 
   override type AsOut[T] = ScalaPreparedStatement16[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T]
 
-  override protected def tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16)) => BoundStatement = (apply _).tupled
+  override def tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16)) => BoundStatement = (apply _).tupled
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16): BoundStatement =
@@ -787,13 +889,13 @@ class ScalaPreparedStatement16[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
 
 
 class ScalaPreparedStatement17[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, Out](pstmt: PreparedStatement, mapper: RowMapper[Out], t1Codec: TypeCodec[T1], t2Codec: TypeCodec[T2], t3Codec: TypeCodec[T3], t4Codec: TypeCodec[T4], t5Codec: TypeCodec[T5], t6Codec: TypeCodec[T6], t7Codec: TypeCodec[T7], t8Codec: TypeCodec[T8], t9Codec: TypeCodec[T9], t10Codec: TypeCodec[T10], t11Codec: TypeCodec[T11], t12Codec: TypeCodec[T12], t13Codec: TypeCodec[T13], t14Codec: TypeCodec[T14], t15Codec: TypeCodec[T15], t16Codec: TypeCodec[T16], t17Codec: TypeCodec[T17])
-  extends ScalaPreparedStatementWithResultAdapter[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17), Out](pstmt, mapper) with AsPrepareStatement[Out] {
+  extends ScalaPreparedStatement[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17), Out](pstmt, mapper) {
 
   import net.nmoncho.helenus._
 
   override type AsOut[T] = ScalaPreparedStatement17[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T]
 
-  override protected def tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17)) => BoundStatement = (apply _).tupled
+  override def tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17)) => BoundStatement = (apply _).tupled
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17): BoundStatement =
@@ -826,13 +928,13 @@ class ScalaPreparedStatement17[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
 
 
 class ScalaPreparedStatement18[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, Out](pstmt: PreparedStatement, mapper: RowMapper[Out], t1Codec: TypeCodec[T1], t2Codec: TypeCodec[T2], t3Codec: TypeCodec[T3], t4Codec: TypeCodec[T4], t5Codec: TypeCodec[T5], t6Codec: TypeCodec[T6], t7Codec: TypeCodec[T7], t8Codec: TypeCodec[T8], t9Codec: TypeCodec[T9], t10Codec: TypeCodec[T10], t11Codec: TypeCodec[T11], t12Codec: TypeCodec[T12], t13Codec: TypeCodec[T13], t14Codec: TypeCodec[T14], t15Codec: TypeCodec[T15], t16Codec: TypeCodec[T16], t17Codec: TypeCodec[T17], t18Codec: TypeCodec[T18])
-  extends ScalaPreparedStatementWithResultAdapter[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18), Out](pstmt, mapper) with AsPrepareStatement[Out] {
+  extends ScalaPreparedStatement[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18), Out](pstmt, mapper) {
 
   import net.nmoncho.helenus._
 
   override type AsOut[T] = ScalaPreparedStatement18[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T]
 
-  override protected def tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18)) => BoundStatement = (apply _).tupled
+  override def tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18)) => BoundStatement = (apply _).tupled
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18): BoundStatement =
@@ -865,13 +967,13 @@ class ScalaPreparedStatement18[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
 
 
 class ScalaPreparedStatement19[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, Out](pstmt: PreparedStatement, mapper: RowMapper[Out], t1Codec: TypeCodec[T1], t2Codec: TypeCodec[T2], t3Codec: TypeCodec[T3], t4Codec: TypeCodec[T4], t5Codec: TypeCodec[T5], t6Codec: TypeCodec[T6], t7Codec: TypeCodec[T7], t8Codec: TypeCodec[T8], t9Codec: TypeCodec[T9], t10Codec: TypeCodec[T10], t11Codec: TypeCodec[T11], t12Codec: TypeCodec[T12], t13Codec: TypeCodec[T13], t14Codec: TypeCodec[T14], t15Codec: TypeCodec[T15], t16Codec: TypeCodec[T16], t17Codec: TypeCodec[T17], t18Codec: TypeCodec[T18], t19Codec: TypeCodec[T19])
-  extends ScalaPreparedStatementWithResultAdapter[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19), Out](pstmt, mapper) with AsPrepareStatement[Out] {
+  extends ScalaPreparedStatement[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19), Out](pstmt, mapper) {
 
   import net.nmoncho.helenus._
 
   override type AsOut[T] = ScalaPreparedStatement19[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T]
 
-  override protected def tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19)) => BoundStatement = (apply _).tupled
+  override def tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19)) => BoundStatement = (apply _).tupled
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19): BoundStatement =
@@ -904,13 +1006,13 @@ class ScalaPreparedStatement19[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
 
 
 class ScalaPreparedStatement20[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, Out](pstmt: PreparedStatement, mapper: RowMapper[Out], t1Codec: TypeCodec[T1], t2Codec: TypeCodec[T2], t3Codec: TypeCodec[T3], t4Codec: TypeCodec[T4], t5Codec: TypeCodec[T5], t6Codec: TypeCodec[T6], t7Codec: TypeCodec[T7], t8Codec: TypeCodec[T8], t9Codec: TypeCodec[T9], t10Codec: TypeCodec[T10], t11Codec: TypeCodec[T11], t12Codec: TypeCodec[T12], t13Codec: TypeCodec[T13], t14Codec: TypeCodec[T14], t15Codec: TypeCodec[T15], t16Codec: TypeCodec[T16], t17Codec: TypeCodec[T17], t18Codec: TypeCodec[T18], t19Codec: TypeCodec[T19], t20Codec: TypeCodec[T20])
-  extends ScalaPreparedStatementWithResultAdapter[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20), Out](pstmt, mapper) with AsPrepareStatement[Out] {
+  extends ScalaPreparedStatement[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20), Out](pstmt, mapper) {
 
   import net.nmoncho.helenus._
 
   override type AsOut[T] = ScalaPreparedStatement20[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T]
 
-  override protected def tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20)) => BoundStatement = (apply _).tupled
+  override def tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20)) => BoundStatement = (apply _).tupled
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20): BoundStatement =
@@ -943,13 +1045,13 @@ class ScalaPreparedStatement20[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
 
 
 class ScalaPreparedStatement21[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, Out](pstmt: PreparedStatement, mapper: RowMapper[Out], t1Codec: TypeCodec[T1], t2Codec: TypeCodec[T2], t3Codec: TypeCodec[T3], t4Codec: TypeCodec[T4], t5Codec: TypeCodec[T5], t6Codec: TypeCodec[T6], t7Codec: TypeCodec[T7], t8Codec: TypeCodec[T8], t9Codec: TypeCodec[T9], t10Codec: TypeCodec[T10], t11Codec: TypeCodec[T11], t12Codec: TypeCodec[T12], t13Codec: TypeCodec[T13], t14Codec: TypeCodec[T14], t15Codec: TypeCodec[T15], t16Codec: TypeCodec[T16], t17Codec: TypeCodec[T17], t18Codec: TypeCodec[T18], t19Codec: TypeCodec[T19], t20Codec: TypeCodec[T20], t21Codec: TypeCodec[T21])
-  extends ScalaPreparedStatementWithResultAdapter[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21), Out](pstmt, mapper) with AsPrepareStatement[Out] {
+  extends ScalaPreparedStatement[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21), Out](pstmt, mapper) {
 
   import net.nmoncho.helenus._
 
   override type AsOut[T] = ScalaPreparedStatement21[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T]
 
-  override protected def tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21)) => BoundStatement = (apply _).tupled
+  override def tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21)) => BoundStatement = (apply _).tupled
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21): BoundStatement =
@@ -982,13 +1084,13 @@ class ScalaPreparedStatement21[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
 
 
 class ScalaPreparedStatement22[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, Out](pstmt: PreparedStatement, mapper: RowMapper[Out], t1Codec: TypeCodec[T1], t2Codec: TypeCodec[T2], t3Codec: TypeCodec[T3], t4Codec: TypeCodec[T4], t5Codec: TypeCodec[T5], t6Codec: TypeCodec[T6], t7Codec: TypeCodec[T7], t8Codec: TypeCodec[T8], t9Codec: TypeCodec[T9], t10Codec: TypeCodec[T10], t11Codec: TypeCodec[T11], t12Codec: TypeCodec[T12], t13Codec: TypeCodec[T13], t14Codec: TypeCodec[T14], t15Codec: TypeCodec[T15], t16Codec: TypeCodec[T16], t17Codec: TypeCodec[T17], t18Codec: TypeCodec[T18], t19Codec: TypeCodec[T19], t20Codec: TypeCodec[T20], t21Codec: TypeCodec[T21], t22Codec: TypeCodec[T22])
-  extends ScalaPreparedStatementWithResultAdapter[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22), Out](pstmt, mapper) with AsPrepareStatement[Out] {
+  extends ScalaPreparedStatement[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22), Out](pstmt, mapper) {
 
   import net.nmoncho.helenus._
 
   override type AsOut[T] = ScalaPreparedStatement22[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T]
 
-  override protected def tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22)) => BoundStatement = (apply _).tupled
+  override def tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22)) => BoundStatement = (apply _).tupled
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21, t22: T22): BoundStatement =
