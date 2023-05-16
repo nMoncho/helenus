@@ -36,6 +36,7 @@ import com.datastax.oss.driver.api.core.MappedAsyncPagingIterable
 import com.datastax.oss.driver.api.core.PagingIterable
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.`type`.codec.registry.MutableCodecRegistry
+import com.datastax.oss.driver.api.core.config.DriverExecutionProfile
 import com.datastax.oss.driver.api.core.cql.AsyncResultSet
 import com.datastax.oss.driver.api.core.cql.BoundStatement
 import com.datastax.oss.driver.api.core.cql.ResultSet
@@ -73,6 +74,17 @@ package object helenus extends CodecDerivation {
       if (opt.isPresent) Some(opt.get())
       else None
     }
+
+    /** Gets a [[DriverExecutionProfile]] from this [[CqlSession]]'s config
+      *
+      * @param name profile name
+      * @return some [[DriverExecutionProfile]] if found, [[None]] otherwise
+      */
+    def executionProfile(name: String): Option[DriverExecutionProfile] =
+      Try(session.getContext.getConfig.getProfile(name)).recoverWith { case t: Throwable =>
+        log.warn("Couldn't find execution profile with name [{}]", name, t: Any)
+        Failure(t)
+      }.toOption
 
     /** Registers codecs in the Session's CodecRegistry.
       */

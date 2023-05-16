@@ -32,6 +32,7 @@ import com.datastax.oss.driver.api.core.cql.Row
 import com.datastax.oss.driver.internal.core.cql.EmptyColumnDefinitions
 import net.nmoncho.helenus.api.RowMapper
 import net.nmoncho.helenus.api.`type`.codec.TypeCodecs
+import net.nmoncho.helenus.api.cql.StatementOptions
 import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito._
 import org.scalatest.matchers.should.Matchers
@@ -86,6 +87,7 @@ class ScalaPreparedStatementInteractionSpec extends AnyWordSpec with Matchers {
     new ScalaPreparedStatement1[U, Row](
       pstmt,
       RowMapper.identity,
+      StatementOptions.default,
       codec
     ) -> pstmt
   }

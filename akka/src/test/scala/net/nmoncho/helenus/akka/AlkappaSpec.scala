@@ -87,6 +87,16 @@ class AlkappaSpec extends AnyWordSpec with Matchers with CassandraSpec with Scal
       whenReady(queryName.runWith(Sink.seq[IceCream])) { result =>
         result should not be empty
       }
+
+      val queryNameAndCone: Source[IceCream, NotUsed] =
+        "SELECT * FROM ice_creams WHERE name = ? AND cone = ? ALLOW FILTERING".toCQL
+          .prepare[String, Boolean]
+          .as[IceCream]
+          .asReadSource("vanilla", true)
+
+      whenReady(queryNameAndCone.runWith(Sink.seq[IceCream])) { result =>
+        result should not be empty
+      }
     }
 
     "work with Akka Streams and Context (sync)" in withSession { implicit session =>

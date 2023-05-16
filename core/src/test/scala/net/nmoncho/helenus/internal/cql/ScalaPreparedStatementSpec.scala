@@ -22,8 +22,11 @@
 package net.nmoncho.helenus
 package internal.cql
 
+import java.time.Duration
+
 import scala.annotation.nowarn
 
+import com.datastax.oss.driver.api.core.ConsistencyLevel
 import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.cql.BoundStatement
 import com.datastax.oss.driver.api.core.servererrors.InvalidQueryException
@@ -130,6 +133,53 @@ class ScalaPreparedStatementSpec
 
       val queryByID = "SELECT * FROM hotels WHERE id = ?".toCQL
         .prepare[String]
+
+      val h2RowOpt = Option(queryByID.execute(Hotels.h2.id).one())
+      h2RowOpt.map(_.getString("name")) shouldBe Some(Hotels.h2.name)
+
+      whenReady(
+        queryByID
+          .executeAsync(Hotels.h2.id)
+          .map(it => it.currPage.nextOption())
+      ) { h2RowOpt =>
+        h2RowOpt.map(_.getString("name")) shouldBe Some(Hotels.h2.name)
+      }
+
+      // This only to test `ScalaPreparedStatement2`
+      val queryByIDAndName = "SELECT * FROM hotels WHERE id = ? AND name = ? ALLOW FILTERING".toCQL
+        .prepare[String, String]
+
+      val h2IdNameRowOpt = Option(queryByIDAndName.execute(Hotels.h2.id, Hotels.h2.name).one())
+      h2IdNameRowOpt.map(_.getString("name")) shouldBe Some(Hotels.h2.name)
+
+      whenReady(
+        queryByIDAndName
+          .executeAsync(Hotels.h2.id, Hotels.h2.name)
+          .map(it => it.currPage.nextOption())
+      ) { h2RowOpt =>
+        h2RowOpt.map(_.getString("name")) shouldBe Some(Hotels.h2.name)
+      }
+    }
+
+    "execute (short-hand function) and options" in {
+      val queryAll = "SELECT * FROM hotels".toCQL.prepareUnit
+        .withConsistencyLevel(ConsistencyLevel.LOCAL_QUORUM)
+        .withTimeout(Duration.ofHours(1))
+        .withPageSize(10)
+      val allRowOpt = Option(queryAll.execute().one())
+      Hotels.all.map(h => Some(h.name)) should contain(allRowOpt.map(_.getString("name")))
+
+      whenReady(
+        queryAll
+          .executeAsync()
+          .map(it => it.currPage.nextOption())
+      ) { allRowOpt =>
+        Hotels.all.map(h => Some(h.name)) should contain(allRowOpt.map(_.getString("name")))
+      }
+
+      val queryByID = "SELECT * FROM hotels WHERE id = ?".toCQL
+        .prepare[String]
+        .withTracing(true)
 
       val h2RowOpt = Option(queryByID.execute(Hotels.h2.id).one())
       h2RowOpt.map(_.getString("name")) shouldBe Some(Hotels.h2.name)
