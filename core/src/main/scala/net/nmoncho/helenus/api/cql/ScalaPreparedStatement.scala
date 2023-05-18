@@ -26,11 +26,15 @@ import scala.concurrent.Future
 
 import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
+import com.datastax.oss.driver.api.core.cql.BoundStatement
 import com.datastax.oss.driver.api.core.cql.Row
 import net.nmoncho.helenus.api.RowMapper
 
 object ScalaPreparedStatement {
   import net.nmoncho.helenus.internal.cql._
+
+  type TaggedBoundStatement[Out] = { type Tag = Out }
+  type ScalaBoundStatement[Out]  = BoundStatement with TaggedBoundStatement[Out]
 
   case class CQLQuery(query: String, session: CqlSession) extends SyncCQLQuery with AsyncCQLQuery
 

@@ -34,6 +34,7 @@ import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.cql._
 import net.nmoncho.helenus.api.RowMapper
 import net.nmoncho.helenus.api.cql.Adapter
+import net.nmoncho.helenus.api.cql.ScalaPreparedStatement.ScalaBoundStatement
 import net.nmoncho.helenus.api.cql.StatementOptions
 import net.nmoncho.helenus.internal.cql.ScalaPreparedStatement.BoundStatementOps
 import org.reactivestreams.Publisher
@@ -52,6 +53,8 @@ import org.reactivestreams.Publisher
 abstract class ScalaPreparedStatement[In, Out](pstmt: PreparedStatement, mapper: RowMapper[Out]) extends PreparedStatement with Options {
 
   type AsOut[T] <: ScalaPreparedStatement[_, T]
+
+  protected implicit val rowMapper: RowMapper[Out] = mapper
 
   // Since this is no longer exposed to users, we can use the tupled `apply` function
   def tupled: In => BoundStatement
@@ -72,6 +75,9 @@ abstract class ScalaPreparedStatement[In, Out](pstmt: PreparedStatement, mapper:
    */
   def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2]
 
+  @inline protected def tag[Out](bs: BoundStatement): ScalaBoundStatement[Out] =
+    bs.asInstanceOf[ScalaBoundStatement[Out]]
+  
   // ----------------------------------------------------------------------------
   //  Wrapped `PreparedStatement` methods
   // ----------------------------------------------------------------------------
@@ -139,14 +145,15 @@ class AdaptedScalaPreparedStatement[In2, In, Out](pstmt: ScalaPreparedStatement[
   override val tupled: In2 => BoundStatement = apply
 
   /** Bounds an input [[In]] value and returns a [[BoundStatement]] */
-  def apply(t1: In2): BoundStatement = pstmt.tupled(adapter(t1))
+  def apply(t1: In2): ScalaBoundStatement[Out] =
+    tag(pstmt.tupled(adapter(t1)))
 
   /** Executes this [[PreparedStatement]] with the provided value.
    *
    * @return [[PagingIterable]] of [[Out]] output values
    */
   def execute(t1: In2)(implicit session: CqlSession): PagingIterable[Out] =
-    apply(t1).execute().as[Out](mapper)
+    apply(t1).execute()
 
   /** Executes this [[PreparedStatement]] in a asynchronous fashion using
    * the provided [[In]] input value
@@ -154,14 +161,14 @@ class AdaptedScalaPreparedStatement[In2, In, Out](pstmt: ScalaPreparedStatement[
    * @return a future of [[MappedAsyncPagingIterable]]
    */
   def executeAsync(t1: In2)(implicit session: CqlSession, ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] =
-    apply(t1).executeAsync().map(_.as[Out](mapper))
+    apply(t1).executeAsync()
 
   /** Executes this [[PreparedStatement]] in a reactive fashion
    *
    * @return [[Publisher]] of [[Out]] output values
    */
   def executeReactive(t1: In2)(implicit session: CqlSession): Publisher[Out] =
-    apply(t1).executeReactive().as[Out](mapper)
+    apply(t1).executeReactive()
 
   override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
     new AdaptedScalaPreparedStatement[In2, In, Out2](pstmt, mapper, adapter, options)
@@ -187,28 +194,28 @@ class ScalaPreparedStatementUnit[Out](pstmt: PreparedStatement, mapper: RowMappe
   override val tupled: Unit => BoundStatement = _ => apply
 
   /** Returns a [[BoundStatement]] */
-  def apply(): BoundStatement = applyOptions(pstmt.bind())
+  def apply(): ScalaBoundStatement[Out] = tag(applyOptions(pstmt.bind()))
 
   /** Executes this [[PreparedStatement]]
    *
    * @return [[PagingIterable]] of [[Out]] output values
    */
   def execute()(implicit session: CqlSession): PagingIterable[Out] =
-    apply().execute().as[Out](mapper)
+    apply().execute()
 
   /** Executes this [[PreparedStatement]] in a asynchronous fashion
    *
    * @return a future of [[MappedAsyncPagingIterable]]
    */
   def executeAsync()(implicit session: CqlSession, ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] =
-    apply().executeAsync().map(_.as[Out](mapper))
+    apply().executeAsync()
 
   /** Executes this [[PreparedStatement]] in a reactive fashion
    *
    * @return [[Publisher]] of [[Out]] output values
    */
   def executeReactive()(implicit session: CqlSession): Publisher[Out] =
-    apply().executeReactive().as[Out](mapper)
+    apply().executeReactive()
 
   /** Maps the result from this [[PreparedStatement]] with a different [[Out2]]
    * as long as there is an implicit [[RowMapper]] and [[Out]] is [[Row]] (this is
@@ -233,6 +240,7 @@ class ScalaPreparedStatement1[T1, Out](pstmt: PreparedStatement, mapper: RowMapp
     extends ScalaPreparedStatement[T1, Out](pstmt, mapper) {
 
   import net.nmoncho.helenus._
+  import ScalaPreparedStatement._
 
   override type Self     = ScalaPreparedStatement1[T1, Out]
   override type AsOut[T] = ScalaPreparedStatement1[T1, T]
@@ -240,15 +248,15 @@ class ScalaPreparedStatement1[T1, Out](pstmt: PreparedStatement, mapper: RowMapp
   override def tupled: T1 => BoundStatement = apply
 
   /** Bounds an input [[T1]] value and returns a [[BoundStatement]] */
-  def apply(t1: T1): BoundStatement =
-    applyOptions(pstmt.bind().setIfDefined(0, t1, t1Codec))
+  def apply(t1: T1): ScalaBoundStatement[Out] =
+    tag[Out](applyOptions(pstmt.bind().setIfDefined(0, t1, t1Codec)))
 
   /** Executes this [[PreparedStatement]] with the provided value.
    *
    * @return [[PagingIterable]] of [[Out]] output values
    */
   def execute(t1: T1)(implicit session: CqlSession): PagingIterable[Out] =
-    apply(t1).execute().as[Out](mapper)
+    apply(t1).execute()
 
   /** Executes this [[PreparedStatement]] in a asynchronous fashion using
    * the provided [[T1]] input value
@@ -256,14 +264,14 @@ class ScalaPreparedStatement1[T1, Out](pstmt: PreparedStatement, mapper: RowMapp
    * @return a future of [[MappedAsyncPagingIterable]]
    */
   def executeAsync(t1: T1)(implicit session: CqlSession, ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] =
-    apply(t1).executeAsync().map(_.as[Out](mapper))
+    apply(t1).executeAsync()
 
   /** Executes this [[PreparedStatement]] in a reactive fashion
    *
    * @return [[Publisher]] of [[Out]] output values
    */
   def executeReactive(t1: T1)(implicit session: CqlSession): Publisher[Out] =
-    apply(t1).executeReactive().as[Out](mapper)
+    apply(t1).executeReactive()
 
   override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
     new ScalaPreparedStatement1(pstmt, mapper, options, t1Codec)
@@ -296,29 +304,29 @@ class ScalaPreparedStatement1[T1, Out](pstmt: PreparedStatement, mapper: RowMapp
 //        |  override val tupled: (($typeParameters)) => BoundStatement = (apply _).tupled
 //        |
 //        |  /** Returns a [[BoundStatement]] with the provided values*/
-//        |  def apply($parameterList): BoundStatement =
-//        |    applyOptions(pstmt.bind()$parameterBindings)
+//        |  def apply($parameterList): ScalaBoundStatement[Out] =
+//        |    tag(applyOptions(pstmt.bind()$parameterBindings))
 //        |
 //        |  /** Executes this [[PreparedStatement]] with the provided values
 //        |   *
 //        |   * @return [[PagingIterable]] of [[Out]] output values
 //        |   */
 //        |  def execute($parameterList)(implicit session: CqlSession): PagingIterable[Out] =
-//        |    apply($methodParameters).execute().as[Out](mapper)
+//        |    apply($methodParameters).execute()
 //        |
 //        |  /** Executes this [[PreparedStatement]] in a asynchronous fashion
 //        |   *
 //        |   * @return a future of [[MappedAsyncPagingIterable]]
 //        |   */
 //        |  def executeAsync($parameterList)(implicit session: CqlSession, ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] =
-//        |    apply($methodParameters).executeAsync().map(_.as[Out](mapper))
+//        |    apply($methodParameters).executeAsync()
 //        |
 //        |  /** Executes this [[PreparedStatement]] in a reactive fashion
 //        |   *
 //        |   * @return [[Publisher]] of [[Out]] output values
 //        |   */
 //        |  def executeReactive($parameterList)(implicit session: CqlSession): Publisher[Out] =
-//        |    apply($methodParameters).executeReactive().as[Out](mapper)
+//        |    apply($methodParameters).executeReactive()
 //        |
 //        |  override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
 //        |    new ScalaPreparedStatement$typeParameterCount(pstmt, mapper, options, $codecParams)
@@ -344,29 +352,29 @@ class ScalaPreparedStatement2[T1, T2, Out](pstmt: PreparedStatement, mapper: Row
   override val tupled: ((T1, T2)) => BoundStatement = (apply _).tupled
 
   /** Returns a [[BoundStatement]] with the provided values*/
-  def apply(t1: T1, t2: T2): BoundStatement =
-    applyOptions(pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec))
+  def apply(t1: T1, t2: T2): ScalaBoundStatement[Out] =
+    tag(applyOptions(pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec)))
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
    * @return [[PagingIterable]] of [[Out]] output values
    */
   def execute(t1: T1, t2: T2)(implicit session: CqlSession): PagingIterable[Out] =
-    apply(t1, t2).execute().as[Out](mapper)
+    apply(t1, t2).execute()
 
   /** Executes this [[PreparedStatement]] in a asynchronous fashion
    *
    * @return a future of [[MappedAsyncPagingIterable]]
    */
   def executeAsync(t1: T1, t2: T2)(implicit session: CqlSession, ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] =
-    apply(t1, t2).executeAsync().map(_.as[Out](mapper))
+    apply(t1, t2).executeAsync()
 
   /** Executes this [[PreparedStatement]] in a reactive fashion
    *
    * @return [[Publisher]] of [[Out]] output values
    */
   def executeReactive(t1: T1, t2: T2)(implicit session: CqlSession): Publisher[Out] =
-    apply(t1, t2).executeReactive().as[Out](mapper)
+    apply(t1, t2).executeReactive()
 
   override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
     new ScalaPreparedStatement2(pstmt, mapper, options, t1Codec, t2Codec)
@@ -387,29 +395,29 @@ class ScalaPreparedStatement3[T1, T2, T3, Out](pstmt: PreparedStatement, mapper:
   override val tupled: ((T1, T2, T3)) => BoundStatement = (apply _).tupled
 
   /** Returns a [[BoundStatement]] with the provided values*/
-  def apply(t1: T1, t2: T2, t3: T3): BoundStatement =
-    pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec)
+  def apply(t1: T1, t2: T2, t3: T3): ScalaBoundStatement[Out] =
+    tag(pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec))
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
    * @return [[PagingIterable]] of [[Out]] output values
    */
   def execute(t1: T1, t2: T2, t3: T3)(implicit session: CqlSession): PagingIterable[Out] =
-    apply(t1, t2, t3).execute().as[Out](mapper)
+    apply(t1, t2, t3).execute()
 
   /** Executes this [[PreparedStatement]] in a asynchronous fashion
    *
    * @return a future of [[MappedAsyncPagingIterable]]
    */
   def executeAsync(t1: T1, t2: T2, t3: T3)(implicit session: CqlSession, ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] =
-    apply(t1, t2, t3).executeAsync().map(_.as[Out](mapper))
+    apply(t1, t2, t3).executeAsync()
 
   /** Executes this [[PreparedStatement]] in a reactive fashion
    *
    * @return [[Publisher]] of [[Out]] output values
    */
   def executeReactive(t1: T1, t2: T2, t3: T3)(implicit session: CqlSession): Publisher[Out] =
-    apply(t1, t2, t3).executeReactive().as[Out](mapper)
+    apply(t1, t2, t3).executeReactive()
 
   override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
     new ScalaPreparedStatement3(pstmt, mapper, options, t1Codec, t2Codec, t3Codec)
@@ -430,29 +438,29 @@ class ScalaPreparedStatement4[T1, T2, T3, T4, Out](pstmt: PreparedStatement, map
   override val tupled: ((T1, T2, T3, T4)) => BoundStatement = (apply _).tupled
 
   /** Returns a [[BoundStatement]] with the provided values*/
-  def apply(t1: T1, t2: T2, t3: T3, t4: T4): BoundStatement =
-    pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec)
+  def apply(t1: T1, t2: T2, t3: T3, t4: T4): ScalaBoundStatement[Out] =
+    tag(pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec))
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
    * @return [[PagingIterable]] of [[Out]] output values
    */
   def execute(t1: T1, t2: T2, t3: T3, t4: T4)(implicit session: CqlSession): PagingIterable[Out] =
-    apply(t1, t2, t3, t4).execute().as[Out](mapper)
+    apply(t1, t2, t3, t4).execute()
 
   /** Executes this [[PreparedStatement]] in a asynchronous fashion
    *
    * @return a future of [[MappedAsyncPagingIterable]]
    */
   def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4)(implicit session: CqlSession, ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] =
-    apply(t1, t2, t3, t4).executeAsync().map(_.as[Out](mapper))
+    apply(t1, t2, t3, t4).executeAsync()
 
   /** Executes this [[PreparedStatement]] in a reactive fashion
    *
    * @return [[Publisher]] of [[Out]] output values
    */
   def executeReactive(t1: T1, t2: T2, t3: T3, t4: T4)(implicit session: CqlSession): Publisher[Out] =
-    apply(t1, t2, t3, t4).executeReactive().as[Out](mapper)
+    apply(t1, t2, t3, t4).executeReactive()
 
   override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
     new ScalaPreparedStatement4(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec)
@@ -473,29 +481,29 @@ class ScalaPreparedStatement5[T1, T2, T3, T4, T5, Out](pstmt: PreparedStatement,
   override val tupled: ((T1, T2, T3, T4, T5)) => BoundStatement = (apply _).tupled
 
   /** Returns a [[BoundStatement]] with the provided values*/
-  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5): BoundStatement =
-    pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec)
+  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5): ScalaBoundStatement[Out] =
+    tag(pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec))
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
    * @return [[PagingIterable]] of [[Out]] output values
    */
   def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5)(implicit session: CqlSession): PagingIterable[Out] =
-    apply(t1, t2, t3, t4, t5).execute().as[Out](mapper)
+    apply(t1, t2, t3, t4, t5).execute()
 
   /** Executes this [[PreparedStatement]] in a asynchronous fashion
    *
    * @return a future of [[MappedAsyncPagingIterable]]
    */
   def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5)(implicit session: CqlSession, ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] =
-    apply(t1, t2, t3, t4, t5).executeAsync().map(_.as[Out](mapper))
+    apply(t1, t2, t3, t4, t5).executeAsync()
 
   /** Executes this [[PreparedStatement]] in a reactive fashion
    *
    * @return [[Publisher]] of [[Out]] output values
    */
   def executeReactive(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5)(implicit session: CqlSession): Publisher[Out] =
-    apply(t1, t2, t3, t4, t5).executeReactive().as[Out](mapper)
+    apply(t1, t2, t3, t4, t5).executeReactive()
 
   override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
     new ScalaPreparedStatement5(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec)
@@ -516,29 +524,29 @@ class ScalaPreparedStatement6[T1, T2, T3, T4, T5, T6, Out](pstmt: PreparedStatem
   override val tupled: ((T1, T2, T3, T4, T5, T6)) => BoundStatement = (apply _).tupled
 
   /** Returns a [[BoundStatement]] with the provided values*/
-  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6): BoundStatement =
-    pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec)
+  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6): ScalaBoundStatement[Out] =
+    tag(pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec))
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
    * @return [[PagingIterable]] of [[Out]] output values
    */
   def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6)(implicit session: CqlSession): PagingIterable[Out] =
-    apply(t1, t2, t3, t4, t5, t6).execute().as[Out](mapper)
+    apply(t1, t2, t3, t4, t5, t6).execute()
 
   /** Executes this [[PreparedStatement]] in a asynchronous fashion
    *
    * @return a future of [[MappedAsyncPagingIterable]]
    */
   def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6)(implicit session: CqlSession, ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] =
-    apply(t1, t2, t3, t4, t5, t6).executeAsync().map(_.as[Out](mapper))
+    apply(t1, t2, t3, t4, t5, t6).executeAsync()
 
   /** Executes this [[PreparedStatement]] in a reactive fashion
    *
    * @return [[Publisher]] of [[Out]] output values
    */
   def executeReactive(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6)(implicit session: CqlSession): Publisher[Out] =
-    apply(t1, t2, t3, t4, t5, t6).executeReactive().as[Out](mapper)
+    apply(t1, t2, t3, t4, t5, t6).executeReactive()
 
   override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
     new ScalaPreparedStatement6(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec)
@@ -559,29 +567,29 @@ class ScalaPreparedStatement7[T1, T2, T3, T4, T5, T6, T7, Out](pstmt: PreparedSt
   override val tupled: ((T1, T2, T3, T4, T5, T6, T7)) => BoundStatement = (apply _).tupled
 
   /** Returns a [[BoundStatement]] with the provided values*/
-  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7): BoundStatement =
-    pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec)
+  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7): ScalaBoundStatement[Out] =
+    tag(pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec))
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
    * @return [[PagingIterable]] of [[Out]] output values
    */
   def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7)(implicit session: CqlSession): PagingIterable[Out] =
-    apply(t1, t2, t3, t4, t5, t6, t7).execute().as[Out](mapper)
+    apply(t1, t2, t3, t4, t5, t6, t7).execute()
 
   /** Executes this [[PreparedStatement]] in a asynchronous fashion
    *
    * @return a future of [[MappedAsyncPagingIterable]]
    */
   def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7)(implicit session: CqlSession, ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] =
-    apply(t1, t2, t3, t4, t5, t6, t7).executeAsync().map(_.as[Out](mapper))
+    apply(t1, t2, t3, t4, t5, t6, t7).executeAsync()
 
   /** Executes this [[PreparedStatement]] in a reactive fashion
    *
    * @return [[Publisher]] of [[Out]] output values
    */
   def executeReactive(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7)(implicit session: CqlSession): Publisher[Out] =
-    apply(t1, t2, t3, t4, t5, t6, t7).executeReactive().as[Out](mapper)
+    apply(t1, t2, t3, t4, t5, t6, t7).executeReactive()
 
   override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
     new ScalaPreparedStatement7(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec)
@@ -602,29 +610,29 @@ class ScalaPreparedStatement8[T1, T2, T3, T4, T5, T6, T7, T8, Out](pstmt: Prepar
   override val tupled: ((T1, T2, T3, T4, T5, T6, T7, T8)) => BoundStatement = (apply _).tupled
 
   /** Returns a [[BoundStatement]] with the provided values*/
-  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8): BoundStatement =
-    pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec)
+  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8): ScalaBoundStatement[Out] =
+    tag(pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec))
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
    * @return [[PagingIterable]] of [[Out]] output values
    */
   def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8)(implicit session: CqlSession): PagingIterable[Out] =
-    apply(t1, t2, t3, t4, t5, t6, t7, t8).execute().as[Out](mapper)
+    apply(t1, t2, t3, t4, t5, t6, t7, t8).execute()
 
   /** Executes this [[PreparedStatement]] in a asynchronous fashion
    *
    * @return a future of [[MappedAsyncPagingIterable]]
    */
   def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8)(implicit session: CqlSession, ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] =
-    apply(t1, t2, t3, t4, t5, t6, t7, t8).executeAsync().map(_.as[Out](mapper))
+    apply(t1, t2, t3, t4, t5, t6, t7, t8).executeAsync()
 
   /** Executes this [[PreparedStatement]] in a reactive fashion
    *
    * @return [[Publisher]] of [[Out]] output values
    */
   def executeReactive(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8)(implicit session: CqlSession): Publisher[Out] =
-    apply(t1, t2, t3, t4, t5, t6, t7, t8).executeReactive().as[Out](mapper)
+    apply(t1, t2, t3, t4, t5, t6, t7, t8).executeReactive()
 
   override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
     new ScalaPreparedStatement8(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec)
@@ -645,29 +653,29 @@ class ScalaPreparedStatement9[T1, T2, T3, T4, T5, T6, T7, T8, T9, Out](pstmt: Pr
   override val tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9)) => BoundStatement = (apply _).tupled
 
   /** Returns a [[BoundStatement]] with the provided values*/
-  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9): BoundStatement =
-    pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec)
+  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9): ScalaBoundStatement[Out] =
+    tag(pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec))
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
    * @return [[PagingIterable]] of [[Out]] output values
    */
   def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9)(implicit session: CqlSession): PagingIterable[Out] =
-    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9).execute().as[Out](mapper)
+    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9).execute()
 
   /** Executes this [[PreparedStatement]] in a asynchronous fashion
    *
    * @return a future of [[MappedAsyncPagingIterable]]
    */
   def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9)(implicit session: CqlSession, ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] =
-    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9).executeAsync().map(_.as[Out](mapper))
+    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9).executeAsync()
 
   /** Executes this [[PreparedStatement]] in a reactive fashion
    *
    * @return [[Publisher]] of [[Out]] output values
    */
   def executeReactive(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9)(implicit session: CqlSession): Publisher[Out] =
-    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9).executeReactive().as[Out](mapper)
+    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9).executeReactive()
 
   override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
     new ScalaPreparedStatement9(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec)
@@ -688,29 +696,29 @@ class ScalaPreparedStatement10[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, Out](pst
   override val tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10)) => BoundStatement = (apply _).tupled
 
   /** Returns a [[BoundStatement]] with the provided values*/
-  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10): BoundStatement =
-    pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec)
+  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10): ScalaBoundStatement[Out] =
+    tag(pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec))
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
    * @return [[PagingIterable]] of [[Out]] output values
    */
   def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10)(implicit session: CqlSession): PagingIterable[Out] =
-    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10).execute().as[Out](mapper)
+    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10).execute()
 
   /** Executes this [[PreparedStatement]] in a asynchronous fashion
    *
    * @return a future of [[MappedAsyncPagingIterable]]
    */
   def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10)(implicit session: CqlSession, ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] =
-    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10).executeAsync().map(_.as[Out](mapper))
+    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10).executeAsync()
 
   /** Executes this [[PreparedStatement]] in a reactive fashion
    *
    * @return [[Publisher]] of [[Out]] output values
    */
   def executeReactive(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10)(implicit session: CqlSession): Publisher[Out] =
-    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10).executeReactive().as[Out](mapper)
+    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10).executeReactive()
 
   override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
     new ScalaPreparedStatement10(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec)
@@ -731,29 +739,29 @@ class ScalaPreparedStatement11[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, Out
   override val tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11)) => BoundStatement = (apply _).tupled
 
   /** Returns a [[BoundStatement]] with the provided values*/
-  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11): BoundStatement =
-    pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec)
+  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11): ScalaBoundStatement[Out] =
+    tag(pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec))
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
    * @return [[PagingIterable]] of [[Out]] output values
    */
   def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11)(implicit session: CqlSession): PagingIterable[Out] =
-    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11).execute().as[Out](mapper)
+    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11).execute()
 
   /** Executes this [[PreparedStatement]] in a asynchronous fashion
    *
    * @return a future of [[MappedAsyncPagingIterable]]
    */
   def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11)(implicit session: CqlSession, ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] =
-    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11).executeAsync().map(_.as[Out](mapper))
+    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11).executeAsync()
 
   /** Executes this [[PreparedStatement]] in a reactive fashion
    *
    * @return [[Publisher]] of [[Out]] output values
    */
   def executeReactive(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11)(implicit session: CqlSession): Publisher[Out] =
-    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11).executeReactive().as[Out](mapper)
+    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11).executeReactive()
 
   override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
     new ScalaPreparedStatement11(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec)
@@ -774,29 +782,29 @@ class ScalaPreparedStatement12[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   override val tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12)) => BoundStatement = (apply _).tupled
 
   /** Returns a [[BoundStatement]] with the provided values*/
-  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12): BoundStatement =
-    pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec)
+  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12): ScalaBoundStatement[Out] =
+    tag(pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec))
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
    * @return [[PagingIterable]] of [[Out]] output values
    */
   def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12)(implicit session: CqlSession): PagingIterable[Out] =
-    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12).execute().as[Out](mapper)
+    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12).execute()
 
   /** Executes this [[PreparedStatement]] in a asynchronous fashion
    *
    * @return a future of [[MappedAsyncPagingIterable]]
    */
   def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12)(implicit session: CqlSession, ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] =
-    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12).executeAsync().map(_.as[Out](mapper))
+    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12).executeAsync()
 
   /** Executes this [[PreparedStatement]] in a reactive fashion
    *
    * @return [[Publisher]] of [[Out]] output values
    */
   def executeReactive(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12)(implicit session: CqlSession): Publisher[Out] =
-    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12).executeReactive().as[Out](mapper)
+    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12).executeReactive()
 
   override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
     new ScalaPreparedStatement12(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec)
@@ -817,29 +825,29 @@ class ScalaPreparedStatement13[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   override val tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13)) => BoundStatement = (apply _).tupled
 
   /** Returns a [[BoundStatement]] with the provided values*/
-  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13): BoundStatement =
-    pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec)
+  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13): ScalaBoundStatement[Out] =
+    tag(pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec))
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
    * @return [[PagingIterable]] of [[Out]] output values
    */
   def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13)(implicit session: CqlSession): PagingIterable[Out] =
-    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13).execute().as[Out](mapper)
+    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13).execute()
 
   /** Executes this [[PreparedStatement]] in a asynchronous fashion
    *
    * @return a future of [[MappedAsyncPagingIterable]]
    */
   def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13)(implicit session: CqlSession, ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] =
-    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13).executeAsync().map(_.as[Out](mapper))
+    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13).executeAsync()
 
   /** Executes this [[PreparedStatement]] in a reactive fashion
    *
    * @return [[Publisher]] of [[Out]] output values
    */
   def executeReactive(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13)(implicit session: CqlSession): Publisher[Out] =
-    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13).executeReactive().as[Out](mapper)
+    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13).executeReactive()
 
   override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
     new ScalaPreparedStatement13(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec)
@@ -860,29 +868,29 @@ class ScalaPreparedStatement14[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   override val tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14)) => BoundStatement = (apply _).tupled
 
   /** Returns a [[BoundStatement]] with the provided values*/
-  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14): BoundStatement =
-    pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec)
+  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14): ScalaBoundStatement[Out] =
+    tag(pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec))
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
    * @return [[PagingIterable]] of [[Out]] output values
    */
   def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14)(implicit session: CqlSession): PagingIterable[Out] =
-    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14).execute().as[Out](mapper)
+    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14).execute()
 
   /** Executes this [[PreparedStatement]] in a asynchronous fashion
    *
    * @return a future of [[MappedAsyncPagingIterable]]
    */
   def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14)(implicit session: CqlSession, ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] =
-    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14).executeAsync().map(_.as[Out](mapper))
+    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14).executeAsync()
 
   /** Executes this [[PreparedStatement]] in a reactive fashion
    *
    * @return [[Publisher]] of [[Out]] output values
    */
   def executeReactive(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14)(implicit session: CqlSession): Publisher[Out] =
-    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14).executeReactive().as[Out](mapper)
+    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14).executeReactive()
 
   override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
     new ScalaPreparedStatement14(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec, t14Codec)
@@ -903,29 +911,29 @@ class ScalaPreparedStatement15[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   override val tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15)) => BoundStatement = (apply _).tupled
 
   /** Returns a [[BoundStatement]] with the provided values*/
-  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15): BoundStatement =
-    pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec)
+  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15): ScalaBoundStatement[Out] =
+    tag(pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec))
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
    * @return [[PagingIterable]] of [[Out]] output values
    */
   def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15)(implicit session: CqlSession): PagingIterable[Out] =
-    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15).execute().as[Out](mapper)
+    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15).execute()
 
   /** Executes this [[PreparedStatement]] in a asynchronous fashion
    *
    * @return a future of [[MappedAsyncPagingIterable]]
    */
   def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15)(implicit session: CqlSession, ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] =
-    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15).executeAsync().map(_.as[Out](mapper))
+    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15).executeAsync()
 
   /** Executes this [[PreparedStatement]] in a reactive fashion
    *
    * @return [[Publisher]] of [[Out]] output values
    */
   def executeReactive(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15)(implicit session: CqlSession): Publisher[Out] =
-    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15).executeReactive().as[Out](mapper)
+    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15).executeReactive()
 
   override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
     new ScalaPreparedStatement15(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec, t14Codec, t15Codec)
@@ -946,29 +954,29 @@ class ScalaPreparedStatement16[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   override val tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16)) => BoundStatement = (apply _).tupled
 
   /** Returns a [[BoundStatement]] with the provided values*/
-  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16): BoundStatement =
-    pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec).setIfDefined(15, t16, t16Codec)
+  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16): ScalaBoundStatement[Out] =
+    tag(pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec).setIfDefined(15, t16, t16Codec))
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
    * @return [[PagingIterable]] of [[Out]] output values
    */
   def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16)(implicit session: CqlSession): PagingIterable[Out] =
-    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16).execute().as[Out](mapper)
+    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16).execute()
 
   /** Executes this [[PreparedStatement]] in a asynchronous fashion
    *
    * @return a future of [[MappedAsyncPagingIterable]]
    */
   def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16)(implicit session: CqlSession, ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] =
-    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16).executeAsync().map(_.as[Out](mapper))
+    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16).executeAsync()
 
   /** Executes this [[PreparedStatement]] in a reactive fashion
    *
    * @return [[Publisher]] of [[Out]] output values
    */
   def executeReactive(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16)(implicit session: CqlSession): Publisher[Out] =
-    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16).executeReactive().as[Out](mapper)
+    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16).executeReactive()
 
   override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
     new ScalaPreparedStatement16(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec, t14Codec, t15Codec, t16Codec)
@@ -989,29 +997,29 @@ class ScalaPreparedStatement17[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   override val tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17)) => BoundStatement = (apply _).tupled
 
   /** Returns a [[BoundStatement]] with the provided values*/
-  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17): BoundStatement =
-    pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec).setIfDefined(15, t16, t16Codec).setIfDefined(16, t17, t17Codec)
+  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17): ScalaBoundStatement[Out] =
+    tag(pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec).setIfDefined(15, t16, t16Codec).setIfDefined(16, t17, t17Codec))
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
    * @return [[PagingIterable]] of [[Out]] output values
    */
   def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17)(implicit session: CqlSession): PagingIterable[Out] =
-    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17).execute().as[Out](mapper)
+    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17).execute()
 
   /** Executes this [[PreparedStatement]] in a asynchronous fashion
    *
    * @return a future of [[MappedAsyncPagingIterable]]
    */
   def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17)(implicit session: CqlSession, ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] =
-    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17).executeAsync().map(_.as[Out](mapper))
+    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17).executeAsync()
 
   /** Executes this [[PreparedStatement]] in a reactive fashion
    *
    * @return [[Publisher]] of [[Out]] output values
    */
   def executeReactive(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17)(implicit session: CqlSession): Publisher[Out] =
-    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17).executeReactive().as[Out](mapper)
+    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17).executeReactive()
 
   override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
     new ScalaPreparedStatement17(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec, t14Codec, t15Codec, t16Codec, t17Codec)
@@ -1032,29 +1040,29 @@ class ScalaPreparedStatement18[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   override val tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18)) => BoundStatement = (apply _).tupled
 
   /** Returns a [[BoundStatement]] with the provided values*/
-  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18): BoundStatement =
-    pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec).setIfDefined(15, t16, t16Codec).setIfDefined(16, t17, t17Codec).setIfDefined(17, t18, t18Codec)
+  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18): ScalaBoundStatement[Out] =
+    tag(pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec).setIfDefined(15, t16, t16Codec).setIfDefined(16, t17, t17Codec).setIfDefined(17, t18, t18Codec))
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
    * @return [[PagingIterable]] of [[Out]] output values
    */
   def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18)(implicit session: CqlSession): PagingIterable[Out] =
-    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18).execute().as[Out](mapper)
+    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18).execute()
 
   /** Executes this [[PreparedStatement]] in a asynchronous fashion
    *
    * @return a future of [[MappedAsyncPagingIterable]]
    */
   def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18)(implicit session: CqlSession, ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] =
-    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18).executeAsync().map(_.as[Out](mapper))
+    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18).executeAsync()
 
   /** Executes this [[PreparedStatement]] in a reactive fashion
    *
    * @return [[Publisher]] of [[Out]] output values
    */
   def executeReactive(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18)(implicit session: CqlSession): Publisher[Out] =
-    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18).executeReactive().as[Out](mapper)
+    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18).executeReactive()
 
   override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
     new ScalaPreparedStatement18(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec, t14Codec, t15Codec, t16Codec, t17Codec, t18Codec)
@@ -1075,29 +1083,29 @@ class ScalaPreparedStatement19[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   override val tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19)) => BoundStatement = (apply _).tupled
 
   /** Returns a [[BoundStatement]] with the provided values*/
-  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19): BoundStatement =
-    pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec).setIfDefined(15, t16, t16Codec).setIfDefined(16, t17, t17Codec).setIfDefined(17, t18, t18Codec).setIfDefined(18, t19, t19Codec)
+  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19): ScalaBoundStatement[Out] =
+    tag(pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec).setIfDefined(15, t16, t16Codec).setIfDefined(16, t17, t17Codec).setIfDefined(17, t18, t18Codec).setIfDefined(18, t19, t19Codec))
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
    * @return [[PagingIterable]] of [[Out]] output values
    */
   def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19)(implicit session: CqlSession): PagingIterable[Out] =
-    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19).execute().as[Out](mapper)
+    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19).execute()
 
   /** Executes this [[PreparedStatement]] in a asynchronous fashion
    *
    * @return a future of [[MappedAsyncPagingIterable]]
    */
   def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19)(implicit session: CqlSession, ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] =
-    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19).executeAsync().map(_.as[Out](mapper))
+    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19).executeAsync()
 
   /** Executes this [[PreparedStatement]] in a reactive fashion
    *
    * @return [[Publisher]] of [[Out]] output values
    */
   def executeReactive(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19)(implicit session: CqlSession): Publisher[Out] =
-    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19).executeReactive().as[Out](mapper)
+    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19).executeReactive()
 
   override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
     new ScalaPreparedStatement19(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec, t14Codec, t15Codec, t16Codec, t17Codec, t18Codec, t19Codec)
@@ -1118,29 +1126,29 @@ class ScalaPreparedStatement20[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   override val tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20)) => BoundStatement = (apply _).tupled
 
   /** Returns a [[BoundStatement]] with the provided values*/
-  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20): BoundStatement =
-    pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec).setIfDefined(15, t16, t16Codec).setIfDefined(16, t17, t17Codec).setIfDefined(17, t18, t18Codec).setIfDefined(18, t19, t19Codec).setIfDefined(19, t20, t20Codec)
+  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20): ScalaBoundStatement[Out] =
+    tag(pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec).setIfDefined(15, t16, t16Codec).setIfDefined(16, t17, t17Codec).setIfDefined(17, t18, t18Codec).setIfDefined(18, t19, t19Codec).setIfDefined(19, t20, t20Codec))
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
    * @return [[PagingIterable]] of [[Out]] output values
    */
   def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20)(implicit session: CqlSession): PagingIterable[Out] =
-    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20).execute().as[Out](mapper)
+    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20).execute()
 
   /** Executes this [[PreparedStatement]] in a asynchronous fashion
    *
    * @return a future of [[MappedAsyncPagingIterable]]
    */
   def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20)(implicit session: CqlSession, ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] =
-    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20).executeAsync().map(_.as[Out](mapper))
+    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20).executeAsync()
 
   /** Executes this [[PreparedStatement]] in a reactive fashion
    *
    * @return [[Publisher]] of [[Out]] output values
    */
   def executeReactive(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20)(implicit session: CqlSession): Publisher[Out] =
-    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20).executeReactive().as[Out](mapper)
+    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20).executeReactive()
 
   override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
     new ScalaPreparedStatement20(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec, t14Codec, t15Codec, t16Codec, t17Codec, t18Codec, t19Codec, t20Codec)
@@ -1161,29 +1169,29 @@ class ScalaPreparedStatement21[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   override val tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21)) => BoundStatement = (apply _).tupled
 
   /** Returns a [[BoundStatement]] with the provided values*/
-  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21): BoundStatement =
-    pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec).setIfDefined(15, t16, t16Codec).setIfDefined(16, t17, t17Codec).setIfDefined(17, t18, t18Codec).setIfDefined(18, t19, t19Codec).setIfDefined(19, t20, t20Codec).setIfDefined(20, t21, t21Codec)
+  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21): ScalaBoundStatement[Out] =
+    tag(pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec).setIfDefined(15, t16, t16Codec).setIfDefined(16, t17, t17Codec).setIfDefined(17, t18, t18Codec).setIfDefined(18, t19, t19Codec).setIfDefined(19, t20, t20Codec).setIfDefined(20, t21, t21Codec))
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
    * @return [[PagingIterable]] of [[Out]] output values
    */
   def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21)(implicit session: CqlSession): PagingIterable[Out] =
-    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21).execute().as[Out](mapper)
+    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21).execute()
 
   /** Executes this [[PreparedStatement]] in a asynchronous fashion
    *
    * @return a future of [[MappedAsyncPagingIterable]]
    */
   def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21)(implicit session: CqlSession, ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] =
-    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21).executeAsync().map(_.as[Out](mapper))
+    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21).executeAsync()
 
   /** Executes this [[PreparedStatement]] in a reactive fashion
    *
    * @return [[Publisher]] of [[Out]] output values
    */
   def executeReactive(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21)(implicit session: CqlSession): Publisher[Out] =
-    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21).executeReactive().as[Out](mapper)
+    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21).executeReactive()
 
   override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
     new ScalaPreparedStatement21(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec, t14Codec, t15Codec, t16Codec, t17Codec, t18Codec, t19Codec, t20Codec, t21Codec)
@@ -1204,29 +1212,29 @@ class ScalaPreparedStatement22[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   override val tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22)) => BoundStatement = (apply _).tupled
 
   /** Returns a [[BoundStatement]] with the provided values*/
-  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21, t22: T22): BoundStatement =
-    pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec).setIfDefined(15, t16, t16Codec).setIfDefined(16, t17, t17Codec).setIfDefined(17, t18, t18Codec).setIfDefined(18, t19, t19Codec).setIfDefined(19, t20, t20Codec).setIfDefined(20, t21, t21Codec).setIfDefined(21, t22, t22Codec)
+  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21, t22: T22): ScalaBoundStatement[Out] =
+    tag(pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec).setIfDefined(15, t16, t16Codec).setIfDefined(16, t17, t17Codec).setIfDefined(17, t18, t18Codec).setIfDefined(18, t19, t19Codec).setIfDefined(19, t20, t20Codec).setIfDefined(20, t21, t21Codec).setIfDefined(21, t22, t22Codec))
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
    * @return [[PagingIterable]] of [[Out]] output values
    */
   def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21, t22: T22)(implicit session: CqlSession): PagingIterable[Out] =
-    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21, t22).execute().as[Out](mapper)
+    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21, t22).execute()
 
   /** Executes this [[PreparedStatement]] in a asynchronous fashion
    *
    * @return a future of [[MappedAsyncPagingIterable]]
    */
   def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21, t22: T22)(implicit session: CqlSession, ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] =
-    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21, t22).executeAsync().map(_.as[Out](mapper))
+    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21, t22).executeAsync()
 
   /** Executes this [[PreparedStatement]] in a reactive fashion
    *
    * @return [[Publisher]] of [[Out]] output values
    */
   def executeReactive(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21, t22: T22)(implicit session: CqlSession): Publisher[Out] =
-    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21, t22).executeReactive().as[Out](mapper)
+    apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21, t22).executeReactive()
 
   override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
     new ScalaPreparedStatement22(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec, t14Codec, t15Codec, t16Codec, t17Codec, t18Codec, t19Codec, t20Codec, t21Codec, t22Codec)

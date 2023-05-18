@@ -32,10 +32,10 @@ import com.datastax.oss.driver.api.core.cql.PagingState
 import net.nmoncho.helenus.api.cql.StatementOptions
 
 /** Adds [[StatementOptions]] to a [[ScalaPreparedStatement]].
- *
- * This allows to set options on a [[com.datastax.oss.driver.api.core.cql.PreparedStatement]] level instead of from a
- * [[BoundStatement]] level, as provided by Datastax's Driver.
- */
+  *
+  * This allows to set options on a [[com.datastax.oss.driver.api.core.cql.PreparedStatement]] level instead of from a
+  * [[BoundStatement]] level, as provided by Datastax's Driver.
+  */
 trait Options {
   type Self <: ScalaPreparedStatement[_, _]
 
@@ -66,60 +66,60 @@ trait Options {
     withOptions(options.copy(profile = Some(profile)))
 
   /** Sets the <a href="https://docs.datastax.com/en/developer/java-driver/latest/manual/core/statements/per_query_keyspace/#relation-to-the-routing-keyspace">Routing Keyspace</a> for this statement
-   *
-   * @return new [[BoundStatement]] instance with the routing keyspace
-   */
+    *
+    * @return new [[BoundStatement]] instance with the routing keyspace
+    */
   def withRoutingKeyspace(routingKeyspace: CqlIdentifier): Self =
     withOptions(options.copy(routingKeyspace = Some(routingKeyspace)))
 
   /** Sets the <a href="https://docs.datastax.com/en/developer/java-driver/latest/manual/core/statements/per_query_keyspace/#relation-to-the-routing-keyspace">Routing Key</a> for this statement
-   *
-   * For composite Routing Keys, see [[com.datastax.oss.driver.internal.core.util.RoutingKey]]
-   *
-   * @return new [[BoundStatement]] instance with the routing key
-   */
+    *
+    * For composite Routing Keys, see [[com.datastax.oss.driver.internal.core.util.RoutingKey]]
+    *
+    * @return new [[BoundStatement]] instance with the routing key
+    */
   def withRoutingKey(routingKey: ByteBuffer): Self =
     withOptions(options.copy(routingKey = Some(routingKey)))
 
   /** Enables/Disables <a href="https://docs.datastax.com/en/developer/java-driver/latest/manual/core/tracing/">tracing</a> on this statement
-   *
-   * @return new [[BoundStatement]] instance with/out tracing
-   */
+    *
+    * @return new [[BoundStatement]] instance with/out tracing
+    */
   def withTracing(enabled: Boolean): Self =
     withOptions(options.copy(tracing = enabled))
 
   /** Sets the query timeout for this statement
-   *
-   * @return new [[BoundStatement]] instance with timeout
-   */
+    *
+    * @return new [[BoundStatement]] instance with timeout
+    */
   def withTimeout(timeout: Duration): Self =
     withOptions(options.copy(timeout = Some(timeout)))
 
   /** Sets the Paging State for this statement
-   *
-   * @return new [[BoundStatement]] instance with paging state
-   */
+    *
+    * @return new [[BoundStatement]] instance with paging state
+    */
   def withPagingState(pagingState: ByteBuffer): Self =
     withOptions(options.copy(pagingState = Some(pagingState)))
 
   /** Sets the [[PagingState]] for this statement
-   *
-   * @return new [[BoundStatement]] instance with paging state
-   */
+    *
+    * @return new [[BoundStatement]] instance with paging state
+    */
   def withPagingState(pagingState: PagingState): Self =
     withOptions(options.copy(pagingState = Some(pagingState.getRawPagingState)))
 
   /** Sets the page size for this statement
-   *
-   * @return new [[BoundStatement]] instance with page size
-   */
+    *
+    * @return new [[BoundStatement]] instance with page size
+    */
   def withPageSize(pageSize: Int): Self =
     withOptions(options.copy(pageSize = pageSize))
 
   /** Sets the [[ConsistencyLevel]] for this statement
-   *
-   * @return new [[BoundStatement]] instance with consistency level
-   */
+    *
+    * @return new [[BoundStatement]] instance with consistency level
+    */
   def withConsistencyLevel(consistencyLevel: ConsistencyLevel): Self =
     withOptions(options.copy(consistencyLevel = Some(consistencyLevel)))
 }

@@ -66,19 +66,18 @@ class RowMapperSpec
       // this test if when users don't use the short-hand syntax
       val query = "SELECT name FROM hotels WHERE id = ?".toCQL
         .prepare[String]
+        .as[String]
 
       query(Hotels.h3.id)
         .execute()
-        .as[String]
         .nextOption() shouldBe Some(Hotels.h3.name)
 
       query(Hotels.h4.id)
         .execute()
-        .nextOption()
-        .map(_.as[String]) shouldBe Some(Hotels.h4.name)
+        .nextOption() shouldBe Some(Hotels.h4.name)
 
       whenReady(query(Hotels.h5.id).executeAsync()) { p =>
-        p.as[String].currPage.nextOption() shouldBe Some(Hotels.h5.name)
+        p.currPage.nextOption() shouldBe Some(Hotels.h5.name)
       }
     }
 

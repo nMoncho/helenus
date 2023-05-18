@@ -46,6 +46,7 @@ import net.nmoncho.helenus.api.RowMapper
 import net.nmoncho.helenus.api.`type`.codec.CodecDerivation
 import net.nmoncho.helenus.api.cql.Adapter
 import net.nmoncho.helenus.api.cql.ScalaPreparedStatement.CQLQuery
+import net.nmoncho.helenus.api.cql.ScalaPreparedStatement.ScalaBoundStatement
 import net.nmoncho.helenus.internal.codec.udt.UDTCodec
 import net.nmoncho.helenus.internal.cql._
 import net.nmoncho.helenus.internal.reactive.MapOperator
@@ -58,6 +59,8 @@ package object helenus extends CodecDerivation {
 
   implicit def cqlSessionAdapter(implicit session: CqlSession): Future[CqlSession] =
     Future.successful(session)
+
+  implicit val defaultIdentityRowMapper: RowMapper[Row] = RowMapper.identity
 
   implicit class ClqSessionOps(private val session: CqlSession) extends AnyVal {
 
@@ -133,7 +136,7 @@ package object helenus extends CodecDerivation {
     */
   implicit class CqlStringInterpolation(private val sc: StringContext) extends AnyVal {
 
-    def cql(args: ParameterValue*)(implicit session: CqlSession): BoundStatement = {
+    def cql(args: ParameterValue*)(implicit session: CqlSession): ScalaBoundStatement[Row] = {
       val query = cqlQuery(args)
 
       val bstmt = session.prepare(query).bind()
@@ -142,7 +145,7 @@ package object helenus extends CodecDerivation {
 
     def asyncCql(
         args: ParameterValue*
-    )(implicit session: CqlSession, ec: ExecutionContext): Future[BoundStatement] = {
+    )(implicit session: CqlSession, ec: ExecutionContext): Future[ScalaBoundStatement[Row]] = {
       import net.nmoncho.helenus.internal.compat.FutureConverters._
 
       val query = cqlQuery(args)
@@ -152,12 +155,16 @@ package object helenus extends CodecDerivation {
       }
     }
 
-    private def setParameters(bstmt: BoundStatement, args: Seq[ParameterValue]): BoundStatement =
+    private def setParameters(
+        bstmt: BoundStatement,
+        args: Seq[ParameterValue]
+    ): ScalaBoundStatement[Row] =
       args
         .foldLeft(bstmt -> 0) { case ((bstmt, index), arg) =>
           arg.set(bstmt, index) -> (index + 1)
         }
         ._1
+        .asInstanceOf[ScalaBoundStatement[Row]]
 
     private def cqlQuery(args: Seq[ParameterValue]): String = {
       val partsIt = sc.parts.iterator
@@ -176,17 +183,22 @@ package object helenus extends CodecDerivation {
 
   /** Extension methods for [[BoundStatement]], helping you execute them with the proper context.
     */
-  implicit class BoundStatementSyncOps(private val bstmt: BoundStatement) extends AnyVal {
+  implicit class BoundStatementSyncOps[Out](private val bstmt: ScalaBoundStatement[Out])
+      extends AnyVal {
     import net.nmoncho.helenus.internal.compat.FutureConverters._
 
-    def execute()(implicit session: CqlSession): ResultSet =
-      session.execute(bstmt)
+    def execute()(implicit session: CqlSession, mapper: RowMapper[Out]): PagingIterable[Out] =
+      session.execute(bstmt).as[Out]
 
-    def executeAsync()(implicit session: CqlSession): Future[AsyncResultSet] =
-      session.executeAsync(bstmt).asScala
+    def executeAsync()(
+        implicit session: CqlSession,
+        ec: ExecutionContext,
+        mapper: RowMapper[Out]
+    ): Future[MappedAsyncPagingIterable[Out]] =
+      session.executeAsync(bstmt).asScala.map(_.as[Out])
 
-    def executeReactive()(implicit session: CqlSession): ReactiveResultSet =
-      session.executeReactive(bstmt)
+    def executeReactive()(implicit session: CqlSession, mapper: RowMapper[Out]): Publisher[Out] =
+      session.executeReactive(bstmt).as[Out]
   }
 
   implicit class PreparedStatementSyncStringOps(private val query: String) extends AnyVal {
