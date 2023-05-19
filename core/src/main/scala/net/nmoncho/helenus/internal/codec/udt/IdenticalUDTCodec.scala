@@ -20,7 +20,8 @@
  */
 
 package net.nmoncho.helenus
-package internal.codec.udt
+package internal.codec
+package udt
 
 import java.nio.ByteBuffer
 
@@ -36,9 +37,6 @@ import com.datastax.oss.driver.internal.core.`type`.DefaultUserDefinedType
 import com.datastax.oss.driver.internal.core.`type`.codec.ParseUtils
 import net.nmoncho.helenus.api.ColumnNamingScheme
 import net.nmoncho.helenus.api.DefaultColumnNamingScheme
-import net.nmoncho.helenus.internal.codec.NULL
-import net.nmoncho.helenus.internal.codec.expectParseChar
-import net.nmoncho.helenus.internal.codec.parseWithCodec
 import shapeless.labelled.FieldType
 import shapeless.syntax.singleton.mkSingletonOps
 
@@ -99,8 +97,10 @@ trait IdenticalUDTCodec[A] {
 object IdenticalUDTCodec {
   import shapeless._
 
-  private val openingChar = '{'
-  private val closingChar = '}'
+  private val openingChar    = '{'
+  private val fieldSeparator = ':'
+  private val separator      = ','
+  private val closingChar    = '}'
 
   /** Creates [[TypeCodec]] for [[A]].
     *
@@ -168,7 +168,7 @@ object IdenticalUDTCodec {
     override def format(value: A): String =
       if (value == null) NULL
       else {
-        val sb = new mutable.StringBuilder(openingChar)
+        val sb = new mutable.StringBuilder().append(openingChar)
 
         codec.format(value, sb)
 
@@ -241,22 +241,17 @@ object IdenticalUDTCodec {
     ): mutable.StringBuilder =
       sb.append(
         columnNamingScheme.asCql(fieldName, pretty = true)
-      ).append(":")
+      ).append(fieldSeparator)
         .append(
           if (value == null || value.head == null) NULL
           else codec.format(value.head)
         )
 
     @inline override def parse(value: String, idx: Int): (FieldType[K, H] :: HNil, Int) = {
-      val start         = ParseUtils.skipSpaces(value, idx + 1)
-      val (parsed, end) = parseWithCodec(value, codec, start)
-
-      val next = ParseUtils.skipSpaces(value, end)
-      if (next >= value.length) {
-        throw new IllegalArgumentException(
-          s"Malformed tuple value '$value', expected something else but got EOF"
-        )
-      }
+      val fieldNameEnd =
+        skipSpacesAndExpectId(value, idx, columnNamingScheme.asCql(fieldName, pretty = true))
+      val valueStart     = skipSpacesAndExpect(value, fieldNameEnd, fieldSeparator)
+      val (parsed, next) = parseWithCodec(value, codec, valueStart)
 
       ((witness.value ->> parsed).asInstanceOf[FieldType[K, H]] :: HNil) -> next
     }
@@ -272,8 +267,9 @@ object IdenticalUDTCodec {
   ): IdenticalUDTCodec[FieldType[K, H] :: T] =
     new IdenticalUDTCodec[FieldType[K, H] :: T] {
 
-      private val fieldName: String = witness.value.name
-      private val column: String    = columnNamingScheme.map(fieldName)
+      private val fieldName   = witness.value.name
+      private val column      = columnNamingScheme.map(fieldName)
+      private val prettyCqlId = columnNamingScheme.asCql(fieldName, pretty = true)
 
       override val columns: List[(String, DataType)] =
         (column -> headCodec.getCqlType) :: tailCodec.columns
@@ -318,31 +314,25 @@ object IdenticalUDTCodec {
           sb: mutable.StringBuilder
       ): mutable.StringBuilder = {
         val headFormat = sb
-          .append(
-            columnNamingScheme.asCql(fieldName, pretty = true)
-          )
-          .append(":")
+          .append(prettyCqlId)
+          .append(fieldSeparator)
           .append(
             if (value == null || value.head == null) NULL
             else headCodec.format(value.head)
           )
-          .append(",")
+          .append(separator)
 
         tailCodec.format(value.tail, headFormat)
       }
 
       @inline override def parse(value: String, idx: Int): (FieldType[K, H] :: T, Int) = {
-        val start         = ParseUtils.skipSpaces(value, idx + 1)
-        val (parsed, end) = parseWithCodec(value, headCodec, start)
+        val fieldNameEnd =
+          skipSpacesAndExpectId(value, idx, prettyCqlId)
+        val valueStart         = skipSpacesAndExpect(value, fieldNameEnd, fieldSeparator)
+        val (parsed, valueEnd) = parseWithCodec(value, headCodec, valueStart)
+        val afterValue         = skipSpacesAndExpect(value, valueEnd, separator)
 
-        val next = ParseUtils.skipSpaces(value, end)
-        if (next >= value.length) {
-          throw new IllegalArgumentException(
-            s"Malformed tuple value '$value', expected something else but got EOF"
-          )
-        }
-
-        val (tail, nextTail) = tailCodec.parse(value, next)
+        val (tail, nextTail) = tailCodec.parse(value, afterValue)
 
         ((witness.value ->> parsed).asInstanceOf[FieldType[K, H]] :: tail) -> nextTail
       }
@@ -374,7 +364,7 @@ object IdenticalUDTCodec {
       val start = ParseUtils.skipSpaces(value, 0)
 
       expectParseChar(value, start, openingChar)
-      val (parsed, end) = codec.value.parse(value, start)
+      val (parsed, end) = codec.value.parse(value, start + 1)
       expectParseChar(value, end, closingChar)
 
       gen.from(parsed) -> end

@@ -37,6 +37,38 @@ package object codec {
     codec.parse(value.substring(start, end)) -> end
   }
 
+  /** Skips spaces and expects a CQL identifier
+    *
+    * @param value value to parse
+    * @param index start index to consider
+    * @param expectedId expected id
+    * @return index from where to continue
+    */
+  @throws[IllegalArgumentException]("if 'index' is EOF, or if 'value != expected'")
+  def skipSpacesAndExpectId(value: String, index: Int, expectedId: String): Int = {
+    val idx = ParseUtils.skipSpaces(value, index)
+    val end = expectParseId(value, idx, expectedId)
+    ParseUtils.skipSpaces(value, end)
+  }
+
+  @throws[IllegalArgumentException]("if 'index' is EOF, or if 'value != expected'")
+  private def expectParseId(value: String, start: Int, expectedId: String): Int =
+    if (start >= value.length) {
+      throw new IllegalArgumentException(
+        s"Cannot parse value from '$value', expecting '$expectedId', but got EOF"
+      )
+    } else {
+      val end    = ParseUtils.skipCQLId(value, start)
+      val parsed = value.substring(start, end)
+      if (parsed != expectedId) {
+        throw new IllegalArgumentException(
+          s"Cannot parse value from '$value', expecting '$expectedId' but got '$parsed'"
+        )
+      }
+
+      end
+    }
+
   /** Skips all spaces around an expected character (ie. spaces before and after)
     *
     * @param value value to check
