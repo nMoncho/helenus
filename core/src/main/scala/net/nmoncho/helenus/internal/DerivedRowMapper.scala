@@ -111,9 +111,11 @@ object DerivedRowMapper extends CaseClassRowMapperDerivation {
   sealed trait DerivedIdxRowMapper[T] extends DerivedRowMapper[T] {
     def apply(idx: Int, row: Row): T
 
+    // $COVERAGE-OFF$
     override def apply(row: Row): T = throw new UnsupportedOperationException(
       "Invalid operation. DerivedIdxRowMapper requires an index to operate."
     )
+    // $COVERAGE-ON$
   }
 
   /* Tuple RowMapper derivation */

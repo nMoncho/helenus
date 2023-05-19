@@ -43,11 +43,13 @@ class EitherCodecSpec extends AnyWordSpec with Matchers with CodecSpecBase[Eithe
     }
 
     "format" in {
+      format(null) shouldBe "NULL"
       format(Left(1)) shouldBe "(1,NULL)"
       format(Right("foo")) shouldBe "(NULL,'foo')"
     }
 
     "parse" in {
+      parse("NULL") shouldBe null
       parse("(1,NULL)") shouldBe Left(1)
       parse("(NULL,'foo')") shouldBe Right("foo")
     }

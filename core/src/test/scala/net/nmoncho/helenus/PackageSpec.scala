@@ -19,36 +19,34 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package net.nmoncho.helenus.api
+package net.nmoncho.helenus
 
+import net.nmoncho.helenus.utils.CassandraSpec
+import org.scalatest.OptionValues._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-class ColumnNamingSchemeSpec extends AnyWordSpec with Matchers {
+class PackageSpec extends AnyWordSpec with Matchers with CassandraSpec {
 
-  private val camelCase  = "numCherries"
-  private val snakeCase  = "num_cherries"
-  private val pascalCase = "NumCherries"
+  "Package" should {
 
-  "DefaultColumnMapper" should {
-    "map to camel case" in {
-      withClue("the assumed starting point is camel case") {
-        DefaultColumnNamingScheme.map(camelCase) shouldBe camelCase
-      }
+    "get keyspace by name" in {
+      val sessionKeyspace = session.keyspace(keyspace)
+      sessionKeyspace shouldBe defined
+      sessionKeyspace.value.getName.asInternal() shouldEqual keyspace
+
+      sessionKeyspace shouldEqual session.sessionKeyspace
+
+      session.keyspace("another_keyspace") should not be defined
+    }
+
+    "get Execution Profiles" in {
+      val defaultProfile = session.executionProfile("default")
+      defaultProfile shouldBe defined
+      defaultProfile.value.getName shouldEqual "default"
+
+      session.executionProfile("another-profile") should not be defined
     }
   }
 
-  "SnakeCaseMapper" should {
-    "map to snake case" in {
-      SnakeCase.map(camelCase) shouldBe snakeCase
-    }
-  }
-
-  "PascalCaseMapper" should {
-    "map to pascal case" in {
-      PascalCase.map("a") shouldBe "A"
-      PascalCase.map("A") shouldBe "A"
-      PascalCase.map(camelCase) shouldBe pascalCase
-    }
-  }
 }

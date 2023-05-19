@@ -63,6 +63,12 @@ class UdtCodecSpec extends AnyWordSpec with Matchers {
       round shouldBe sundae
       round should not be vanilla
     }
+
+    "format-parse" in {
+      val vanilla = IceCream("Vanilla", 3, cone = true)
+
+      codec.parse(codec.format(vanilla)) shouldEqual vanilla
+    }
   }
 }
 

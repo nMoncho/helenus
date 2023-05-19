@@ -39,10 +39,7 @@ import com.datastax.oss.driver.shaded.guava.common.reflect.TypeToken
   * @param right right codec
   */
 class EitherCodec[A, B](left: TypeCodec[A], right: TypeCodec[B]) extends TypeCodec[Either[A, B]] {
-
-  private val separator   = ','
-  private val openingChar = '('
-  private val closingChar = ')'
+  import EitherCodec._
 
   override def encode(value: Either[A, B], protocolVersion: ProtocolVersion): ByteBuffer =
     if (value == null) null
@@ -134,6 +131,10 @@ class EitherCodec[A, B](left: TypeCodec[A], right: TypeCodec[B]) extends TypeCod
 }
 
 object EitherCodec {
+  private val separator   = ','
+  private val openingChar = '('
+  private val closingChar = ')'
+
   def apply[A, B](left: TypeCodec[A], right: TypeCodec[B]): TypeCodec[Either[A, B]] =
     new EitherCodec(left, right)
 }

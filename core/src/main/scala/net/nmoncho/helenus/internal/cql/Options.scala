@@ -107,7 +107,7 @@ trait Options {
     * @return new [[BoundStatement]] instance with paging state
     */
   def withPagingState(pagingState: PagingState): Self =
-    withOptions(options.copy(pagingState = Some(pagingState.getRawPagingState)))
+    withPagingState(pagingState.getRawPagingState)
 
   /** Sets the page size for this statement
     *

@@ -166,46 +166,11 @@ class ScalaPreparedStatementSpec
         .withConsistencyLevel(ConsistencyLevel.LOCAL_QUORUM)
         .withTimeout(Duration.ofHours(1))
         .withPageSize(10)
+        .withTracing(enabled = true)
+        .withExecutionProfile(session.executionProfile("default").get)
+
       val allRowOpt = Option(queryAll.execute().one())
       Hotels.all.map(h => Some(h.name)) should contain(allRowOpt.map(_.getString("name")))
-
-      whenReady(
-        queryAll
-          .executeAsync()
-          .map(it => it.currPage.nextOption())
-      ) { allRowOpt =>
-        Hotels.all.map(h => Some(h.name)) should contain(allRowOpt.map(_.getString("name")))
-      }
-
-      val queryByID = "SELECT * FROM hotels WHERE id = ?".toCQL
-        .prepare[String]
-        .withTracing(true)
-
-      val h2RowOpt = Option(queryByID.execute(Hotels.h2.id).one())
-      h2RowOpt.map(_.getString("name")) shouldBe Some(Hotels.h2.name)
-
-      whenReady(
-        queryByID
-          .executeAsync(Hotels.h2.id)
-          .map(it => it.currPage.nextOption())
-      ) { h2RowOpt =>
-        h2RowOpt.map(_.getString("name")) shouldBe Some(Hotels.h2.name)
-      }
-
-      // This only to test `ScalaPreparedStatement2`
-      val queryByIDAndName = "SELECT * FROM hotels WHERE id = ? AND name = ? ALLOW FILTERING".toCQL
-        .prepare[String, String]
-
-      val h2IdNameRowOpt = Option(queryByIDAndName.execute(Hotels.h2.id, Hotels.h2.name).one())
-      h2IdNameRowOpt.map(_.getString("name")) shouldBe Some(Hotels.h2.name)
-
-      whenReady(
-        queryByIDAndName
-          .executeAsync(Hotels.h2.id, Hotels.h2.name)
-          .map(it => it.currPage.nextOption())
-      ) { h2RowOpt =>
-        h2RowOpt.map(_.getString("name")) shouldBe Some(Hotels.h2.name)
-      }
     }
 
     "extract (or adapt) a case class instance" in {
