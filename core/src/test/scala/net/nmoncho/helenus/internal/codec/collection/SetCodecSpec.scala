@@ -22,46 +22,65 @@
 package net.nmoncho.helenus
 package internal.codec.collection
 
-import java.util
+import scala.collection.compat._
+import scala.collection.{ mutable => mutablecoll }
 
 import com.datastax.oss.driver.api.core.ProtocolVersion
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
-import com.datastax.oss.driver.api.core.`type`.codec.TypeCodecs
 import net.nmoncho.helenus.internal.codec._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-class SetCodecSpec extends AnyWordSpec with Matchers with CodecSpecBase[Set[Int]] {
+abstract class AbstractSetCodecSpec[Coll[_] <: scala.collection.Set[_]](name: String)(
+    implicit intFactory: Factory[Int, Coll[Int]],
+    stringFactory: Factory[String, Coll[String]]
+) extends AnyWordSpec
+    with Matchers
+    with CodecSpecBase[Coll[Int]] {
 
-  override protected val codec: TypeCodec[Set[Int]] = Codec[Set[Int]]
+  override protected val codec: TypeCodec[Coll[Int]]
+  protected val sCodec: TypeCodec[Coll[String]]
 
-  "SetCodec" should {
+  private val emptySet = intFactory.newBuilder.result()
+  private val oneTwoThree = {
+    val builder = intFactory.newBuilder
+    builder ++= Seq(1, 2, 3)
+    builder.result()
+  }
+
+  name should {
     "encode" in {
-      encode(null) shouldBe None
-      encode(Set.empty[Int]) shouldBe Some("0x00000000")
-      encode(Set(1, 2, 3)) shouldBe Some(
+      encode(null.asInstanceOf[Coll[Int]]) shouldBe None
+      encode(emptySet) shouldBe Some("0x00000000")
+      encode(oneTwoThree) shouldBe Some(
         "0x00000003000000040000000100000004000000020000000400000003"
       )
     }
 
     "decode" in {
-      decode(null) shouldBe Some(Set.empty[Int])
-      decode("0x00000000") shouldBe Some(Set.empty[Int])
+      decode(null) shouldBe Some(emptySet)
+      decode("0x00000000") shouldBe Some(emptySet)
       decode("0x00000003000000040000000100000004000000020000000400000003") shouldBe Some(
-        Set(1, 2, 3)
+        oneTwoThree
       )
     }
 
     "fail to encode" in {
-      val codec = Codec[Set[String]]
+      val oneNullThree = {
+        val builder = stringFactory.newBuilder
+        builder ++= Seq("1", null, "3")
+        builder.result()
+      }
+
       intercept[IllegalArgumentException](
-        codec.encode(Set("1", null, "3"), ProtocolVersion.DEFAULT)
+        sCodec.encode(oneNullThree, ProtocolVersion.DEFAULT)
       )
     }
 
     "format" in {
-      format(Set()) shouldBe "{}"
-      format(Set(1, 2, 3)) shouldBe "{1,2,3}"
+      format(null.asInstanceOf[Coll[Int]]) shouldBe NULL
+      format(emptySet) shouldBe "{}"
+      format(oneTwoThree) shouldBe "{1,2,3}"
     }
 
     "parse" in {
@@ -89,48 +108,28 @@ class SetCodecSpec extends AnyWordSpec with Matchers with CodecSpecBase[Set[Int]
     }
 
     "accept generic type" in {
-      val anotherCodec   = Codec[Set[Int]]
-      val stringSetCodec = Codec[Set[String]]
-      val intVectorCodec = Codec[Vector[Int]]
-
       codec.accepts(codec.getJavaType) shouldBe true
-      codec.accepts(anotherCodec.getJavaType) shouldBe true
-      codec.accepts(stringSetCodec.getJavaType) shouldBe false
-      codec.accepts(intVectorCodec.getJavaType) shouldBe false
     }
 
     "accept objects" in {
-      codec.accepts(Set(1, 2, 3)) shouldBe true
-      codec.accepts(Set("foo", "bar")) shouldBe false
+      val fooBar = {
+        val builder = stringFactory.newBuilder
+        builder ++= Seq("foo", "bar")
+        builder.result()
+      }
+
+      codec.accepts(oneTwoThree) shouldBe true
+      codec.accepts(fooBar) shouldBe false
     }
   }
 }
 
-class OnParSetCodecSpec
-    extends AnyWordSpec
-    with Matchers
-    with CodecSpecBase[Set[String]]
-    with OnParCodecSpec[Set[String], java.util.Set[String]] {
+class SetCodecSpec extends AbstractSetCodecSpec[Set]("SetCodec") {
+  override protected val codec: TypeCodec[Set[Int]]     = Codec[Set[Int]]
+  override protected val sCodec: TypeCodec[Set[String]] = Codec[Set[String]]
+}
 
-  "SetCodec" should {
-    "on par with Java Codec (encode-decode)" in testEncodeDecode(
-      null,
-      Set(),
-      Set("foo", "bar")
-    )
-
-    "on par with Java Codec (parse-format)" in testParseFormat(
-      null,
-      Set(),
-      Set("foo", "bar")
-    )
-  }
-
-  import scala.jdk.CollectionConverters._
-
-  override protected val codec: TypeCodec[Set[String]] = Codec[Set[String]]
-
-  override def javaCodec: TypeCodec[util.Set[String]] = TypeCodecs.setOf(TypeCodecs.TEXT)
-
-  override def toJava(t: Set[String]): util.Set[String] = if (t == null) null else t.asJava
+class MutableSetCodecSpec extends AbstractSetCodecSpec[mutablecoll.Set]("MutableSetCodec") {
+  override protected val codec: TypeCodec[mutablecoll.Set[Int]]     = Codec[mutablecoll.Set[Int]]
+  override protected val sCodec: TypeCodec[mutablecoll.Set[String]] = Codec[mutablecoll.Set[String]]
 }

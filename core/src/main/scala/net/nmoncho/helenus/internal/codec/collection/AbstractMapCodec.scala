@@ -25,7 +25,7 @@ package collection
 import java.nio.ByteBuffer
 
 import scala.collection.compat._
-import scala.collection.mutable
+import scala.collection.{ mutable => mutablecoll }
 
 import com.datastax.oss.driver.api.core.ProtocolVersion
 import com.datastax.oss.driver.api.core.`type`.DataType
@@ -33,7 +33,7 @@ import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.internal.core.`type`.DefaultMapType
 import com.datastax.oss.driver.internal.core.`type`.codec.ParseUtils
 
-abstract class AbstractMapCodec[K, V, M[K, V] <: Map[K, V]](
+abstract class AbstractMapCodec[K, V, M[K, V] <: scala.collection.Map[K, V]](
     keyInner: TypeCodec[K],
     valueInner: TypeCodec[V],
     frozen: Boolean
@@ -52,7 +52,7 @@ abstract class AbstractMapCodec[K, V, M[K, V] <: Map[K, V]](
     if (value == null) null
     else {
       var size    = 4
-      val buffers = mutable.ListBuffer[ByteBuffer]()
+      val buffers = mutablecoll.ListBuffer[ByteBuffer]()
       for ((k, v) <- value) {
         if (k == null) {
           throw new IllegalArgumentException("Map keys cannot be null")
@@ -131,7 +131,7 @@ abstract class AbstractMapCodec[K, V, M[K, V] <: Map[K, V]](
     if (map == null) {
       NULL
     } else {
-      val sb   = new mutable.StringBuilder().append(openingChar)
+      val sb   = new mutablecoll.StringBuilder().append(openingChar)
       var tail = false
       for ((key, value) <- map) {
         if (tail) sb.append(entrySeparator)
@@ -180,7 +180,7 @@ abstract class AbstractMapCodec[K, V, M[K, V] <: Map[K, V]](
     }
 
   override def accepts(value: Any): Boolean = value match {
-    case m: Map[_, _] =>
+    case m: scala.collection.Map[_, _] =>
       m.headOption.exists { case (key, value) =>
         keyInner.accepts(key) && valueInner.accepts(value)
       }

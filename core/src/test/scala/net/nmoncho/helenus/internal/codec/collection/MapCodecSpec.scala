@@ -22,60 +22,72 @@
 package net.nmoncho.helenus
 package internal.codec.collection
 
-import java.util
+import scala.collection.compat._
+import scala.collection.{ mutable => mutablecoll }
 
 import com.datastax.oss.driver.api.core.ProtocolVersion
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
-import com.datastax.oss.driver.api.core.`type`.codec.TypeCodecs
 import net.nmoncho.helenus.internal.codec._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-class MapCodecSpec extends AnyWordSpec with Matchers with CodecSpecBase[Map[String, Int]] {
+abstract class AbstractMapCodecSpec[Coll[_, _] <: scala.collection.Map[_, _]](name: String)(
+    implicit intFactory: Factory[(String, Int), Coll[String, Int]],
+    stringFactory: Factory[(String, String), Coll[String, String]]
+) extends AnyWordSpec
+    with Matchers
+    with CodecSpecBase[Coll[String, Int]] {
 
-  override protected val codec: TypeCodec[Map[String, Int]] = Codec[Map[String, Int]]
+  override protected val codec: TypeCodec[Coll[String, Int]]
+  protected val sCodec: TypeCodec[Coll[String, String]]
+
+  private val emptyMap = intFactory.newBuilder.result()
+  private val fooBarBaz = {
+    val builder = intFactory.newBuilder
+    builder ++= Seq("Foo" -> 1, "Bar" -> 2, "Baz" -> 3)
+    builder.result()
+  }
 
   "MapCodec" should {
-    val value = Map("Foo" -> 1, "Bar" -> 2, "Baz" -> 3)
-    "encode" in {
-      encode(null) shouldBe None
-      encode(Map.empty[String, Int]) shouldBe Some("0x00000000")
-      encode(value) shouldBe Some(
-        "0x0000000300000003466f6f00000004000000010000000342617200000004000000020000000342617a0000000400000003"
-      )
+    "encode-decode" in {
+      encode(null.asInstanceOf[Coll[String, Int]]) shouldBe None
+      encode(emptyMap) shouldBe Some("0x00000000")
+
+      decode(null) shouldBe Some(emptyMap)
+      decode("0x00000000") shouldBe Some(emptyMap)
+
+      decode(encode(fooBarBaz).get) shouldBe Some(fooBarBaz)
     }
 
-    "decode" in {
-      decode(null) shouldBe Some(Map.empty[String, Int])
-      decode("0x00000000") shouldBe Some(Map.empty[String, Int])
-      decode(
-        "0x0000000300000003466f6f00000004000000010000000342617200000004000000020000000342617a0000000400000003"
-      ) shouldBe Some(
-        value
-      )
-    }
+    "format-parse" in {
+      format(null.asInstanceOf[Coll[String, Int]]) shouldBe NULL
+      format(emptyMap) shouldBe "{}"
 
-    "format" in {
-      format(Map.empty[String, Int]) shouldBe "{}"
-      format(value) shouldBe "{'Foo':1,'Bar':2,'Baz':3}"
-    }
-
-    "parse" in {
       parse("") shouldBe null
       parse(NULL) shouldBe null
       parse(NULL.toLowerCase) shouldBe null
       parse("{}") shouldBe Map.empty[String, Int]
-      parse("{'Foo':1,'Bar':2,'Baz':3}") shouldBe value
-      parse(" { 'Foo' : 1 , 'Bar' : 2 , 'Baz' : 3 } ") shouldBe value
+
+      parse("{'Foo':1,'Bar':2,'Baz':3}") shouldBe fooBarBaz
+      parse(" { 'Foo' : 1 , 'Bar' : 2 , 'Baz' : 3 } ") shouldBe fooBarBaz
+
+      parse(format(fooBarBaz)) shouldBe fooBarBaz
     }
 
     "fail to encode" in {
-      val codec     = Codec[Map[String, String]]
-      val nullKey   = Map(null.asInstanceOf[String] -> "1")
-      val nullValue = Map("foo" -> null.asInstanceOf[String])
+      val nullKey = {
+        val builder = stringFactory.newBuilder
+        builder += null.asInstanceOf[String] -> "1"
+        builder.result()
+      }
+      val nullValue = {
+        val builder = stringFactory.newBuilder
+        builder += "foo" -> null.asInstanceOf[String]
+        builder.result()
+      }
 
-      intercept[IllegalArgumentException](codec.encode(nullKey, ProtocolVersion.DEFAULT))
-      intercept[IllegalArgumentException](codec.encode(nullValue, ProtocolVersion.DEFAULT))
+      intercept[IllegalArgumentException](sCodec.encode(nullKey, ProtocolVersion.DEFAULT))
+      intercept[IllegalArgumentException](sCodec.encode(nullValue, ProtocolVersion.DEFAULT))
     }
 
     "fail to parse invalid input" in {
@@ -95,52 +107,36 @@ class MapCodecSpec extends AnyWordSpec with Matchers with CodecSpecBase[Map[Stri
     }
 
     "accept generic type" in {
-      val anotherCodec = Codec[Map[String, Int]]
-      val mapCodec     = Codec[Map[String, String]]
-      val seqCodec     = Codec[Seq[(String, Int)]]
-
       codec.accepts(codec.getJavaType) shouldBe true
-      codec.accepts(anotherCodec.getJavaType) shouldBe true
-      codec.accepts(mapCodec.getJavaType) shouldBe false
-      codec.accepts(seqCodec.getJavaType) shouldBe false
+      codec.accepts(sCodec.getJavaType) shouldBe false
     }
 
     "accept objects" in {
-      codec.accepts(value) shouldBe true
-      codec.accepts(Map(1 -> "Foo")) shouldBe false
-      codec.accepts(Seq(1 -> "Foo")) shouldBe false
+      val anotherValue = {
+        val builder = stringFactory.newBuilder
+        builder += "foo" -> "bar"
+        builder.result()
+      }
+
+      codec.accepts(fooBarBaz) shouldBe true
+      codec.accepts(anotherValue) shouldBe false
     }
   }
 }
 
-class OnParMapCodecSpec
-    extends AnyWordSpec
-    with Matchers
-    with CodecSpecBase[Map[String, String]]
-    with OnParCodecSpec[Map[String, String], java.util.Map[String, String]] {
+class MapCodecSpec extends AbstractMapCodecSpec[Map]("MapCodec") {
+  override protected val codec: TypeCodec[Map[String, Int]] =
+    Codec[Map[String, Int]]
 
-  "MapCodec" should {
-    "on par with Java Codec (encode-decode)" in testEncodeDecode(
-      null,
-      Map(),
-      Map("foo" -> "bar", "bar" -> "baz")
-    )
-
-    "on par with Java Codec (parse-format)" in testParseFormat(
-      null,
-      Map(),
-      Map("foo" -> "bar", "bar" -> "baz")
-    )
-  }
-
-  import scala.jdk.CollectionConverters._
-
-  override protected val codec: TypeCodec[Map[String, String]] =
+  override protected val sCodec: TypeCodec[Map[String, String]] =
     Codec[Map[String, String]]
+}
 
-  override def javaCodec: TypeCodec[util.Map[String, String]] =
-    TypeCodecs.mapOf(TypeCodecs.TEXT, TypeCodecs.TEXT)
+class MutableMapCodecSpec extends AbstractMapCodecSpec[mutablecoll.Map]("MutableMapCodec") {
 
-  override def toJava(t: Map[String, String]): util.Map[String, String] =
-    if (t == null) null else t.asJava
+  override protected val codec: TypeCodec[mutablecoll.Map[String, Int]] =
+    Codec[mutablecoll.Map[String, Int]]
+
+  override protected val sCodec: TypeCodec[mutablecoll.Map[String, String]] =
+    Codec[mutablecoll.Map[String, String]]
 }

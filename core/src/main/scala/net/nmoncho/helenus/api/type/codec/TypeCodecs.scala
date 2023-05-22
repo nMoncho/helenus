@@ -30,6 +30,7 @@ import java.util.UUID
 
 import scala.collection.immutable.SortedMap
 import scala.collection.immutable.SortedSet
+import scala.collection.{ mutable => mutablecoll }
 
 import com.datastax.dse.driver.api.core.data.geometry.LineString
 import com.datastax.dse.driver.api.core.data.geometry.Point
@@ -139,6 +140,33 @@ object TypeCodecs {
     */
   def listOf[T](inner: TypeCodec[T]): TypeCodec[List[T]] = ListCodec.frozen(inner)
 
+  /** Builds a new codec that maps a CQL list to a Scala mutable buffer, using the given codec to map each
+    * element.
+    */
+  def mutableBufferOf[T](inner: TypeCodec[T]): TypeCodec[mutablecoll.Buffer[T]] =
+    mutable.BufferCodec.frozen(inner)
+
+  /** Builds a new codec that maps a CQL list to a Scala mutable IndexedSeq, using the given codec to map each
+    * element.
+    */
+  def mutableIndexedSeqOf[T](inner: TypeCodec[T]): TypeCodec[mutablecoll.IndexedSeq[T]] =
+    mutable.IndexedSeqCodec.frozen(inner)
+
+  /** Builds a new codec that maps a CQL map to a Scala mutable Map, using the given codecs to map each key
+    * and value.
+    */
+  def mutableMapOf[K, V](
+      keyInner: TypeCodec[K],
+      valueInner: TypeCodec[V]
+  ): TypeCodec[mutablecoll.Map[K, V]] =
+    mutable.MapCodec.frozen(keyInner, valueInner)
+
+  /** Builds a new codec that maps a CQL set to a Scala mutable Set, using the given codec to map each
+    * element.
+    */
+  def mutableSetOf[T](inner: TypeCodec[T]): TypeCodec[mutablecoll.Set[T]] =
+    mutable.SetCodec.frozen(inner)
+
   /** Builds a new codec that maps a CQL list to a Scala Vector, using the given codec to map each
     * element.
     */
@@ -155,7 +183,7 @@ object TypeCodecs {
   def sortedSetOf[T: Ordering](inner: TypeCodec[T]): TypeCodec[SortedSet[T]] =
     SortedSetCodec.frozen(inner)
 
-  /** Builds a new codec that maps a CQL map to a Scala map, using the given codecs to map each key
+  /** Builds a new codec that maps a CQL map to a Scala Map, using the given codecs to map each key
     * and value.
     */
   def mapOf[K, V](keyInner: TypeCodec[K], valueInner: TypeCodec[V]): TypeCodec[Map[K, V]] =

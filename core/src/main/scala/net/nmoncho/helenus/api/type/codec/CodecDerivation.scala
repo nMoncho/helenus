@@ -30,6 +30,7 @@ import java.util.UUID
 import scala.annotation.implicitNotFound
 import scala.collection.immutable.SortedMap
 import scala.collection.immutable.SortedSet
+import scala.collection.mutable
 import scala.reflect.ClassTag
 
 import com.datastax.dse.driver.api.core.data.geometry.LineString
@@ -116,6 +117,18 @@ trait CodecDerivation extends TupleCodecDerivation { that =>
 
   implicit def listOf[T: TypeCodec]: TypeCodec[List[T]] =
     TypeCodecs.listOf(implicitly[TypeCodec[T]])
+
+  implicit def bufferOf[T: TypeCodec]: TypeCodec[mutable.Buffer[T]] =
+    TypeCodecs.mutableBufferOf(implicitly[TypeCodec[T]])
+
+  implicit def mutableIndexedSeq[T: TypeCodec]: TypeCodec[mutable.IndexedSeq[T]] =
+    TypeCodecs.mutableIndexedSeqOf(implicitly[TypeCodec[T]])
+
+  implicit def mutableSet[T: TypeCodec]: TypeCodec[mutable.Set[T]] =
+    TypeCodecs.mutableSetOf(implicitly[TypeCodec[T]])
+
+  implicit def mutableMapOf[K: TypeCodec, V: TypeCodec]: TypeCodec[mutable.Map[K, V]] =
+    TypeCodecs.mutableMapOf(implicitly[TypeCodec[K]], implicitly[TypeCodec[V]])
 
   implicit def vectorOf[T: TypeCodec]: TypeCodec[Vector[T]] =
     TypeCodecs.vectorOf(implicitly[TypeCodec[T]])

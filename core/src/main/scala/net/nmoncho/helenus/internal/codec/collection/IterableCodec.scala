@@ -25,7 +25,7 @@ package collection
 import java.nio.ByteBuffer
 
 import scala.collection.compat._
-import scala.collection.mutable
+import scala.collection.{ mutable => mutablecoll }
 
 import com.datastax.oss.driver.api.core.ProtocolVersion
 import com.datastax.oss.driver.api.core.`type`.DataType
@@ -34,7 +34,7 @@ import com.datastax.oss.driver.internal.core.`type`.DefaultListType
 import com.datastax.oss.driver.internal.core.`type`.DefaultSetType
 import com.datastax.oss.driver.internal.core.`type`.codec.ParseUtils
 
-abstract class AbstractSeqCodec[T, M[T] <: Seq[T]](
+abstract class AbstractSeqCodec[T, M[T] <: scala.collection.Seq[T]](
     inner: TypeCodec[T],
     frozen: Boolean
 )(implicit factory: Factory[T, M[T]])
@@ -43,7 +43,7 @@ abstract class AbstractSeqCodec[T, M[T] <: Seq[T]](
   override val getCqlType: DataType = new DefaultListType(inner.getCqlType, frozen)
 }
 
-abstract class AbstractSetCodec[T, M[T] <: Set[T]](
+abstract class AbstractSetCodec[T, M[T] <: scala.collection.Set[T]](
     inner: TypeCodec[T],
     frozen: Boolean
 )(implicit factory: Factory[T, M[T]])
@@ -68,7 +68,7 @@ abstract class IterableCodec[T, M[T] <: Iterable[T]](
       // using mutable local state yield performance closer to DSE Java Driver
       var count   = 0
       var size    = 0
-      val buffers = mutable.ListBuffer[ByteBuffer]()
+      val buffers = mutablecoll.ListBuffer[ByteBuffer]()
       for (item <- value) {
         if (item == null) {
           throw new IllegalArgumentException("Collection elements cannot be null")
@@ -130,7 +130,7 @@ abstract class IterableCodec[T, M[T] <: Iterable[T]](
     if (value == null) {
       NULL
     } else {
-      val sb   = new mutable.StringBuilder().append(openingChar)
+      val sb   = new mutablecoll.StringBuilder().append(openingChar)
       var tail = false
       for (item <- value) {
         if (tail) sb.append(separator)
