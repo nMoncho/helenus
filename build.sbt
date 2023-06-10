@@ -1,6 +1,6 @@
 lazy val dependencies = new {
   object Version {
-    val scala213 = "2.13.10"
+    val scala213 = "2.13.11"
     val scala212 = "2.12.17"
 
     val cassandraUnit         = "4.3.1.0"
