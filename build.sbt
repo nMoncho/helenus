@@ -20,7 +20,7 @@ lazy val dependencies = new {
     val mockito    = "5.4.0"
     val scalaCheck = "1.17.0"
     val scalaTest  = "3.2.16"
-    val logback    = "1.4.7"
+    val logback    = "1.4.8"
   }
 
   // 'core' dependencies
