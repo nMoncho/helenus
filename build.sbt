@@ -4,7 +4,7 @@ lazy val dependencies = new {
     val scala212 = "2.12.17"
 
     val cassandraUnit         = "4.3.1.0"
-    val dseJavaDriver         = "4.16.0"
+    val dseJavaDriver         = "4.17.0"
     val scalaCollectionCompat = "2.11.0"
     val scalaJava8Compat      = "1.0.2"
     val shapeless             = "2.3.10"
