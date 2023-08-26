@@ -17,7 +17,7 @@ lazy val dependencies = new {
     val alpakkaBusl = "6.0.1"
 
     // Test Dependencies
-    val mockito    = "5.4.0"
+    val mockito    = "5.5.0"
     val scalaCheck = "1.17.0"
     val scalaTest  = "3.2.16"
     val logback    = "1.4.11"
