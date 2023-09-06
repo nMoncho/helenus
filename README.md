@@ -14,7 +14,7 @@ avoid introducing a complex API.
 Include the library into you project definition:
 
 ```scala
-libraryDependencies += "net.nmoncho" %% "helenus-core" % "0.11.1"
+libraryDependencies += "net.nmoncho" %% "helenus-core" % "0.11.2"
 ```
 
 ## Features
