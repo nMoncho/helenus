@@ -78,7 +78,7 @@ lazy val root = project
   .settings(
     publish / skip := true
   )
-  .aggregate(docs, core, bench, akka, akkaBusl)
+  .aggregate(docs, core, bench, akka, akkaBusl, pekko)
 
 lazy val basicSettings = Seq(
   organization := "net.nmoncho",
