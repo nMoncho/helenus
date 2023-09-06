@@ -237,7 +237,7 @@ lazy val pekko = project
   .settings(basicSettings)
   .dependsOn(core % "compile->compile;test->test")
   .settings(
-    name := "helenus-akka",
+    name := "helenus-pekko",
     scalaVersion := dependencies.Version.scala213,
     crossScalaVersions := List(dependencies.Version.scala213),
     libraryDependencies ++= Seq(
