@@ -14,7 +14,7 @@ avoid introducing a complex API.
 Include the library into you project definition:
 
 ```scala
-libraryDependencies += "net.nmoncho" %% "helenus-core" % "0.10.0"
+libraryDependencies += "net.nmoncho" %% "helenus-core" % "0.11.2"
 ```
 
 ## Features
@@ -48,7 +48,7 @@ import net.nmoncho.helenus._
 
 // Then mark your session implicit
 implicit val session: CqlSession = getSession
-// session: CqlSession = com.datastax.oss.driver.internal.core.session.DefaultSession@2c09f82c
+// session: CqlSession = com.datastax.oss.driver.internal.core.session.DefaultSession@319c058e
 
 case class Address(street: String, city: String, stateOrProvince: String, postalCode: String, country: String)
 
@@ -60,13 +60,13 @@ implicit val typeCodec: TypeCodec[Address] = Codec.udtOf[Address]()
 
 // We can derive how query results map to case classes
 implicit val rowMapper: RowMapper[Hotel] = RowMapper[Hotel]
-// rowMapper: RowMapper[Hotel] = net.nmoncho.helenus.internal.CaseClassRowMapperDerivation$$anonfun$net$nmoncho$helenus$internal$CaseClassRowMapperDerivation$$$nestedInanonfun$genericCCRowMapperBuilder$1$1@60f3d795
+// rowMapper: RowMapper[Hotel] = net.nmoncho.helenus.internal.CaseClassRowMapperDerivation$$anonfun$net$nmoncho$helenus$internal$CaseClassRowMapperDerivation$$$nestedInanonfun$genericCCRowMapperBuilder$1$1@68910994
 
 // We can prepare queries with parameters that don't require boxing
 val hotelsById = "SELECT * FROM hotels WHERE id = ?".toCQL
     .prepare[String]
     .as[Hotel]
-// hotelsById: internal.cql.ScalaPreparedStatement1[String, Hotel] = net.nmoncho.helenus.internal.cql.ScalaPreparedStatement1@6387782f
+// hotelsById: internal.cql.ScalaPreparedStatement1[String, Hotel] = net.nmoncho.helenus.internal.cql.ScalaPreparedStatement1@613f3619
 
 // We can extract a single result using `nextOption()`, or
 // use `to(Coll)` to transform the result to a collection
@@ -88,5 +88,5 @@ hotelsById.execute("h1").nextOption()
 // )
 ```
 
-For a more detailed guide on how to use Helenus, please read our [wiki](wiki). We also provides
+For a more detailed guide on how to use Helenus, please read our [wiki](wiki). We also provide
 [example projects](https://github.com/nMoncho/helenus-examples).

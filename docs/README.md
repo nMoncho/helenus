@@ -76,5 +76,5 @@ val hotelsById = "SELECT * FROM hotels WHERE id = ?".toCQL
 hotelsById.execute("h1").nextOption()
 ```
 
-For a more detailed guide on how to use Helenus, please read our [wiki](wiki). We also provides
+For a more detailed guide on how to use Helenus, please read our [wiki](wiki). We also provide
 [example projects](https://github.com/nMoncho/helenus-examples).

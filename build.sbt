@@ -4,8 +4,8 @@ lazy val dependencies = new {
     val scala212 = "2.12.17"
 
     val cassandraUnit         = "4.3.1.0"
-    val dseJavaDriver         = "4.15.0"
-    val scalaCollectionCompat = "2.10.0"
+    val dseJavaDriver         = "4.17.0"
+    val scalaCollectionCompat = "2.11.0"
     val scalaJava8Compat      = "1.0.2"
     val shapeless             = "2.3.10"
     val slf4j                 = "2.0.7"
@@ -16,11 +16,14 @@ lazy val dependencies = new {
     val akkaBusl    = "2.8.2"
     val alpakkaBusl = "6.0.1"
 
+    val pekkoConnector = "1.0.0"
+    val pekkoTestKit   = "1.0.1"
+
     // Test Dependencies
-    val mockito    = "5.3.1"
+    val mockito    = "5.5.0"
     val scalaCheck = "1.17.0"
     val scalaTest  = "3.2.16"
-    val logback    = "1.4.7"
+    val logback    = "1.4.11"
   }
 
   // 'core' dependencies
@@ -40,6 +43,10 @@ lazy val dependencies = new {
   // 'akka-busl' dependencies
   val alpakkaBusl = "com.lightbend.akka" %% "akka-stream-alpakka-cassandra" % Version.alpakkaBusl
   val akkaTestKitBusl = "com.typesafe.akka" %% "akka-testkit" % Version.akkaBusl
+
+  // 'pekko' dependencies
+  val pekkoConnector = "org.apache.pekko" %% "pekko-connectors-cassandra" % Version.pekkoConnector
+  val pekkoTestKit   = "org.apache.pekko" %% "pekko-testkit"              % Version.pekkoTestKit
 
   val mockito    = "org.mockito"     % "mockito-core"    % Version.mockito
   val scalaCheck = "org.scalacheck" %% "scalacheck"      % Version.scalaCheck
@@ -71,7 +78,7 @@ lazy val root = project
   .settings(
     publish / skip := true
   )
-  .aggregate(docs, core, bench, akka, akkaBusl)
+  .aggregate(docs, core, bench, akka, akkaBusl, pekko)
 
 lazy val basicSettings = Seq(
   organization := "net.nmoncho",
@@ -223,5 +230,20 @@ lazy val akkaBusl = project
       dependencies.akkaTestKitBusl % Test,
       // Adding this until Alpakka aligns version with Akka TestKit
       "com.typesafe.akka" %% "akka-stream" % dependencies.Version.akkaBusl
+    )
+  )
+
+lazy val pekko = project
+  .settings(basicSettings)
+  .dependsOn(core % "compile->compile;test->test")
+  .settings(
+    name := "helenus-pekko",
+    scalaVersion := dependencies.Version.scala213,
+    crossScalaVersions := List(dependencies.Version.scala213),
+    libraryDependencies ++= Seq(
+      dependencies.pekkoConnector % "provided,test",
+      dependencies.pekkoTestKit   % Test,
+      // Adding this until Alpakka aligns version with Pekko TestKit
+      "org.apache.pekko" %% "pekko-stream" % dependencies.Version.pekkoTestKit
     )
   )
