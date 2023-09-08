@@ -166,6 +166,13 @@ package object helenus extends CodecDerivation {
       session.executeReactive(bstmt).as[Out]
   }
 
+  implicit class ScalaBoundStatementOps(private val bstmt: ScalaBoundStatement[Row])
+      extends AnyVal {
+    // FIXME this is cheating, as `ScalaPreparedStatement` provides the `RowMapper`
+    // If we keep this, user will have to provide the `RowMapper` in the places, when `as` is used, and when `execute` is used
+    def as[T: RowMapper](): ScalaBoundStatement[T] = bstmt.asInstanceOf[ScalaBoundStatement[T]]
+  }
+
   implicit class PreparedStatementSyncStringOps(private val query: String) extends AnyVal {
 
     def toCQL(implicit session: CqlSession): CQLQuery =

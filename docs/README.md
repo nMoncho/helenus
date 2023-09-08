@@ -66,6 +66,8 @@ implicit val typeCodec: TypeCodec[Address] = Codec.udtOf[Address]()
 // We can derive how query results map to case classes
 implicit val rowMapper: RowMapper[Hotel] = RowMapper[Hotel]
 
+val hotelId = "h1"
+
 // We can prepare queries with parameters that don't require boxing
 val hotelsById = "SELECT * FROM hotels WHERE id = ?".toCQL
     .prepare[String]
@@ -74,6 +76,11 @@ val hotelsById = "SELECT * FROM hotels WHERE id = ?".toCQL
 // We can extract a single result using `nextOption()`, or
 // use `to(Coll)` to transform the result to a collection
 hotelsById.execute("h1").nextOption()
+
+// We can also run the same using CQL interpolated queries
+val interpolatedHotelsById = cql"SELECT * FROM hotels WHERE id = $hotelId"
+
+interpolatedHotelsById.as[Hotel].execute().nextOption()
 ```
 
 For a more detailed guide on how to use Helenus, please read our [wiki](wiki). We also provide
