@@ -25,6 +25,12 @@ import scala.collection.immutable
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
+import com.datastax.oss.driver.api.core.CqlSession
+import com.typesafe.config.Config
+import com.typesafe.config.ConfigFactory
+import net.nmoncho.helenus.api.RowMapper
+import net.nmoncho.helenus.api.cql.Adapter
+import net.nmoncho.helenus.utils.CassandraSpec
 import org.apache.pekko.Done
 import org.apache.pekko.NotUsed
 import org.apache.pekko.actor.ActorSystem
@@ -35,12 +41,6 @@ import org.apache.pekko.stream.connectors.cassandra.scaladsl.CassandraSessionReg
 import org.apache.pekko.stream.scaladsl.FlowWithContext
 import org.apache.pekko.stream.scaladsl.Sink
 import org.apache.pekko.stream.scaladsl.Source
-import com.datastax.oss.driver.api.core.CqlSession
-import com.typesafe.config.Config
-import com.typesafe.config.ConfigFactory
-import net.nmoncho.helenus.api.RowMapper
-import net.nmoncho.helenus.api.cql.Adapter
-import net.nmoncho.helenus.utils.CassandraSpec
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.Seconds
