@@ -24,12 +24,12 @@ package net.nmoncho.helenus
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
+import _root_.net.nmoncho.helenus.internal.cql._
 import _root_.org.apache.pekko.Done
 import _root_.org.apache.pekko.NotUsed
 import _root_.org.apache.pekko.stream.connectors.cassandra.CassandraWriteSettings
 import _root_.org.apache.pekko.stream.connectors.cassandra.scaladsl.CassandraSession
 import _root_.org.apache.pekko.stream.scaladsl._
-import _root_.net.nmoncho.helenus.internal.cql._
 import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.cql.BatchStatement
 
