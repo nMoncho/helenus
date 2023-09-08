@@ -22,11 +22,11 @@
 package net.nmoncho
 
 import scala.annotation.nowarn
-import scala.collection.mutable
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
+import scala.language.experimental.macros
 import scala.util.Failure
 import scala.util.Try
 
@@ -38,7 +38,6 @@ import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.`type`.codec.registry.MutableCodecRegistry
 import com.datastax.oss.driver.api.core.config.DriverExecutionProfile
 import com.datastax.oss.driver.api.core.cql.AsyncResultSet
-import com.datastax.oss.driver.api.core.cql.BoundStatement
 import com.datastax.oss.driver.api.core.cql.ResultSet
 import com.datastax.oss.driver.api.core.cql.Row
 import com.datastax.oss.driver.api.core.metadata.schema.KeyspaceMetadata
@@ -49,6 +48,7 @@ import net.nmoncho.helenus.api.cql.ScalaPreparedStatement.CQLQuery
 import net.nmoncho.helenus.api.cql.ScalaPreparedStatement.ScalaBoundStatement
 import net.nmoncho.helenus.internal.codec.udt.UDTCodec
 import net.nmoncho.helenus.internal.cql._
+import net.nmoncho.helenus.internal.macros.CqlQueryInterpolation
 import net.nmoncho.helenus.internal.reactive.MapOperator
 import org.reactivestreams.Publisher
 import org.slf4j.LoggerFactory
@@ -136,48 +136,13 @@ package object helenus extends CodecDerivation {
     */
   implicit class CqlStringInterpolation(private val sc: StringContext) extends AnyVal {
 
-    def cql(args: ParameterValue*)(implicit session: CqlSession): ScalaBoundStatement[Row] = {
-      val query = cqlQuery(args)
-
-      val bstmt = session.prepare(query).bind()
-      setParameters(bstmt, args)
-    }
+    def cql(params: Any*)(implicit session: CqlSession): ScalaBoundStatement[Row] =
+      macro CqlQueryInterpolation.cql
 
     def asyncCql(
-        args: ParameterValue*
-    )(implicit session: CqlSession, ec: ExecutionContext): Future[ScalaBoundStatement[Row]] = {
-      import net.nmoncho.helenus.internal.compat.FutureConverters._
-
-      val query = cqlQuery(args)
-
-      session.prepareAsync(query).asScala.map { pstmt =>
-        setParameters(pstmt.bind(), args)
-      }
-    }
-
-    private def setParameters(
-        bstmt: BoundStatement,
-        args: Seq[ParameterValue]
-    ): ScalaBoundStatement[Row] =
-      args
-        .foldLeft(bstmt -> 0) { case ((bstmt, index), arg) =>
-          arg.set(bstmt, index) -> (index + 1)
-        }
-        ._1
-        .asInstanceOf[ScalaBoundStatement[Row]]
-
-    private def cqlQuery(args: Seq[ParameterValue]): String = {
-      val partsIt = sc.parts.iterator
-      val argsIt  = args.iterator
-
-      val sb = new mutable.StringBuilder(partsIt.next())
-      while (argsIt.hasNext) {
-        sb.append(argsIt.next().toCQL)
-          .append(partsIt.next())
-      }
-
-      sb.toString()
-    }
+        params: Any*
+    )(implicit session: CqlSession, ec: ExecutionContext): Future[ScalaBoundStatement[Row]] =
+      macro CqlQueryInterpolation.asyncCql
 
   }
 

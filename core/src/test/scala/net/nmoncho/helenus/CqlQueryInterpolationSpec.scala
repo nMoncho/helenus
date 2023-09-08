@@ -25,6 +25,7 @@ import java.util.UUID
 
 import com.datastax.oss.driver.api.core.CqlSession
 import net.nmoncho.helenus.utils.CassandraSpec
+import org.scalatest.OptionValues._
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.Seconds
@@ -37,6 +38,8 @@ class CqlQueryInterpolationSpec
     with CassandraSpec
     with ScalaFutures {
 
+  import Keyspace._
+
   private implicit lazy val cqlSession: CqlSession = session
 
   override implicit val patienceConfig: PatienceConfig = PatienceConfig(Span(6, Seconds))
@@ -47,20 +50,21 @@ class CqlQueryInterpolationSpec
     val name = "helenus"
 
     "run synchronously" in {
-      // FIXME There should be a way to interpolate the table name without messing with the parameters
-
       withClue("return on empty table") {
-        val query = cql"SELECT * FROM cql_interpolation_test WHERE id = $id"
-        query.execute().one() shouldBe null
+        val query =
+          cql"SELECT * FROM ${InterpolationTest.tableName} WHERE ${InterpolationTest.id} = $id"
+
+        query.execute().nextOption() should not be defined
       }
 
       withClue("return on empty table") {
         val insert =
-          cql"INSERT INTO cql_interpolation_test(id, age, name) VALUES ($id, $age, $name)"
-        val query = cql"SELECT * FROM cql_interpolation_test WHERE id = ${id}"
+          cql"INSERT INTO ${InterpolationTest.tableName}(${InterpolationTest.id}, ${InterpolationTest.age}, ${InterpolationTest.name}) VALUES ($id, $age, $name)"
+        val query =
+          cql"SELECT * FROM ${InterpolationTest.tableName} WHERE ${InterpolationTest.id} = $id"
 
         insert.execute()
-        val row = Option(query.execute().one())
+        val row = query.execute().nextOption()
 
         row shouldBe defined
         row.foreach(_.getUuid(0) shouldBe id)
@@ -71,15 +75,17 @@ class CqlQueryInterpolationSpec
       import scala.concurrent.ExecutionContext.Implicits.global
 
       withClue("return on empty table") {
-        val query = asyncCql"SELECT * FROM cql_interpolation_test WHERE id = ${id}"
+        val query =
+          asyncCql"SELECT * FROM ${InterpolationTest.tableName} WHERE ${InterpolationTest.id} = $id"
 
-        whenReady(query.map(_.execute().one()))(_ shouldBe null)
+        whenReady(query.map(_.execute().nextOption()))(_ should not be defined)
       }
 
       withClue("return on empty table") {
         val insert =
-          asyncCql"INSERT INTO cql_interpolation_test(id, age, name) VALUES ($id, $age, $name)"
-        val query = asyncCql"SELECT * FROM cql_interpolation_test WHERE id = ${id}"
+          asyncCql"INSERT INTO ${InterpolationTest.tableName}(${InterpolationTest.id}, ${InterpolationTest.age}, ${InterpolationTest.name}) VALUES ($id, $age, $name)"
+        val query =
+          asyncCql"SELECT * FROM ${InterpolationTest.tableName} WHERE ${InterpolationTest.id} = $id"
 
         val tx = for {
           insertBstmt <- insert
@@ -90,21 +96,23 @@ class CqlQueryInterpolationSpec
 
         whenReady(tx) { row =>
           row shouldBe defined
-          row.foreach(_.getUuid(0) shouldBe id)
+          row.value.getUuid(0) shouldBe id
         }
-
       }
     }
-
   }
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    executeDDL("""CREATE TABLE IF NOT EXISTS cql_interpolation_test(
-        |   id     UUID,
-        |   age    INT,
-        |   name   TEXT,
-        |   PRIMARY KEY (id, age)
-        |)""".stripMargin)
+    import InterpolationTest._
+
+    executeDDL(
+      s"""CREATE TABLE IF NOT EXISTS $tableName(
+      |   $id     UUID,
+      |   $age    INT,
+      |   $name   TEXT,
+      |   PRIMARY KEY ($id, $age)
+      |)""".stripMargin
+    )
   }
 }
