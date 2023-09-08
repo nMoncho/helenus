@@ -14,7 +14,7 @@ avoid introducing a complex API.
 Include the library into you project definition:
 
 ```scala
-libraryDependencies += "net.nmoncho" %% "helenus-core" % "0.11.2"
+libraryDependencies += "net.nmoncho" %% "helenus-core" % "0.12.0"
 ```
 
 ## Features
@@ -48,7 +48,7 @@ import net.nmoncho.helenus._
 
 // Then mark your session implicit
 implicit val session: CqlSession = getSession
-// session: CqlSession = com.datastax.oss.driver.internal.core.session.DefaultSession@319c058e
+// session: CqlSession = com.datastax.oss.driver.internal.core.session.DefaultSession@c549fcb
 
 case class Address(street: String, city: String, stateOrProvince: String, postalCode: String, country: String)
 
@@ -60,18 +60,42 @@ implicit val typeCodec: TypeCodec[Address] = Codec.udtOf[Address]()
 
 // We can derive how query results map to case classes
 implicit val rowMapper: RowMapper[Hotel] = RowMapper[Hotel]
-// rowMapper: RowMapper[Hotel] = net.nmoncho.helenus.internal.CaseClassRowMapperDerivation$$anonfun$net$nmoncho$helenus$internal$CaseClassRowMapperDerivation$$$nestedInanonfun$genericCCRowMapperBuilder$1$1@68910994
+// rowMapper: RowMapper[Hotel] = net.nmoncho.helenus.internal.CaseClassRowMapperDerivation$$anonfun$net$nmoncho$helenus$internal$CaseClassRowMapperDerivation$$$nestedInanonfun$genericCCRowMapperBuilder$1$1@75b44e1d
+
+val hotelId = "h1"
+// hotelId: String = "h1"
 
 // We can prepare queries with parameters that don't require boxing
 val hotelsById = "SELECT * FROM hotels WHERE id = ?".toCQL
     .prepare[String]
     .as[Hotel]
-// hotelsById: internal.cql.ScalaPreparedStatement1[String, Hotel] = net.nmoncho.helenus.internal.cql.ScalaPreparedStatement1@613f3619
+// hotelsById: internal.cql.ScalaPreparedStatement1[String, Hotel] = net.nmoncho.helenus.internal.cql.ScalaPreparedStatement1@b6aff23
 
 // We can extract a single result using `nextOption()`, or
 // use `to(Coll)` to transform the result to a collection
 hotelsById.execute("h1").nextOption()
 // res0: Option[Hotel] = Some(
+//   value = Hotel(
+//     id = "h1",
+//     name = "The New York Hotel Rotterdam",
+//     phone = "+31 10 217 3000",
+//     address = Address(
+//       street = "Meent 78-82",
+//       city = "Rotterdam",
+//       stateOrProvince = "Zuid-Holland",
+//       postalCode = "3011 JM",
+//       country = "Netherlands"
+//     ),
+//     pois = Set("Erasmus Bridge", "Markthal Rotterdam", "Rotterdam Zoo")
+//   )
+// )
+
+// We can also run the same using CQL interpolated queries
+val interpolatedHotelsById = cql"SELECT * FROM hotels WHERE id = $hotelId"
+// interpolatedHotelsById: api.cql.ScalaPreparedStatement.ScalaBoundStatement[com.datastax.oss.driver.api.core.cql.Row] = com.datastax.oss.driver.internal.core.cql.DefaultBoundStatement@3caacbcf
+
+interpolatedHotelsById.as[Hotel].execute().nextOption()
+// res1: Option[Hotel] = Some(
 //   value = Hotel(
 //     id = "h1",
 //     name = "The New York Hotel Rotterdam",
