@@ -67,6 +67,7 @@ jitwatch.out
 project/**/metals.sbt
 
 .bsp
+/.scala-build/
 
 bench/target/
 core/target/

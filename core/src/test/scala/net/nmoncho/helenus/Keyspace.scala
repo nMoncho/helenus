@@ -19,36 +19,16 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package net.nmoncho.helenus.internal.macros
+package net.nmoncho.helenus
 
-import scala.language.experimental.macros
-import scala.reflect.macros.blackbox
+object Keyspace {
 
-import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
+  object InterpolationTest {
+    final val tableName = "cql_interpolation_test"
 
-object CqlInterpolation {
-
-  def ccqqll(params: Any): Unit = macro cqlImpl[TypeCodec]
-
-  final def cqlImpl[T[x] <: TypeCodec[x]](
-      c: blackbox.Context
-  )(params: c.Expr[Any])(
-      implicit T: c.WeakTypeTag[T[_]]
-  ): c.Expr[Unit] = {
-    import c.universe._
-
-    val target = appliedType(T.tpe.typeConstructor, params.actualType.widen)
-    c.typecheck(q"_root_.shapeless.lazily[$target]", silent = true) match {
-      case EmptyTree =>
-        c.abort(
-          c.enclosingPosition,
-          s"Unable to infer value of type $target."
-        )
-      case t =>
-        println(t)
-    }
-
-    c.Expr[Unit](q"()")
+    final val id   = "id"
+    final val age  = "age"
+    final val name = "name"
   }
 
 }
