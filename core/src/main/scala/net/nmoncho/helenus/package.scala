@@ -136,12 +136,12 @@ package object helenus extends CodecDerivation {
     */
   implicit class CqlStringInterpolation(private val sc: StringContext) extends AnyVal {
 
-    def cql(params: Any*)(implicit session: CqlSession): ScalaBoundStatement[Row] =
+    def cql(params: Any*)(implicit session: CqlSession): WrappedBoundStatement[Row] =
       macro CqlQueryInterpolation.cql
 
     def asyncCql(
         params: Any*
-    )(implicit session: CqlSession, ec: ExecutionContext): Future[ScalaBoundStatement[Row]] =
+    )(implicit session: CqlSession, ec: ExecutionContext): Future[WrappedBoundStatement[Row]] =
       macro CqlQueryInterpolation.asyncCql
 
   }
@@ -164,13 +164,6 @@ package object helenus extends CodecDerivation {
 
     def executeReactive()(implicit session: CqlSession, mapper: RowMapper[Out]): Publisher[Out] =
       session.executeReactive(bstmt).as[Out]
-  }
-
-  implicit class ScalaBoundStatementOps(private val bstmt: ScalaBoundStatement[Row])
-      extends AnyVal {
-    // FIXME this is cheating, as `ScalaPreparedStatement` provides the `RowMapper`
-    // If we keep this, user will have to provide the `RowMapper` in the places, when `as` is used, and when `execute` is used
-    def as[T: RowMapper](): ScalaBoundStatement[T] = bstmt.asInstanceOf[ScalaBoundStatement[T]]
   }
 
   implicit class PreparedStatementSyncStringOps(private val query: String) extends AnyVal {

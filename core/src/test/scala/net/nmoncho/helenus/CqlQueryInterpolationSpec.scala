@@ -68,6 +68,18 @@ class CqlQueryInterpolationSpec
 
         row shouldBe defined
         row.foreach(_.getUuid(0) shouldBe id)
+
+      }
+
+      withClue("and adapt results with a RowMapper") {
+        val query =
+          cql"SELECT * FROM ${InterpolationTest.tableName} WHERE ${InterpolationTest.id} = $id"
+            .as[(UUID, Int, String)]
+
+        val row = query.execute().nextOption()
+
+        row shouldBe defined
+        row.foreach(_._1 shouldBe id)
       }
     }
 
