@@ -87,16 +87,16 @@ class CqlQueryInterpolationSpec
 
       withClue("return on empty table") {
         val query =
-          asyncCql"SELECT * FROM ${InterpolationTest.tableName} WHERE ${InterpolationTest.id} = $id"
+          cqlAsync"SELECT * FROM ${InterpolationTest.tableName} WHERE ${InterpolationTest.id} = $id"
 
         whenReady(query.map(_.execute().nextOption()))(_ should not be defined)
       }
 
       withClue("return on non-empty table") {
         val insert =
-          asyncCql"INSERT INTO ${InterpolationTest.tableName}(${InterpolationTest.id}, ${InterpolationTest.age}, ${InterpolationTest.name}) VALUES ($id, $age, $name)"
+          cqlAsync"INSERT INTO ${InterpolationTest.tableName}(${InterpolationTest.id}, ${InterpolationTest.age}, ${InterpolationTest.name}) VALUES ($id, $age, $name)"
         val query =
-          asyncCql"SELECT * FROM ${InterpolationTest.tableName} WHERE ${InterpolationTest.id} = $id"
+          cqlAsync"SELECT * FROM ${InterpolationTest.tableName} WHERE ${InterpolationTest.id} = $id"
 
         val tx = for {
           insertBstmt <- insert
@@ -113,9 +113,9 @@ class CqlQueryInterpolationSpec
 
       withClue("return on non-empty table, with short-hand methods") {
         val insert =
-          asyncCql"INSERT INTO ${InterpolationTest.tableName}(${InterpolationTest.id}, ${InterpolationTest.age}, ${InterpolationTest.name}) VALUES ($id, $age, $name)"
+          cqlAsync"INSERT INTO ${InterpolationTest.tableName}(${InterpolationTest.id}, ${InterpolationTest.age}, ${InterpolationTest.name}) VALUES ($id, $age, $name)"
         val query =
-          asyncCql"SELECT * FROM ${InterpolationTest.tableName} WHERE ${InterpolationTest.id} = $id"
+          cqlAsync"SELECT * FROM ${InterpolationTest.tableName} WHERE ${InterpolationTest.id} = $id"
             .as[(UUID, Int, String)]
 
         val tx = for {

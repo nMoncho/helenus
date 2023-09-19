@@ -128,12 +128,12 @@ class AlkappaSpec extends AnyWordSpec with Matchers with CassandraSpec with Scal
     }
 
     "work with Akka Streams (async)" in {
-      val query: Source[IceCream, NotUsed] = "SELECT * FROM ice_creams".toAsyncCQL.prepareUnit
+      val query: Source[IceCream, NotUsed] = "SELECT * FROM ice_creams".toCQLAsync.prepareUnit
         .as[IceCream]
         .asReadSource()
 
       val insert: Sink[IceCream, Future[Done]] =
-        "INSERT INTO ice_creams(name, numCherries, cone) VALUES(?, ?, ?)".toAsyncCQL
+        "INSERT INTO ice_creams(name, numCherries, cone) VALUES(?, ?, ?)".toCQLAsync
           .prepare[String, Int, Boolean]
           .from[IceCream]
           .asWriteSink(writeSettings)
@@ -142,12 +142,12 @@ class AlkappaSpec extends AnyWordSpec with Matchers with CassandraSpec with Scal
     }
 
     "work with Akka Streams and Context (async)" in {
-      val query: Source[IceCream, NotUsed] = "SELECT * FROM ice_creams".toAsyncCQL.prepareUnit
+      val query: Source[IceCream, NotUsed] = "SELECT * FROM ice_creams".toCQLAsync.prepareUnit
         .as[IceCream]
         .asReadSource()
 
       val insert =
-        "INSERT INTO ice_creams(name, numCherries, cone) VALUES(?, ?, ?)".toAsyncCQL
+        "INSERT INTO ice_creams(name, numCherries, cone) VALUES(?, ?, ?)".toCQLAsync
           .prepare[String, Int, Boolean]
           .from[IceCream]
           .asWriteFlowWithContext[String](writeSettings)
@@ -155,7 +155,7 @@ class AlkappaSpec extends AnyWordSpec with Matchers with CassandraSpec with Scal
       testStreamWithContext(ijes, query, insert)(ij => ij -> ij.name)
 
       val queryName: Source[IceCream, NotUsed] =
-        "SELECT * FROM ice_creams WHERE name = ?".toAsyncCQL
+        "SELECT * FROM ice_creams WHERE name = ?".toCQLAsync
           .prepare[String]
           .as[IceCream]
           .asReadSource("vanilla")
@@ -166,12 +166,12 @@ class AlkappaSpec extends AnyWordSpec with Matchers with CassandraSpec with Scal
     }
 
     "perform batched writes with Akka Stream (async)" in {
-      val query: Source[IceCream, NotUsed] = "SELECT * FROM ice_creams".toAsyncCQL.prepareUnit
+      val query: Source[IceCream, NotUsed] = "SELECT * FROM ice_creams".toCQLAsync.prepareUnit
         .as[IceCream]
         .asReadSource()
 
       val batchedInsert: Sink[IceCream, Future[Done]] =
-        "INSERT INTO ice_creams(name, numCherries, cone) VALUES(?, ?, ?)".toAsyncCQL
+        "INSERT INTO ice_creams(name, numCherries, cone) VALUES(?, ?, ?)".toCQLAsync
           .prepare[String, Int, Boolean]
           .from[IceCream]
           .asWriteSinkBatched(writeSettings, _.name.charAt(0))

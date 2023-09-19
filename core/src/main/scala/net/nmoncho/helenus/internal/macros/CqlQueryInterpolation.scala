@@ -58,7 +58,7 @@ object CqlQueryInterpolation {
     )
   }
 
-  def asyncCql(
+  def cqlAsync(
       c: blackbox.Context
   )(params: c.Expr[Any]*)(
       session: c.Expr[CqlSession],

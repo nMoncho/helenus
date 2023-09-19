@@ -139,10 +139,10 @@ package object helenus extends CodecDerivation {
     def cql(params: Any*)(implicit session: CqlSession): WrappedBoundStatement[Row] =
       macro CqlQueryInterpolation.cql
 
-    def asyncCql(
+    def cqlAsync(
         params: Any*
     )(implicit session: CqlSession, ec: ExecutionContext): Future[WrappedBoundStatement[Row]] =
-      macro CqlQueryInterpolation.asyncCql
+      macro CqlQueryInterpolation.cqlAsync
 
   }
 
@@ -174,7 +174,7 @@ package object helenus extends CodecDerivation {
         session
       )
 
-    def toAsyncCQL(
+    def toCQLAsync(
         implicit futSession: Future[CqlSession],
         ec: ExecutionContext
     ): Future[CQLQuery] =
@@ -324,7 +324,7 @@ package object helenus extends CodecDerivation {
 
   // format: off
   // $COVERAGE-OFF$
-  implicit class AsyncCQLOps(private val cql: Future[CQLQuery]) extends AnyVal {
+  implicit class CQLAsyncOps(private val cql: Future[CQLQuery]) extends AnyVal {
     def prepareUnit(implicit ec: ExecutionContext): Future[ScalaPreparedStatementUnit[Row]] = cql.map(_.prepareUnit)
 
     def prepare[T1: TypeCodec](implicit ec: ExecutionContext): Future[ScalaPreparedStatement1[T1, Row]] = cql.map(_.prepare[T1])
