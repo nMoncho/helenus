@@ -131,3 +131,30 @@ class WrappedBoundStatement[Out](bstmt: BoundStatement)(implicit mapper: RowMapp
   override def protocolVersion(): ProtocolVersion = bstmt.protocolVersion()
   // format: on
 }
+
+object WrappedBoundStatement {
+
+  implicit class FutureWrappedStatementOps[Out](private val fut: Future[WrappedBoundStatement[Out]])
+      extends AnyVal {
+
+    /** Maps the result from this [[BoundStatement]] with a different [[Out2]]
+      * as long as there is an implicit [[RowMapper]] and [[Out]] is [[Row]] (this is
+      * meant to avoid calling `as` twice)
+      */
+    def as[Out2](
+        implicit newMapper: RowMapper[Out2],
+        ev: Out =:= Row,
+        ec: ExecutionContext
+    ): Future[WrappedBoundStatement[Out2]] = fut.map(_.as[Out2])
+
+    /** Executes this [[BoundStatement]] in a asynchronous fashion
+      *
+      * @return a future of [[MappedAsyncPagingIterable]]
+      */
+    def executeAsync()(
+        implicit session: CqlSession,
+        ec: ExecutionContext
+    ): Future[MappedAsyncPagingIterable[Out]] = fut.flatMap(_.executeAsync())
+  }
+
+}
