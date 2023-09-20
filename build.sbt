@@ -22,7 +22,7 @@ lazy val dependencies = new {
     // Test Dependencies
     val mockito    = "5.5.0"
     val scalaCheck = "1.17.0"
-    val scalaTest  = "3.2.16"
+    val scalaTest  = "3.2.17"
     val logback    = "1.4.11"
   }
 
@@ -76,7 +76,8 @@ lazy val root = project
   .in(file("."))
   .settings(basicSettings)
   .settings(
-    publish / skip := true
+    publish / skip := true,
+    mimaFailOnNoPrevious := false
   )
   .aggregate(docs, core, bench, akka, akkaBusl, pekko)
 
@@ -127,6 +128,7 @@ lazy val docs = project
   .settings(basicSettings)
   .settings(
     publish / skip := true,
+    mimaFailOnNoPrevious := false,
     mdocVariables := Map(
       "VERSION" -> version.value
     ),
@@ -182,7 +184,8 @@ lazy val core = project
       )
     ),
     coverageMinimum := 85,
-    coverageFailOnMinimum := true
+    coverageFailOnMinimum := true,
+    mimaPreviousArtifacts := Set("net.nmoncho" %% "helenus-core" % "0.12.0")
   )
 
 lazy val bench = project
@@ -192,6 +195,7 @@ lazy val bench = project
   .dependsOn(core)
   .settings(
     publish / skip := true,
+    mimaFailOnNoPrevious := false,
     libraryDependencies ++= Seq(
       dependencies.dseJavaDriver,
       dependencies.mockito
@@ -205,6 +209,7 @@ lazy val akka = project
     name := "helenus-akka",
     scalaVersion := dependencies.Version.scala213,
     crossScalaVersions := List(dependencies.Version.scala213),
+    mimaPreviousArtifacts := Set("net.nmoncho" %% "helenus-akka" % "0.12.0"),
     // 5.x changed to business license
     dependencyUpdatesFilter -= moduleFilter(organization = "com.lightbend.akka"),
     // 2.7.x changed to business license
@@ -225,6 +230,7 @@ lazy val akkaBusl = project
     name := "helenus-akka-busl",
     scalaVersion := dependencies.Version.scala213,
     crossScalaVersions := List(dependencies.Version.scala213),
+    mimaFailOnNoPrevious := false,
     libraryDependencies ++= Seq(
       dependencies.alpakkaBusl     % "provided,test",
       dependencies.akkaTestKitBusl % Test,
@@ -239,6 +245,7 @@ lazy val pekko = project
   .settings(
     name := "helenus-pekko",
     scalaVersion := dependencies.Version.scala213,
+    mimaPreviousArtifacts := Set("net.nmoncho" %% "helenus-pekko" % "0.12.0"),
     crossScalaVersions := List(dependencies.Version.scala213),
     libraryDependencies ++= Seq(
       dependencies.pekkoConnector % "provided,test",

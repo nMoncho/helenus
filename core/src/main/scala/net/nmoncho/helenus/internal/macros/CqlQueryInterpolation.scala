@@ -30,13 +30,13 @@ import com.datastax.oss.driver.api.core.cql.BoundStatement
 import com.datastax.oss.driver.api.core.cql.PreparedStatement
 import com.datastax.oss.driver.api.core.cql.Row
 import com.datastax.oss.driver.internal.core.util.Strings
-import net.nmoncho.helenus.api.cql.ScalaPreparedStatement.ScalaBoundStatement
+import net.nmoncho.helenus.internal.cql.WrappedBoundStatement
 
 object CqlQueryInterpolation {
 
   def cql(
       c: blackbox.Context
-  )(params: c.Expr[Any]*)(session: c.Expr[CqlSession]): c.Expr[ScalaBoundStatement[Row]] = {
+  )(params: c.Expr[Any]*)(session: c.Expr[CqlSession]): c.Expr[WrappedBoundStatement[Row]] = {
     import c.universe._
 
     val (stmt, bindParameters) = buildStatement(c)(params)
@@ -53,17 +53,17 @@ object CqlQueryInterpolation {
       }
     }
 
-    c.Expr[ScalaBoundStatement[Row]](
-      q"$expr.asInstanceOf[_root_.net.nmoncho.helenus.api.cql.ScalaPreparedStatement.ScalaBoundStatement[_root_.com.datastax.oss.driver.api.core.cql.Row]]"
+    c.Expr[WrappedBoundStatement[Row]](
+      q"new _root_.net.nmoncho.helenus.internal.cql.WrappedBoundStatement($expr)(_root_.net.nmoncho.helenus.api.RowMapper.identity)"
     )
   }
 
-  def asyncCql(
+  def cqlAsync(
       c: blackbox.Context
   )(params: c.Expr[Any]*)(
       session: c.Expr[CqlSession],
       ec: c.Expr[ExecutionContext]
-  ): c.Expr[Future[ScalaBoundStatement[Row]]] = {
+  ): c.Expr[Future[WrappedBoundStatement[Row]]] = {
     import c.universe._
 
     val (stmt, bindParameters) = buildStatement(c)(params)
@@ -80,8 +80,8 @@ object CqlQueryInterpolation {
       }
     }
 
-    val expr = c.Expr[Future[ScalaBoundStatement[Row]]](
-      q"$pstmt.map { stmt => var bstmt = stmt.bind(); ..$bounders; bstmt.asInstanceOf[_root_.net.nmoncho.helenus.api.cql.ScalaPreparedStatement.ScalaBoundStatement[_root_.com.datastax.oss.driver.api.core.cql.Row]]}($ec)"
+    val expr = c.Expr[Future[WrappedBoundStatement[Row]]](
+      q"$pstmt.map { stmt => var bstmt = stmt.bind(); ..$bounders; new _root_.net.nmoncho.helenus.internal.cql.WrappedBoundStatement(bstmt)(_root_.net.nmoncho.helenus.api.RowMapper.identity)}($ec)"
     )
 
     expr

@@ -136,13 +136,13 @@ package object helenus extends CodecDerivation {
     */
   implicit class CqlStringInterpolation(private val sc: StringContext) extends AnyVal {
 
-    def cql(params: Any*)(implicit session: CqlSession): ScalaBoundStatement[Row] =
+    def cql(params: Any*)(implicit session: CqlSession): WrappedBoundStatement[Row] =
       macro CqlQueryInterpolation.cql
 
-    def asyncCql(
+    def cqlAsync(
         params: Any*
-    )(implicit session: CqlSession, ec: ExecutionContext): Future[ScalaBoundStatement[Row]] =
-      macro CqlQueryInterpolation.asyncCql
+    )(implicit session: CqlSession, ec: ExecutionContext): Future[WrappedBoundStatement[Row]] =
+      macro CqlQueryInterpolation.cqlAsync
 
   }
 
@@ -166,13 +166,6 @@ package object helenus extends CodecDerivation {
       session.executeReactive(bstmt).as[Out]
   }
 
-  implicit class ScalaBoundStatementOps(private val bstmt: ScalaBoundStatement[Row])
-      extends AnyVal {
-    // FIXME this is cheating, as `ScalaPreparedStatement` provides the `RowMapper`
-    // If we keep this, user will have to provide the `RowMapper` in the places, when `as` is used, and when `execute` is used
-    def as[T: RowMapper](): ScalaBoundStatement[T] = bstmt.asInstanceOf[ScalaBoundStatement[T]]
-  }
-
   implicit class PreparedStatementSyncStringOps(private val query: String) extends AnyVal {
 
     def toCQL(implicit session: CqlSession): CQLQuery =
@@ -181,7 +174,7 @@ package object helenus extends CodecDerivation {
         session
       )
 
-    def toAsyncCQL(
+    def toCQLAsync(
         implicit futSession: Future[CqlSession],
         ec: ExecutionContext
     ): Future[CQLQuery] =
@@ -331,7 +324,7 @@ package object helenus extends CodecDerivation {
 
   // format: off
   // $COVERAGE-OFF$
-  implicit class AsyncCQLOps(private val cql: Future[CQLQuery]) extends AnyVal {
+  implicit class CQLAsyncOps(private val cql: Future[CQLQuery]) extends AnyVal {
     def prepareUnit(implicit ec: ExecutionContext): Future[ScalaPreparedStatementUnit[Row]] = cql.map(_.prepareUnit)
 
     def prepare[T1: TypeCodec](implicit ec: ExecutionContext): Future[ScalaPreparedStatement1[T1, Row]] = cql.map(_.prepare[T1])

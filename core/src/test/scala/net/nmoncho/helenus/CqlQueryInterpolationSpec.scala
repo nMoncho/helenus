@@ -69,6 +69,17 @@ class CqlQueryInterpolationSpec
         row shouldBe defined
         row.foreach(_.getUuid(0) shouldBe id)
       }
+
+      withClue("and adapt results with a RowMapper") {
+        val query =
+          cql"SELECT * FROM ${InterpolationTest.tableName} WHERE ${InterpolationTest.id} = $id"
+            .as[(UUID, Int, String)]
+
+        val row = query.execute().nextOption()
+
+        row shouldBe defined
+        row.foreach(_._1 shouldBe id)
+      }
     }
 
     "run asynchronously" in {
@@ -76,16 +87,16 @@ class CqlQueryInterpolationSpec
 
       withClue("return on empty table") {
         val query =
-          asyncCql"SELECT * FROM ${InterpolationTest.tableName} WHERE ${InterpolationTest.id} = $id"
+          cqlAsync"SELECT * FROM ${InterpolationTest.tableName} WHERE ${InterpolationTest.id} = $id"
 
         whenReady(query.map(_.execute().nextOption()))(_ should not be defined)
       }
 
-      withClue("return on empty table") {
+      withClue("return on non-empty table") {
         val insert =
-          asyncCql"INSERT INTO ${InterpolationTest.tableName}(${InterpolationTest.id}, ${InterpolationTest.age}, ${InterpolationTest.name}) VALUES ($id, $age, $name)"
+          cqlAsync"INSERT INTO ${InterpolationTest.tableName}(${InterpolationTest.id}, ${InterpolationTest.age}, ${InterpolationTest.name}) VALUES ($id, $age, $name)"
         val query =
-          asyncCql"SELECT * FROM ${InterpolationTest.tableName} WHERE ${InterpolationTest.id} = $id"
+          cqlAsync"SELECT * FROM ${InterpolationTest.tableName} WHERE ${InterpolationTest.id} = $id"
 
         val tx = for {
           insertBstmt <- insert
@@ -97,6 +108,24 @@ class CqlQueryInterpolationSpec
         whenReady(tx) { row =>
           row shouldBe defined
           row.value.getUuid(0) shouldBe id
+        }
+      }
+
+      withClue("return on non-empty table, with short-hand methods") {
+        val insert =
+          cqlAsync"INSERT INTO ${InterpolationTest.tableName}(${InterpolationTest.id}, ${InterpolationTest.age}, ${InterpolationTest.name}) VALUES ($id, $age, $name)"
+        val query =
+          cqlAsync"SELECT * FROM ${InterpolationTest.tableName} WHERE ${InterpolationTest.id} = $id"
+            .as[(UUID, Int, String)]
+
+        val tx = for {
+          _ <- insert.executeAsync()
+          row <- query.executeAsync()
+        } yield Option(row.one())
+
+        whenReady(tx) { row =>
+          row shouldBe defined
+          row.foreach(_._1 shouldBe id)
         }
       }
     }
