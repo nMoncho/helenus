@@ -24,6 +24,7 @@ package net.nmoncho.helenus
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
+import _root_.net.nmoncho.helenus.api.cql.ScalaPreparedStatement
 import _root_.net.nmoncho.helenus.internal.cql._
 import _root_.org.apache.pekko.Done
 import _root_.org.apache.pekko.NotUsed

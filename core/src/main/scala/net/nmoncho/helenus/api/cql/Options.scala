@@ -19,7 +19,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package net.nmoncho.helenus.internal.cql
+package net.nmoncho.helenus.api.cql
 
 import java.nio.ByteBuffer
 import java.time.Duration
@@ -29,7 +29,6 @@ import com.datastax.oss.driver.api.core.CqlIdentifier
 import com.datastax.oss.driver.api.core.config.DriverExecutionProfile
 import com.datastax.oss.driver.api.core.cql.BoundStatement
 import com.datastax.oss.driver.api.core.cql.PagingState
-import net.nmoncho.helenus.api.cql.StatementOptions
 
 /** Adds [[StatementOptions]] to a [[ScalaPreparedStatement]].
   *

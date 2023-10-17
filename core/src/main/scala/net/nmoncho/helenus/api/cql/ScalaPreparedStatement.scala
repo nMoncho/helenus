@@ -21,20 +21,109 @@
 
 package net.nmoncho.helenus.api.cql
 
+import java.nio.ByteBuffer
+import java.util
+
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
 import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.cql.BoundStatement
+import com.datastax.oss.driver.api.core.cql.BoundStatementBuilder
+import com.datastax.oss.driver.api.core.cql.ColumnDefinitions
+import com.datastax.oss.driver.api.core.cql.PreparedStatement
 import com.datastax.oss.driver.api.core.cql.Row
 import net.nmoncho.helenus.api.RowMapper
+import net.nmoncho.helenus.api.cql.ScalaPreparedStatement.ScalaBoundStatement
+import net.nmoncho.helenus.internal.cql.AdaptedScalaPreparedStatement
+
+// format: off
+
+/** A `ScalaPreparedStatement` extends and wraps a [[PreparedStatement]], delegating all methods to the contained instance
+ *
+ * This class serves as the basic abstraction for <em>all</em> statements.
+ *
+ * @param pstmt wrapped instance
+ * @param mapper how to map results into [[Out]] values
+ * @tparam In statement input value
+ * @tparam Out statement output value
+ */
+abstract class ScalaPreparedStatement[In, Out](pstmt: PreparedStatement, mapper: RowMapper[Out]) extends PreparedStatement with Options {
+
+  type AsOut[T] <: ScalaPreparedStatement[_, T]
+
+  protected implicit val rowMapper: RowMapper[Out] = mapper
+
+  // Since this is no longer exposed to users, we can use the tupled `apply` function
+  def tupled: In => BoundStatement
+
+  /** Adapts this [[ScalaPreparedStatement]] converting [[In2]] values with the provided adapter
+   * into a [[In]] value (ie. the original type of this statement)
+   *
+   * @param adapter how to adapt an [[In2]] value into [[In]] value
+   * @tparam In2 new input type
+   * @return adapted [[ScalaPreparedStatement]] with new [[In2]] input type
+   */
+  def from[In2](implicit adapter: Adapter[In2, In]): AdaptedScalaPreparedStatement[In2, In, Out] =
+    new AdaptedScalaPreparedStatement[In2, In, Out](this, mapper, adapter, options)
+
+  /** Maps the result from this [[PreparedStatement]] with a different [[Out2]]
+   * as long as there is an implicit [[RowMapper]] and [[Out]] is [[Row]] (this is
+   * meant to avoid calling `as` twice)
+   */
+  def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2]
+
+  @inline protected def tag[Out](bs: BoundStatement): ScalaBoundStatement[Out] =
+    bs.asInstanceOf[ScalaBoundStatement[Out]]
+
+  // ----------------------------------------------------------------------------
+  //  Wrapped `PreparedStatement` methods
+  // ----------------------------------------------------------------------------
+
+  override def getId: ByteBuffer = pstmt.getId
+
+  override def getQuery: String = pstmt.getQuery
+
+  override def getVariableDefinitions: ColumnDefinitions = pstmt.getVariableDefinitions
+
+  override def getPartitionKeyIndices: util.List[Integer] = pstmt.getPartitionKeyIndices
+
+  override def getResultMetadataId: ByteBuffer = pstmt.getResultMetadataId
+
+  override def getResultSetDefinitions: ColumnDefinitions = pstmt.getResultSetDefinitions
+
+  override def setResultMetadata(id: ByteBuffer, definitions: ColumnDefinitions): Unit =
+    pstmt.setResultMetadata(id, definitions)
+
+  override def bind(values: AnyRef*): BoundStatement =
+    pstmt.bind(values: _*)
+
+  override def boundStatementBuilder(values: AnyRef*): BoundStatementBuilder =
+    pstmt.boundStatementBuilder(values: _*)
+}
+
+// format: on
 
 object ScalaPreparedStatement {
   import net.nmoncho.helenus.internal.cql._
 
   type TaggedBoundStatement[Out] = { type Tag = Out }
   type ScalaBoundStatement[Out]  = BoundStatement with TaggedBoundStatement[Out]
+
+  implicit private[helenus] class BoundStatementOps(private val bs: BoundStatement) extends AnyVal {
+
+    /** Sets or binds the specified value only if it's not NULL, avoiding a tombstone insert.
+      *
+      * @param index position of bound parameter
+      * @param value value to be bound
+      * @param codec how to encode the provided value
+      * @tparam T
+      * @return a modified version of this [[BoundStatement]]
+      */
+    def setIfDefined[T](index: Int, value: T, codec: TypeCodec[T]): BoundStatement =
+      if (value == null || value == None) bs else bs.set(index, value, codec)
+  }
 
   case class CQLQuery(query: String, session: CqlSession) extends SyncCQLQuery with AsyncCQLQuery
 

@@ -44,8 +44,10 @@ import com.datastax.oss.driver.api.core.metadata.schema.KeyspaceMetadata
 import net.nmoncho.helenus.api.RowMapper
 import net.nmoncho.helenus.api.`type`.codec.CodecDerivation
 import net.nmoncho.helenus.api.cql.Adapter
+import net.nmoncho.helenus.api.cql.ScalaPreparedStatement
 import net.nmoncho.helenus.api.cql.ScalaPreparedStatement.CQLQuery
 import net.nmoncho.helenus.api.cql.ScalaPreparedStatement.ScalaBoundStatement
+import net.nmoncho.helenus.api.cql.WrappedBoundStatement
 import net.nmoncho.helenus.internal.codec.udt.UDTCodec
 import net.nmoncho.helenus.internal.cql._
 import net.nmoncho.helenus.internal.macros.CqlQueryInterpolation

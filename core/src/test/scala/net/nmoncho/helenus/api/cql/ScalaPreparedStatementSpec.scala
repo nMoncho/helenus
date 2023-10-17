@@ -20,7 +20,7 @@
  */
 
 package net.nmoncho.helenus
-package internal.cql
+package api.cql
 
 import java.time.Duration
 
@@ -30,7 +30,6 @@ import com.datastax.oss.driver.api.core.ConsistencyLevel
 import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.cql.BoundStatement
 import com.datastax.oss.driver.api.core.servererrors.InvalidQueryException
-import net.nmoncho.helenus.api.cql.Adapter
 import net.nmoncho.helenus.models.Address
 import net.nmoncho.helenus.models.Hotel
 import net.nmoncho.helenus.utils.CassandraSpec

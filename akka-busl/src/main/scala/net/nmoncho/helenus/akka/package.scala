@@ -29,6 +29,7 @@ import _root_.akka.NotUsed
 import _root_.akka.stream.alpakka.cassandra.CassandraWriteSettings
 import _root_.akka.stream.alpakka.cassandra.scaladsl.CassandraSession
 import _root_.akka.stream.scaladsl._
+import _root_.net.nmoncho.helenus.api.cql.ScalaPreparedStatement
 import _root_.net.nmoncho.helenus.internal.cql._
 import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.cql.BatchStatement

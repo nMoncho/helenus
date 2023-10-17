@@ -30,7 +30,7 @@ import com.datastax.oss.driver.api.core.cql.BoundStatement
 import com.datastax.oss.driver.api.core.cql.PreparedStatement
 import com.datastax.oss.driver.api.core.cql.Row
 import com.datastax.oss.driver.internal.core.util.Strings
-import net.nmoncho.helenus.internal.cql.WrappedBoundStatement
+import net.nmoncho.helenus.api.cql.WrappedBoundStatement
 
 object CqlQueryInterpolation {
 
@@ -54,7 +54,7 @@ object CqlQueryInterpolation {
     }
 
     c.Expr[WrappedBoundStatement[Row]](
-      q"new _root_.net.nmoncho.helenus.internal.cql.WrappedBoundStatement($expr)(_root_.net.nmoncho.helenus.api.RowMapper.identity)"
+      q"new _root_.net.nmoncho.helenus.api.cql.WrappedBoundStatement($expr)(_root_.net.nmoncho.helenus.api.RowMapper.identity)"
     )
   }
 
@@ -81,7 +81,7 @@ object CqlQueryInterpolation {
     }
 
     val expr = c.Expr[Future[WrappedBoundStatement[Row]]](
-      q"$pstmt.map { stmt => var bstmt = stmt.bind(); ..$bounders; new _root_.net.nmoncho.helenus.internal.cql.WrappedBoundStatement(bstmt)(_root_.net.nmoncho.helenus.api.RowMapper.identity)}($ec)"
+      q"$pstmt.map { stmt => var bstmt = stmt.bind(); ..$bounders; new _root_.net.nmoncho.helenus.api.cql.WrappedBoundStatement(bstmt)(_root_.net.nmoncho.helenus.api.RowMapper.identity)}($ec)"
     )
 
     expr

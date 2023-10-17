@@ -19,7 +19,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package net.nmoncho.helenus.internal.cql
+package net.nmoncho.helenus.api.cql
 
 import java.lang
 import java.nio.ByteBuffer

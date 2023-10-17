@@ -19,7 +19,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package net.nmoncho.helenus.internal.cql
+package net.nmoncho.helenus.api.cql
 
 import java.nio.ByteBuffer
 import java.util.Collections
@@ -32,7 +32,7 @@ import com.datastax.oss.driver.api.core.cql.Row
 import com.datastax.oss.driver.internal.core.cql.EmptyColumnDefinitions
 import net.nmoncho.helenus.api.RowMapper
 import net.nmoncho.helenus.api.`type`.codec.TypeCodecs
-import net.nmoncho.helenus.api.cql.StatementOptions
+import net.nmoncho.helenus.internal.cql.ScalaPreparedStatement1
 import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito._
 import org.scalatest.matchers.should.Matchers
