@@ -185,7 +185,7 @@ lazy val core = project
     ),
     coverageMinimum := 85,
     coverageFailOnMinimum := true,
-    mimaPreviousArtifacts := Set("net.nmoncho" %% "helenus-core" % "0.12.0")
+    mimaPreviousArtifacts := Set("net.nmoncho" %% "helenus-core" % "1.0.0")
   )
 
 lazy val bench = project
@@ -209,7 +209,7 @@ lazy val akka = project
     name := "helenus-akka",
     scalaVersion := dependencies.Version.scala213,
     crossScalaVersions := List(dependencies.Version.scala213),
-    mimaPreviousArtifacts := Set("net.nmoncho" %% "helenus-akka" % "0.12.0"),
+    mimaPreviousArtifacts := Set("net.nmoncho" %% "helenus-akka" % "1.0.0"),
     // 5.x changed to business license
     dependencyUpdatesFilter -= moduleFilter(organization = "com.lightbend.akka"),
     // 2.7.x changed to business license
@@ -245,7 +245,7 @@ lazy val pekko = project
   .settings(
     name := "helenus-pekko",
     scalaVersion := dependencies.Version.scala213,
-    mimaPreviousArtifacts := Set("net.nmoncho" %% "helenus-pekko" % "0.12.0"),
+    mimaPreviousArtifacts := Set("net.nmoncho" %% "helenus-pekko" % "1.0.0"),
     crossScalaVersions := List(dependencies.Version.scala213),
     libraryDependencies ++= Seq(
       dependencies.pekkoConnector % "provided,test",
