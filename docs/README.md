@@ -1,4 +1,8 @@
+<img align="left" width="64px" height="64px" src="docs/logo.svg"/>
+
 # Helenus
+
+---
 
 ![main status](https://github.com/nMoncho/helenus/actions/workflows/main.yaml/badge.svg)
 [![Maven Central 2.13](https://maven-badges.herokuapp.com/maven-central/net.nmoncho/helenus-core_2.13/badge.svg)](https://maven-badges.herokuapp.com/maven-central/net.nmoncho/helenus-core_2.13)
@@ -81,5 +85,5 @@ val interpolatedHotelsById = cql"SELECT * FROM hotels WHERE id = $hotelId"
 interpolatedHotelsById.as[Hotel].execute().nextOption()
 ```
 
-For a more detailed guide on how to use Helenus, please read our [wiki](wiki). We also provide
+For a more detailed guide on how to use Helenus, please read our [wiki](https://github.com/nMoncho/helenus/wiki). We also provide
 [example projects](https://github.com/nMoncho/helenus-examples).
