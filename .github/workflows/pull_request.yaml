@@ -28,6 +28,9 @@ jobs:
       - name: Check formatting, scalfix, and headers
         run: sbt styleCheck
 
+      - name: Check MiMa
+        run: sbt mimaReportBinaryIssues
+
       - name: Check docs
         run: sbt docs/mdoc
 
