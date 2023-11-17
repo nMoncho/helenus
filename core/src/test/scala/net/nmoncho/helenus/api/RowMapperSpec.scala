@@ -54,9 +54,9 @@ class RowMapperSpec
   // We create the mapper here to avoid testing the generic derivation
   implicit val rowMapper: RowMapper[Hotel] = (row: Row) =>
     Hotel(
-      row.getString("id"),
-      row.getString("name"),
-      row.getString("phone"),
+      row.getCol[String]("id"),
+      row.getCol[String]("name"),
+      row.getCol[String]("phone"),
       Address.Empty,
       Set.empty[String]
     )

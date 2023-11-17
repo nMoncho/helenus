@@ -184,18 +184,42 @@ package object helenus extends CodecDerivation {
   }
 
   implicit class RowOps(private val row: Row) extends AnyVal {
+
+    /** Converts a [[Row]] into a [[T]]
+      */
     def as[T](implicit mapper: RowMapper[T]): T = mapper.apply(row)
+
+    /** Gets a column from this [[Row]] of type [[T]] by name
+      *
+      * @param name column name
+      */
+    def getCol[T](name: String)(implicit codec: TypeCodec[T]): T = row.get(name, codec)
+
+    /** Gets a column from this [[Row]] of type [[T]] by index
+      *
+      * @param index position in row
+      */
+    def getCol[T](index: Int)(implicit codec: TypeCodec[T]): T = row.get(index, codec)
   }
 
   implicit class ResultSetOps(private val rs: ResultSet) extends AnyVal {
+
+    /** Converts a [[ResultSet]] into a [[PagingIterable]] of type [[T]]
+      */
     def as[T](implicit mapper: RowMapper[T]): PagingIterable[T] = rs.map(mapper.apply)
   }
 
   implicit class AsyncResultSetOps(private val rs: AsyncResultSet) extends AnyVal {
+
+    /** Converts a [[AsyncResultSet]] into a [[MappedAsyncPagingIterable]] of type [[T]]
+      */
     def as[T](implicit mapper: RowMapper[T]): MappedAsyncPagingIterable[T] = rs.map(mapper.apply)
   }
 
   implicit class ReactiveResultSetOpt(private val rrs: ReactiveResultSet) extends AnyVal {
+
+    /** Converts a [[ReactiveResultSet]] into a [[Publisher]] of type [[T]]
+      */
     def as[T](implicit mapper: RowMapper[T]): Publisher[T] = {
       val op = new MapOperator(rrs, mapper.apply)
 
