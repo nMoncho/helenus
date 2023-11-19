@@ -281,6 +281,29 @@ package object helenus extends CodecDerivation {
         Future.successful(Iterator())
       }
 
+    /** Returns the next element from the results
+      *
+      * This is convenient for queries that are known to return exactly one element, for example
+      * count queries.
+      *
+      * It will fetch the next page in a blocking fashion after it has exhausted the current page.
+      *
+      * @param timeout how much time to wait for the next page to be ready
+      * @return [[Some]] value if results haven't been exhausted, [[None]] otherwise
+      */
+    def nextOption(timeout: FiniteDuration)(implicit ec: ExecutionContext): Option[T] = {
+      val fromCurrentPage = Option(pi.one())
+
+      fromCurrentPage.orElse {
+        if (pi.hasMorePages) {
+          log.debug("fetching more pages")
+          Await.ready(pi.fetchNextPage().asScala, timeout)
+
+          Option(pi.one())
+        } else None
+      }
+    }
+
     /** Return all results of this [[MappedAsyncPagingIterable]] as a Scala [[Iterator]],
       * without having to request more pages.
       *

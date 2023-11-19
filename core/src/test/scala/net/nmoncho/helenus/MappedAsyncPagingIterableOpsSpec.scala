@@ -34,24 +34,36 @@ class MappedAsyncPagingIterableOpsSpec extends AnyWordSpec with Matchers {
 
   import scala.concurrent.ExecutionContext.Implicits.global
 
+  private val timeout = 6.seconds
+
   "MappedAsyncPagingIterableOps" should {
     "get current page" in {
-      val pi = mockPI
+      val pi = mockPI()
       pi.currPage.toList shouldBe List(1, 2, 3)
+    }
+
+    "get nextOption" in {
+      val pi = mockPI()
+
+      pi.nextOption(timeout) shouldBe Some(1)
+      pi.nextOption(timeout) shouldBe Some(2)
+      pi.nextOption(timeout) shouldBe Some(3)
+      // next page
+      pi.nextOption(timeout) shouldBe Some(4)
     }
 
     "get next page" in {
-      val pi = mockPI
+      val pi = mockPI()
 
       // Don't remove next line! This call shouldn't be required, but mocks works this way
       pi.currPage.toList shouldBe List(1, 2, 3)
-      Await.result(pi.nextPage, 6.seconds).toList shouldBe List(4, 5, 6)
+      Await.result(pi.nextPage, timeout).toList shouldBe List(4, 5, 6)
     }
 
     "concat iterators lazily" in {
-      val pi = mockPI
+      val pi = mockPI()
 
-      pi.iter(6.seconds)
+      pi.iter(timeout)
         .map { x =>
           println(x)
           x
@@ -60,17 +72,17 @@ class MappedAsyncPagingIterableOpsSpec extends AnyWordSpec with Matchers {
     }
   }
 
-  private def mockPI: MappedAsyncPagingIterable[Int] = {
+  private def mockPI(): MappedAsyncPagingIterable[java.lang.Integer] = {
     import scala.jdk.CollectionConverters._
     import net.nmoncho.helenus.internal.compat.FutureConverters._
 
-    val m = mock(classOf[MappedAsyncPagingIterable[Int]])
+    val m = mock(classOf[MappedAsyncPagingIterable[java.lang.Integer]])
 
     when(m.currentPage())
-      .thenReturn(List(1, 2, 3).asJava)
-      .thenReturn(List(4, 5, 6).asJava)
-      .thenReturn(List(7, 8, 9).asJava)
-      .thenReturn(List.empty[Int].asJava)
+      .thenReturn(List(1: java.lang.Integer, 2: java.lang.Integer, 3: java.lang.Integer).asJava)
+      .thenReturn(List(4: java.lang.Integer, 5: java.lang.Integer, 6: java.lang.Integer).asJava)
+      .thenReturn(List(7: java.lang.Integer, 8: java.lang.Integer, 9: java.lang.Integer).asJava)
+      .thenReturn(List.empty[java.lang.Integer].asJava)
 
     when(m.hasMorePages())
       .thenReturn(true)
@@ -78,6 +90,13 @@ class MappedAsyncPagingIterableOpsSpec extends AnyWordSpec with Matchers {
       .thenReturn(false)
 
     when(m.fetchNextPage()).thenReturn(Future.successful(m).asJava)
+
+    when(m.one())
+      .thenReturn(1)
+      .thenReturn(2)
+      .thenReturn(3)
+      .thenReturn(null: java.lang.Integer)
+      .thenReturn(4)
 
     m
   }
