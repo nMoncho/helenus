@@ -16,7 +16,7 @@ lazy val dependencies = new {
     val akkaBusl    = "2.8.2"
     val alpakkaBusl = "6.0.1"
 
-    val pekkoConnector = "1.0.0"
+    val pekkoConnector = "1.0.1"
     val pekkoTestKit   = "1.0.2"
 
     // Test Dependencies
