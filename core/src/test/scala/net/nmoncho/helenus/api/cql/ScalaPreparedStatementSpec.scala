@@ -193,6 +193,25 @@ class ScalaPreparedStatementSpec
       whenReady(insertHotel.executeAsync(Hotels.h2)) { _ =>
         // should execute
       }
+
+      withClue(", when using an explicit function") {
+        val insertHotel = """INSERT INTO hotels(id, name, phone, address, pois)
+                            |VALUES (?, ?, ?, ?, ?)""".stripMargin.toCQL
+          .prepareAsync[String, String, String, Address, Set[String]]
+          .from((hotel: Hotel) =>
+            (
+              hotel.id,
+              hotel.name,
+              hotel.phone,
+              hotel.address,
+              hotel.pois
+            )
+          )
+
+        whenReady(insertHotel.executeAsync(Hotels.h3)) { _ =>
+          // should execute
+        }
+      }
     }
 
     "not set 'null' parameters" in {

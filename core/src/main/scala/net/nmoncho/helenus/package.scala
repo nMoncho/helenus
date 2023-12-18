@@ -355,6 +355,18 @@ package object helenus extends CodecDerivation {
         adapter: Adapter[In2, In]
     ): Future[AdaptedScalaPreparedStatement[In2, In, Out]] =
       fut.map(_.from[In2])
+
+    /** Adapts this [[ScalaPreparedStatement]] converting [[In2]] values with the provided adapter
+      * into a [[In]] value (ie. the original type of this statement)
+      *
+      * @param adapter how to adapt an [[In2]] value into [[In]] value
+      * @tparam In2 new input type
+      * @return adapted [[ScalaPreparedStatement]] with new [[In2]] input type
+      */
+    def from[In2](adapter: In2 => In)(
+        implicit ec: ExecutionContext
+    ): Future[AdaptedScalaPreparedStatement[In2, In, Out]] =
+      fut.map(_.from((a: In2) => adapter(a)))
   }
 
   // **********************************************************************
