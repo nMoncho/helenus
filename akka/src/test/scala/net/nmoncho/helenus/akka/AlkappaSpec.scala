@@ -36,6 +36,7 @@ import akka.stream.scaladsl.FlowWithContext
 import akka.stream.scaladsl.Sink
 import akka.stream.scaladsl.Source
 import com.datastax.oss.driver.api.core.CqlSession
+import com.datastax.oss.driver.api.core.cql.Row
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import net.nmoncho.helenus.api.RowMapper
@@ -139,6 +140,20 @@ class AlkappaSpec extends AnyWordSpec with Matchers with CassandraSpec with Scal
           .asWriteSink(writeSettings)
 
       testStream(ijes, query, insert)(identity)
+
+      withClue("and use an explicit RowMapper") {
+        val query: Source[IceCream, NotUsed] = "SELECT * FROM ice_creams".toCQLAsync.prepareUnit
+          .as((row: Row) =>
+            IceCream(
+              row.getCol[String]("name"),
+              row.getCol[Int]("numCherries"),
+              row.getCol[Boolean]("cone")
+            )
+          )
+          .asReadSource()
+
+        testStream(ijes, query, insert)(identity)
+      }
     }
 
     "work with Akka Streams and Context (async)" in {

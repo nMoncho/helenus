@@ -26,6 +26,7 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
 import com.datastax.oss.driver.api.core.CqlSession
+import com.datastax.oss.driver.api.core.cql.Row
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import net.nmoncho.helenus.api.RowMapper
@@ -139,6 +140,20 @@ class PekkoConnectorSpec extends AnyWordSpec with Matchers with CassandraSpec wi
           .asWriteSink(writeSettings)
 
       testStream(ijes, query, insert)(identity)
+
+      withClue("and use an explicit RowMapper") {
+        val query: Source[IceCream, NotUsed] = "SELECT * FROM ice_creams".toCQLAsync.prepareUnit
+          .as((row: Row) =>
+            IceCream(
+              row.getCol[String]("name"),
+              row.getCol[Int]("numCherries"),
+              row.getCol[Boolean]("cone")
+            )
+          )
+          .asReadSource()
+
+        testStream(ijes, query, insert)(identity)
+      }
     }
 
     "work with Pekko Streams and Context (async)" in {
