@@ -16,15 +16,27 @@ avoid introducing a complex API.
 Include the library into you project definition:
 
 ```scala
-libraryDependencies += "net.nmoncho" %% "helenus-core" % "1.2.0"
+libraryDependencies += "net.nmoncho" %% "helenus-core" % "1.2.0+0-cfbaea7d+20231219-1307-SNAPSHOT"
 ```
+
+## Motivation
+
+We tried using libraries such as [Phantom](https://outworkers.github.io/phantom/) and [Quill](https://github.com/zio/zio-quill),
+which are great by the way, but they didn't fit entirely our mindset of workflow. We believe the best way to use Cassandra,
+or any DB for that matter, is to use its Query Language directly.
+
+Helenus takes inspiration from libraries such as [Anorm](https://github.com/playframework/anorm), trying to provide a
+similar experience by putting CQL first. Our goals are:
+
+- Give users control over the queries that are actually executed.
+- Keep the library simple with a concise API.
 
 ## Features
 
- - `TypeCodec`s for Scala types. All types extending `AnyVal`, Scala Collections, Scala `Enumeration`, etc.
+ - `TypeCodec`s for Scala types. Every type extending `AnyVal`, most Scala Collections, Scala `Enumeration`, etc.
    - Codecs for [UDTs](https://docs.datastax.com/en/cql-oss/3.3/cql/cql_using/useCreateUDT.html) defined as Case Classes.
    - Codecs for [Tuples](https://docs.datastax.com/en/cql-oss/3.3/cql/cql_using/useCreateTableTuple.html) defined with Scala Tuples.
- - CQL templating, with String Interpolation.
+ - CQL templating, with String Interpolation. See [usage](#usage).
  - `PreparedStatement`s and `BoundStatement`s extension methods
 
 ### Supported Codecs
@@ -34,7 +46,8 @@ As of this version, Helenus supports the following types:
 - Java types: `String`, `UUID`, `Instant`, `LocalDate`, `LocalTime`, `InetAddress`.
 - `AnyVal` types: `Boolean`, `Byte`, `Double`, `Float`, `Int`, `Long`, `Short`.
   - This means, if used properly, no more boxing.
-- Collections: `Seq`, `List`, `Vector`, `Map`, `Set`, `SortedMap`, `SortedSet`
+- Collections: `Seq`, `List`, `Vector`, `Map`, `Set`, `SortedMap`, `SortedSet`.
+  - If you need a codec that isn't provided out of the box, please read [this guide](https://github.com/nMoncho/helenus/wiki/Codecs#where-is-the-typecodec-for-x-collection) on how to add it.
 - Enumerations: Can be encoded by name or by order. See [Enumeration Codecs](#enumeration-codecs).
 - Tuples: Encoded as regular Cassandra tuples
 - Case Classes: Encoded as regular Cassandra UDTs
@@ -50,7 +63,7 @@ import net.nmoncho.helenus._
 
 // Then mark your session implicit
 implicit val session: CqlSession = getSession
-// session: CqlSession = com.datastax.oss.driver.internal.core.session.DefaultSession@7180d451
+// session: CqlSession = com.datastax.oss.driver.internal.core.session.DefaultSession@38f62f55
 
 case class Address(street: String, city: String, stateOrProvince: String, postalCode: String, country: String)
 
@@ -62,7 +75,7 @@ implicit val typeCodec: TypeCodec[Address] = Codec.udtOf[Address]()
 
 // We can derive how query results map to case classes
 implicit val rowMapper: RowMapper[Hotel] = RowMapper[Hotel]
-// rowMapper: RowMapper[Hotel] = net.nmoncho.helenus.internal.CaseClassRowMapperDerivation$$anonfun$net$nmoncho$helenus$internal$CaseClassRowMapperDerivation$$$nestedInanonfun$genericCCRowMapperBuilder$1$1@2aa1c6ab
+// rowMapper: RowMapper[Hotel] = net.nmoncho.helenus.internal.CaseClassRowMapperDerivation$$anonfun$net$nmoncho$helenus$internal$CaseClassRowMapperDerivation$$$nestedInanonfun$genericCCRowMapperBuilder$1$1@1141ba85
 
 val hotelId = "h1"
 // hotelId: String = "h1"
@@ -71,7 +84,7 @@ val hotelId = "h1"
 val hotelsById = "SELECT * FROM hotels WHERE id = ?".toCQL
     .prepare[String]
     .as[Hotel]
-// hotelsById: internal.cql.ScalaPreparedStatement1[String, Hotel] = net.nmoncho.helenus.internal.cql.ScalaPreparedStatement1@4d51eb9c
+// hotelsById: internal.cql.ScalaPreparedStatement1[String, Hotel] = net.nmoncho.helenus.internal.cql.ScalaPreparedStatement1@1378016a
 
 // We can extract a single result using `nextOption()`, or
 // use `to(Coll)` to transform the result to a collection
@@ -94,7 +107,7 @@ hotelsById.execute("h1").nextOption()
 
 // We can also run the same using CQL interpolated queries
 val interpolatedHotelsById = cql"SELECT * FROM hotels WHERE id = $hotelId"
-// interpolatedHotelsById: api.cql.WrappedBoundStatement[com.datastax.oss.driver.api.core.cql.Row] = net.nmoncho.helenus.api.cql.WrappedBoundStatement@5b5da04d
+// interpolatedHotelsById: api.cql.WrappedBoundStatement[com.datastax.oss.driver.api.core.cql.Row] = net.nmoncho.helenus.api.cql.WrappedBoundStatement@7573bbad
 
 interpolatedHotelsById.as[Hotel].execute().nextOption()
 // res1: Option[Hotel] = Some(
