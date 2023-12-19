@@ -115,6 +115,15 @@ class ScalaPreparedStatementSpec
         h1RowOpt shouldBe defined
         h1RowOpt.map(_.getString("name")) shouldBe Some(Hotels.h1.name)
       }
+
+      withClue("and options can be set") {
+        val h1It =
+          queryH1.withOptions(_.setConsistencyLevel(ConsistencyLevel.LOCAL_QUORUM)).execute()
+        val h1RowOpt = Option(h1It.one())
+
+        h1RowOpt shouldBe defined
+        h1RowOpt.map(_.getString("name")) shouldBe Some(Hotels.h1.name)
+      }
     }
 
     "execute (short-hand function)" in {

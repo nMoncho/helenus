@@ -38,6 +38,7 @@ import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.`type`.codec.registry.MutableCodecRegistry
 import com.datastax.oss.driver.api.core.config.DriverExecutionProfile
 import com.datastax.oss.driver.api.core.cql.AsyncResultSet
+import com.datastax.oss.driver.api.core.cql.BoundStatement
 import com.datastax.oss.driver.api.core.cql.ResultSet
 import com.datastax.oss.driver.api.core.cql.Row
 import com.datastax.oss.driver.api.core.metadata.schema.KeyspaceMetadata
@@ -47,6 +48,7 @@ import net.nmoncho.helenus.api.cql.Adapter
 import net.nmoncho.helenus.api.cql.ScalaPreparedStatement
 import net.nmoncho.helenus.api.cql.ScalaPreparedStatement.CQLQuery
 import net.nmoncho.helenus.api.cql.ScalaPreparedStatement.ScalaBoundStatement
+import net.nmoncho.helenus.api.cql.StatementOptions
 import net.nmoncho.helenus.api.cql.WrappedBoundStatement
 import net.nmoncho.helenus.internal.codec.udt.UDTCodec
 import net.nmoncho.helenus.internal.cql._
@@ -166,6 +168,16 @@ package object helenus extends CodecDerivation {
 
     def executeReactive()(implicit session: CqlSession, mapper: RowMapper[Out]): Publisher[Out] =
       session.executeReactive(bstmt).as[Out]
+
+    /** Set options to this [[BoundStatement]] while returning the original type
+      */
+    def withOptions(fn: BoundStatement => BoundStatement): ScalaBoundStatement[Out] =
+      fn(bstmt).asInstanceOf[ScalaBoundStatement[Out]]
+
+    /** Set options to this [[BoundStatement]] while returning the original type
+      */
+    def withOptions(options: StatementOptions): ScalaBoundStatement[Out] =
+      options(bstmt).asInstanceOf[ScalaBoundStatement[Out]]
   }
 
   implicit class PreparedStatementSyncStringOps(private val query: String) extends AnyVal {
