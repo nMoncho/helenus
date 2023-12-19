@@ -109,6 +109,24 @@ class RowMapperSpec
       val hotelH1Opt = query.execute(Hotels.h1.id).nextOption()
       hotelH1Opt shouldBe defined
       hotelH1Opt.map(_.name) shouldBe Some(Hotels.h1.name)
+
+      withClue("(when using an explicit mapper)") {
+        val query = "SELECT * FROM hotels WHERE id = ?".toCQL
+          .prepare[String]
+          .as((row: Row) =>
+            Hotel(
+              row.getCol[String]("id"),
+              row.getCol[String]("name"),
+              row.getCol[String]("phone"),
+              row.getCol[Address]("address"),
+              row.getCol[Set[String]]("pois")
+            )
+          )
+
+        val hotelH1Opt = query.execute(Hotels.h1.id).nextOption()
+        hotelH1Opt shouldBe defined
+        hotelH1Opt.map(_.name) shouldBe Some(Hotels.h1.name)
+      }
     }
 
     "map result to case classes (async)" in {

@@ -86,7 +86,7 @@ class AdaptedScalaPreparedStatement[In2, In, Out](pstmt: ScalaPreparedStatement[
   def executeReactive(t1: In2)(implicit session: CqlSession): Publisher[Out] =
     apply(t1).executeReactive()
 
-  override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
+  override def as[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): AsOut[Out2] =
     new AdaptedScalaPreparedStatement[In2, In, Out2](pstmt, mapper, adapter, options)
 
   override def withOptions(options: StatementOptions): Self =
@@ -137,7 +137,7 @@ class ScalaPreparedStatementUnit[Out](pstmt: PreparedStatement, mapper: RowMappe
    * as long as there is an implicit [[RowMapper]] and [[Out]] is [[Row]] (this is
    * meant to avoid calling `as` twice)
    */
-  override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
+  override def as[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): AsOut[Out2] =
     new ScalaPreparedStatementUnit[Out2](pstmt, mapper, options)
 
   override def withOptions(options: StatementOptions): Self =
@@ -188,7 +188,7 @@ class ScalaPreparedStatement1[T1, Out](pstmt: PreparedStatement, mapper: RowMapp
   def executeReactive(t1: T1)(implicit session: CqlSession): Publisher[Out] =
     apply(t1).executeReactive()
 
-  override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
+  override def as[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): AsOut[Out2] =
     new ScalaPreparedStatement1(pstmt, mapper, options, t1Codec)
 
   override def withOptions(options: StatementOptions): Self =
@@ -243,7 +243,7 @@ class ScalaPreparedStatement1[T1, Out](pstmt: PreparedStatement, mapper: RowMapp
 //        |  def executeReactive($parameterList)(implicit session: CqlSession): Publisher[Out] =
 //        |    apply($methodParameters).executeReactive()
 //        |
-//        |  override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
+//        |  override def as[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): AsOut[Out2] =
 //        |    new ScalaPreparedStatement$typeParameterCount(pstmt, mapper, options, $codecParams)
 //        |
 //        |  override def withOptions(options: StatementOptions): Self =
@@ -291,7 +291,7 @@ class ScalaPreparedStatement2[T1, T2, Out](pstmt: PreparedStatement, mapper: Row
   def executeReactive(t1: T1, t2: T2)(implicit session: CqlSession): Publisher[Out] =
     apply(t1, t2).executeReactive()
 
-  override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
+  override def as[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): AsOut[Out2] =
     new ScalaPreparedStatement2(pstmt, mapper, options, t1Codec, t2Codec)
 
   override def withOptions(options: StatementOptions): Self =
@@ -334,7 +334,7 @@ class ScalaPreparedStatement3[T1, T2, T3, Out](pstmt: PreparedStatement, mapper:
   def executeReactive(t1: T1, t2: T2, t3: T3)(implicit session: CqlSession): Publisher[Out] =
     apply(t1, t2, t3).executeReactive()
 
-  override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
+  override def as[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): AsOut[Out2] =
     new ScalaPreparedStatement3(pstmt, mapper, options, t1Codec, t2Codec, t3Codec)
 
   override def withOptions(options: StatementOptions): Self =
@@ -377,7 +377,7 @@ class ScalaPreparedStatement4[T1, T2, T3, T4, Out](pstmt: PreparedStatement, map
   def executeReactive(t1: T1, t2: T2, t3: T3, t4: T4)(implicit session: CqlSession): Publisher[Out] =
     apply(t1, t2, t3, t4).executeReactive()
 
-  override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
+  override def as[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): AsOut[Out2] =
     new ScalaPreparedStatement4(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec)
 
   override def withOptions(options: StatementOptions): Self =
@@ -420,7 +420,7 @@ class ScalaPreparedStatement5[T1, T2, T3, T4, T5, Out](pstmt: PreparedStatement,
   def executeReactive(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5)(implicit session: CqlSession): Publisher[Out] =
     apply(t1, t2, t3, t4, t5).executeReactive()
 
-  override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
+  override def as[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): AsOut[Out2] =
     new ScalaPreparedStatement5(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec)
 
   override def withOptions(options: StatementOptions): Self =
@@ -463,7 +463,7 @@ class ScalaPreparedStatement6[T1, T2, T3, T4, T5, T6, Out](pstmt: PreparedStatem
   def executeReactive(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6)(implicit session: CqlSession): Publisher[Out] =
     apply(t1, t2, t3, t4, t5, t6).executeReactive()
 
-  override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
+  override def as[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): AsOut[Out2] =
     new ScalaPreparedStatement6(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec)
 
   override def withOptions(options: StatementOptions): Self =
@@ -506,7 +506,7 @@ class ScalaPreparedStatement7[T1, T2, T3, T4, T5, T6, T7, Out](pstmt: PreparedSt
   def executeReactive(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7)(implicit session: CqlSession): Publisher[Out] =
     apply(t1, t2, t3, t4, t5, t6, t7).executeReactive()
 
-  override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
+  override def as[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): AsOut[Out2] =
     new ScalaPreparedStatement7(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec)
 
   override def withOptions(options: StatementOptions): Self =
@@ -549,7 +549,7 @@ class ScalaPreparedStatement8[T1, T2, T3, T4, T5, T6, T7, T8, Out](pstmt: Prepar
   def executeReactive(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8)(implicit session: CqlSession): Publisher[Out] =
     apply(t1, t2, t3, t4, t5, t6, t7, t8).executeReactive()
 
-  override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
+  override def as[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): AsOut[Out2] =
     new ScalaPreparedStatement8(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec)
 
   override def withOptions(options: StatementOptions): Self =
@@ -592,7 +592,7 @@ class ScalaPreparedStatement9[T1, T2, T3, T4, T5, T6, T7, T8, T9, Out](pstmt: Pr
   def executeReactive(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9)(implicit session: CqlSession): Publisher[Out] =
     apply(t1, t2, t3, t4, t5, t6, t7, t8, t9).executeReactive()
 
-  override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
+  override def as[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): AsOut[Out2] =
     new ScalaPreparedStatement9(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec)
 
   override def withOptions(options: StatementOptions): Self =
@@ -635,7 +635,7 @@ class ScalaPreparedStatement10[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, Out](pst
   def executeReactive(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10)(implicit session: CqlSession): Publisher[Out] =
     apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10).executeReactive()
 
-  override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
+  override def as[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): AsOut[Out2] =
     new ScalaPreparedStatement10(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec)
 
   override def withOptions(options: StatementOptions): Self =
@@ -678,7 +678,7 @@ class ScalaPreparedStatement11[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, Out
   def executeReactive(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11)(implicit session: CqlSession): Publisher[Out] =
     apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11).executeReactive()
 
-  override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
+  override def as[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): AsOut[Out2] =
     new ScalaPreparedStatement11(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec)
 
   override def withOptions(options: StatementOptions): Self =
@@ -721,7 +721,7 @@ class ScalaPreparedStatement12[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   def executeReactive(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12)(implicit session: CqlSession): Publisher[Out] =
     apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12).executeReactive()
 
-  override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
+  override def as[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): AsOut[Out2] =
     new ScalaPreparedStatement12(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec)
 
   override def withOptions(options: StatementOptions): Self =
@@ -764,7 +764,7 @@ class ScalaPreparedStatement13[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   def executeReactive(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13)(implicit session: CqlSession): Publisher[Out] =
     apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13).executeReactive()
 
-  override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
+  override def as[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): AsOut[Out2] =
     new ScalaPreparedStatement13(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec)
 
   override def withOptions(options: StatementOptions): Self =
@@ -807,7 +807,7 @@ class ScalaPreparedStatement14[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   def executeReactive(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14)(implicit session: CqlSession): Publisher[Out] =
     apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14).executeReactive()
 
-  override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
+  override def as[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): AsOut[Out2] =
     new ScalaPreparedStatement14(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec, t14Codec)
 
   override def withOptions(options: StatementOptions): Self =
@@ -850,7 +850,7 @@ class ScalaPreparedStatement15[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   def executeReactive(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15)(implicit session: CqlSession): Publisher[Out] =
     apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15).executeReactive()
 
-  override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
+  override def as[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): AsOut[Out2] =
     new ScalaPreparedStatement15(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec, t14Codec, t15Codec)
 
   override def withOptions(options: StatementOptions): Self =
@@ -893,7 +893,7 @@ class ScalaPreparedStatement16[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   def executeReactive(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16)(implicit session: CqlSession): Publisher[Out] =
     apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16).executeReactive()
 
-  override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
+  override def as[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): AsOut[Out2] =
     new ScalaPreparedStatement16(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec, t14Codec, t15Codec, t16Codec)
 
   override def withOptions(options: StatementOptions): Self =
@@ -936,7 +936,7 @@ class ScalaPreparedStatement17[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   def executeReactive(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17)(implicit session: CqlSession): Publisher[Out] =
     apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17).executeReactive()
 
-  override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
+  override def as[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): AsOut[Out2] =
     new ScalaPreparedStatement17(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec, t14Codec, t15Codec, t16Codec, t17Codec)
 
   override def withOptions(options: StatementOptions): Self =
@@ -979,7 +979,7 @@ class ScalaPreparedStatement18[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   def executeReactive(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18)(implicit session: CqlSession): Publisher[Out] =
     apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18).executeReactive()
 
-  override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
+  override def as[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): AsOut[Out2] =
     new ScalaPreparedStatement18(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec, t14Codec, t15Codec, t16Codec, t17Codec, t18Codec)
 
   override def withOptions(options: StatementOptions): Self =
@@ -1022,7 +1022,7 @@ class ScalaPreparedStatement19[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   def executeReactive(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19)(implicit session: CqlSession): Publisher[Out] =
     apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19).executeReactive()
 
-  override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
+  override def as[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): AsOut[Out2] =
     new ScalaPreparedStatement19(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec, t14Codec, t15Codec, t16Codec, t17Codec, t18Codec, t19Codec)
 
   override def withOptions(options: StatementOptions): Self =
@@ -1065,7 +1065,7 @@ class ScalaPreparedStatement20[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   def executeReactive(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20)(implicit session: CqlSession): Publisher[Out] =
     apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20).executeReactive()
 
-  override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
+  override def as[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): AsOut[Out2] =
     new ScalaPreparedStatement20(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec, t14Codec, t15Codec, t16Codec, t17Codec, t18Codec, t19Codec, t20Codec)
 
   override def withOptions(options: StatementOptions): Self =
@@ -1108,7 +1108,7 @@ class ScalaPreparedStatement21[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   def executeReactive(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21)(implicit session: CqlSession): Publisher[Out] =
     apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21).executeReactive()
 
-  override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
+  override def as[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): AsOut[Out2] =
     new ScalaPreparedStatement21(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec, t14Codec, t15Codec, t16Codec, t17Codec, t18Codec, t19Codec, t20Codec, t21Codec)
 
   override def withOptions(options: StatementOptions): Self =
@@ -1151,7 +1151,7 @@ class ScalaPreparedStatement22[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   def executeReactive(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21, t22: T22)(implicit session: CqlSession): Publisher[Out] =
     apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21, t22).executeReactive()
 
-  override def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2] =
+  override def as[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): AsOut[Out2] =
     new ScalaPreparedStatement22(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec, t14Codec, t15Codec, t16Codec, t17Codec, t18Codec, t19Codec, t20Codec, t21Codec, t22Codec)
 
   override def withOptions(options: StatementOptions): Self =

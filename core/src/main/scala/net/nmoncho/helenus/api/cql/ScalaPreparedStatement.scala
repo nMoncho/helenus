@@ -72,7 +72,14 @@ abstract class ScalaPreparedStatement[In, Out](pstmt: PreparedStatement, mapper:
    * as long as there is an implicit [[RowMapper]] and [[Out]] is [[Row]] (this is
    * meant to avoid calling `as` twice)
    */
-  def as[Out2](implicit mapper: RowMapper[Out2], ev: Out =:= Row): AsOut[Out2]
+  def as[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): AsOut[Out2]
+
+  /** Maps the result from this [[PreparedStatement]] with a different [[Out2]]
+   * with an explicit [[RowMapper]] as long as [[Out]] is [[Row]] (this is
+   * meant to avoid calling `as` twice)
+   */
+  def as[Out2](mapper: RowMapper[Out2])(implicit ev: Out =:= Row): AsOut[Out2] =
+    as[Out2](ev, mapper)
 
   @inline protected def tag[Out](bs: BoundStatement): ScalaBoundStatement[Out] =
     bs.asInstanceOf[ScalaBoundStatement[Out]]
