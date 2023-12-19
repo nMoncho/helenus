@@ -128,7 +128,7 @@ object ScalaPreparedStatement {
       * @tparam T
       * @return a modified version of this [[BoundStatement]]
       */
-    def setIfDefined[T](index: Int, value: T, codec: TypeCodec[T]): BoundStatement =
+    @inline def setIfDefined[T](index: Int, value: T, codec: TypeCodec[T]): BoundStatement =
       if (value == null || value == None) bs else bs.set(index, value, codec)
   }
 
