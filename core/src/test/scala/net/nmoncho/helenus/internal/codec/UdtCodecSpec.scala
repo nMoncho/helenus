@@ -64,6 +64,32 @@ class UdtCodecSpec extends AnyWordSpec with Matchers {
       round should not be vanilla
     }
 
+    "encode-decode a case class with a options" in {
+      val codec: TypeCodec[IceCream3] = Codec.udtOf[IceCream3]()
+
+      withClue("with defined values") {
+        val sundae  = IceCream3("Sundae", 3, cone = Some(false), Some(1 -> 2))
+        val vanilla = IceCream3("Vanilla", 3, cone = Some(true), Some(2 -> 1))
+
+        val round =
+          codec.decode(codec.encode(sundae, ProtocolVersion.DEFAULT), ProtocolVersion.DEFAULT)
+
+        round shouldBe sundae
+        round should not be vanilla
+      }
+
+      withClue("with not defined values") {
+        val sundae  = IceCream3("Sundae", 3, cone = None, None)
+        val vanilla = IceCream3("Vanilla", 3, cone = Some(true), Some(2 -> 1))
+
+        val round =
+          codec.decode(codec.encode(sundae, ProtocolVersion.DEFAULT), ProtocolVersion.DEFAULT)
+
+        round shouldBe sundae
+        round should not be vanilla
+      }
+    }
+
     "format-parse" in {
       val vanilla = IceCream("Vanilla", 3, cone = true)
 
@@ -76,6 +102,13 @@ object UdtCodecSpec {
   case class IceCream(name: String, numCherries: Int, cone: Boolean)
 
   case class IceCream2(name: String, numCherries: Int, cone: Boolean, count: (Int, Int))
+
+  case class IceCream3(
+      name: String,
+      numCherries: Int,
+      cone: Option[Boolean],
+      count: Option[(Int, Int)]
+  )
 }
 
 class CassandraUdtCodecSpec extends AnyWordSpec with Matchers with CassandraSpec {

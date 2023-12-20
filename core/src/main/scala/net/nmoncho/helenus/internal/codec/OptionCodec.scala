@@ -45,7 +45,7 @@ class OptionCodec[T](inner: TypeCodec[T]) extends TypeCodec[Option[T]] {
     value match {
       case Some(value) => inner.encode(value, protocolVersion)
       // This will create a tombstone, although this is how `OptionalCodec` does it.
-      // A higher level solution is needed (eg. BSTMT unset)
+      // A higher level solution is provided with `ScalaPreparedStatement.setIfDefined`
       case None | null => null
     }
 
