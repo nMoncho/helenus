@@ -1,3 +1,9 @@
+import com.typesafe.tools.mima.core.{
+  IncompatibleResultTypeProblem,
+  ProblemFilters,
+  ReversedMissingMethodProblem
+}
+
 lazy val dependencies = new {
   object Version {
     val scala213 = "2.13.12"
@@ -185,7 +191,13 @@ lazy val core = project
     ),
     coverageMinimum := 85,
     coverageFailOnMinimum := true,
-    mimaPreviousArtifacts := Set("net.nmoncho" %% "helenus-core" % "1.0.0")
+    mimaPreviousArtifacts := Set("net.nmoncho" %% "helenus-core" % "1.0.0"),
+    mimaBinaryIssueFilters ++= Seq(
+      ProblemFilters.exclude[ReversedMissingMethodProblem](
+        "net.nmoncho.helenus.api.cql.ScalaPreparedStatement.as"
+      ),
+      ProblemFilters.exclude[IncompatibleResultTypeProblem]("net.nmoncho.helenus.internal.cql.*.as")
+    )
   )
 
 lazy val bench = project
