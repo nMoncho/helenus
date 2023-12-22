@@ -120,6 +120,10 @@ object IdenticalUDTCodec {
       columnNamingScheme: ColumnNamingScheme = DefaultColumnNamingScheme
   ): TypeCodec[A] = new TypeCodec[A] with UDTCodec[A] {
 
+    private val actualKeyspace =
+      if (keyspace.isBlank) "system"
+      else keyspace
+
     private val actualName =
       if (name.isBlank) columnNamingScheme.map(tag.runtimeClass.getSimpleName)
       else name
@@ -137,7 +141,7 @@ object IdenticalUDTCodec {
         }
 
       new DefaultUserDefinedType(
-        CqlIdentifier.fromInternal(keyspace),
+        CqlIdentifier.fromInternal(actualKeyspace),
         CqlIdentifier.fromInternal(actualName),
         frozen,
         identifiers.asJava,

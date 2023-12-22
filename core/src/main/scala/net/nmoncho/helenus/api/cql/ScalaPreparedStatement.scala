@@ -28,15 +28,14 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
 import com.datastax.oss.driver.api.core.CqlSession
+import com.datastax.oss.driver.api.core.`type`.UserDefinedType
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
-import com.datastax.oss.driver.api.core.cql.BoundStatement
-import com.datastax.oss.driver.api.core.cql.BoundStatementBuilder
-import com.datastax.oss.driver.api.core.cql.ColumnDefinitions
-import com.datastax.oss.driver.api.core.cql.PreparedStatement
-import com.datastax.oss.driver.api.core.cql.Row
+import com.datastax.oss.driver.api.core.cql._
 import net.nmoncho.helenus.api.RowMapper
 import net.nmoncho.helenus.api.cql.ScalaPreparedStatement.ScalaBoundStatement
+import net.nmoncho.helenus.internal.codec.udt.UDTCodec
 import net.nmoncho.helenus.internal.cql.AdaptedScalaPreparedStatement
+import org.slf4j.LoggerFactory
 
 // format: off
 
@@ -84,6 +83,50 @@ abstract class ScalaPreparedStatement[In, Out](pstmt: PreparedStatement, mapper:
   @inline protected def tag[Out](bs: BoundStatement): ScalaBoundStatement[Out] =
     bs.asInstanceOf[ScalaBoundStatement[Out]]
 
+  /** Verifies that this [[ScalaPreparedStatement]] has the same amount of bind parameters (e.g. '?') as the amount
+   * used on the '.prepare' call. It will also verify that these parameters have the same type as the specified in
+   * the '.prepare' call.
+   *
+   * If this check fails, a warning will be logged.
+   *
+   * For example:
+   *   {{{"SELECT * FROM hotels WHERE id = ?".prepare[Int, String] }}}
+   *
+   * Will issue two warnings, one for the amount of parameters, and another for the parameter type ('id' has type TEXT)
+   *
+   * @param codecs codecs used in this [[ScalaPreparedStatement]]
+   */
+  protected def verifyArity(codecs: TypeCodec[_]*): Unit = {
+    import ScalaPreparedStatement._
+
+    import scala.jdk.CollectionConverters._
+
+    val expectedArity = codecs.size
+    val actualParams = getVariableDefinitions
+    val actualArity = actualParams.size()
+
+    if (expectedArity != actualArity) {
+      log.error("Invalid PreparedStatement [{}] expects {} bind parameters but defined {}. Double check its definition when calling the 'prepare' method", getQuery, actualArity, expectedArity)
+    }
+
+    actualParams.iterator().asScala.zip(codecs).zipWithIndex.foreach { case ((param, codec), idx) =>
+      val check = param.getType == codec.getCqlType
+
+      val areEquals = (param.getType, codec.getCqlType) match {
+        // Give this type another chance of being equals by only considering types
+        case (paramType: UserDefinedType, codecType: UserDefinedType) if !check && codec.isInstanceOf[UDTCodec[_]] =>
+            paramType.getFieldTypes == codecType.getFieldTypes
+
+        case _ =>
+          check
+      }
+
+      if (!areEquals) {
+        log.warn("Invalid PreparedStatement expected parameter with type {} at index {} but got type {}", param.getType, idx, codec.getCqlType)
+      }
+    }
+  }
+
   // ----------------------------------------------------------------------------
   //  Wrapped `PreparedStatement` methods
   // ----------------------------------------------------------------------------
@@ -117,6 +160,8 @@ object ScalaPreparedStatement {
 
   type TaggedBoundStatement[Out] = { type Tag = Out }
   type ScalaBoundStatement[Out]  = BoundStatement with TaggedBoundStatement[Out]
+
+  private val log = LoggerFactory.getLogger(classOf[ScalaPreparedStatement[_, _]])
 
   implicit private[helenus] class BoundStatementOps(private val bs: BoundStatement) extends AnyVal {
 
