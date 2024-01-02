@@ -34,6 +34,14 @@ class TupleCodecsSpec extends AnyWordSpec with Matchers {
     "some long text" -> 4
   )
 
+  "Tuple2Codec (String, Option[Int])" should beAValidTupleCodec(
+    Codec.tupleOf[(String, Option[Int])]
+  )(
+    "foo" -> Some(1),
+    "bar" -> None,
+    "some long text" -> Some(4)
+  )
+
   "Tuple2Codec (Int, Double)" should beAValidTupleCodec(Codec.tupleOf[(Int, Double)])(
     1 -> 2.0,
     3 -> 4.55,

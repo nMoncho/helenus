@@ -106,7 +106,7 @@ trait TupleCodecDerivation {
 
           val elementSize = input.getInt
           val element = if (elementSize < 0) {
-            null.asInstanceOf[H]
+            codec.decode(null, protocolVersion)
           } else {
             val element = input.slice()
             element.limit(elementSize)
@@ -160,7 +160,7 @@ trait TupleCodecDerivation {
 
         val elementSize = input.getInt
         val element = if (elementSize < 0) {
-          null.asInstanceOf[H]
+          headCodec.decode(null, protocolVersion)
         } else {
           val element = input.slice()
           element.limit(elementSize)
