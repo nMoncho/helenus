@@ -31,6 +31,7 @@ import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import net.nmoncho.helenus.api.RowMapper
 import net.nmoncho.helenus.api.cql.Adapter
+import net.nmoncho.helenus.api.cql.Pager
 import net.nmoncho.helenus.utils.CassandraSpec
 import org.apache.pekko.Done
 import org.apache.pekko.NotUsed
@@ -97,6 +98,32 @@ class PekkoConnectorSpec extends AnyWordSpec with Matchers with CassandraSpec wi
 
       whenReady(queryNameAndCone.runWith(Sink.seq[IceCream])) { result =>
         result should not be empty
+      }
+
+      withClue("use reactive pagination") {
+        val rows = Source.fromPublisher(
+          "SELECT * FROM ice_creams".toCQL.prepareUnit
+            .as[IceCream]
+            .pager()
+            .executeReactive(2)
+        )
+
+        val pager0 = whenReady(rows.runWith(Sink.seq[(Pager[IceCream], IceCream)])) { result =>
+          result should have size 2
+          result.last._1
+        }
+
+        val rows2 = Source.fromPublisher(
+          "SELECT * FROM ice_creams".toCQL.prepareUnit
+            .as[IceCream]
+            .pager(pager0.encodePagingState.get)
+            .get
+            .executeReactive(2)
+        )
+
+        whenReady(rows2.runWith(Sink.seq[(Pager[IceCream], IceCream)])) { result =>
+          result should have size 1
+        }
       }
     }
 

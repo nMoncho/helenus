@@ -35,8 +35,8 @@ import com.datastax.oss.driver.api.core.cql.PagingState
   * This allows to set options on a [[com.datastax.oss.driver.api.core.cql.PreparedStatement]] level instead of from a
   * [[BoundStatement]] level, as provided by Datastax's Driver.
   */
-trait Options {
-  type Self <: ScalaPreparedStatement[_, _]
+trait Options[In, Out] {
+  type Self <: ScalaPreparedStatement[In, Out]
 
   /** [[StatementOptions]] to be applied
     */

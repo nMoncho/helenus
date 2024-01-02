@@ -48,7 +48,7 @@ import org.slf4j.LoggerFactory
  * @tparam In statement input value
  * @tparam Out statement output value
  */
-abstract class ScalaPreparedStatement[In, Out](pstmt: PreparedStatement, mapper: RowMapper[Out]) extends PreparedStatement with Options {
+abstract class ScalaPreparedStatement[In, Out](pstmt: PreparedStatement, mapper: RowMapper[Out]) extends PreparedStatement with Options[In, Out] {
 
   type AsOut[T] <: ScalaPreparedStatement[_, T]
 

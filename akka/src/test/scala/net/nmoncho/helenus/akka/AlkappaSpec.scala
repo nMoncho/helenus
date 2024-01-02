@@ -24,7 +24,6 @@ package net.nmoncho.helenus.akka
 import scala.collection.immutable
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
-
 import akka.Done
 import akka.NotUsed
 import akka.actor.ActorSystem
@@ -40,7 +39,7 @@ import com.datastax.oss.driver.api.core.cql.Row
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import net.nmoncho.helenus.api.RowMapper
-import net.nmoncho.helenus.api.cql.Adapter
+import net.nmoncho.helenus.api.cql.{Adapter, Pager}
 import net.nmoncho.helenus.utils.CassandraSpec
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
@@ -97,6 +96,32 @@ class AlkappaSpec extends AnyWordSpec with Matchers with CassandraSpec with Scal
 
       whenReady(queryNameAndCone.runWith(Sink.seq[IceCream])) { result =>
         result should not be empty
+      }
+
+      withClue("use reactive pagination") {
+        val rows = Source.fromPublisher(
+          "SELECT * FROM ice_creams".toCQL.prepareUnit
+            .as[IceCream]
+            .pager()
+            .executeReactive(2)
+        )
+
+        val pager0 = whenReady(rows.runWith(Sink.seq[(Pager[IceCream], IceCream)])) { result =>
+          result should have size 2
+          result.last._1
+        }
+
+        val rows2 = Source.fromPublisher(
+          "SELECT * FROM ice_creams".toCQL.prepareUnit
+            .as[IceCream]
+            .pager(pager0.encodePagingState.get)
+            .get
+            .executeReactive(2)
+        )
+
+        whenReady(rows2.runWith(Sink.seq[(Pager[IceCream], IceCream)])) { result =>
+          result should have size 1
+        }
       }
     }
 
