@@ -61,7 +61,7 @@ class PagerSpec
   "ScalaPreparedStatement Pager" should {
     "page a unit query" in {
       val pageSize = 2
-      val pstmt = "SELECT * FROM hotels".toCQL.prepareUnit.as[Hotel]
+      val pstmt    = "SELECT * FROM hotels".toCQL.prepareUnit.as[Hotel]
       val pager0   = pstmt.pager()
 
       // First Page
@@ -86,8 +86,8 @@ class PagerSpec
       pager3.hasMorePages shouldBe false
 
       withClue("requesting a page after the last page should be empty") {
-        val (_, page3) = pager3.execute(2)
-        val page3Hotels     = page3.toSeq
+        val (_, page3)  = pager3.execute(2)
+        val page3Hotels = page3.toSeq
         page3Hotels shouldBe empty
       }
 
@@ -100,7 +100,7 @@ class PagerSpec
       withClue("resume from string form") {
         pstmt.pager(pager1.encodePagingState.get) match {
           case Success(value) =>
-            val (_, page1A) = value.execute(pageSize)
+            val (_, page1A)  = value.execute(pageSize)
             val page1AHotels = page1A.toSeq
             page1AHotels shouldEqual page1Hotels
 
@@ -112,9 +112,10 @@ class PagerSpec
 
     "page a single param query" in {
       val pageSize = 2
-      val pstmt = "SELECT date, room_number, is_available FROM available_rooms_by_hotel_date WHERE hotel_id = ?".toCQL
-        .prepare[String]
-        .as[(LocalDate, Short, Boolean)]
+      val pstmt =
+        "SELECT date, room_number, is_available FROM available_rooms_by_hotel_date WHERE hotel_id = ?".toCQL
+          .prepare[String]
+          .as[(LocalDate, Short, Boolean)]
       val pager0 = pstmt.pager(Hotels.h1.id)
 
       val (pager1, page0) = pager0.execute(pageSize)
@@ -130,7 +131,7 @@ class PagerSpec
       withClue("resume from string form") {
         pstmt.pager(pager1.encodePagingState.get, Hotels.h1.id) match {
           case Success(value) =>
-            val (_, page1A) = value.execute(pageSize)
+            val (_, page1A)   = value.execute(pageSize)
             val page1AResults = page1A.toSeq
             page1AResults shouldEqual page1Results
 
@@ -146,7 +147,7 @@ class PagerSpec
             fail("not here")
 
           case Failure(exception) =>
-            // all good
+          // all good
         }
       }
     }
@@ -176,7 +177,7 @@ class PagerSpec
       pager3.hasMorePages shouldBe false
 
       withClue("requesting a page after the last page should be empty") {
-        val (_, page3) = whenReady(pager3.executeAsync(pageSize))(identity)
+        val (_, page3)  = whenReady(pager3.executeAsync(pageSize))(identity)
         val page3Hotels = page3.toSeq
         page3Hotels shouldBe empty
       }

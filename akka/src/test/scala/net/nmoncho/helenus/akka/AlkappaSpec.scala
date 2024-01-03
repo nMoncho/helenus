@@ -24,6 +24,7 @@ package net.nmoncho.helenus.akka
 import scala.collection.immutable
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
+
 import akka.Done
 import akka.NotUsed
 import akka.actor.ActorSystem
@@ -39,7 +40,8 @@ import com.datastax.oss.driver.api.core.cql.Row
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import net.nmoncho.helenus.api.RowMapper
-import net.nmoncho.helenus.api.cql.{Adapter, Pager}
+import net.nmoncho.helenus.api.cql.Adapter
+import net.nmoncho.helenus.api.cql.Pager
 import net.nmoncho.helenus.utils.CassandraSpec
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers

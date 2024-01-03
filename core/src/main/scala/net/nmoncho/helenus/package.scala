@@ -294,7 +294,34 @@ package object helenus extends CodecDerivation {
         Future.successful(Iterator())
       }
 
+    /** Returns the next element from the results.
+      *
+      * It also returns the [[MappedAsyncPagingIterable]] that should be used next, since this could be the
+      * last element from the page. A [[MappedAsyncPagingIterable]] effectively represents a pagination mechanism
+      *
+      * This is convenient for queries that are known to return exactly one element, for example
+      * count queries.
+      *
+      * @return [[Some]] value if results haven't been exhausted, [[None]] otherwise
+      */
+    def nextOption()(
+        implicit ec: ExecutionContext
+    ): Future[Option[(T, MappedAsyncPagingIterable[T])]] = {
+      val fromCurrentPage = pi.one()
+
+      if (fromCurrentPage != null) {
+        Future.successful(Some(fromCurrentPage -> pi))
+      } else if (pi.hasMorePages) {
+        pi.fetchNextPage().asScala.map(nextPage => Option(nextPage.one()).map(_ -> nextPage))
+      } else {
+        Future.successful(None)
+      }
+    }
+
     /** Returns the next element from the results
+      *
+      * It also returns the [[MappedAsyncPagingIterable]] that should be used next, since this could be the
+      * last element from the page. A [[MappedAsyncPagingIterable]] effectively represents a pagination mechanism
       *
       * This is convenient for queries that are known to return exactly one element, for example
       * count queries.
@@ -304,16 +331,21 @@ package object helenus extends CodecDerivation {
       * @param timeout how much time to wait for the next page to be ready
       * @return [[Some]] value if results haven't been exhausted, [[None]] otherwise
       */
-    def nextOption(timeout: FiniteDuration)(implicit ec: ExecutionContext): Option[T] = {
-      val fromCurrentPage = Option(pi.one())
+    def nextOption(
+        timeout: FiniteDuration
+    )(implicit ec: ExecutionContext): Option[(T, MappedAsyncPagingIterable[T])] = {
+      val fromCurrentPage = pi.one()
 
-      fromCurrentPage.orElse {
-        if (pi.hasMorePages) {
-          log.debug("fetching more pages")
-          Await.ready(pi.fetchNextPage().asScala, timeout)
-
-          Option(pi.one())
-        } else None
+      if (fromCurrentPage != null) {
+        Some(fromCurrentPage -> pi)
+      } else if (pi.hasMorePages) {
+        log.debug("Fetching more pages for request [{}]", pi.getExecutionInfo.getRequest)
+        Await.result(
+          pi.fetchNextPage().asScala.map(nextPage => Option(nextPage.one()).map(_ -> nextPage)),
+          timeout
+        )
+      } else {
+        None
       }
     }
 

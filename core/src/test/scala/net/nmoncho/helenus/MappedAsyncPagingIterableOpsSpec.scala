@@ -21,83 +21,105 @@
 
 package net.nmoncho.helenus
 
-import scala.concurrent.Await
-import scala.concurrent.Future
+import scala.annotation.nowarn
 import scala.concurrent.duration.DurationInt
 
-import com.datastax.oss.driver.api.core.MappedAsyncPagingIterable
-import org.mockito.Mockito._
+import com.datastax.oss.driver.api.core.CqlSession
+import net.nmoncho.helenus.models.Hotel
+import net.nmoncho.helenus.utils.CassandraSpec
+import net.nmoncho.helenus.utils.HotelsTestData
+import org.scalatest.concurrent.Eventually
+import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.time.Seconds
+import org.scalatest.time.Span
 import org.scalatest.wordspec.AnyWordSpec
 
-class MappedAsyncPagingIterableOpsSpec extends AnyWordSpec with Matchers {
+@nowarn("cat=unused-imports")
+class MappedAsyncPagingIterableOpsSpec
+    extends AnyWordSpec
+    with Matchers
+    with Eventually
+    with CassandraSpec
+    with ScalaFutures {
+
+  import HotelsTestData._
+  import scala.collection.compat._ // Don't remove me
 
   import scala.concurrent.ExecutionContext.Implicits.global
 
-  private val timeout = 6.seconds
+  private implicit lazy val cqlSession: CqlSession = session
 
   "MappedAsyncPagingIterableOps" should {
-    "get current page" in {
-      val pi = mockPI()
-      pi.currPage.toList shouldBe List(1, 2, 3)
+    import org.scalatest.OptionValues._
+
+    "iterate results one at a time (sync)" in {
+      whenReady(
+        "SELECT * FROM hotels".toCQLAsync.prepareUnit
+          .as[Hotel]
+          .map(_.withPageSize(2))
+          .executeAsync()
+      ) { pi =>
+        val (hotelA, iteratorA) = pi.nextOption(10.seconds).value
+        Hotels.all should contain(hotelA)
+
+        val (hotelB, iteratorB) = iteratorA.nextOption(10.seconds).value
+        Hotels.all should contain(hotelB)
+        iteratorA shouldBe iteratorB // should still be the same page
+
+        val (hotelC, iteratorC) = iteratorB.nextOption(10.seconds).value
+        Hotels.all should contain(hotelC)
+        iteratorC should not be iteratorA // we should move on to the next page
+
+        val (hotelD, iteratorD) = iteratorC.nextOption(10.seconds).value
+        Hotels.all should contain(hotelD)
+
+        val (hotelE, iteratorE) = iteratorD.nextOption(10.seconds).value
+        Hotels.all should contain(hotelE)
+
+        iteratorE.nextOption(10.seconds) shouldBe empty
+      }
     }
 
-    "get nextOption" in {
-      val pi = mockPI()
+    "iterate results one at a time (async)" in {
+      val test = for {
+        result <- "SELECT * FROM hotels".toCQLAsync.prepareUnit
+          .as[Hotel]
+          .map(_.withPageSize(2))
+          .executeAsync()
 
-      pi.nextOption(timeout) shouldBe Some(1)
-      pi.nextOption(timeout) shouldBe Some(2)
-      pi.nextOption(timeout) shouldBe Some(3)
-      // next page
-      pi.nextOption(timeout) shouldBe Some(4)
-    }
+        Some((hotelA, iteratorA)) <- result.nextOption()
+        Some((hotelB, iteratorB)) <- iteratorA.nextOption()
+        Some((hotelC, iteratorC)) <- iteratorB.nextOption()
+        Some((hotelD, iteratorD)) <- iteratorC.nextOption()
+        Some((hotelE, iteratorE)) <- iteratorD.nextOption()
+        lastResult <- iteratorE.nextOption()
 
-    "get next page" in {
-      val pi = mockPI()
+      } yield {
+        Hotels.all should contain(hotelA)
+        Hotels.all should contain(hotelB)
+        Hotels.all should contain(hotelC)
+        Hotels.all should contain(hotelD)
+        Hotels.all should contain(hotelE)
 
-      // Don't remove next line! This call shouldn't be required, but mocks works this way
-      pi.currPage.toList shouldBe List(1, 2, 3)
-      Await.result(pi.nextPage, timeout).toList shouldBe List(4, 5, 6)
-    }
+        iteratorA shouldBe iteratorB // should still be the same page
+        iteratorC should not be iteratorA // we should move on to the next page
+        lastResult shouldBe empty
+      }
 
-    "concat iterators lazily" in {
-      val pi = mockPI()
-
-      pi.iter(timeout)
-        .map { x =>
-          println(x)
-          x
-        }
-        .toList shouldBe List(1, 2, 3, 4, 5, 6, 7, 8, 9)
+      whenReady(test)(_ => ())
     }
   }
 
-  private def mockPI(): MappedAsyncPagingIterable[java.lang.Integer] = {
-    import scala.jdk.CollectionConverters._
-    import net.nmoncho.helenus.internal.compat.FutureConverters._
+  override implicit def patienceConfig: PatienceConfig = PatienceConfig(Span(6, Seconds))
 
-    val m = mock(classOf[MappedAsyncPagingIterable[java.lang.Integer]])
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+    executeFile("hotels.cql")
+    insertTestData()
+  }
 
-    when(m.currentPage())
-      .thenReturn(List(1: java.lang.Integer, 2: java.lang.Integer, 3: java.lang.Integer).asJava)
-      .thenReturn(List(4: java.lang.Integer, 5: java.lang.Integer, 6: java.lang.Integer).asJava)
-      .thenReturn(List(7: java.lang.Integer, 8: java.lang.Integer, 9: java.lang.Integer).asJava)
-      .thenReturn(List.empty[java.lang.Integer].asJava)
-
-    when(m.hasMorePages())
-      .thenReturn(true)
-      .thenReturn(true)
-      .thenReturn(false)
-
-    when(m.fetchNextPage()).thenReturn(Future.successful(m).asJava)
-
-    when(m.one())
-      .thenReturn(1)
-      .thenReturn(2)
-      .thenReturn(3)
-      .thenReturn(null: java.lang.Integer)
-      .thenReturn(4)
-
-    m
+  override def afterEach(): Unit = {
+    // Don't truncate keyspace
   }
 }
