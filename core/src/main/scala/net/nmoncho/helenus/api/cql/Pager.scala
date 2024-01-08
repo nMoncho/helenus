@@ -46,7 +46,7 @@ trait Pager[Out] {
     *
     * @return [[Some]] paging state if there are more pages, [[None]] otherwise
     */
-  def encodePagingState: Option[String]
+  def encodePagingState(implicit ser: PagerSerializer[_]): Option[ser.SerializedState]
 
   /** Executes the query associated with this [[Pager]] returning the next pager and current page
     *

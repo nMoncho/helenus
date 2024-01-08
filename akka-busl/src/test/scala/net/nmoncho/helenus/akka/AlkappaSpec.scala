@@ -42,6 +42,7 @@ import com.typesafe.config.ConfigFactory
 import net.nmoncho.helenus.api.RowMapper
 import net.nmoncho.helenus.api.cql.Adapter
 import net.nmoncho.helenus.api.cql.Pager
+import net.nmoncho.helenus.api.cql.PagerSerializer
 import net.nmoncho.helenus.utils.CassandraSpec
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
@@ -64,6 +65,9 @@ class AlkappaSpec extends AnyWordSpec with Matchers with CassandraSpec with Scal
 
   private implicit lazy val as: CassandraSession = CassandraSessionRegistry(system)
     .sessionFor(CassandraSessionSettings())
+
+  private implicit val pagerSerializer: PagerSerializer[String] =
+    PagerSerializer.DefaultPagingStateSerializer
 
   "Helenus" should {
     import system.dispatcher

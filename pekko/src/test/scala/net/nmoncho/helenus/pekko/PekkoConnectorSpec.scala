@@ -32,6 +32,7 @@ import com.typesafe.config.ConfigFactory
 import net.nmoncho.helenus.api.RowMapper
 import net.nmoncho.helenus.api.cql.Adapter
 import net.nmoncho.helenus.api.cql.Pager
+import net.nmoncho.helenus.api.cql.PagerSerializer
 import net.nmoncho.helenus.utils.CassandraSpec
 import org.apache.pekko.Done
 import org.apache.pekko.NotUsed
@@ -64,6 +65,9 @@ class PekkoConnectorSpec extends AnyWordSpec with Matchers with CassandraSpec wi
 
   private implicit lazy val as: CassandraSession = CassandraSessionRegistry(system)
     .sessionFor(CassandraSessionSettings())
+
+  private implicit val pagerSerializer: PagerSerializer[String] =
+    PagerSerializer.DefaultPagingStateSerializer
 
   "Helenus" should {
     import system.dispatcher

@@ -99,17 +99,17 @@ abstract class ScalaPreparedStatement[In, Out](pstmt: PreparedStatement, mapper:
   protected def verifyArity(codecs: TypeCodec[_]*): Unit = {
     import ScalaPreparedStatement._
 
-    import scala.jdk.CollectionConverters._
+    import scala.jdk.CollectionConverters._ // Don't remove me
 
     val expectedArity = codecs.size
     val actualParams = getVariableDefinitions
     val actualArity = actualParams.size()
 
     if (expectedArity != actualArity) {
-      log.error("Invalid PreparedStatement [{}] expects {} bind parameters but defined {}. Double check its definition when calling the 'prepare' method", getQuery, actualArity, expectedArity)
+      log.error("Invalid PreparedStatement [{}] expects {} bind parameters but defined {}. Double check its definition when calling the 'prepare' method", getQuery.toString, actualArity.toString, expectedArity.toString)
     }
 
-    actualParams.iterator().asScala.zip(codecs).zipWithIndex.foreach { case ((param, codec), idx) =>
+    actualParams.iterator().asScala.zip(codecs.iterator).zipWithIndex.foreach { case ((param, codec), idx) =>
       val check = param.getType == codec.getCqlType
 
       val areEquals = (param.getType, codec.getCqlType) match {
@@ -122,7 +122,7 @@ abstract class ScalaPreparedStatement[In, Out](pstmt: PreparedStatement, mapper:
       }
 
       if (!areEquals) {
-        log.warn("Invalid PreparedStatement expected parameter with type {} at index {} but got type {}", param.getType, idx, codec.getCqlType)
+        log.warn("Invalid PreparedStatement expected parameter with type {} at index {} but got type {}", param.getType.toString, idx.toString, codec.getCqlType.toString)
       }
     }
   }

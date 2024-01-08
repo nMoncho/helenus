@@ -29,10 +29,10 @@ import scala.util.Failure
 import scala.util.Success
 
 import com.datastax.oss.driver.api.core.CqlSession
-import net.nmoncho.helenus.models.Address
 import net.nmoncho.helenus.models.Hotel
 import net.nmoncho.helenus.utils.CassandraSpec
 import net.nmoncho.helenus.utils.HotelsTestData
+import org.scalatest.OptionValues._
 import org.scalatest.concurrent.Eventually
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
@@ -49,14 +49,12 @@ class PagerSpec
     with ScalaFutures {
 
   import HotelsTestData._
-  import scala.collection.compat._ // Don't remove me
 
   import scala.concurrent.ExecutionContext.Implicits.global
 
   private implicit lazy val cqlSession: CqlSession = session
-
-  private implicit val hotelAdapter
-      : Adapter[Hotel, (String, String, String, Address, Set[String])] = Adapter[Hotel]
+  private implicit val pagerSerializer: PagerSerializer[String] =
+    PagerSerializer.DefaultPagingStateSerializer
 
   "ScalaPreparedStatement Pager" should {
     "page a unit query" in {
@@ -98,7 +96,7 @@ class PagerSpec
       }
 
       withClue("resume from string form") {
-        pstmt.pager(pager1.encodePagingState.get) match {
+        pstmt.pager(pager1.encodePagingState.value) match {
           case Success(value) =>
             val (_, page1A)  = value.execute(pageSize)
             val page1AHotels = page1A.toSeq
@@ -129,7 +127,7 @@ class PagerSpec
       pager2.hasMorePages shouldBe true
 
       withClue("resume from string form") {
-        pstmt.pager(pager1.encodePagingState.get, Hotels.h1.id) match {
+        pstmt.pager(pager1.encodePagingState.value, Hotels.h1.id) match {
           case Success(value) =>
             val (_, page1A)   = value.execute(pageSize)
             val page1AResults = page1A.toSeq
@@ -142,7 +140,7 @@ class PagerSpec
 
       withClue("fail on invalid string form") {
         val pstmt = "SELECT * FROM hotels".toCQL.prepareUnit.as[Hotel]
-        pstmt.pager(pager1.encodePagingState.get) match {
+        pstmt.pager(pager1.encodePagingState.value) match {
           case Success(value) =>
             fail("not here")
 
