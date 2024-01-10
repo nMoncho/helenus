@@ -25,6 +25,7 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
 import com.datastax.oss.driver.api.core.CqlSession
+import com.datastax.oss.driver.api.core.cql.PagingState
 import org.reactivestreams.Publisher
 
 /** Defines the contract for executing queries with pages
@@ -41,6 +42,12 @@ trait Pager[Out] {
     * @return true if there are more results, false otherwise
     */
   def hasMorePages: Boolean
+
+  /** An optional [[PagingState]] resulting from the previous page
+    *
+    * @return Some state if this Pager isn't the first nor the final page
+    */
+  def pagingState: Option[PagingState]
 
   /** Encodes this page's PagingState in a form that can be serialized
     *

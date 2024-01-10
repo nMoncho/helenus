@@ -39,6 +39,7 @@ import com.datastax.oss.driver.api.core.`type`.codec.registry.MutableCodecRegist
 import com.datastax.oss.driver.api.core.config.DriverExecutionProfile
 import com.datastax.oss.driver.api.core.cql.AsyncResultSet
 import com.datastax.oss.driver.api.core.cql.BoundStatement
+import com.datastax.oss.driver.api.core.cql.PagingState
 import com.datastax.oss.driver.api.core.cql.ResultSet
 import com.datastax.oss.driver.api.core.cql.Row
 import com.datastax.oss.driver.api.core.metadata.schema.KeyspaceMetadata
@@ -385,6 +386,17 @@ package object helenus extends CodecDerivation {
     }
   }
 
+  /** [[PagingState]] Extension Methods
+    */
+  implicit class PagingStateOps(private val pagingState: PagingState) extends AnyVal {
+
+    /** Encodes this [[PagingState]] provided there is an implicit [[PagerSerializer]]
+      */
+    def encode()(implicit serializer: PagerSerializer[_]): Try[serializer.SerializedState] =
+      serializer.serialize(pagingState)
+
+  }
+
   implicit class AsyncScalaPreparedStatementWithResultAdapterOps[In, Out](
       private val fut: Future[ScalaPreparedStatement[In, Out]]
   ) extends AnyVal {
@@ -511,6 +523,8 @@ package object helenus extends CodecDerivation {
 
     def pager(t1: In2)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(t1))
 
+    def pager(pagingState: PagingState, t1: In2)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState, t1).get)
+
     def pager[A: PagerSerializer](pagingState: A, t1: In2)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState, t1).get)
   }
 
@@ -522,6 +536,8 @@ package object helenus extends CodecDerivation {
     def executeAsync()(implicit cqlSession: Future[CqlSession], ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] = cqlSession.flatMap {implicit s => fut.flatMap(_.executeAsync())}
 
     def pager()(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager())
+
+    def pager(pagingState: PagingState)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState).get)
 
     def pager[A: PagerSerializer](pagingState: A)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState).get)
   }
@@ -535,6 +551,8 @@ package object helenus extends CodecDerivation {
 
     def pager(t1: T1)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(t1))
 
+    def pager(pagingState: PagingState, t1: T1)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState, t1).get)
+
     def pager[A: PagerSerializer](pagingState: A, t1: T1)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState, t1).get)
   }
 
@@ -546,6 +564,8 @@ package object helenus extends CodecDerivation {
     def executeAsync(t1: T1, t2: T2)(implicit cqlSession: Future[CqlSession], ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] = cqlSession.flatMap {implicit s => fut.flatMap(_.executeAsync(t1, t2))}
 
     def pager(t1: T1, t2: T2)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(t1, t2))
+
+    def pager(pagingState: PagingState, t1: T1, t2: T2)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState, t1, t2).get)
 
     def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState, t1, t2).get)
   }
@@ -559,6 +579,8 @@ package object helenus extends CodecDerivation {
 
     def pager(t1: T1, t2: T2, t3: T3)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(t1, t2, t3))
 
+    def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState, t1, t2, t3).get)
+
     def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState, t1, t2, t3).get)
   }
 
@@ -570,6 +592,8 @@ package object helenus extends CodecDerivation {
     def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4)(implicit cqlSession: Future[CqlSession], ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] = cqlSession.flatMap {implicit s => fut.flatMap(_.executeAsync(t1, t2, t3, t4))}
 
     def pager(t1: T1, t2: T2, t3: T3, t4: T4)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(t1, t2, t3, t4))
+
+    def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState, t1, t2, t3, t4).get)
 
     def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState, t1, t2, t3, t4).get)
   }
@@ -583,6 +607,8 @@ package object helenus extends CodecDerivation {
 
     def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(t1, t2, t3, t4, t5))
 
+    def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState, t1, t2, t3, t4, t5).get)
+
     def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState, t1, t2, t3, t4, t5).get)
   }
 
@@ -594,6 +620,8 @@ package object helenus extends CodecDerivation {
     def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6)(implicit cqlSession: Future[CqlSession], ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] = cqlSession.flatMap {implicit s => fut.flatMap(_.executeAsync(t1, t2, t3, t4, t5, t6))}
 
     def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(t1, t2, t3, t4, t5, t6))
+
+    def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState, t1, t2, t3, t4, t5, t6).get)
 
     def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState, t1, t2, t3, t4, t5, t6).get)
   }
@@ -607,6 +635,8 @@ package object helenus extends CodecDerivation {
 
     def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(t1, t2, t3, t4, t5, t6, t7))
 
+    def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState, t1, t2, t3, t4, t5, t6, t7).get)
+
     def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState, t1, t2, t3, t4, t5, t6, t7).get)
   }
 
@@ -618,6 +648,8 @@ package object helenus extends CodecDerivation {
     def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8)(implicit cqlSession: Future[CqlSession], ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] = cqlSession.flatMap {implicit s => fut.flatMap(_.executeAsync(t1, t2, t3, t4, t5, t6, t7, t8))}
 
     def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(t1, t2, t3, t4, t5, t6, t7, t8))
+
+    def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState, t1, t2, t3, t4, t5, t6, t7, t8).get)
 
     def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState, t1, t2, t3, t4, t5, t6, t7, t8).get)
   }
@@ -631,6 +663,8 @@ package object helenus extends CodecDerivation {
 
     def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(t1, t2, t3, t4, t5, t6, t7, t8, t9))
 
+    def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState, t1, t2, t3, t4, t5, t6, t7, t8, t9).get)
+
     def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState, t1, t2, t3, t4, t5, t6, t7, t8, t9).get)
   }
 
@@ -642,6 +676,8 @@ package object helenus extends CodecDerivation {
     def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10)(implicit cqlSession: Future[CqlSession], ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] = cqlSession.flatMap {implicit s => fut.flatMap(_.executeAsync(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10))}
 
     def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10))
+
+    def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10).get)
 
     def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10).get)
   }
@@ -655,6 +691,8 @@ package object helenus extends CodecDerivation {
 
     def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11))
 
+    def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11).get)
+
     def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11).get)
   }
 
@@ -666,6 +704,8 @@ package object helenus extends CodecDerivation {
     def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12)(implicit cqlSession: Future[CqlSession], ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] = cqlSession.flatMap {implicit s => fut.flatMap(_.executeAsync(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12))}
 
     def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12))
+
+    def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12).get)
 
     def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12).get)
   }
@@ -679,6 +719,8 @@ package object helenus extends CodecDerivation {
 
     def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13))
 
+    def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13).get)
+
     def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13).get)
   }
 
@@ -690,6 +732,8 @@ package object helenus extends CodecDerivation {
     def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14)(implicit cqlSession: Future[CqlSession], ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] = cqlSession.flatMap {implicit s => fut.flatMap(_.executeAsync(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14))}
 
     def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14))
+
+    def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14).get)
 
     def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14).get)
   }
@@ -703,6 +747,8 @@ package object helenus extends CodecDerivation {
 
     def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15))
 
+    def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15).get)
+
     def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15).get)
   }
 
@@ -714,6 +760,8 @@ package object helenus extends CodecDerivation {
     def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16)(implicit cqlSession: Future[CqlSession], ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] = cqlSession.flatMap {implicit s => fut.flatMap(_.executeAsync(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16))}
 
     def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16))
+
+    def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16).get)
 
     def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16).get)
   }
@@ -727,6 +775,8 @@ package object helenus extends CodecDerivation {
 
     def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17))
 
+    def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17).get)
+
     def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17).get)
   }
 
@@ -738,6 +788,8 @@ package object helenus extends CodecDerivation {
     def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18)(implicit cqlSession: Future[CqlSession], ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] = cqlSession.flatMap {implicit s => fut.flatMap(_.executeAsync(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18))}
 
     def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18))
+
+    def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18).get)
 
     def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18).get)
   }
@@ -751,6 +803,8 @@ package object helenus extends CodecDerivation {
 
     def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19))
 
+    def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19).get)
+
     def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19).get)
   }
 
@@ -762,6 +816,8 @@ package object helenus extends CodecDerivation {
     def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20)(implicit cqlSession: Future[CqlSession], ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] = cqlSession.flatMap {implicit s => fut.flatMap(_.executeAsync(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20))}
 
     def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20))
+
+    def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20).get)
 
     def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20).get)
   }
@@ -775,6 +831,8 @@ package object helenus extends CodecDerivation {
 
     def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21))
 
+    def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21).get)
+
     def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21).get)
   }
 
@@ -786,6 +844,8 @@ package object helenus extends CodecDerivation {
     def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21, t22: T22)(implicit cqlSession: Future[CqlSession], ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] = cqlSession.flatMap {implicit s => fut.flatMap(_.executeAsync(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21, t22))}
 
     def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21, t22: T22)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21, t22))
+
+    def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21, t22: T22)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21, t22).get)
 
     def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21, t22: T22)(implicit ec: ExecutionContext): Future[Pager[Out]] = fut.map(_.pager(pagingState, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21, t22).get)
   }
