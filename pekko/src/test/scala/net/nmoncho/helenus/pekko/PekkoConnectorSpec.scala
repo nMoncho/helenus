@@ -42,8 +42,10 @@ import org.apache.pekko.stream.connectors.cassandra.CassandraWriteSettings
 import org.apache.pekko.stream.connectors.cassandra.scaladsl.CassandraSession
 import org.apache.pekko.stream.connectors.cassandra.scaladsl.CassandraSessionRegistry
 import org.apache.pekko.stream.scaladsl.FlowWithContext
+import org.apache.pekko.stream.scaladsl.Keep
 import org.apache.pekko.stream.scaladsl.Sink
 import org.apache.pekko.stream.scaladsl.Source
+import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.Seconds
@@ -71,6 +73,8 @@ class PekkoConnectorSpec extends AnyWordSpec with Matchers with CassandraSpec wi
 
   "Helenus" should {
     import system.dispatcher
+
+    val pageSize = 2
 
     "work with Pekko Streams (sync)" in withSession { implicit session =>
       val query: Source[IceCream, NotUsed] = "SELECT * FROM ice_creams".toCQL.prepareUnit
@@ -109,11 +113,11 @@ class PekkoConnectorSpec extends AnyWordSpec with Matchers with CassandraSpec wi
           "SELECT * FROM ice_creams".toCQL.prepareUnit
             .as[IceCream]
             .pager()
-            .executeReactive(2)
+            .executeReactive(pageSize)
         )
 
         val pager0 = whenReady(rows.runWith(Sink.seq[(Pager[IceCream], IceCream)])) { result =>
-          result should have size 2
+          result should have size pageSize
           result.last._1
         }
 
@@ -122,11 +126,35 @@ class PekkoConnectorSpec extends AnyWordSpec with Matchers with CassandraSpec wi
             .as[IceCream]
             .pager(pager0.encodePagingState.get)
             .get
-            .executeReactive(2)
+            .executeReactive(pageSize)
         )
 
         whenReady(rows2.runWith(Sink.seq[(Pager[IceCream], IceCream)])) { result =>
           result should have size 1
+        }
+      }
+
+      withClue("use pager operator") {
+        val query = "SELECT * FROM ice_creams".toCQL.prepareUnit.as[IceCream]
+
+        val pager0 = query.pager().asReadSource(pageSize)
+
+        val (state0, rows0) = pager0.toMat(Sink.seq[IceCream])(Keep.both).run()
+        val (page0State, page0) = whenReady(rows0.flatMap(r => state0.map(r -> _))) {
+          case (rows, state) =>
+            rows should have size pageSize
+
+            state -> rows
+        }
+
+        val pager1 = query.pager(page0State.value).asReadSource(pageSize)
+
+        val (state2, rows2) = pager1.toMat(Sink.seq[IceCream])(Keep.both).run()
+        whenReady(rows2.flatMap(r => state2.map(r -> _))) { case (rows, state) =>
+          rows should have size 1
+          rows.toSet should not equal (page0.toSet)
+
+          state should not be page0State
         }
       }
     }
@@ -208,6 +236,30 @@ class PekkoConnectorSpec extends AnyWordSpec with Matchers with CassandraSpec wi
 
       whenReady(queryName.runWith(Sink.seq[IceCream])) { result =>
         result should not be empty
+      }
+
+      withClue("use pager operator") {
+        val query = "SELECT * FROM ice_creams".toCQLAsync.prepareUnit.as[IceCream]
+
+        val pager0 = query.pager().asReadSource(pageSize)
+
+        val (state0, rows0) = pager0.toMat(Sink.seq[IceCream])(Keep.both).run()
+        val (page0State, page0) = whenReady(rows0.flatMap(r => state0.map(r -> _))) {
+          case (rows, state) =>
+            rows should have size pageSize
+
+            state -> rows
+        }
+
+        val pager1 = query.pager(page0State.value).asReadSource(pageSize)
+
+        val (state2, rows2) = pager1.toMat(Sink.seq[IceCream])(Keep.both).run()
+        whenReady(rows2.flatMap(r => state2.map(r -> _))) { case (rows, state) =>
+          rows should have size 1
+          rows.toSet should not equal (page0.toSet)
+
+          state should not be page0State
+        }
       }
     }
 

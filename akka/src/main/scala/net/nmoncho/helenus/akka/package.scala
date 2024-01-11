@@ -23,16 +23,27 @@ package net.nmoncho.helenus
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
+import scala.concurrent.Promise
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
 
 import _root_.akka.Done
 import _root_.akka.NotUsed
+import _root_.akka.stream._
 import _root_.akka.stream.alpakka.cassandra.CassandraWriteSettings
 import _root_.akka.stream.alpakka.cassandra.scaladsl.CassandraSession
 import _root_.akka.stream.scaladsl._
+import _root_.akka.stream.stage.GraphStageLogic
+import _root_.akka.stream.stage.GraphStageWithMaterializedValue
+import _root_.akka.stream.stage.InHandler
+import _root_.akka.stream.stage.OutHandler
+import _root_.net.nmoncho.helenus.api.cql.Pager
 import _root_.net.nmoncho.helenus.api.cql.ScalaPreparedStatement
 import _root_.net.nmoncho.helenus.internal.cql._
 import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.cql.BatchStatement
+import com.datastax.oss.driver.api.core.cql.PagingState
 
 package object akka {
 
@@ -108,6 +119,146 @@ package object akka {
         .mapMaterializedValue(_ => NotUsed)
 
   }
+
+  implicit class PagerPekkoSync[Out](private val pager: Pager[Out]) extends AnyVal {
+
+    /** A [[Source]] reading from Cassandra
+      *
+      * @param pageSize how many rows to fetch
+      */
+    def asReadSource(pageSize: Int)(
+        implicit session: CassandraSession
+    ): Source[Out, Future[Option[PagingState]]] =
+      createPagerSource(Success(pager), pageSize)
+
+  }
+
+  implicit class PagerTryPekkoSync[Out](private val pager: Try[Pager[Out]]) extends AnyVal {
+
+    /** A [[Source]] reading from Cassandra
+      *
+      * @param pageSize how many rows to fetch
+      */
+    def asReadSource(pageSize: Int)(
+        implicit session: CassandraSession
+    ): Source[Out, Future[Option[PagingState]]] =
+      createPagerSource(pager, pageSize)
+
+  }
+
+  implicit class PagerPekkoAsync[Out](private val pager: Future[Pager[Out]]) extends AnyVal {
+
+    /** A [[Source]] reading from Cassandra
+      *
+      * @param pageSize how many rows to fetch
+      */
+    def asReadSource(pageSize: Int)(
+        implicit session: CassandraSession,
+        ec: ExecutionContext
+    ): Source[Out, Future[Option[PagingState]]] =
+      Source
+        .futureSource {
+          pager.map(_.asReadSource(pageSize))
+        }
+        .mapMaterializedValue(_.flatten)
+
+  }
+
+  implicit class PagerTryPekkoAsync[Out](private val pager: Future[Try[Pager[Out]]])
+      extends AnyVal {
+
+    /** A [[Source]] reading from Cassandra
+      *
+      * @param pageSize how many rows to fetch
+      */
+    def asReadSource(pageSize: Int)(
+        implicit session: CassandraSession,
+        ec: ExecutionContext
+    ): Source[Out, Future[Option[PagingState]]] =
+      Source
+        .futureSource {
+          pager.map(_.asReadSource(pageSize))
+        }
+        .mapMaterializedValue(_.flatten)
+
+  }
+
+  /** Creates a [[Source]] out of a [[Pager]], with its [[PagingState]] as Materialized Value
+    *
+    * @param pager    pager to execute
+    * @param pageSize how many results to fetch
+    * @tparam Out element type
+    */
+  private def createPagerSource[Out](pager: Try[Pager[Out]], pageSize: Int)(
+      implicit session: CassandraSession
+  ): Source[Out, Future[Option[PagingState]]] =
+    pager match {
+      case Success(pager) =>
+        Source
+          .future(session.underlying())
+          .flatMapConcat { implicit cqlSession =>
+            Source.fromPublisher(pager.executeReactive(pageSize))
+          }
+          .viaMat(pagingStateMatValue())(Keep.right)
+
+      case Failure(exception) =>
+        Source
+          .failed[Out](exception)
+          .mapMaterializedValue(_ => Future.successful(None))
+    }
+
+  /** Creates a Pekko Stream Graph that will set the [[PagingState]] resulting of executing a [[Pager]] as
+    * the Materialized Value of the Stream.
+    */
+  private def pagingStateMatValue[Out]() =
+    new GraphStageWithMaterializedValue[FlowShape[(Pager[Out], Out), Out], Future[
+      Option[PagingState]
+    ]] {
+
+      private val in  = Inlet[(Pager[Out], Out)]("PagingStateMatValue.in")
+      private val out = Outlet[Out]("PagingStateMatValue.out")
+
+      override val shape: FlowShape[(Pager[Out], Out), Out] = FlowShape.of(in, out)
+
+      override def createLogicAndMaterializedValue(
+          inheritedAttributes: Attributes
+      ): (GraphStageLogic, Future[Option[PagingState]]) = {
+        val promise = Promise[Option[PagingState]]()
+
+        val logic = new GraphStageLogic(shape) {
+          setHandler(
+            in,
+            new InHandler {
+              override def onPush(): Unit = {
+                val (pager, elem) = grab(in)
+                promise.success(pager.pagingState)
+
+                push(out, elem)
+
+                // replace handler with one that only forwards output elements
+                setHandler(
+                  in,
+                  new InHandler {
+                    override def onPush(): Unit =
+                      push(out, grab(in)._2)
+                  }
+                )
+              }
+            }
+          )
+
+          setHandler(
+            out,
+            new OutHandler {
+              override def onPull(): Unit =
+                pull(in)
+            }
+          )
+        }
+
+        (logic, promise.future)
+      }
+    }
 
   // **********************************************************************
   // To generate methods to Tuple2 and above, use this template method.

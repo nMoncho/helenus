@@ -33,6 +33,7 @@ import akka.stream.alpakka.cassandra.CassandraWriteSettings
 import akka.stream.alpakka.cassandra.scaladsl.CassandraSession
 import akka.stream.alpakka.cassandra.scaladsl.CassandraSessionRegistry
 import akka.stream.scaladsl.FlowWithContext
+import akka.stream.scaladsl.Keep
 import akka.stream.scaladsl.Sink
 import akka.stream.scaladsl.Source
 import com.datastax.oss.driver.api.core.CqlSession
@@ -44,6 +45,7 @@ import net.nmoncho.helenus.api.cql.Adapter
 import net.nmoncho.helenus.api.cql.Pager
 import net.nmoncho.helenus.api.cql.PagerSerializer
 import net.nmoncho.helenus.utils.CassandraSpec
+import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.Seconds
@@ -71,6 +73,8 @@ class AlkappaSpec extends AnyWordSpec with Matchers with CassandraSpec with Scal
 
   "Helenus" should {
     import system.dispatcher
+
+    val pageSize = 2
 
     "work with Akka Streams (sync)" in withSession { implicit session =>
       val query: Source[IceCream, NotUsed] = "SELECT * FROM ice_creams".toCQL.prepareUnit
@@ -129,6 +133,30 @@ class AlkappaSpec extends AnyWordSpec with Matchers with CassandraSpec with Scal
           result should have size 1
         }
       }
+
+      withClue("use pager operator") {
+        val query = "SELECT * FROM ice_creams".toCQL.prepareUnit.as[IceCream]
+
+        val pager0 = query.pager().asReadSource(pageSize)
+
+        val (state0, rows0) = pager0.toMat(Sink.seq[IceCream])(Keep.both).run()
+        val (page0State, page0) = whenReady(rows0.flatMap(r => state0.map(r -> _))) {
+          case (rows, state) =>
+            rows should have size pageSize
+
+            state -> rows
+        }
+
+        val pager1 = query.pager(page0State.value).asReadSource(pageSize)
+
+        val (state2, rows2) = pager1.toMat(Sink.seq[IceCream])(Keep.both).run()
+        whenReady(rows2.flatMap(r => state2.map(r -> _))) { case (rows, state) =>
+          rows should have size 1
+          rows.toSet should not equal (page0.toSet)
+
+          state should not be page0State
+        }
+      }
     }
 
     "work with Akka Streams and Context (sync)" in withSession { implicit session =>
@@ -184,6 +212,30 @@ class AlkappaSpec extends AnyWordSpec with Matchers with CassandraSpec with Scal
           .asReadSource()
 
         testStream(ijes, query, insert)(identity)
+      }
+
+      withClue("use pager operator") {
+        val query = "SELECT * FROM ice_creams".toCQLAsync.prepareUnit.as[IceCream]
+
+        val pager0 = query.pager().asReadSource(pageSize)
+
+        val (state0, rows0) = pager0.toMat(Sink.seq[IceCream])(Keep.both).run()
+        val (page0State, page0) = whenReady(rows0.flatMap(r => state0.map(r -> _))) {
+          case (rows, state) =>
+            rows should have size pageSize
+
+            state -> rows
+        }
+
+        val pager1 = query.pager(page0State.value).asReadSource(pageSize)
+
+        val (state2, rows2) = pager1.toMat(Sink.seq[IceCream])(Keep.both).run()
+        whenReady(rows2.flatMap(r => state2.map(r -> _))) { case (rows, state) =>
+          rows should have size 1
+          rows.toSet should not equal (page0.toSet)
+
+          state should not be page0State
+        }
       }
     }
 
