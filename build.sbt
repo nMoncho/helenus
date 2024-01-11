@@ -1,5 +1,7 @@
 import com.typesafe.tools.mima.core.{
+  DirectMissingMethodProblem,
   IncompatibleResultTypeProblem,
+  MissingClassProblem,
   ProblemFilters,
   ReversedMissingMethodProblem
 }
@@ -114,7 +116,19 @@ lazy val basicSettings = Seq(
     "-Xlog-implicits"),
   (Test / testOptions) += Tests.Argument("-oF"),
   semanticdbEnabled := true,
-  semanticdbVersion := scalafixSemanticdb.revision
+  semanticdbVersion := scalafixSemanticdb.revision,
+  mimaBinaryIssueFilters ++= Seq(
+    ProblemFilters.exclude[ReversedMissingMethodProblem](
+      "net.nmoncho.helenus.api.cql.ScalaPreparedStatement.as"
+    ),
+    ProblemFilters.exclude[IncompatibleResultTypeProblem]("net.nmoncho.helenus.internal.cql.*.as"),
+    ProblemFilters.exclude[MissingClassProblem](
+      "net.nmoncho.helenus.pekko.package$*Akka*"
+    ),
+    ProblemFilters.exclude[DirectMissingMethodProblem](
+      "net.nmoncho.helenus.pekko.package.*Akka*"
+    )
+  )
 )
 
 def crossSetting[A](
@@ -191,13 +205,7 @@ lazy val core = project
     ),
     coverageMinimum := 85,
     coverageFailOnMinimum := true,
-    mimaPreviousArtifacts := Set("net.nmoncho" %% "helenus-core" % "1.0.0"),
-    mimaBinaryIssueFilters ++= Seq(
-      ProblemFilters.exclude[ReversedMissingMethodProblem](
-        "net.nmoncho.helenus.api.cql.ScalaPreparedStatement.as"
-      ),
-      ProblemFilters.exclude[IncompatibleResultTypeProblem]("net.nmoncho.helenus.internal.cql.*.as")
-    )
+    mimaPreviousArtifacts := Set("net.nmoncho" %% "helenus-core" % "1.0.0")
   )
 
 lazy val bench = project
