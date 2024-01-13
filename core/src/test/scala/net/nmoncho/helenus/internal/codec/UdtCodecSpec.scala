@@ -28,6 +28,7 @@ import com.datastax.oss.driver.api.core.ProtocolVersion
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.cql.Row
 import net.nmoncho.helenus.api.ColumnNamingScheme
+import net.nmoncho.helenus.api.DefaultColumnNamingScheme
 import net.nmoncho.helenus.api.SnakeCase
 import net.nmoncho.helenus.utils.CassandraSpec
 import org.scalatest.matchers.should.Matchers
@@ -90,11 +91,27 @@ class UdtCodecSpec extends AnyWordSpec with Matchers {
       }
     }
 
+    "create a codec from fields" in {
+      implicit val colMapper: ColumnNamingScheme = DefaultColumnNamingScheme
+      val codec: TypeCodec[IceCream3] =
+        Codec.udtFromFields[IceCream3]("", "", true)(_.name, _.cone, _.count, _.numCherries)
+
+      val sundae  = IceCream3("Sundae", 3, cone = Some(false), Some(1 -> 2))
+      val vanilla = IceCream3("Vanilla", 3, cone = Some(true), Some(2 -> 1))
+
+      val round =
+        codec.decode(codec.encode(sundae, ProtocolVersion.DEFAULT), ProtocolVersion.DEFAULT)
+
+      round shouldBe sundae
+      round should not be vanilla
+    }
+
     "format-parse" in {
       val vanilla = IceCream("Vanilla", 3, cone = true)
 
       codec.parse(codec.format(vanilla)) shouldEqual vanilla
     }
+
   }
 }
 
@@ -108,7 +125,10 @@ object UdtCodecSpec {
       numCherries: Int,
       cone: Option[Boolean],
       count: Option[(Int, Int)]
-  )
+  ) {
+    val shouldBeIgnored: String = "bar"
+  }
+
 }
 
 class CassandraUdtCodecSpec extends AnyWordSpec with Matchers with CassandraSpec {
@@ -128,7 +148,7 @@ class CassandraUdtCodecSpec extends AnyWordSpec with Matchers with CassandraSpec
       rowOpt.foreach(row => row.get("ice", IceCream.codec) shouldBe ice)
     }
 
-    "work when fields are in different order" in {
+    "work when fields are in different order (with session)" in {
       val id = UUID.randomUUID()
       query(id) shouldBe empty
 
@@ -138,6 +158,22 @@ class CassandraUdtCodecSpec extends AnyWordSpec with Matchers with CassandraSpec
       val rowOpt = query(id)
       rowOpt shouldBe defined
       rowOpt.foreach(row => row.get("ice", IceCreamShuffled.codec) shouldBe ice)
+    }
+
+    "work when fields are in different order (with fields)" in {
+      implicit val colMapper: ColumnNamingScheme = SnakeCase
+      val codec: TypeCodec[IceCreamShuffled] =
+        Codec.udtFromFields[IceCreamShuffled]("", "", true)(_.name, _.numCherries, _.cone)
+
+      val id = UUID.randomUUID()
+      query(id) shouldBe empty
+
+      val ice = IceCreamShuffled(2, cone = false, "Vanilla")
+      insert(id, ice, codec)
+
+      val rowOpt = query(id)
+      rowOpt shouldBe defined
+      rowOpt.foreach(row => row.get("ice", codec) shouldBe ice)
     }
 
     "fail on invalid mapping" in {

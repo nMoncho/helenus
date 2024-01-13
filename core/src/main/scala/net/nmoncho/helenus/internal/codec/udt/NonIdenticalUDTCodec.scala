@@ -135,6 +135,29 @@ object NonIdenticalUDTCodec {
     }
   }
 
+  def apply[A](
+      udt: UserDefinedType
+  )(implicit codec: NonIdenticalUDTCodec[A], tag: ClassTag[A]): TypeCodec[A] = {
+    val clazz       = tag.runtimeClass.asInstanceOf[Class[A]]
+    val dseCodec    = new DseUdtCodec(udt)
+    val genericType = GenericType.of(clazz)
+
+    new MappingCodec[UdtValue, A](dseCodec, genericType) with UDTCodec[A] {
+
+      override val getCqlType: UserDefinedType =
+        super.getCqlType.asInstanceOf[UserDefinedType]
+
+      override def innerToOuter(value: UdtValue): A =
+        codec.innerToOuter(value)
+
+      override def outerToInner(value: A): UdtValue =
+        codec.outerToInner(getCqlType.newValue(), value)
+
+      override lazy val toString: String =
+        s"UtdCodec[${clazz.getSimpleName}]"
+    }
+  }
+
   /** Last UDT/CaseClass element
     */
   implicit def lastUdtElementCodec[K <: Symbol, H](

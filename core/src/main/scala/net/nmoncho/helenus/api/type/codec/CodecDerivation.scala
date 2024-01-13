@@ -31,6 +31,7 @@ import scala.annotation.implicitNotFound
 import scala.collection.immutable.SortedMap
 import scala.collection.immutable.SortedSet
 import scala.collection.mutable
+import scala.language.experimental.macros
 import scala.reflect.ClassTag
 
 import com.datastax.dse.driver.api.core.data.geometry.LineString
@@ -174,7 +175,10 @@ trait CodecDerivation extends TupleCodecDerivation { that =>
 
     /** Creates a [[TypeCodec]] for a case class
       *
-      * The case class fields need to be in the same order as CQL type. If they aren't, please use [[Codec.udtFrom()]].
+      * The case class fields need to be in the same order as CQL type. If they aren't, please use [[udtFrom]] or [[udtFromFields]].
+      *
+      * With this [[TypeCodec]] implementation case class field <em>name</em> don't have to be the same as the CQL type,
+      * only <em>order</em> is relevant.
       *
       * @param keyspace  in which keyspace is the CQL type registered in. Optional, only define this parameter if you are
       *                  going to register this codec, and the CQL type is on a different keyspace than the session.
@@ -194,14 +198,19 @@ trait CodecDerivation extends TupleCodecDerivation { that =>
 
     /** Creates a [[TypeCodec]] for a case class
       *
-      * Use this method when case class fields are <b>not</b> defined in the same order as CQL type.
+      * Use this method when case class fields are <b>not</b> defined in the same order as CQL type. And
+      * you want to align these two with metadata coming from the database. Mapping between the case class and the CQL type
+      * happens by matching field names, use [[columnMapper]] to align these names.
+      *
+      * This method <b>requires</b> a connection to the database. If the context doesn't have a connection
+      * and case class fields are not aligned with its CQL type, consider using [[udtFromFields]]
       *
       * @param session       used to get the session metadata
       * @param keyspace      in which keyspace is the CQL type registered in. Optional, defaults to session's keyspace.
       * @param name          CQL Type Name. Optional, defaults to the name of the case class with the column mapper applied.
       * @param columnMapper how to map the case class fields to the CQL Type, and it's name if not specified
-      * @tparam T
-      * @return
+      * @tparam T type of the case class
+      * @return [[TypeCodec]] for the desired case class
       */
     def udtFrom[T: ClassTag: NonIdenticalUDTCodec](
         session: CqlSession,
@@ -210,6 +219,33 @@ trait CodecDerivation extends TupleCodecDerivation { that =>
     )(
         implicit columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme
     ): TypeCodec[T] = NonIdenticalUDTCodec[T](session, keyspace, name)
+
+    /** Creates a [[TypeCodec]] for a case class
+      *
+      * Use this method when case class fields are <b>not</b> defined in the same order as CQL type. The `fields`
+      * parameter let's you define in which order the CQL type fields are defined. Mapping between the case class and the CQL type
+      * happens by matching field names, use [[columnMapper]] to align these names.
+      *
+      * Unlike other UDT Codec methods this doesn't support default arguments, as this is backed by a Scala Macro with
+      * doesn't support them.
+      *
+      * @param keyspace in which keyspace is the CQL type registered in. Optional, empty string can be used.
+      * @param name CQL Type Name. Optional, empty string can be used
+      * @param frozen where this type should be frozen or not.
+      * @param fields in which order the CQL type fields are defined
+      * @param columnMapper how to map the case class fields to the CQL Type, and it's name if not specified
+      * @tparam T type of the case class
+      * @return [[TypeCodec]] for the desired case class
+      */
+    def udtFromFields[T](
+        keyspace: String,
+        name: String,
+        frozen: Boolean
+    )(fields: T => Any*)(
+        implicit columnMapper: ColumnNamingScheme,
+        classTag: ClassTag[T]
+    ): TypeCodec[T] =
+      macro net.nmoncho.helenus.internal.macros.NonIdenticalCodec.buildCodec[T]
 
     def tupleOf[T: IsTuple](implicit tupleCodec: TupleCodec[T]): TypeCodec[T] =
       that.tupleOf[T]
