@@ -28,7 +28,7 @@ lazy val dependencies = new {
     val pekkoTestKit   = "1.0.2"
 
     // Test Dependencies
-    val mockito    = "5.8.0"
+    val mockito    = "5.9.0"
     val scalaCheck = "1.17.0"
     val scalaTest  = "3.2.17"
     val logback    = "1.4.14"
