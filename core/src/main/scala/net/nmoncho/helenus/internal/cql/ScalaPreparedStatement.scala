@@ -32,6 +32,7 @@ import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.cql._
 import net.nmoncho.helenus.api.RowMapper
 import net.nmoncho.helenus.api.cql.Adapter
+import net.nmoncho.helenus.api.cql.Mapping
 import net.nmoncho.helenus.api.cql.PagerSerializer
 import net.nmoncho.helenus.api.cql.ScalaPreparedStatement
 import net.nmoncho.helenus.api.cql.ScalaPreparedStatement.BoundStatementOps
@@ -167,6 +168,67 @@ class ScalaPreparedStatementUnit[Out](pstmt: PreparedStatement, mapper: RowMappe
     Pager.continueFromEncoded(apply(), pagingState)
 
 }
+/** A [[PreparedStatement]] with one input parameter
+ *
+ * @param pstmt wrapped instance
+ * @param mapper maps [[Row]]s into [[Out]] values
+ * @param mapping how to adapt the query from an input parameter [[T1]]
+ * @tparam T1 input value
+ * @tparam Out output value
+ */
+class ScalaPreparedStatementMapped[T1, Out](pstmt: PreparedStatement, mapper: RowMapper[Out], val options: StatementOptions, mapping: Mapping[T1])
+  extends ScalaPreparedStatement[T1, Out](pstmt, mapper) {
+
+  import net.nmoncho.helenus._
+
+  override type Self     = ScalaPreparedStatementMapped[T1, Out]
+  override type AsOut[T] = ScalaPreparedStatementMapped[T1, T]
+
+  override val tupled: T1 => BoundStatement = apply
+
+  private val bstmt: T1 => BoundStatement = mapping(pstmt)
+
+  /** Bounds an input [[T1]] value and returns a [[BoundStatement]] */
+  def apply(t1: T1): ScalaBoundStatement[Out] =
+    tag[Out](applyOptions(bstmt(t1)))
+
+  /** Executes this [[PreparedStatement]] with the provided value.
+   *
+   * @return [[PagingIterable]] of [[Out]] output values
+   */
+  def execute(t1: T1)(implicit session: CqlSession): PagingIterable[Out] =
+    apply(t1).execute()
+
+  /** Executes this [[PreparedStatement]] in a asynchronous fashion using
+   * the provided [[T1]] input value
+   *
+   * @return a future of [[MappedAsyncPagingIterable]]
+   */
+  def executeAsync(t1: T1)(implicit session: CqlSession, ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] =
+    apply(t1).executeAsync()
+
+  /** Executes this [[PreparedStatement]] in a reactive fashion
+   *
+   * @return [[Publisher]] of [[Out]] output values
+   */
+  def executeReactive(t1: T1)(implicit session: CqlSession): Publisher[Out] =
+    apply(t1).executeReactive()
+
+  override def as[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): AsOut[Out2] =
+    new ScalaPreparedStatementMapped(pstmt, mapper, options, mapping)
+
+  override def withOptions(options: StatementOptions): Self =
+    new ScalaPreparedStatementMapped(pstmt, mapper, options, mapping)
+
+  def pager(t1: T1): ApiPager[Out] = Pager.initial(apply(t1))
+
+  def pager(pagingState: PagingState, t1: T1): Try[ApiPager[Out]] =
+    Pager.continue(apply(t1), pagingState)
+
+  def pager[A: PagerSerializer](pagingState: A, t1: T1): Try[ApiPager[Out]] =
+    Pager.continueFromEncoded(apply(t1), pagingState)
+
+}
 
 /** A [[PreparedStatement]] with one input parameter
  *
@@ -184,7 +246,7 @@ class ScalaPreparedStatement1[T1, Out](pstmt: PreparedStatement, mapper: RowMapp
   override type Self     = ScalaPreparedStatement1[T1, Out]
   override type AsOut[T] = ScalaPreparedStatement1[T1, T]
 
-  override def tupled: T1 => BoundStatement = apply
+  override val tupled: T1 => BoundStatement = apply
 
   verifyArity(t1Codec)
 
