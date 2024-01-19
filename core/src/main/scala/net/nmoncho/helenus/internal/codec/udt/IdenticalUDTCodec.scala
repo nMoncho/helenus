@@ -31,6 +31,7 @@ import scala.reflect.ClassTag
 import com.datastax.oss.driver.api.core.CqlIdentifier
 import com.datastax.oss.driver.api.core.ProtocolVersion
 import com.datastax.oss.driver.api.core.`type`.DataType
+import com.datastax.oss.driver.api.core.`type`.UserDefinedType
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.`type`.reflect.GenericType
 import com.datastax.oss.driver.internal.core.`type`.DefaultUserDefinedType
@@ -147,6 +148,13 @@ object IdenticalUDTCodec {
         identifiers.asJava,
         dataTypes.asJava
       )
+    }
+
+    override def accepts(cqlType: DataType): Boolean = cqlType match {
+      case udt: UserDefinedType =>
+        udt.getFieldTypes == getCqlType.asInstanceOf[UserDefinedType].getFieldTypes
+
+      case _ => false
     }
 
     override def encode(value: A, protocolVersion: ProtocolVersion): ByteBuffer =
