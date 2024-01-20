@@ -108,7 +108,7 @@ abstract class ScalaPreparedStatement[In, Out](pstmt: PreparedStatement, mapper:
     }
 
     actualParams.iterator().asScala.zip(codecs.iterator).zipWithIndex.foreach { case ((param, codec), idx) =>
-      if (!codec.accepts(param)) {
+      if (!codec.accepts(param.getType)) {
         log.warn("Invalid PreparedStatement expected parameter with type {} at index {} but got type {}", param.getType.toString, idx.toString, codec.getCqlType.toString)
       }
     }
