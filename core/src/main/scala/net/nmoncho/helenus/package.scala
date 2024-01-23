@@ -289,11 +289,13 @@ package object helenus extends CodecDerivation {
 
     /** Fetches and returns the next page as a Scala [[Iterator]]
       */
-    def nextPage(implicit ec: ExecutionContext): Future[Iterator[T]] =
+    def nextPage(
+        implicit ec: ExecutionContext
+    ): Future[Option[(Iterator[T], MappedAsyncPagingIterable[T])]] =
       if (pi.hasMorePages) {
-        pi.fetchNextPage().asScala.map(_.currPage)
+        pi.fetchNextPage().asScala.map(pi => Some(pi.currPage -> pi))
       } else {
-        Future.successful(Iterator())
+        Future.successful(None)
       }
 
     /** Returns the next element from the results.
