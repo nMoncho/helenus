@@ -103,6 +103,7 @@ package object helenus extends CodecDerivation {
         case mutableRegistry: MutableCodecRegistry =>
           Try {
             val keyspace = session.sessionKeyspace
+
             codecs.foreach {
               case codec: UDTCodec[_] if codec.isKeyspaceBlank =>
                 keyspace

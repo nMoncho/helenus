@@ -32,6 +32,19 @@ import net.nmoncho.helenus.internal.codec.udt.NonIdenticalUDTCodec
 
 object NonIdenticalCodec {
 
+  /** Generates a [[TypeCodec]] for a case class, where the case class and the UDT
+    * don't define fields in the same order.
+    *
+    * @param keyspace On which keyspace the UDT is defined. If empty string is used, session keyspace will be used
+    * @param name UDT name. If empty case class Simple Name will be used
+    * @param frozen whether the UDT is frozen in the table or not
+    * @param fields what's the field order in the UDT
+    * @param columnMapper how to map case class field names to UDT field names
+    * @param classTag
+    * @param A
+    * @tparam A case class type to generate a [[net.nmoncho.helenus.api.cql.Mapping]] for
+    * @return a [[TypeCodec]]
+    */
   final def buildCodec[A](
       c: blackbox.Context
   )(keyspace: c.Expr[String], name: c.Expr[String], frozen: c.Expr[Boolean])(
@@ -144,6 +157,11 @@ object NonIdenticalCodec {
     )
   }
 
+  /** Creates a [[TypeCodec]]
+    *
+    * After the field order has been defined by the user, a [[TypeCodec]] is created
+    * from a [[NonIdenticalUDTCodec]]
+    */
   def udt[A](
       keyspace: String,
       name: String,

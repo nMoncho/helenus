@@ -35,7 +35,7 @@ object RowMapper {
   ): c.Expr[net.nmoncho.helenus.api.RowMapper[A]] = {
     import c.universe._
 
-    // Verify `A` is only a case class
+    // Verify `A` is not a tuple
     c.typecheck(q"_root_.shapeless.IsTuple[${A.tpe}]", silent = true) match {
       case EmptyTree => // all good
       case _ =>
@@ -45,6 +45,7 @@ object RowMapper {
         )
     }
 
+    // Verify `A` is a case class
     c.typecheck(q"implicitly[_root_.scala.<:<[${A.tpe}, scala.Product]]", silent = true) match {
       case EmptyTree =>
         c.abort(

@@ -35,7 +35,7 @@ object Mapping {
     * that cannot be mapped properly with [[net.nmoncho.helenus.api.ColumnNamingScheme]].
     *
     * This macro <em>doesn't</em> derive the [[net.nmoncho.helenus.api.cql.Mapping]], it just allows a convenient way
-    * of defining the remapping. The derivation comes from [[DerivedMapping]] implicit methods.
+    * of defining the field/column remapping. The derivation comes from [[DerivedMapping]] implicit methods.
     *
     * @param renamedFields fields to be renamed. The implicit [[net.nmoncho.helenus.api.ColumnNamingScheme]] will be ignored for these fields
     * @param builder a function that given renamed fields will produce a [[net.nmoncho.helenus.api.cql.Mapping]]
