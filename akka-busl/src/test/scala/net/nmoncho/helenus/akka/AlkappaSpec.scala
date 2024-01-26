@@ -108,6 +108,15 @@ class AlkappaSpec extends AnyWordSpec with Matchers with CassandraSpec with Scal
         result should not be empty
       }
 
+      withClue("work with interpolated queries") {
+        val name  = "vanilla"
+        val query = cql"SELECT * FROM ice_creams WHERE name = $name".as[IceCream].asReadSource()
+
+        whenReady(query.runWith(Sink.seq[IceCream])) { result =>
+          result should not be empty
+        }
+      }
+
       withClue("use reactive pagination") {
         val rows = Source.fromPublisher(
           "SELECT * FROM ice_creams".toCQL.prepareUnit

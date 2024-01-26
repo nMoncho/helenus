@@ -40,6 +40,7 @@ import _root_.akka.stream.stage.InHandler
 import _root_.akka.stream.stage.OutHandler
 import _root_.net.nmoncho.helenus.api.cql.Pager
 import _root_.net.nmoncho.helenus.api.cql.ScalaPreparedStatement
+import _root_.net.nmoncho.helenus.api.cql.WrappedBoundStatement
 import _root_.net.nmoncho.helenus.internal.cql._
 import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.cql.BatchStatement
@@ -65,20 +66,54 @@ package object akka {
 
   }
 
+  implicit class WrappedBoundStatementAkkaReadSyncOps[Out](
+      private val wbs: WrappedBoundStatement[Out]
+  ) extends AnyVal {
+
+    /** A [[Source]] reading from Cassandra
+      */
+    def asReadSource()(implicit session: CassandraSession): Source[Out, NotUsed] =
+      Source
+        .future(session.underlying())
+        .flatMapConcat { implicit cqlSession =>
+          Source.fromPublisher(wbs.executeReactive())
+        }
+
+  }
+
   implicit class ScalaPreparedStatementUnitAkkaReadAsyncOps[Out](
       private val pstmt: Future[ScalaPreparedStatementUnit[Out]]
   ) extends AnyVal {
 
-    /** A `Source` reading from Cassandra
+    /** A [[Source]] reading from Cassandra
       */
     def asReadSource()(
         implicit session: CassandraSession,
         ec: ExecutionContext
-    ): Source[Out, NotUsed] = {
-      Source.futureSource(
-        pstmt.map(_.asReadSource())
-      )
-    }.mapMaterializedValue(_ => NotUsed)
+    ): Source[Out, NotUsed] =
+      Source
+        .futureSource(
+          pstmt.map(_.asReadSource())
+        )
+        .mapMaterializedValue(_ => NotUsed)
+
+  }
+
+  implicit class WrappedBoundStatementAkkaReadAsyncOps[Out](
+      private val wbs: Future[WrappedBoundStatement[Out]]
+  ) extends AnyVal {
+
+    /** A [[Source]] reading from Cassandra
+      */
+    def asReadSource()(
+        implicit session: CassandraSession,
+        ec: ExecutionContext
+    ): Source[Out, NotUsed] =
+      Source
+        .futureSource(
+          wbs.map(_.asReadSource())
+        )
+        .mapMaterializedValue(_ => NotUsed)
 
   }
 
