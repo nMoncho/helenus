@@ -61,7 +61,7 @@ object CqlQueryInterpolation {
   def cqlAsync(
       c: blackbox.Context
   )(params: c.Expr[Any]*)(
-      session: c.Expr[CqlSession],
+      session: c.Expr[Future[CqlSession]],
       ec: c.Expr[ExecutionContext]
   ): c.Expr[Future[WrappedBoundStatement[Row]]] = {
     import c.universe._
@@ -69,7 +69,7 @@ object CqlQueryInterpolation {
     val (stmt, bindParameters) = buildStatement(c)(params)
 
     val pstmt = c.Expr[Future[PreparedStatement]](
-      q"_root_.net.nmoncho.helenus.internal.compat.FutureConverters.asScala($session.prepareAsync($stmt))"
+      q"$session.flatMap(s => _root_.net.nmoncho.helenus.internal.compat.FutureConverters.asScala(s.prepareAsync($stmt)))"
     )
 
     val bounders = bindParameters.map { parameter =>

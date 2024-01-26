@@ -146,7 +146,10 @@ package object helenus extends CodecDerivation {
 
     def cqlAsync(
         params: Any*
-    )(implicit session: CqlSession, ec: ExecutionContext): Future[WrappedBoundStatement[Row]] =
+    )(
+        implicit session: Future[CqlSession],
+        ec: ExecutionContext
+    ): Future[WrappedBoundStatement[Row]] =
       macro CqlQueryInterpolation.cqlAsync
 
   }

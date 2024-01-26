@@ -223,6 +223,16 @@ class PekkoConnectorSpec extends AnyWordSpec with Matchers with CassandraSpec wi
 
         testStream(ijes, query, insert)(identity)
       }
+
+      withClue("work with interpolated queries") {
+        val name = "vanilla"
+        val query =
+          cqlAsync"SELECT * FROM ice_creams WHERE name = $name".as[IceCream].asReadSource()
+
+        whenReady(query.runWith(Sink.seq[IceCream])) { result =>
+          result should not be empty
+        }
+      }
     }
 
     "work with Pekko Streams and Context (async)" in {
