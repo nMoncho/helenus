@@ -45,11 +45,24 @@ import _root_.net.nmoncho.helenus.internal.cql._
 import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.cql.BatchStatement
 import com.datastax.oss.driver.api.core.cql.PagingState
+import org.reactivestreams.Publisher
 
 package object akka {
 
   implicit def toExtension(implicit session: CassandraSession): Future[CqlSession] =
     session.underlying()
+
+  private def source[Out](
+      pub: CqlSession => Publisher[Out]
+  )(implicit session: CassandraSession): Source[Out, NotUsed] =
+    Source
+      .future(session.underlying())
+      .flatMapConcat(s => Source.fromPublisher(pub(s)))
+
+  private def futureSource[Out](f: Future[Source[Out, _]]): Source[Out, NotUsed] =
+    Source
+      .futureSource(f)
+      .mapMaterializedValue(_ => NotUsed)
 
   implicit class ScalaPreparedStatementUnitAkkaReadSyncOps[Out](
       private val pstmt: ScalaPreparedStatementUnit[Out]
@@ -58,11 +71,7 @@ package object akka {
     /** A `Source` reading from Cassandra
       */
     def asReadSource()(implicit session: CassandraSession): Source[Out, NotUsed] =
-      Source
-        .future(session.underlying())
-        .flatMapConcat { implicit cqlSession =>
-          Source.fromPublisher(pstmt.executeReactive())
-        }
+      source(implicit s => pstmt.executeReactive())
 
   }
 
@@ -73,11 +82,7 @@ package object akka {
     /** A [[Source]] reading from Cassandra
       */
     def asReadSource()(implicit session: CassandraSession): Source[Out, NotUsed] =
-      Source
-        .future(session.underlying())
-        .flatMapConcat { implicit cqlSession =>
-          Source.fromPublisher(wbs.executeReactive())
-        }
+      source(implicit s => wbs.executeReactive())
 
   }
 
@@ -91,11 +96,7 @@ package object akka {
         implicit session: CassandraSession,
         ec: ExecutionContext
     ): Source[Out, NotUsed] =
-      Source
-        .futureSource(
-          pstmt.map(_.asReadSource())
-        )
-        .mapMaterializedValue(_ => NotUsed)
+      futureSource(pstmt.map(_.asReadSource()))
 
   }
 
@@ -109,11 +110,7 @@ package object akka {
         implicit session: CassandraSession,
         ec: ExecutionContext
     ): Source[Out, NotUsed] =
-      Source
-        .futureSource(
-          wbs.map(_.asReadSource())
-        )
-        .mapMaterializedValue(_ => NotUsed)
+      futureSource(wbs.map(_.asReadSource()))
 
   }
 
@@ -126,11 +123,8 @@ package object akka {
       * @param u query parameters
       */
     def asReadSource(u: In)(implicit session: CassandraSession): Source[Out, NotUsed] =
-      Source
-        .future(session.underlying())
-        .flatMapConcat { implicit cqlSession =>
-          Source.fromPublisher(pstmt.executeReactive(u))
-        }
+      source(implicit s => pstmt.executeReactive(u))
+
   }
 
   implicit class ScalaPreparedStatementAkkaReadAsyncOps[In, Out](
@@ -145,13 +139,7 @@ package object akka {
         implicit session: CassandraSession,
         ec: ExecutionContext
     ): Source[Out, NotUsed] =
-      Source
-        .futureSource(
-          pstmt.map(
-            _.asReadSource(u)
-          )
-        )
-        .mapMaterializedValue(_ => NotUsed)
+      futureSource(pstmt.map(_.asReadSource(u)))
 
   }
 
@@ -320,7 +308,7 @@ package object akka {
   //        |
   //        |implicit class ScalaPreparedStatement${typeParameterCount}AkkaReadAsyncOps[$typeParameters, Out](private val pstmt: Future[ScalaPreparedStatement${typeParameterCount}[$typeParameters, Out]]) extends AnyVal {
   //        |  def asReadSource($parameterList)(implicit session: CassandraSession, ec: ExecutionContext): Source[Out, NotUsed] =
-  //        |    Source.futureSource(pstmt.map(_.asReadSource($methodParameters))).mapMaterializedValue(_ => NotUsed)
+  //        |    futureSource(pstmt.map(_.asReadSource($methodParameters)))
   //        |}
   //        |""".stripMargin
   //
@@ -333,212 +321,212 @@ package object akka {
   // $COVERAGE-OFF$
   implicit class ScalaPreparedStatement2AkkaReadSyncOps[T1, T2, Out](private val pstmt: ScalaPreparedStatement2[T1, T2, Out]) extends AnyVal {
     def asReadSource(t1: T1, t2: T2)(implicit session: CassandraSession): Source[Out, NotUsed] =
-      Source.future(session.underlying()).flatMapConcat {implicit cqlSession => Source.fromPublisher(pstmt.executeReactive(t1, t2))}
+      source(implicit cqlSession => pstmt.executeReactive(t1, t2))
   }
 
   implicit class ScalaPreparedStatement2AkkaReadAsyncOps[T1, T2, Out](private val pstmt: Future[ScalaPreparedStatement2[T1, T2, Out]]) extends AnyVal {
     def asReadSource(t1: T1, t2: T2)(implicit session: CassandraSession, ec: ExecutionContext): Source[Out, NotUsed] =
-      Source.futureSource(pstmt.map(_.asReadSource(t1, t2))).mapMaterializedValue(_ => NotUsed)
+      futureSource(pstmt.map(_.asReadSource(t1, t2)))
   }
 
   implicit class ScalaPreparedStatement3AkkaReadSyncOps[T1, T2, T3, Out](private val pstmt: ScalaPreparedStatement3[T1, T2, T3, Out]) extends AnyVal {
     def asReadSource(t1: T1, t2: T2, t3: T3)(implicit session: CassandraSession): Source[Out, NotUsed] =
-      Source.future(session.underlying()).flatMapConcat {implicit cqlSession => Source.fromPublisher(pstmt.executeReactive(t1, t2, t3))}
+      source(implicit cqlSession => pstmt.executeReactive(t1, t2, t3))
   }
 
   implicit class ScalaPreparedStatement3AkkaReadAsyncOps[T1, T2, T3, Out](private val pstmt: Future[ScalaPreparedStatement3[T1, T2, T3, Out]]) extends AnyVal {
     def asReadSource(t1: T1, t2: T2, t3: T3)(implicit session: CassandraSession, ec: ExecutionContext): Source[Out, NotUsed] =
-      Source.futureSource(pstmt.map(_.asReadSource(t1, t2, t3))).mapMaterializedValue(_ => NotUsed)
+      futureSource(pstmt.map(_.asReadSource(t1, t2, t3)))
   }
 
   implicit class ScalaPreparedStatement4AkkaReadSyncOps[T1, T2, T3, T4, Out](private val pstmt: ScalaPreparedStatement4[T1, T2, T3, T4, Out]) extends AnyVal {
     def asReadSource(t1: T1, t2: T2, t3: T3, t4: T4)(implicit session: CassandraSession): Source[Out, NotUsed] =
-      Source.future(session.underlying()).flatMapConcat {implicit cqlSession => Source.fromPublisher(pstmt.executeReactive(t1, t2, t3, t4))}
+      source(implicit cqlSession => pstmt.executeReactive(t1, t2, t3, t4))
   }
 
   implicit class ScalaPreparedStatement4AkkaReadAsyncOps[T1, T2, T3, T4, Out](private val pstmt: Future[ScalaPreparedStatement4[T1, T2, T3, T4, Out]]) extends AnyVal {
     def asReadSource(t1: T1, t2: T2, t3: T3, t4: T4)(implicit session: CassandraSession, ec: ExecutionContext): Source[Out, NotUsed] =
-      Source.futureSource(pstmt.map(_.asReadSource(t1, t2, t3, t4))).mapMaterializedValue(_ => NotUsed)
+      futureSource(pstmt.map(_.asReadSource(t1, t2, t3, t4)))
   }
 
   implicit class ScalaPreparedStatement5AkkaReadSyncOps[T1, T2, T3, T4, T5, Out](private val pstmt: ScalaPreparedStatement5[T1, T2, T3, T4, T5, Out]) extends AnyVal {
     def asReadSource(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5)(implicit session: CassandraSession): Source[Out, NotUsed] =
-      Source.future(session.underlying()).flatMapConcat {implicit cqlSession => Source.fromPublisher(pstmt.executeReactive(t1, t2, t3, t4, t5))}
+      source(implicit cqlSession => pstmt.executeReactive(t1, t2, t3, t4, t5))
   }
 
   implicit class ScalaPreparedStatement5AkkaReadAsyncOps[T1, T2, T3, T4, T5, Out](private val pstmt: Future[ScalaPreparedStatement5[T1, T2, T3, T4, T5, Out]]) extends AnyVal {
     def asReadSource(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5)(implicit session: CassandraSession, ec: ExecutionContext): Source[Out, NotUsed] =
-      Source.futureSource(pstmt.map(_.asReadSource(t1, t2, t3, t4, t5))).mapMaterializedValue(_ => NotUsed)
+      futureSource(pstmt.map(_.asReadSource(t1, t2, t3, t4, t5)))
   }
 
   implicit class ScalaPreparedStatement6AkkaReadSyncOps[T1, T2, T3, T4, T5, T6, Out](private val pstmt: ScalaPreparedStatement6[T1, T2, T3, T4, T5, T6, Out]) extends AnyVal {
     def asReadSource(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6)(implicit session: CassandraSession): Source[Out, NotUsed] =
-      Source.future(session.underlying()).flatMapConcat {implicit cqlSession => Source.fromPublisher(pstmt.executeReactive(t1, t2, t3, t4, t5, t6))}
+      source(implicit cqlSession => pstmt.executeReactive(t1, t2, t3, t4, t5, t6))
   }
 
   implicit class ScalaPreparedStatement6AkkaReadAsyncOps[T1, T2, T3, T4, T5, T6, Out](private val pstmt: Future[ScalaPreparedStatement6[T1, T2, T3, T4, T5, T6, Out]]) extends AnyVal {
     def asReadSource(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6)(implicit session: CassandraSession, ec: ExecutionContext): Source[Out, NotUsed] =
-      Source.futureSource(pstmt.map(_.asReadSource(t1, t2, t3, t4, t5, t6))).mapMaterializedValue(_ => NotUsed)
+      futureSource(pstmt.map(_.asReadSource(t1, t2, t3, t4, t5, t6)))
   }
 
   implicit class ScalaPreparedStatement7AkkaReadSyncOps[T1, T2, T3, T4, T5, T6, T7, Out](private val pstmt: ScalaPreparedStatement7[T1, T2, T3, T4, T5, T6, T7, Out]) extends AnyVal {
     def asReadSource(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7)(implicit session: CassandraSession): Source[Out, NotUsed] =
-      Source.future(session.underlying()).flatMapConcat {implicit cqlSession => Source.fromPublisher(pstmt.executeReactive(t1, t2, t3, t4, t5, t6, t7))}
+      source(implicit cqlSession => pstmt.executeReactive(t1, t2, t3, t4, t5, t6, t7))
   }
 
   implicit class ScalaPreparedStatement7AkkaReadAsyncOps[T1, T2, T3, T4, T5, T6, T7, Out](private val pstmt: Future[ScalaPreparedStatement7[T1, T2, T3, T4, T5, T6, T7, Out]]) extends AnyVal {
     def asReadSource(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7)(implicit session: CassandraSession, ec: ExecutionContext): Source[Out, NotUsed] =
-      Source.futureSource(pstmt.map(_.asReadSource(t1, t2, t3, t4, t5, t6, t7))).mapMaterializedValue(_ => NotUsed)
+      futureSource(pstmt.map(_.asReadSource(t1, t2, t3, t4, t5, t6, t7)))
   }
 
   implicit class ScalaPreparedStatement8AkkaReadSyncOps[T1, T2, T3, T4, T5, T6, T7, T8, Out](private val pstmt: ScalaPreparedStatement8[T1, T2, T3, T4, T5, T6, T7, T8, Out]) extends AnyVal {
     def asReadSource(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8)(implicit session: CassandraSession): Source[Out, NotUsed] =
-      Source.future(session.underlying()).flatMapConcat {implicit cqlSession => Source.fromPublisher(pstmt.executeReactive(t1, t2, t3, t4, t5, t6, t7, t8))}
+      source(implicit cqlSession => pstmt.executeReactive(t1, t2, t3, t4, t5, t6, t7, t8))
   }
 
   implicit class ScalaPreparedStatement8AkkaReadAsyncOps[T1, T2, T3, T4, T5, T6, T7, T8, Out](private val pstmt: Future[ScalaPreparedStatement8[T1, T2, T3, T4, T5, T6, T7, T8, Out]]) extends AnyVal {
     def asReadSource(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8)(implicit session: CassandraSession, ec: ExecutionContext): Source[Out, NotUsed] =
-      Source.futureSource(pstmt.map(_.asReadSource(t1, t2, t3, t4, t5, t6, t7, t8))).mapMaterializedValue(_ => NotUsed)
+      futureSource(pstmt.map(_.asReadSource(t1, t2, t3, t4, t5, t6, t7, t8)))
   }
 
   implicit class ScalaPreparedStatement9AkkaReadSyncOps[T1, T2, T3, T4, T5, T6, T7, T8, T9, Out](private val pstmt: ScalaPreparedStatement9[T1, T2, T3, T4, T5, T6, T7, T8, T9, Out]) extends AnyVal {
     def asReadSource(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9)(implicit session: CassandraSession): Source[Out, NotUsed] =
-      Source.future(session.underlying()).flatMapConcat {implicit cqlSession => Source.fromPublisher(pstmt.executeReactive(t1, t2, t3, t4, t5, t6, t7, t8, t9))}
+      source(implicit cqlSession => pstmt.executeReactive(t1, t2, t3, t4, t5, t6, t7, t8, t9))
   }
 
   implicit class ScalaPreparedStatement9AkkaReadAsyncOps[T1, T2, T3, T4, T5, T6, T7, T8, T9, Out](private val pstmt: Future[ScalaPreparedStatement9[T1, T2, T3, T4, T5, T6, T7, T8, T9, Out]]) extends AnyVal {
     def asReadSource(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9)(implicit session: CassandraSession, ec: ExecutionContext): Source[Out, NotUsed] =
-      Source.futureSource(pstmt.map(_.asReadSource(t1, t2, t3, t4, t5, t6, t7, t8, t9))).mapMaterializedValue(_ => NotUsed)
+      futureSource(pstmt.map(_.asReadSource(t1, t2, t3, t4, t5, t6, t7, t8, t9)))
   }
 
   implicit class ScalaPreparedStatement10AkkaReadSyncOps[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, Out](private val pstmt: ScalaPreparedStatement10[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, Out]) extends AnyVal {
     def asReadSource(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10)(implicit session: CassandraSession): Source[Out, NotUsed] =
-      Source.future(session.underlying()).flatMapConcat {implicit cqlSession => Source.fromPublisher(pstmt.executeReactive(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10))}
+      source(implicit cqlSession => pstmt.executeReactive(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10))
   }
 
   implicit class ScalaPreparedStatement10AkkaReadAsyncOps[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, Out](private val pstmt: Future[ScalaPreparedStatement10[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, Out]]) extends AnyVal {
     def asReadSource(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10)(implicit session: CassandraSession, ec: ExecutionContext): Source[Out, NotUsed] =
-      Source.futureSource(pstmt.map(_.asReadSource(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10))).mapMaterializedValue(_ => NotUsed)
+      futureSource(pstmt.map(_.asReadSource(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10)))
   }
 
   implicit class ScalaPreparedStatement11AkkaReadSyncOps[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, Out](private val pstmt: ScalaPreparedStatement11[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, Out]) extends AnyVal {
     def asReadSource(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11)(implicit session: CassandraSession): Source[Out, NotUsed] =
-      Source.future(session.underlying()).flatMapConcat {implicit cqlSession => Source.fromPublisher(pstmt.executeReactive(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11))}
+      source(implicit cqlSession => pstmt.executeReactive(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11))
   }
 
   implicit class ScalaPreparedStatement11AkkaReadAsyncOps[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, Out](private val pstmt: Future[ScalaPreparedStatement11[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, Out]]) extends AnyVal {
     def asReadSource(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11)(implicit session: CassandraSession, ec: ExecutionContext): Source[Out, NotUsed] =
-      Source.futureSource(pstmt.map(_.asReadSource(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11))).mapMaterializedValue(_ => NotUsed)
+      futureSource(pstmt.map(_.asReadSource(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11)))
   }
 
   implicit class ScalaPreparedStatement12AkkaReadSyncOps[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, Out](private val pstmt: ScalaPreparedStatement12[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, Out]) extends AnyVal {
     def asReadSource(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12)(implicit session: CassandraSession): Source[Out, NotUsed] =
-      Source.future(session.underlying()).flatMapConcat {implicit cqlSession => Source.fromPublisher(pstmt.executeReactive(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12))}
+      source(implicit cqlSession => pstmt.executeReactive(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12))
   }
 
   implicit class ScalaPreparedStatement12AkkaReadAsyncOps[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, Out](private val pstmt: Future[ScalaPreparedStatement12[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, Out]]) extends AnyVal {
     def asReadSource(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12)(implicit session: CassandraSession, ec: ExecutionContext): Source[Out, NotUsed] =
-      Source.futureSource(pstmt.map(_.asReadSource(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12))).mapMaterializedValue(_ => NotUsed)
+      futureSource(pstmt.map(_.asReadSource(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12)))
   }
 
   implicit class ScalaPreparedStatement13AkkaReadSyncOps[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, Out](private val pstmt: ScalaPreparedStatement13[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, Out]) extends AnyVal {
     def asReadSource(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13)(implicit session: CassandraSession): Source[Out, NotUsed] =
-      Source.future(session.underlying()).flatMapConcat {implicit cqlSession => Source.fromPublisher(pstmt.executeReactive(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13))}
+      source(implicit cqlSession => pstmt.executeReactive(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13))
   }
 
   implicit class ScalaPreparedStatement13AkkaReadAsyncOps[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, Out](private val pstmt: Future[ScalaPreparedStatement13[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, Out]]) extends AnyVal {
     def asReadSource(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13)(implicit session: CassandraSession, ec: ExecutionContext): Source[Out, NotUsed] =
-      Source.futureSource(pstmt.map(_.asReadSource(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13))).mapMaterializedValue(_ => NotUsed)
+      futureSource(pstmt.map(_.asReadSource(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13)))
   }
 
   implicit class ScalaPreparedStatement14AkkaReadSyncOps[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, Out](private val pstmt: ScalaPreparedStatement14[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, Out]) extends AnyVal {
     def asReadSource(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14)(implicit session: CassandraSession): Source[Out, NotUsed] =
-      Source.future(session.underlying()).flatMapConcat {implicit cqlSession => Source.fromPublisher(pstmt.executeReactive(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14))}
+      source(implicit cqlSession => pstmt.executeReactive(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14))
   }
 
   implicit class ScalaPreparedStatement14AkkaReadAsyncOps[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, Out](private val pstmt: Future[ScalaPreparedStatement14[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, Out]]) extends AnyVal {
     def asReadSource(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14)(implicit session: CassandraSession, ec: ExecutionContext): Source[Out, NotUsed] =
-      Source.futureSource(pstmt.map(_.asReadSource(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14))).mapMaterializedValue(_ => NotUsed)
+      futureSource(pstmt.map(_.asReadSource(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14)))
   }
 
   implicit class ScalaPreparedStatement15AkkaReadSyncOps[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, Out](private val pstmt: ScalaPreparedStatement15[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, Out]) extends AnyVal {
     def asReadSource(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15)(implicit session: CassandraSession): Source[Out, NotUsed] =
-      Source.future(session.underlying()).flatMapConcat {implicit cqlSession => Source.fromPublisher(pstmt.executeReactive(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15))}
+      source(implicit cqlSession => pstmt.executeReactive(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15))
   }
 
   implicit class ScalaPreparedStatement15AkkaReadAsyncOps[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, Out](private val pstmt: Future[ScalaPreparedStatement15[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, Out]]) extends AnyVal {
     def asReadSource(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15)(implicit session: CassandraSession, ec: ExecutionContext): Source[Out, NotUsed] =
-      Source.futureSource(pstmt.map(_.asReadSource(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15))).mapMaterializedValue(_ => NotUsed)
+      futureSource(pstmt.map(_.asReadSource(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15)))
   }
 
   implicit class ScalaPreparedStatement16AkkaReadSyncOps[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, Out](private val pstmt: ScalaPreparedStatement16[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, Out]) extends AnyVal {
     def asReadSource(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16)(implicit session: CassandraSession): Source[Out, NotUsed] =
-      Source.future(session.underlying()).flatMapConcat {implicit cqlSession => Source.fromPublisher(pstmt.executeReactive(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16))}
+      source(implicit cqlSession => pstmt.executeReactive(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16))
   }
 
   implicit class ScalaPreparedStatement16AkkaReadAsyncOps[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, Out](private val pstmt: Future[ScalaPreparedStatement16[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, Out]]) extends AnyVal {
     def asReadSource(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16)(implicit session: CassandraSession, ec: ExecutionContext): Source[Out, NotUsed] =
-      Source.futureSource(pstmt.map(_.asReadSource(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16))).mapMaterializedValue(_ => NotUsed)
+      futureSource(pstmt.map(_.asReadSource(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16)))
   }
 
   implicit class ScalaPreparedStatement17AkkaReadSyncOps[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, Out](private val pstmt: ScalaPreparedStatement17[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, Out]) extends AnyVal {
     def asReadSource(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17)(implicit session: CassandraSession): Source[Out, NotUsed] =
-      Source.future(session.underlying()).flatMapConcat {implicit cqlSession => Source.fromPublisher(pstmt.executeReactive(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17))}
+      source(implicit cqlSession => pstmt.executeReactive(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17))
   }
 
   implicit class ScalaPreparedStatement17AkkaReadAsyncOps[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, Out](private val pstmt: Future[ScalaPreparedStatement17[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, Out]]) extends AnyVal {
     def asReadSource(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17)(implicit session: CassandraSession, ec: ExecutionContext): Source[Out, NotUsed] =
-      Source.futureSource(pstmt.map(_.asReadSource(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17))).mapMaterializedValue(_ => NotUsed)
+      futureSource(pstmt.map(_.asReadSource(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17)))
   }
 
   implicit class ScalaPreparedStatement18AkkaReadSyncOps[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, Out](private val pstmt: ScalaPreparedStatement18[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, Out]) extends AnyVal {
     def asReadSource(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18)(implicit session: CassandraSession): Source[Out, NotUsed] =
-      Source.future(session.underlying()).flatMapConcat {implicit cqlSession => Source.fromPublisher(pstmt.executeReactive(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18))}
+      source(implicit cqlSession => pstmt.executeReactive(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18))
   }
 
   implicit class ScalaPreparedStatement18AkkaReadAsyncOps[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, Out](private val pstmt: Future[ScalaPreparedStatement18[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, Out]]) extends AnyVal {
     def asReadSource(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18)(implicit session: CassandraSession, ec: ExecutionContext): Source[Out, NotUsed] =
-      Source.futureSource(pstmt.map(_.asReadSource(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18))).mapMaterializedValue(_ => NotUsed)
+      futureSource(pstmt.map(_.asReadSource(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18)))
   }
 
   implicit class ScalaPreparedStatement19AkkaReadSyncOps[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, Out](private val pstmt: ScalaPreparedStatement19[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, Out]) extends AnyVal {
     def asReadSource(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19)(implicit session: CassandraSession): Source[Out, NotUsed] =
-      Source.future(session.underlying()).flatMapConcat {implicit cqlSession => Source.fromPublisher(pstmt.executeReactive(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19))}
+      source(implicit cqlSession => pstmt.executeReactive(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19))
   }
 
   implicit class ScalaPreparedStatement19AkkaReadAsyncOps[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, Out](private val pstmt: Future[ScalaPreparedStatement19[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, Out]]) extends AnyVal {
     def asReadSource(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19)(implicit session: CassandraSession, ec: ExecutionContext): Source[Out, NotUsed] =
-      Source.futureSource(pstmt.map(_.asReadSource(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19))).mapMaterializedValue(_ => NotUsed)
+      futureSource(pstmt.map(_.asReadSource(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19)))
   }
 
   implicit class ScalaPreparedStatement20AkkaReadSyncOps[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, Out](private val pstmt: ScalaPreparedStatement20[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, Out]) extends AnyVal {
     def asReadSource(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20)(implicit session: CassandraSession): Source[Out, NotUsed] =
-      Source.future(session.underlying()).flatMapConcat {implicit cqlSession => Source.fromPublisher(pstmt.executeReactive(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20))}
+      source(implicit cqlSession => pstmt.executeReactive(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20))
   }
 
   implicit class ScalaPreparedStatement20AkkaReadAsyncOps[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, Out](private val pstmt: Future[ScalaPreparedStatement20[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, Out]]) extends AnyVal {
     def asReadSource(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20)(implicit session: CassandraSession, ec: ExecutionContext): Source[Out, NotUsed] =
-      Source.futureSource(pstmt.map(_.asReadSource(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20))).mapMaterializedValue(_ => NotUsed)
+      futureSource(pstmt.map(_.asReadSource(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20)))
   }
 
   implicit class ScalaPreparedStatement21AkkaReadSyncOps[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, Out](private val pstmt: ScalaPreparedStatement21[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, Out]) extends AnyVal {
     def asReadSource(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21)(implicit session: CassandraSession): Source[Out, NotUsed] =
-      Source.future(session.underlying()).flatMapConcat {implicit cqlSession => Source.fromPublisher(pstmt.executeReactive(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21))}
+      source(implicit cqlSession => pstmt.executeReactive(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21))
   }
 
   implicit class ScalaPreparedStatement21AkkaReadAsyncOps[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, Out](private val pstmt: Future[ScalaPreparedStatement21[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, Out]]) extends AnyVal {
     def asReadSource(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21)(implicit session: CassandraSession, ec: ExecutionContext): Source[Out, NotUsed] =
-      Source.futureSource(pstmt.map(_.asReadSource(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21))).mapMaterializedValue(_ => NotUsed)
+      futureSource(pstmt.map(_.asReadSource(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21)))
   }
 
   implicit class ScalaPreparedStatement22AkkaReadSyncOps[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, Out](private val pstmt: ScalaPreparedStatement22[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, Out]) extends AnyVal {
     def asReadSource(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21, t22: T22)(implicit session: CassandraSession): Source[Out, NotUsed] =
-      Source.future(session.underlying()).flatMapConcat {implicit cqlSession => Source.fromPublisher(pstmt.executeReactive(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21, t22))}
+      source(implicit cqlSession => pstmt.executeReactive(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21, t22))
   }
 
   implicit class ScalaPreparedStatement22AkkaReadAsyncOps[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, Out](private val pstmt: Future[ScalaPreparedStatement22[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, Out]]) extends AnyVal {
     def asReadSource(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21, t22: T22)(implicit session: CassandraSession, ec: ExecutionContext): Source[Out, NotUsed] =
-      Source.futureSource(pstmt.map(_.asReadSource(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21, t22))).mapMaterializedValue(_ => NotUsed)
+      futureSource(pstmt.map(_.asReadSource(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21, t22)))
   }
   // $COVERAGE-ON$
   // format: on
