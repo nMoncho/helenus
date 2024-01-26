@@ -19,7 +19,8 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package net.nmoncho.helenus.api.cql
+package net.nmoncho.helenus
+package api.cql
 
 import java.lang
 import java.nio.ByteBuffer
@@ -28,12 +29,14 @@ import java.util
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
+import scala.util.Try
 
 import com.datastax.oss.driver.api.core._
 import com.datastax.oss.driver.api.core.`type`.DataType
 import com.datastax.oss.driver.api.core.`type`.codec.registry.CodecRegistry
 import com.datastax.oss.driver.api.core.config.DriverExecutionProfile
 import com.datastax.oss.driver.api.core.cql.BoundStatement
+import com.datastax.oss.driver.api.core.cql.PagingState
 import com.datastax.oss.driver.api.core.cql.PreparedStatement
 import com.datastax.oss.driver.api.core.cql.Row
 import com.datastax.oss.driver.api.core.metadata.Node
@@ -43,6 +46,7 @@ import net.nmoncho.helenus.ReactiveResultSetOpt
 import net.nmoncho.helenus.ResultSetOps
 import net.nmoncho.helenus.api.RowMapper
 import net.nmoncho.helenus.internal.compat.FutureConverters.CompletionStageOps
+import net.nmoncho.helenus.internal.cql.{ Pager => InternalPager }
 import org.reactivestreams.Publisher
 
 /** This class is meant to wrap a [[BoundStatement]] and carry a [[RowMapper]]
@@ -88,7 +92,17 @@ class WrappedBoundStatement[Out](bstmt: BoundStatement)(implicit mapper: RowMapp
   def as[Out2](implicit newMapper: RowMapper[Out2], ev: Out =:= Row): WrappedBoundStatement[Out2] =
     new WrappedBoundStatement(bstmt)(newMapper)
 
+  def pager: Pager[Out] =
+    InternalPager.initial(tag(this))
+
+  def pager(pagingState: PagingState): Try[Pager[Out]] =
+    InternalPager.continue(tag(this), pagingState)
+
+  def pager[A: PagerSerializer](pagingState: A): Try[Pager[Out]] =
+    InternalPager.continueFromEncoded(tag(this), pagingState)
+
   // format: off
+  // $COVERAGE-OFF$
   override def getPreparedStatement: PreparedStatement = bstmt.getPreparedStatement
   override def getValues: util.List[ByteBuffer] = bstmt.getValues
   override def firstIndexOf(id: CqlIdentifier): Int = bstmt.firstIndexOf(id)
@@ -130,6 +144,7 @@ class WrappedBoundStatement[Out](bstmt: BoundStatement)(implicit mapper: RowMapp
   override def codecRegistry(): CodecRegistry = bstmt.codecRegistry()
   override def protocolVersion(): ProtocolVersion = bstmt.protocolVersion()
   // format: on
+  // $COVERAGE-ON$
 }
 
 object WrappedBoundStatement {
@@ -155,6 +170,24 @@ object WrappedBoundStatement {
         implicit session: CqlSession,
         ec: ExecutionContext
     ): Future[MappedAsyncPagingIterable[Out]] = fut.flatMap(_.executeAsync())
+
+    def pager(
+        implicit mapper: RowMapper[Out],
+        ec: ExecutionContext
+    ): Future[Pager[Out]] =
+      fut.map(wbs => InternalPager.initial(tag(wbs)))
+
+    def pager(pagingState: PagingState)(
+        implicit mapper: RowMapper[Out],
+        ec: ExecutionContext
+    ): Future[Pager[Out]] =
+      fut.map(wbs => InternalPager.continue[Out](tag(wbs), pagingState).get)
+
+    def pager[A: PagerSerializer](pagingState: A)(
+        implicit newMapper: RowMapper[Out],
+        ec: ExecutionContext
+    ): Future[Pager[Out]] =
+      fut.map(wbs => InternalPager.continueFromEncoded[Out, A](tag(wbs), pagingState).get)
   }
 
 }

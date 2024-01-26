@@ -69,7 +69,7 @@ object CqlQueryInterpolation {
     val (stmt, bindParameters) = buildStatement(c)(params)
 
     val pstmt = c.Expr[Future[PreparedStatement]](
-      q"_root_.scala.jdk.javaapi.FutureConverters.asScala($session.prepareAsync($stmt))"
+      q"_root_.net.nmoncho.helenus.internal.compat.FutureConverters.asScala($session.prepareAsync($stmt))"
     )
 
     val bounders = bindParameters.map { parameter =>

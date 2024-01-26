@@ -31,7 +31,6 @@ import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.cql._
 import net.nmoncho.helenus.api.RowMapper
-import net.nmoncho.helenus.api.cql.ScalaPreparedStatement.ScalaBoundStatement
 import net.nmoncho.helenus.internal.cql.AdaptedScalaPreparedStatement
 import org.slf4j.LoggerFactory
 
@@ -77,9 +76,6 @@ abstract class ScalaPreparedStatement[In, Out](pstmt: PreparedStatement, mapper:
    */
   def as[Out2](mapper: RowMapper[Out2])(implicit ev: Out =:= Row): AsOut[Out2] =
     as[Out2](ev, mapper)
-
-  @inline protected def tag[Out](bs: BoundStatement): ScalaBoundStatement[Out] =
-    bs.asInstanceOf[ScalaBoundStatement[Out]]
 
   /** Verifies that this [[ScalaPreparedStatement]] has the same amount of bind parameters (e.g. '?') as the amount
    * used on the '.prepare' call. It will also verify that these parameters have the same type as the specified in
@@ -145,24 +141,7 @@ abstract class ScalaPreparedStatement[In, Out](pstmt: PreparedStatement, mapper:
 object ScalaPreparedStatement {
   import net.nmoncho.helenus.internal.cql._
 
-  type TaggedBoundStatement[Out] = { type Tag = Out }
-  type ScalaBoundStatement[Out]  = BoundStatement with TaggedBoundStatement[Out]
-
   private val log = LoggerFactory.getLogger(classOf[ScalaPreparedStatement[_, _]])
-
-  implicit private[helenus] class BoundStatementOps(private val bs: BoundStatement) extends AnyVal {
-
-    /** Sets or binds the specified value only if it's not NULL, avoiding a tombstone insert.
-      *
-      * @param index position of bound parameter
-      * @param value value to be bound
-      * @param codec how to encode the provided value
-      * @tparam T
-      * @return a modified version of this [[BoundStatement]]
-      */
-    @inline def setIfDefined[T](index: Int, value: T, codec: TypeCodec[T]): BoundStatement =
-      if (value == null || value == None) bs else bs.set(index, value, codec)
-  }
 
   case class CQLQuery(query: String, session: CqlSession) extends SyncCQLQuery with AsyncCQLQuery
 

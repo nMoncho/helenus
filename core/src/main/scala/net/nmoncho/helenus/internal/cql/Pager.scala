@@ -36,7 +36,6 @@ import com.datastax.oss.driver.api.core.cql.PagingState
 import net.nmoncho.helenus.api.RowMapper
 import net.nmoncho.helenus.api.cql
 import net.nmoncho.helenus.api.cql.PagerSerializer
-import net.nmoncho.helenus.api.cql.ScalaPreparedStatement.ScalaBoundStatement
 import net.nmoncho.helenus.internal.reactive.EmptyPublisher
 import net.nmoncho.helenus.internal.reactive.TakeOperator
 import org.reactivestreams.Publisher

@@ -6,6 +6,12 @@ import scala.concurrent.Future
 
 object FutureConverters {
 
+  def asScala[T](cs: CompletionStage[T]): Future[T] =
+    cs.asScala
+
+  def asJava[T](f: Future[T]): CompletionStage[T] =
+    asJava(f)
+
   implicit class CompletionStageOps[T](private val cs: CompletionStage[T]) extends AnyVal {
     def asScala: Future[T] = scala.compat.java8.FutureConverters.toScala(cs)
   }

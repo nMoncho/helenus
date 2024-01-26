@@ -19,7 +19,8 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package net.nmoncho.helenus.internal.cql
+package net.nmoncho.helenus
+package internal.cql
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
@@ -35,8 +36,6 @@ import net.nmoncho.helenus.api.cql.Adapter
 import net.nmoncho.helenus.api.cql.Mapping
 import net.nmoncho.helenus.api.cql.PagerSerializer
 import net.nmoncho.helenus.api.cql.ScalaPreparedStatement
-import net.nmoncho.helenus.api.cql.ScalaPreparedStatement.BoundStatementOps
-import net.nmoncho.helenus.api.cql.ScalaPreparedStatement.ScalaBoundStatement
 import net.nmoncho.helenus.api.cql.StatementOptions
 import net.nmoncho.helenus.api.cql.{ Pager => ApiPager }
 import org.reactivestreams.Publisher

@@ -19,7 +19,8 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package net.nmoncho.helenus.api.cql
+package net.nmoncho.helenus
+package api.cql
 
 import java.nio.ByteBuffer
 
@@ -29,7 +30,6 @@ import com.datastax.oss.driver.api.core.cql.PagingState
 import com.datastax.oss.driver.api.core.cql.Statement
 import com.datastax.oss.driver.api.core.session.Session
 import com.datastax.oss.driver.internal.core.cql.DefaultPagingState
-import net.nmoncho.helenus.api.cql.ScalaPreparedStatement.ScalaBoundStatement
 
 /** Knows how to serialize a [[PagingState]]
   *
