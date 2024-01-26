@@ -244,6 +244,14 @@ package object akka {
                   }
                 )
               }
+
+              override def onUpstreamFinish(): Unit = {
+                if (!promise.isCompleted) {
+                  promise.success(None)
+                }
+
+                super.onUpstreamFinish()
+              }
             }
           )
 

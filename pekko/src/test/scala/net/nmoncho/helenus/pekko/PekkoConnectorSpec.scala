@@ -155,6 +155,7 @@ class PekkoConnectorSpec extends AnyWordSpec with Matchers with CassandraSpec wi
           rows.toSet should not equal (page0.toSet)
 
           state should not be page0State
+          state should not be defined
         }
       }
     }
@@ -259,6 +260,20 @@ class PekkoConnectorSpec extends AnyWordSpec with Matchers with CassandraSpec wi
           rows.toSet should not equal (page0.toSet)
 
           state should not be page0State
+        }
+      }
+
+      withClue("handle an empty operator") {
+        val query = "SELECT * FROM ice_creams WHERE name = 'crema del cielo'".toCQLAsync.prepareUnit
+          .as[IceCream]
+
+        val pager0          = query.pager().asReadSource(pageSize)
+        val (state0, rows0) = pager0.toMat(Sink.seq[IceCream])(Keep.both).run()
+
+        whenReady(rows0.flatMap(r => state0.map(r -> _))) { case (rows, state) =>
+          rows shouldBe empty
+
+          state should not be defined
         }
       }
     }

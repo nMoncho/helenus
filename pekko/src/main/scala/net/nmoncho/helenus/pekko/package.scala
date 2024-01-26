@@ -247,6 +247,14 @@ package object pekko {
                   }
                 )
               }
+
+              override def onUpstreamFinish(): Unit = {
+                if (!promise.isCompleted) {
+                  promise.success(None)
+                }
+
+                super.onUpstreamFinish()
+              }
             }
           )
 
