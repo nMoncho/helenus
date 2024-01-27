@@ -127,6 +127,15 @@ lazy val basicSettings = Seq(
     ),
     ProblemFilters.exclude[DirectMissingMethodProblem](
       "net.nmoncho.helenus.pekko.package.*Akka*"
+    ),
+    ProblemFilters.exclude[DirectMissingMethodProblem](
+      "net.nmoncho.helenus.api.cql.ScalaPreparedStatement.tag"
+    ),
+    ProblemFilters.exclude[MissingClassProblem](
+      "net.nmoncho.helenus.api.cql.ScalaPreparedStatement$BoundStatementOps"
+    ),
+    ProblemFilters.exclude[MissingClassProblem](
+      "net.nmoncho.helenus.api.cql.ScalaPreparedStatement$BoundStatementOps$"
     )
   )
 )

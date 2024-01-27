@@ -22,8 +22,9 @@ libraryDependencies += "net.nmoncho" %% "helenus-core" % "@VERSION@"
 ## Motivation
 
 We tried using libraries such as [Phantom](https://outworkers.github.io/phantom/) and [Quill](https://github.com/zio/zio-quill),
-which are great by the way, but they didn't fit entirely our mindset of workflow. We believe the best way to use Cassandra,
-or any DB for that matter, is to use its Query Language directly.
+which are great by the way, but they didn't fit entirely our mindset of workflow.
+We believe the best way to use Cassandra,  or any DB for that matter, is to use its
+Query Language directly.
 
 Helenus takes inspiration from libraries such as [Anorm](https://github.com/playframework/anorm), trying to provide a
 similar experience by putting CQL first. Our goals are:
