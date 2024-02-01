@@ -68,6 +68,9 @@ class OptionCodec[T](inner: TypeCodec[T]) extends TypeCodec[Option[T]] {
     case _ => false
   }
 
+  override def accepts(cqlType: DataType): Boolean =
+    inner.accepts(cqlType)
+
   override def toString: String = s"OptionCodec[${inner.getCqlType.toString}]"
 
 }
