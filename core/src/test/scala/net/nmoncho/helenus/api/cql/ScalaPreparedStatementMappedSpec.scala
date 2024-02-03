@@ -22,10 +22,13 @@
 package net.nmoncho.helenus
 package api.cql
 
+import scala.concurrent.ExecutionContext.Implicits.global
+
 import com.datastax.oss.driver.api.core.CqlSession
 import net.nmoncho.helenus.models.Hotel
 import net.nmoncho.helenus.utils.CassandraSpec
 import net.nmoncho.helenus.utils.HotelsTestData
+import org.scalatest.OptionValues._
 import org.scalatest.concurrent.Eventually
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
@@ -40,7 +43,7 @@ class ScalaPreparedStatementMappedSpec
     with CassandraSpec
     with ScalaFutures {
 
-  import HotelsTestData._ // Don't remove me
+  import HotelsTestData._
 
   private implicit lazy val cqlSession: CqlSession = session
 
@@ -65,6 +68,27 @@ class ScalaPreparedStatementMappedSpec
 
       mappedQuery.execute(Hotels.h1).nextOption() shouldBe Some(Hotels.h1)
     }
+
+    "prepare a query (async)" in {
+      val insert =
+        """INSERT INTO hotels(id, name, phone, address, pois)
+          |VALUES (?, ?, ?, ?, ?)""".stripMargin.toCQLAsync
+          .prepareFrom[Hotel]
+
+      val mappedQuery =
+        """SELECT * FROM hotels WHERE id = ?""".stripMargin.toCQL.prepareFrom[Hotel].as[Hotel]
+
+      val tx = for {
+        _ <- insert.executeAsync(Hotels.h1)
+        q <- mappedQuery.executeAsync(Hotels.h1)
+        r <- q.nextOption()
+      } yield r
+
+      whenReady(tx) { result =>
+        result shouldBe defined
+        result.value._1 shouldBe Hotels.h1
+      }
+    }
   }
 
   override implicit def patienceConfig: PatienceConfig = PatienceConfig(Span(6, Seconds))
@@ -74,7 +98,4 @@ class ScalaPreparedStatementMappedSpec
     executeFile("hotels.cql")
   }
 
-  override def afterEach(): Unit = {
-    // Don't truncate keyspace
-  }
 }

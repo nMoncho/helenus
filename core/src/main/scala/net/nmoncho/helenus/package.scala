@@ -481,6 +481,8 @@ package object helenus extends CodecDerivation {
   implicit class CQLAsyncOps(private val cql: Future[CQLQuery]) extends AnyVal {
     def prepareUnit(implicit ec: ExecutionContext): Future[ScalaPreparedStatementUnit[Row]] = cql.map(_.prepareUnit)
 
+    def prepareFrom[T1: Mapping](implicit ec: ExecutionContext): Future[ScalaPreparedStatementMapped[T1, Row]] = cql.map(_.prepareFrom[T1])
+
     def prepare[T1: TypeCodec](implicit ec: ExecutionContext): Future[ScalaPreparedStatement1[T1, Row]] = cql.map(_.prepare[T1])
 
     def prepare[T1: TypeCodec, T2: TypeCodec](implicit ec: ExecutionContext): Future[ScalaPreparedStatement2[T1, T2, Row]] = cql.map(_.prepare[T1, T2])
@@ -577,10 +579,24 @@ package object helenus extends CodecDerivation {
     def pager[A: PagerSerializer](pagingState: A)(implicit ec: ExecutionContext): Future[ApiPager[Out]] = fut.map(_.pager(pagingState).get)
   }
 
-  implicit class AsyncAsPreparedStatement1[T1, Out](private val fut: Future[ScalaPreparedStatement1[T1, Out]]) extends AnyVal {
+  implicit class AsyncAsPreparedStatement[T1, Out](private val fut: Future[ScalaPreparedStatement1[T1, Out]]) extends AnyVal {
     def as[Out2](implicit ec: ExecutionContext, mapper: RowMapper[Out2], ev: Out =:= Row): Future[ScalaPreparedStatement1[T1, Out2]] = fut.map(_.as[Out2])
 
     def as[Out2](mapper: RowMapper[Out2])(implicit ec: ExecutionContext, ev: Out =:= Row): Future[ScalaPreparedStatement1[T1, Out2]] = fut.map(_.as[Out2](ev, mapper))
+
+    def executeAsync(t1: T1)(implicit cqlSession: Future[CqlSession], ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] = cqlSession.flatMap {implicit s => fut.flatMap(_.executeAsync(t1))}
+
+    def pager(t1: T1)(implicit ec: ExecutionContext): Future[ApiPager[Out]] = fut.map(_.pager(t1))
+
+    def pager(pagingState: PagingState, t1: T1)(implicit ec: ExecutionContext): Future[ApiPager[Out]] = fut.map(_.pager(pagingState, t1).get)
+
+    def pager[A: PagerSerializer](pagingState: A, t1: T1)(implicit ec: ExecutionContext): Future[ApiPager[Out]] = fut.map(_.pager(pagingState, t1).get)
+  }
+
+  implicit class AsyncAsPreparedStatementMapped[T1, Out](private val fut: Future[ScalaPreparedStatementMapped[T1, Out]]) extends AnyVal {
+    def as[Out2](implicit ec: ExecutionContext, mapper: RowMapper[Out2], ev: Out =:= Row): Future[ScalaPreparedStatementMapped[T1, Out2]] = fut.map(_.as[Out2])
+
+    def as[Out2](mapper: RowMapper[Out2])(implicit ec: ExecutionContext, ev: Out =:= Row): Future[ScalaPreparedStatementMapped[T1, Out2]] = fut.map(_.as[Out2](ev, mapper))
 
     def executeAsync(t1: T1)(implicit cqlSession: Future[CqlSession], ec: ExecutionContext): Future[MappedAsyncPagingIterable[Out]] = cqlSession.flatMap {implicit s => fut.flatMap(_.executeAsync(t1))}
 
