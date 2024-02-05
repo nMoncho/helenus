@@ -37,10 +37,8 @@ import net.nmoncho.helenus.utils.CassandraSpec
 import org.apache.pekko.Done
 import org.apache.pekko.NotUsed
 import org.apache.pekko.actor.ActorSystem
-import org.apache.pekko.stream.connectors.cassandra.CassandraSessionSettings
-import org.apache.pekko.stream.connectors.cassandra.CassandraWriteSettings
-import org.apache.pekko.stream.connectors.cassandra.scaladsl.CassandraSession
-import org.apache.pekko.stream.connectors.cassandra.scaladsl.CassandraSessionRegistry
+import org.apache.pekko.stream.connectors.cassandra._
+import org.apache.pekko.stream.connectors.cassandra.scaladsl._
 import org.apache.pekko.stream.scaladsl.FlowWithContext
 import org.apache.pekko.stream.scaladsl.Keep
 import org.apache.pekko.stream.scaladsl.Sink

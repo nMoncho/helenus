@@ -319,6 +319,16 @@ package object pekko {
 
   // format: off
   // $COVERAGE-OFF$
+  implicit class ScalaPreparedStatementMappedPekkoReadSyncOps[T1, Out](private val pstmt: ScalaPreparedStatementMapped[T1, Out]) extends AnyVal {
+    def asReadSource(t1: T1)(implicit session: CassandraSession): Source[Out, NotUsed] =
+      source(implicit cqlSession => pstmt.executeReactive(t1))
+  }
+
+  implicit class ScalaPreparedStatementMappedPekkoReadAsyncOps[T1, Out](private val pstmt: Future[ScalaPreparedStatementMapped[T1, Out]]) extends AnyVal {
+    def asReadSource(t1: T1)(implicit session: CassandraSession, ec: ExecutionContext): Source[Out, NotUsed] =
+      futureSource(pstmt.map(_.asReadSource(t1)))
+  }
+
   implicit class ScalaPreparedStatement2PekkoReadSyncOps[T1, T2, Out](private val pstmt: ScalaPreparedStatement2[T1, T2, Out]) extends AnyVal {
     def asReadSource(t1: T1, t2: T2)(implicit session: CassandraSession): Source[Out, NotUsed] =
       source(implicit cqlSession => pstmt.executeReactive(t1, t2))
