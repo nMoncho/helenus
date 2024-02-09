@@ -26,10 +26,12 @@ import scala.annotation.nowarn
 
 import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.cql.Row
+import net.nmoncho.helenus.api.RowMapper.ColumnMapper
 import net.nmoncho.helenus.models.Address
 import net.nmoncho.helenus.models.Hotel
 import net.nmoncho.helenus.utils.CassandraSpec
 import net.nmoncho.helenus.utils.HotelsTestData
+import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.concurrent.Eventually
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
@@ -78,6 +80,29 @@ class RowMapperSpec
 
       whenReady(query(Hotels.h5.id).executeAsync()) { p =>
         p.currPage.nextOption() shouldBe Some(Hotels.h5.name)
+      }
+
+      withClue(",with an Either field") {
+        case class Hotel2(
+            id: String,
+            name: String,
+            phoneOrAddress: Either[String, Address],
+            pois: Set[String]
+        )
+
+        implicit val phoneOrAddressColMapper: ColumnMapper[Either[String, Address]] =
+          ColumnMapper.either[String, Address]("phone", "address")
+        implicit val mapper: RowMapper[Hotel2] = RowMapper[Hotel2]
+
+        val query = "SELECT * FROM hotels WHERE id = ?".toCQL
+          .prepare[String]
+          .as[Hotel2]
+
+        query(Hotels.h3.id)
+          .execute()
+          .nextOption()
+          .value
+          .phoneOrAddress shouldBe Right(Hotels.h3.address)
       }
     }
 
