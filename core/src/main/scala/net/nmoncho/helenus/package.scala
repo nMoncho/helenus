@@ -579,7 +579,7 @@ package object helenus extends CodecDerivation {
     def pager[A: PagerSerializer](pagingState: A)(implicit ec: ExecutionContext): Future[ApiPager[Out]] = fut.map(_.pager(pagingState).get)
   }
 
-  implicit class AsyncAsPreparedStatement[T1, Out](private val fut: Future[ScalaPreparedStatement1[T1, Out]]) extends AnyVal {
+  implicit class AsyncAsPreparedStatement1[T1, Out](private val fut: Future[ScalaPreparedStatement1[T1, Out]]) extends AnyVal {
     def as[Out2](implicit ec: ExecutionContext, mapper: RowMapper[Out2], ev: Out =:= Row): Future[ScalaPreparedStatement1[T1, Out2]] = fut.map(_.as[Out2])
 
     def as[Out2](mapper: RowMapper[Out2])(implicit ec: ExecutionContext, ev: Out =:= Row): Future[ScalaPreparedStatement1[T1, Out2]] = fut.map(_.as[Out2](ev, mapper))
