@@ -8,7 +8,7 @@ import com.typesafe.tools.mima.core.{
 
 lazy val dependencies = new {
   object Version {
-    val scala213 = "2.13.12"
+    val scala213 = "2.13.13"
     val scala212 = "2.12.18"
 
     val cassandraUnit         = "4.3.1.0"
