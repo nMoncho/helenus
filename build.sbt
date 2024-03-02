@@ -31,7 +31,7 @@ lazy val dependencies = new {
     val mockito    = "5.10.0"
     val scalaCheck = "1.17.0"
     val scalaTest  = "3.2.17"
-    val logback    = "1.4.14"
+    val logback    = "1.5.2"
   }
 
   // 'core' dependencies
