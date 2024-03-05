@@ -25,7 +25,7 @@ jobs:
           distribution: 'temurin'
           cache: 'sbt'
 
-      - name: Check formatting, scalfix, and headers
+      - name: Check formatting, scalafix, and headers
         run: sbt styleCheck
 
       - name: Check MiMa

@@ -23,39 +23,34 @@ package net.nmoncho.helenus.utils
 
 import java.net.InetSocketAddress
 import java.util.UUID
+import java.util.concurrent.locks.ReentrantLock
 
-import javax.management.InstanceAlreadyExistsException
-
+import com.datastax.oss.driver.api.core.ConsistencyLevel
 import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.`type`.codec.registry.MutableCodecRegistry
 import com.datastax.oss.driver.api.core.cql.ResultSet
+import com.datastax.oss.driver.api.core.cql.SimpleStatement
 import com.datastax.oss.driver.api.core.cql.Statement
-import org.apache.cassandra.config.DatabaseDescriptor
-import org.cassandraunit.utils.EmbeddedCassandraServerHelper
+import com.datastax.oss.driver.api.core.servererrors.AlreadyExistsException
+import net.nmoncho.helenus.utils.CassandraSpec.ddlLock
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.Suite
 
 trait CassandraSpec extends BeforeAndAfterAll with BeforeAndAfterEach { this: Suite =>
 
-  def startTimeout: Long = EmbeddedCassandraServerHelper.DEFAULT_STARTUP_TIMEOUT * 3
-
   protected lazy val keyspace: String = randomIdentifier("tests")
 
-  protected lazy val contactPoint: String =
-    s"${EmbeddedCassandraServerHelper.getHost}:${EmbeddedCassandraServerHelper.getNativeTransportPort}"
+  private val hostname = "localhost"
+  private val port     = 9142
+
+  protected val contactPoint: String = s"$hostname:$port"
 
   protected lazy val session: CqlSession = CqlSession
     .builder()
-    .addContactPoint(
-      new InetSocketAddress(
-        EmbeddedCassandraServerHelper.getHost,
-        EmbeddedCassandraServerHelper.getNativeTransportPort
-      )
-    )
+    .addContactPoint(new InetSocketAddress(hostname, port))
     .withLocalDatacenter("datacenter1")
-    .withKeyspace(keyspace)
     .build()
 
   override def afterEach(): Unit = {
@@ -65,36 +60,16 @@ trait CassandraSpec extends BeforeAndAfterAll with BeforeAndAfterEach { this: Su
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    // Must have only one instance of Cassandra
-    Runtime.getRuntime.synchronized {
-      // Cross-test tries to start Cassandra twice, but the objects are different
-      if (Option(System.getProperty("cassandra-foreground")).isEmpty) {
-        // Start embedded cassandra normally
-        EmbeddedCassandraServerHelper.startEmbeddedCassandra(startTimeout)
-      } else {
-        try {
-          // Use reflection to load the config into `DatabaseDescriptor`
-          val config = DatabaseDescriptor.loadConfig()
-          val m = classOf[DatabaseDescriptor].getDeclaredMethod(
-            "setConfig",
-            classOf[org.apache.cassandra.config.Config]
-          )
-          m.setAccessible(true)
 
-          m.invoke(null, config)
-          DatabaseDescriptor.applyAddressConfig()
-        } catch {
-          case e: RuntimeException
-              if e.getCause.isInstanceOf[InstanceAlreadyExistsException] => // ignore
-        }
-      }
+    session.execute(
+      s"CREATE KEYSPACE IF NOT EXISTS $keyspace WITH replication = {'class':'SimpleStrategy', 'replication_factor' : 1}"
+    )
+    session.execute(s"USE $keyspace")
+  }
 
-      val session = EmbeddedCassandraServerHelper.getSession
-      session.execute(
-        s"CREATE KEYSPACE IF NOT EXISTS $keyspace WITH replication = {'class':'SimpleStrategy', 'replication_factor' : 1}"
-      )
-      session.execute(s"USE $keyspace")
-    }
+  override def afterAll(): Unit = {
+    session.close()
+    super.afterAll()
   }
 
   def randomIdentifier(prefix: String): String =
@@ -107,12 +82,19 @@ trait CassandraSpec extends BeforeAndAfterAll with BeforeAndAfterEach { this: Su
     *
     * This is a workaround for the exception `DriverTimeoutException: Query timed out after PT2S`
     */
-  def executeDDL(ddl: String): Unit = try {
-    session.execute(ddl)
-  } catch {
-    case _: Throwable =>
-      Thread.sleep(50)
-      executeDDL(ddl)
+  def executeDDL(ddl: String): Unit = {
+    ddlLock.lock()
+
+    try {
+      session.execute(SimpleStatement.newInstance(ddl).setConsistencyLevel(ConsistencyLevel.ALL))
+    } catch {
+      case _: AlreadyExistsException => // ignore
+      case _ =>
+        Thread.sleep(50)
+        executeDDL(ddl)
+    } finally {
+      ddlLock.unlock()
+    }
   }
 
   def execute(stmt: Statement[_]): ResultSet =
@@ -131,11 +113,16 @@ trait CassandraSpec extends BeforeAndAfterAll with BeforeAndAfterEach { this: Su
 
   def truncateKeyspace(keyspace: String): Unit = {
     import scala.jdk.CollectionConverters._
-    val session = EmbeddedCassandraServerHelper.getSession
+
     val rs = session
       .execute(s"SELECT table_name FROM system_schema.tables WHERE keyspace_name = '$keyspace'")
       .asScala
 
     rs.foreach(row => session.execute(s"TRUNCATE TABLE ${keyspace}.${row.getString(0)}"))
   }
+}
+
+object CassandraSpec {
+  // using a Lock to avoid executing DDL concurrently on concurrent tests
+  private val ddlLock: ReentrantLock = new ReentrantLock()
 }
