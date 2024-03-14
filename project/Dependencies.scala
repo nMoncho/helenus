@@ -2,8 +2,8 @@ import sbt.*
 
 object Dependencies {
   object Version {
-    val scala213 = "2.13.12"
-    val scala212 = "2.12.18"
+    val scala213 = "2.13.13"
+    val scala212 = "2.12.19"
 
     val cassandraUnit         = "4.3.1.0"
     val dseJavaDriver         = "4.17.0"
@@ -15,17 +15,17 @@ object Dependencies {
     val akka    = "2.6.20" // 2.7 changed to business license
     val alpakka = "4.0.0" // 5.x changed to business license
 
-    val akkaBusl    = "2.8.2"
-    val alpakkaBusl = "6.0.1"
+    val akkaBusl    = "2.8.5"
+    val alpakkaBusl = "6.0.2"
 
     val pekkoConnector = "1.0.2"
     val pekkoTestKit   = "1.0.2"
 
     // Test Dependencies
-    val mockito    = "5.10.0"
+    val mockito    = "5.11.0"
     val scalaCheck = "1.17.0"
-    val scalaTest  = "3.2.17"
-    val logback    = "1.4.14"
+    val scalaTest  = "3.2.18"
+    val logback    = "1.5.3"
   }
 
   // 'core' dependencies
