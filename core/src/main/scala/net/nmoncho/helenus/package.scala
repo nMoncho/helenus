@@ -320,6 +320,17 @@ package object helenus extends CodecDerivation {
       */
     def currPage: Iterator[T] = pi.currentPage().iterator().asScala
 
+    /** Returns the next element from the results.
+      *
+      * Use this method when you <em>only<em> care about the first element.
+      *
+      * Unlike [[nextOption]], this method doesn't expose the mutated [[MappedAsyncPagingIterable]],
+      * so it's not meant for iterating through all results.
+      *
+      * @return [[Some]] value if results haven't been exhausted, [[None]] otherwise
+      */
+    def oneOption: Option[T] = Option(pi.one())
+
     /** Fetches and returns the next page as a Scala [[Iterator]]
       */
     def nextPage(

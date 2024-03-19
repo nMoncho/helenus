@@ -81,6 +81,24 @@ class MappedAsyncPagingIterableOpsSpec
       }
     }
 
+    "fetch the first result (async)" in {
+      val test = for {
+        result <- "SELECT * FROM hotels LIMIT 1".toCQLAsync.prepareUnit
+          .as[Hotel]
+          .executeAsync()
+
+        firstResult = result.oneOption
+        nextResult  = result.oneOption
+      } yield {
+        firstResult shouldBe defined
+        nextResult should not be defined
+
+        ()
+      }
+
+      whenReady(test)(_ => ())
+    }
+
     "iterate results one at a time (async)" in {
       val test = for {
         result <- "SELECT * FROM hotels".toCQLAsync.prepareUnit
