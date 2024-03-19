@@ -28,6 +28,7 @@ import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 import scala.language.experimental.macros
 import scala.util.Failure
+import scala.util.Success
 import scala.util.Try
 
 import com.datastax.dse.driver.api.core.cql.reactive.ReactiveResultSet
@@ -37,11 +38,7 @@ import com.datastax.oss.driver.api.core.PagingIterable
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.`type`.codec.registry.MutableCodecRegistry
 import com.datastax.oss.driver.api.core.config.DriverExecutionProfile
-import com.datastax.oss.driver.api.core.cql.AsyncResultSet
-import com.datastax.oss.driver.api.core.cql.BoundStatement
-import com.datastax.oss.driver.api.core.cql.PagingState
-import com.datastax.oss.driver.api.core.cql.ResultSet
-import com.datastax.oss.driver.api.core.cql.Row
+import com.datastax.oss.driver.api.core.cql._
 import com.datastax.oss.driver.api.core.metadata.schema.KeyspaceMetadata
 import net.nmoncho.helenus.api.RowMapper
 import net.nmoncho.helenus.api.`type`.codec.CodecDerivation
@@ -177,13 +174,18 @@ package object helenus extends CodecDerivation {
 
   /** Extension methods for [[BoundStatement]], helping you execute them with the proper context.
     */
+  // $COVERAGE-OFF$
   implicit class BoundStatementSyncOps[Out](private val bstmt: ScalaBoundStatement[Out])
       extends AnyVal {
     import net.nmoncho.helenus.internal.compat.FutureConverters._
 
+    /** Executes this CQL Statement synchronously
+      */
     def execute()(implicit session: CqlSession, mapper: RowMapper[Out]): PagingIterable[Out] =
       session.execute(bstmt).as[Out]
 
+    /** Executes this CQL Statement asynchronously
+      */
     def executeAsync()(
         implicit session: CqlSession,
         ec: ExecutionContext,
@@ -191,15 +193,24 @@ package object helenus extends CodecDerivation {
     ): Future[MappedAsyncPagingIterable[Out]] =
       session.executeAsync(bstmt).asScala.map(_.as[Out])
 
+    /** Returns a [[Publisher]] that, once subscribed to, executes the given query and emits all
+      * the results.
+      */
     def executeReactive()(implicit session: CqlSession, mapper: RowMapper[Out]): Publisher[Out] =
       session.executeReactive(bstmt).as[Out]
 
+    /** Creates an initial [[Pager]] for this CQL statement
+      */
     def pager(implicit mapper: RowMapper[Out]): Pager[Out] =
       Pager.initial(bstmt)
 
+    /** Creates an continued [[Pager]] for this CQL statement from a [[PagingState]]
+      */
     def pager(pagingState: PagingState)(implicit mapper: RowMapper[Out]): Try[Pager[Out]] =
       Pager.continue(bstmt, pagingState)
 
+    /** Creates an continued [[Pager]] for this CQL statement from a [[PagingState]]
+      */
     def pager[A: PagerSerializer](pagingState: A)(
         implicit mapper: RowMapper[Out]
     ): Try[Pager[Out]] =
@@ -215,6 +226,90 @@ package object helenus extends CodecDerivation {
     def withOptions(options: StatementOptions): ScalaBoundStatement[Out] =
       options(bstmt).asInstanceOf[ScalaBoundStatement[Out]]
   }
+  // $COVERAGE-ON$
+
+  /** Extension methods for [[Future]] of [[BoundStatement]], helping you execute them with the proper context.
+    */
+  // $COVERAGE-OFF$
+  implicit class BoundStatementAsyncOps[Out](private val bstmt: Future[ScalaBoundStatement[Out]])
+      extends AnyVal {
+    import net.nmoncho.helenus.internal.compat.FutureConverters._
+
+    /** Executes this CQL Statement synchronously
+      */
+    def execute()(
+        implicit session: Future[CqlSession],
+        ec: ExecutionContext,
+        mapper: RowMapper[Out]
+    ): Future[PagingIterable[Out]] =
+      session.flatMap { implicit s: CqlSession =>
+        bstmt.map(b => s.execute(b).as[Out])
+      }
+
+    /** Executes this CQL Statement asynchronously
+      */
+    def executeAsync()(
+        implicit session: Future[CqlSession],
+        ec: ExecutionContext,
+        mapper: RowMapper[Out]
+    ): Future[MappedAsyncPagingIterable[Out]] =
+      session.flatMap { implicit s: CqlSession =>
+        bstmt.flatMap(b => s.executeAsync(b).asScala.map(_.as[Out]))
+      }
+
+    /** Returns a [[Publisher]] that, once subscribed to, executes the given query and emits all
+      * the results.
+      */
+    def executeReactive()(
+        implicit session: Future[CqlSession],
+        ec: ExecutionContext,
+        mapper: RowMapper[Out]
+    ): Future[Publisher[Out]] =
+      session.flatMap { implicit s: CqlSession =>
+        bstmt.map(b => s.executeReactive(b).as[Out])
+      }
+
+    /** Creates an initial [[Pager]] for this CQL statement
+      */
+    def pager(implicit ec: ExecutionContext, mapper: RowMapper[Out]): Future[Pager[Out]] =
+      bstmt.map(b => Pager.initial(b))
+
+    /** Creates an continued [[Pager]] for this CQL statement from a [[PagingState]]
+      */
+    def pager(
+        pagingState: PagingState
+    )(implicit ec: ExecutionContext, mapper: RowMapper[Out]): Future[Pager[Out]] =
+      bstmt.flatMap(_.pager(pagingState) match {
+        case Success(value) => Future.successful(value)
+        case Failure(exception) => Future.failed(exception)
+      })
+
+    /** Creates an continued [[Pager]] for this CQL statement from a [[PagingState]]
+      */
+    def pager[A: PagerSerializer](pagingState: A)(
+        implicit ec: ExecutionContext,
+        mapper: RowMapper[Out]
+    ): Future[Pager[Out]] =
+      bstmt.flatMap(_.pager[A](pagingState) match {
+        case Success(value) => Future.successful(value)
+        case Failure(exception) => Future.failed(exception)
+      })
+
+    /** Set options to this [[BoundStatement]] while returning the original type
+      */
+    def withOptions(fn: BoundStatement => BoundStatement)(
+        implicit ec: ExecutionContext
+    ): Future[ScalaBoundStatement[Out]] =
+      bstmt.map(b => fn(b).asInstanceOf[ScalaBoundStatement[Out]])
+
+    /** Set options to this [[BoundStatement]] while returning the original type
+      */
+    def withOptions(options: StatementOptions)(
+        implicit ec: ExecutionContext
+    ): Future[ScalaBoundStatement[Out]] =
+      bstmt.map(b => options(b).asInstanceOf[ScalaBoundStatement[Out]])
+  }
+  // $COVERAGE-ON$
 
   implicit class PreparedStatementSyncStringOps(private val query: String) extends AnyVal {
 
@@ -407,8 +502,7 @@ package object helenus extends CodecDerivation {
       * @param ec
       */
     @nowarn("cat=unused-imports")
-    def iter(timeout: FiniteDuration)(implicit ec: ExecutionContext): Iterator[T] = {
-      import scala.collection.compat._ // Don't remove me
+    def iter(timeout: FiniteDuration)(implicit ec: ExecutionContext): Iterator[T] = { // Don't remove me
       // FIXME Using `TraversableOnce` Scala 2.12, also it doesn't lazily concat iterators
       // since `compat` implementation is different
       def concat(): TraversableOnce[T] =
