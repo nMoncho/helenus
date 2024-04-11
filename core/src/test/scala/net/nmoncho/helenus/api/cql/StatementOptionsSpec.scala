@@ -53,17 +53,19 @@ class StatementOptionsSpec extends AnyWordSpec with Matchers {
       // test setup
       val bs = mockBoundStatement()
       val options = StatementOptions.default.copy(
-        routingKeyspace  = Some(CqlIdentifier.fromInternal("foo")),
-        timeout          = Some(Duration.ofSeconds(30)),
-        consistencyLevel = Some(ConsistencyLevel.ONE)
+        bstmtOptions = StatementOptions.default.bstmtOptions.copy(
+          routingKeyspace  = Some(CqlIdentifier.fromInternal("foo")),
+          timeout          = Some(Duration.ofSeconds(30)),
+          consistencyLevel = Some(ConsistencyLevel.ONE)
+        )
       )
 
       // test execution
       options(bs)
 
       // test assertion
-      verify(bs, atMostOnce).setTracing(StatementOptions.default.tracing)
-      verify(bs, atMostOnce).setPageSize(StatementOptions.default.pageSize)
+      verify(bs, atMostOnce).setTracing(StatementOptions.default.bstmtOptions.tracing)
+      verify(bs, atMostOnce).setPageSize(StatementOptions.default.bstmtOptions.pageSize)
       verify(bs, atMostOnce).setRoutingKey(any())
       verify(bs, atMostOnce).setTimeout(any())
       verify(bs, atMostOnce).setConsistencyLevel(any())

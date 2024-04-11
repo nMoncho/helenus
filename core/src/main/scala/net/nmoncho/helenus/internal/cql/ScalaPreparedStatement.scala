@@ -250,8 +250,15 @@ class ScalaPreparedStatement1[T1, Out](pstmt: PreparedStatement, mapper: RowMapp
   verifyArity(t1Codec)
 
   /** Bounds an input [[T1]] value and returns a [[BoundStatement]] */
-  def apply(t1: T1): ScalaBoundStatement[Out] =
-    tag[Out](applyOptions(pstmt.bind().setIfDefined(0, t1, t1Codec)))
+  def apply(t1: T1): ScalaBoundStatement[Out] = {
+    val bstmt = if (options.ignoreNullFields) {
+      pstmt.bind().setIfDefined(0, t1, t1Codec)
+    } else {
+      pstmt.bind().set(0, t1, t1Codec)
+    }
+
+    tag[Out](applyOptions(bstmt))
+  }
 
   /** Executes this [[PreparedStatement]] with the provided value.
    *
@@ -374,8 +381,15 @@ class ScalaPreparedStatement2[T1, T2, Out](pstmt: PreparedStatement, mapper: Row
   verifyArity(t1Codec, t2Codec)
 
   /** Returns a [[BoundStatement]] with the provided values*/
-  def apply(t1: T1, t2: T2): ScalaBoundStatement[Out] =
-    tag(applyOptions(pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec)))
+  def apply(t1: T1, t2: T2): ScalaBoundStatement[Out] = {
+    val bstmt = if (options.ignoreNullFields) {
+      pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec)
+    } else {
+      pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec)
+    }
+
+    tag[Out](applyOptions(bstmt))
+  }
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
@@ -429,8 +443,15 @@ class ScalaPreparedStatement3[T1, T2, T3, Out](pstmt: PreparedStatement, mapper:
   verifyArity(t1Codec, t2Codec, t3Codec)
 
   /** Returns a [[BoundStatement]] with the provided values*/
-  def apply(t1: T1, t2: T2, t3: T3): ScalaBoundStatement[Out] =
-    tag(pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec))
+  def apply(t1: T1, t2: T2, t3: T3): ScalaBoundStatement[Out] = {
+    val bstmt = if (options.ignoreNullFields) {
+      pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec)
+    } else {
+      pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec)
+    }
+
+    tag[Out](applyOptions(bstmt))
+  }
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
@@ -484,8 +505,15 @@ class ScalaPreparedStatement4[T1, T2, T3, T4, Out](pstmt: PreparedStatement, map
   verifyArity(t1Codec, t2Codec, t3Codec, t4Codec)
 
   /** Returns a [[BoundStatement]] with the provided values*/
-  def apply(t1: T1, t2: T2, t3: T3, t4: T4): ScalaBoundStatement[Out] =
-    tag(pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec))
+  def apply(t1: T1, t2: T2, t3: T3, t4: T4): ScalaBoundStatement[Out] = {
+    val bstmt = if (options.ignoreNullFields) {
+      pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec)
+    } else {
+      pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec)
+    }
+
+    tag[Out](applyOptions(bstmt))
+  }
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
@@ -539,8 +567,15 @@ class ScalaPreparedStatement5[T1, T2, T3, T4, T5, Out](pstmt: PreparedStatement,
   verifyArity(t1Codec, t2Codec, t3Codec, t4Codec, t5Codec)
 
   /** Returns a [[BoundStatement]] with the provided values*/
-  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5): ScalaBoundStatement[Out] =
-    tag(pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec))
+  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5): ScalaBoundStatement[Out] = {
+    val bstmt = if (options.ignoreNullFields) {
+      pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec)
+    } else {
+      pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec)
+    }
+
+    tag[Out](applyOptions(bstmt))
+  }
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
@@ -594,8 +629,15 @@ class ScalaPreparedStatement6[T1, T2, T3, T4, T5, T6, Out](pstmt: PreparedStatem
   verifyArity(t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec)
 
   /** Returns a [[BoundStatement]] with the provided values*/
-  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6): ScalaBoundStatement[Out] =
-    tag(pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec))
+  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6): ScalaBoundStatement[Out] = {
+    val bstmt = if (options.ignoreNullFields) {
+      pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec)
+    } else {
+      pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec)
+    }
+
+    tag[Out](applyOptions(bstmt))
+  }
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
@@ -649,8 +691,15 @@ class ScalaPreparedStatement7[T1, T2, T3, T4, T5, T6, T7, Out](pstmt: PreparedSt
   verifyArity(t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec)
 
   /** Returns a [[BoundStatement]] with the provided values*/
-  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7): ScalaBoundStatement[Out] =
-    tag(pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec))
+  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7): ScalaBoundStatement[Out] = {
+    val bstmt = if (options.ignoreNullFields) {
+      pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec)
+    } else {
+      pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec)
+    }
+
+    tag[Out](applyOptions(bstmt))
+  }
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
@@ -704,8 +753,15 @@ class ScalaPreparedStatement8[T1, T2, T3, T4, T5, T6, T7, T8, Out](pstmt: Prepar
   verifyArity(t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec)
 
   /** Returns a [[BoundStatement]] with the provided values*/
-  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8): ScalaBoundStatement[Out] =
-    tag(pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec))
+  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8): ScalaBoundStatement[Out] = {
+    val bstmt = if (options.ignoreNullFields) {
+      pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec)
+    } else {
+      pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec)
+    }
+
+    tag[Out](applyOptions(bstmt))
+  }
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
@@ -759,8 +815,15 @@ class ScalaPreparedStatement9[T1, T2, T3, T4, T5, T6, T7, T8, T9, Out](pstmt: Pr
   verifyArity(t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec)
 
   /** Returns a [[BoundStatement]] with the provided values*/
-  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9): ScalaBoundStatement[Out] =
-    tag(pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec))
+  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9): ScalaBoundStatement[Out] = {
+    val bstmt = if (options.ignoreNullFields) {
+      pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec)
+    } else {
+      pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec)
+    }
+
+    tag[Out](applyOptions(bstmt))
+  }
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
@@ -814,8 +877,15 @@ class ScalaPreparedStatement10[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, Out](pst
   verifyArity(t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec)
 
   /** Returns a [[BoundStatement]] with the provided values*/
-  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10): ScalaBoundStatement[Out] =
-    tag(pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec))
+  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10): ScalaBoundStatement[Out] = {
+    val bstmt = if (options.ignoreNullFields) {
+      pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec)
+    } else {
+      pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec)
+    }
+
+    tag[Out](applyOptions(bstmt))
+  }
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
@@ -869,8 +939,15 @@ class ScalaPreparedStatement11[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, Out
   verifyArity(t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec)
 
   /** Returns a [[BoundStatement]] with the provided values*/
-  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11): ScalaBoundStatement[Out] =
-    tag(pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec))
+  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11): ScalaBoundStatement[Out] = {
+    val bstmt = if (options.ignoreNullFields) {
+      pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec)
+    } else {
+      pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec)
+    }
+
+    tag[Out](applyOptions(bstmt))
+  }
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
@@ -924,8 +1001,15 @@ class ScalaPreparedStatement12[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   verifyArity(t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec)
 
   /** Returns a [[BoundStatement]] with the provided values*/
-  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12): ScalaBoundStatement[Out] =
-    tag(pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec))
+  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12): ScalaBoundStatement[Out] = {
+    val bstmt = if (options.ignoreNullFields) {
+      pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec)
+    } else {
+      pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec).set(11, t12, t12Codec)
+    }
+
+    tag[Out](applyOptions(bstmt))
+  }
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
@@ -979,8 +1063,15 @@ class ScalaPreparedStatement13[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   verifyArity(t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec)
 
   /** Returns a [[BoundStatement]] with the provided values*/
-  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13): ScalaBoundStatement[Out] =
-    tag(pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec))
+  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13): ScalaBoundStatement[Out] = {
+    val bstmt = if (options.ignoreNullFields) {
+      pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec)
+    } else {
+      pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec).set(11, t12, t12Codec).set(12, t13, t13Codec)
+    }
+
+    tag[Out](applyOptions(bstmt))
+  }
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
@@ -1034,8 +1125,15 @@ class ScalaPreparedStatement14[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   verifyArity(t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec, t14Codec)
 
   /** Returns a [[BoundStatement]] with the provided values*/
-  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14): ScalaBoundStatement[Out] =
-    tag(pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec))
+  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14): ScalaBoundStatement[Out] = {
+    val bstmt = if (options.ignoreNullFields) {
+      pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec)
+    } else {
+      pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec).set(11, t12, t12Codec).set(12, t13, t13Codec).set(13, t14, t14Codec)
+    }
+
+    tag[Out](applyOptions(bstmt))
+  }
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
@@ -1089,8 +1187,15 @@ class ScalaPreparedStatement15[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   verifyArity(t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec, t14Codec, t15Codec)
 
   /** Returns a [[BoundStatement]] with the provided values*/
-  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15): ScalaBoundStatement[Out] =
-    tag(pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec))
+  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15): ScalaBoundStatement[Out] = {
+    val bstmt = if (options.ignoreNullFields) {
+      pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec)
+    } else {
+      pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec).set(11, t12, t12Codec).set(12, t13, t13Codec).set(13, t14, t14Codec).set(14, t15, t15Codec)
+    }
+
+    tag[Out](applyOptions(bstmt))
+  }
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
@@ -1144,8 +1249,15 @@ class ScalaPreparedStatement16[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   verifyArity(t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec, t14Codec, t15Codec, t16Codec)
 
   /** Returns a [[BoundStatement]] with the provided values*/
-  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16): ScalaBoundStatement[Out] =
-    tag(pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec).setIfDefined(15, t16, t16Codec))
+  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16): ScalaBoundStatement[Out] = {
+    val bstmt = if (options.ignoreNullFields) {
+      pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec).setIfDefined(15, t16, t16Codec)
+    } else {
+      pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec).set(11, t12, t12Codec).set(12, t13, t13Codec).set(13, t14, t14Codec).set(14, t15, t15Codec).set(15, t16, t16Codec)
+    }
+
+    tag[Out](applyOptions(bstmt))
+  }
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
@@ -1199,8 +1311,15 @@ class ScalaPreparedStatement17[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   verifyArity(t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec, t14Codec, t15Codec, t16Codec, t17Codec)
 
   /** Returns a [[BoundStatement]] with the provided values*/
-  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17): ScalaBoundStatement[Out] =
-    tag(pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec).setIfDefined(15, t16, t16Codec).setIfDefined(16, t17, t17Codec))
+  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17): ScalaBoundStatement[Out] = {
+    val bstmt = if (options.ignoreNullFields) {
+      pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec).setIfDefined(15, t16, t16Codec).setIfDefined(16, t17, t17Codec)
+    } else {
+      pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec).set(11, t12, t12Codec).set(12, t13, t13Codec).set(13, t14, t14Codec).set(14, t15, t15Codec).set(15, t16, t16Codec).set(16, t17, t17Codec)
+    }
+
+    tag[Out](applyOptions(bstmt))
+  }
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
@@ -1254,8 +1373,15 @@ class ScalaPreparedStatement18[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   verifyArity(t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec, t14Codec, t15Codec, t16Codec, t17Codec, t18Codec)
 
   /** Returns a [[BoundStatement]] with the provided values*/
-  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18): ScalaBoundStatement[Out] =
-    tag(pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec).setIfDefined(15, t16, t16Codec).setIfDefined(16, t17, t17Codec).setIfDefined(17, t18, t18Codec))
+  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18): ScalaBoundStatement[Out] = {
+    val bstmt = if (options.ignoreNullFields) {
+      pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec).setIfDefined(15, t16, t16Codec).setIfDefined(16, t17, t17Codec).setIfDefined(17, t18, t18Codec)
+    } else {
+      pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec).set(11, t12, t12Codec).set(12, t13, t13Codec).set(13, t14, t14Codec).set(14, t15, t15Codec).set(15, t16, t16Codec).set(16, t17, t17Codec).set(17, t18, t18Codec)
+    }
+
+    tag[Out](applyOptions(bstmt))
+  }
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
@@ -1309,8 +1435,15 @@ class ScalaPreparedStatement19[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   verifyArity(t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec, t14Codec, t15Codec, t16Codec, t17Codec, t18Codec, t19Codec)
 
   /** Returns a [[BoundStatement]] with the provided values*/
-  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19): ScalaBoundStatement[Out] =
-    tag(pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec).setIfDefined(15, t16, t16Codec).setIfDefined(16, t17, t17Codec).setIfDefined(17, t18, t18Codec).setIfDefined(18, t19, t19Codec))
+  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19): ScalaBoundStatement[Out] = {
+    val bstmt = if (options.ignoreNullFields) {
+      pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec).setIfDefined(15, t16, t16Codec).setIfDefined(16, t17, t17Codec).setIfDefined(17, t18, t18Codec).setIfDefined(18, t19, t19Codec)
+    } else {
+      pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec).set(11, t12, t12Codec).set(12, t13, t13Codec).set(13, t14, t14Codec).set(14, t15, t15Codec).set(15, t16, t16Codec).set(16, t17, t17Codec).set(17, t18, t18Codec).set(18, t19, t19Codec)
+    }
+
+    tag[Out](applyOptions(bstmt))
+  }
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
@@ -1364,8 +1497,15 @@ class ScalaPreparedStatement20[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   verifyArity(t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec, t14Codec, t15Codec, t16Codec, t17Codec, t18Codec, t19Codec, t20Codec)
 
   /** Returns a [[BoundStatement]] with the provided values*/
-  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20): ScalaBoundStatement[Out] =
-    tag(pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec).setIfDefined(15, t16, t16Codec).setIfDefined(16, t17, t17Codec).setIfDefined(17, t18, t18Codec).setIfDefined(18, t19, t19Codec).setIfDefined(19, t20, t20Codec))
+  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20): ScalaBoundStatement[Out] = {
+    val bstmt = if (options.ignoreNullFields) {
+      pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec).setIfDefined(15, t16, t16Codec).setIfDefined(16, t17, t17Codec).setIfDefined(17, t18, t18Codec).setIfDefined(18, t19, t19Codec).setIfDefined(19, t20, t20Codec)
+    } else {
+      pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec).set(11, t12, t12Codec).set(12, t13, t13Codec).set(13, t14, t14Codec).set(14, t15, t15Codec).set(15, t16, t16Codec).set(16, t17, t17Codec).set(17, t18, t18Codec).set(18, t19, t19Codec).set(19, t20, t20Codec)
+    }
+
+    tag[Out](applyOptions(bstmt))
+  }
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
@@ -1419,8 +1559,15 @@ class ScalaPreparedStatement21[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   verifyArity(t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec, t14Codec, t15Codec, t16Codec, t17Codec, t18Codec, t19Codec, t20Codec, t21Codec)
 
   /** Returns a [[BoundStatement]] with the provided values*/
-  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21): ScalaBoundStatement[Out] =
-    tag(pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec).setIfDefined(15, t16, t16Codec).setIfDefined(16, t17, t17Codec).setIfDefined(17, t18, t18Codec).setIfDefined(18, t19, t19Codec).setIfDefined(19, t20, t20Codec).setIfDefined(20, t21, t21Codec))
+  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21): ScalaBoundStatement[Out] = {
+    val bstmt = if (options.ignoreNullFields) {
+      pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec).setIfDefined(15, t16, t16Codec).setIfDefined(16, t17, t17Codec).setIfDefined(17, t18, t18Codec).setIfDefined(18, t19, t19Codec).setIfDefined(19, t20, t20Codec).setIfDefined(20, t21, t21Codec)
+    } else {
+      pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec).set(11, t12, t12Codec).set(12, t13, t13Codec).set(13, t14, t14Codec).set(14, t15, t15Codec).set(15, t16, t16Codec).set(16, t17, t17Codec).set(17, t18, t18Codec).set(18, t19, t19Codec).set(19, t20, t20Codec).set(20, t21, t21Codec)
+    }
+
+    tag[Out](applyOptions(bstmt))
+  }
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
@@ -1474,8 +1621,15 @@ class ScalaPreparedStatement22[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   verifyArity(t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec, t14Codec, t15Codec, t16Codec, t17Codec, t18Codec, t19Codec, t20Codec, t21Codec, t22Codec)
 
   /** Returns a [[BoundStatement]] with the provided values*/
-  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21, t22: T22): ScalaBoundStatement[Out] =
-    tag(pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec).setIfDefined(15, t16, t16Codec).setIfDefined(16, t17, t17Codec).setIfDefined(17, t18, t18Codec).setIfDefined(18, t19, t19Codec).setIfDefined(19, t20, t20Codec).setIfDefined(20, t21, t21Codec).setIfDefined(21, t22, t22Codec))
+  def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21, t22: T22): ScalaBoundStatement[Out] = {
+    val bstmt = if (options.ignoreNullFields) {
+      pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec).setIfDefined(15, t16, t16Codec).setIfDefined(16, t17, t17Codec).setIfDefined(17, t18, t18Codec).setIfDefined(18, t19, t19Codec).setIfDefined(19, t20, t20Codec).setIfDefined(20, t21, t21Codec).setIfDefined(21, t22, t22Codec)
+    } else {
+      pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec).set(11, t12, t12Codec).set(12, t13, t13Codec).set(13, t14, t14Codec).set(14, t15, t15Codec).set(15, t16, t16Codec).set(16, t17, t17Codec).set(17, t18, t18Codec).set(18, t19, t19Codec).set(19, t20, t20Codec).set(20, t21, t21Codec).set(21, t22, t22Codec)
+    }
+
+    tag[Out](applyOptions(bstmt))
+  }
 
   /** Executes this [[PreparedStatement]] with the provided values
    *
