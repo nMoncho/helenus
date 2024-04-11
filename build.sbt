@@ -83,6 +83,15 @@ lazy val basicSettings = Seq(
     ),
     ProblemFilters.exclude[MissingClassProblem](
       "net.nmoncho.helenus.api.cql.ScalaPreparedStatement$BoundStatementOps$"
+    ),
+    ProblemFilters.exclude[DirectMissingMethodProblem](
+      "net.nmoncho.helenus.api.cql.StatementOptions.copy*"
+    ),
+    ProblemFilters.exclude[DirectMissingMethodProblem](
+      "net.nmoncho.helenus.api.cql.StatementOptions.this"
+    ),
+    ProblemFilters.exclude[IncompatibleResultTypeProblem](
+      "net.nmoncho.helenus.api.cql.StatementOptions.copy*"
     )
   )
 )

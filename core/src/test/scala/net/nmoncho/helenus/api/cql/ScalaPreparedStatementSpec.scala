@@ -223,7 +223,7 @@ class ScalaPreparedStatementSpec
       }
     }
 
-    "not set 'null' parameters" in {
+    "handle 'ignoreNullFields' option" in {
       import scala.jdk.CollectionConverters._
 
       def checkIfPhoneIsSet(bs: BoundStatement, shouldBeSet: Boolean): Unit = {
@@ -240,42 +240,63 @@ class ScalaPreparedStatementSpec
       }
 
       val h2 = Hotels.h2
-      val insertHotel =
-        """INSERT INTO hotels(id, name, phone, address, pois)
-          |VALUES (?, ?, ?, ?, ?)""".stripMargin.toCQL
-          .prepare[String, String, String, Address, Set[String]]
 
-      withClue("when phone is set") {
-        checkIfPhoneIsSet(
-          insertHotel(h2.id, h2.name, h2.phone, h2.address, h2.pois),
-          shouldBeSet = true
-        )
+      withClue("on non-optional columns") {
+        val insertHotel =
+          """INSERT INTO hotels(id, name, phone, address, pois)
+            |VALUES (?, ?, ?, ?, ?)""".stripMargin.toCQL
+            .prepare[String, String, String, Address, Set[String]]
+
+        withClue("when phone is set") {
+          checkIfPhoneIsSet(
+            insertHotel(h2.id, h2.name, h2.phone, h2.address, h2.pois),
+            shouldBeSet = true
+          )
+        }
+
+        withClue("when phone is not set") {
+          checkIfPhoneIsSet(
+            insertHotel(h2.id, h2.name, null, h2.address, h2.pois),
+            shouldBeSet = false
+          )
+        }
+
+        withClue("when not ignoring nulls") {
+          val insertHotelWithNulls = insertHotel.withIgnoreNullFields(ignore = false)
+          checkIfPhoneIsSet(
+            insertHotelWithNulls(h2.id, h2.name, null, h2.address, h2.pois),
+            shouldBeSet = true
+          )
+        }
       }
 
-      withClue("when phone is not set") {
-        checkIfPhoneIsSet(
-          insertHotel(h2.id, h2.name, null, h2.address, h2.pois),
-          shouldBeSet = false
-        )
-      }
+      withClue("on optional columns") {
+        val insertHotel =
+          """INSERT INTO hotels(id, name, phone, address, pois)
+            |VALUES (?, ?, ?, ?, ?)""".stripMargin.toCQL
+            .prepare[String, String, Option[String], Address, Set[String]]
 
-      val insertHotelOpt =
-        """INSERT INTO hotels(id, name, phone, address, pois)
-          |VALUES (?, ?, ?, ?, ?)""".stripMargin.toCQL
-          .prepare[String, String, Option[String], Address, Set[String]]
+        withClue("when phone is set") {
+          checkIfPhoneIsSet(
+            insertHotel(h2.id, h2.name, Some(h2.phone), h2.address, h2.pois),
+            shouldBeSet = true
+          )
+        }
 
-      withClue("when phone is set") {
-        checkIfPhoneIsSet(
-          insertHotelOpt(h2.id, h2.name, Some(h2.phone), h2.address, h2.pois),
-          shouldBeSet = true
-        )
-      }
+        withClue("when phone is not set") {
+          checkIfPhoneIsSet(
+            insertHotel(h2.id, h2.name, None, h2.address, h2.pois),
+            shouldBeSet = false
+          )
+        }
 
-      withClue("when phone is not set") {
-        checkIfPhoneIsSet(
-          insertHotelOpt(h2.id, h2.name, None, h2.address, h2.pois),
-          shouldBeSet = false
-        )
+        withClue("when not ignoring nulls") {
+          val insertHotelWithNulls = insertHotel.withIgnoreNullFields(ignore = false)
+          checkIfPhoneIsSet(
+            insertHotelWithNulls(h2.id, h2.name, None, h2.address, h2.pois),
+            shouldBeSet = true
+          )
+        }
       }
     }
   }
