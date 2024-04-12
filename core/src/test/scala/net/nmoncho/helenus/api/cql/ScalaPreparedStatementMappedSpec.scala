@@ -57,16 +57,28 @@ class ScalaPreparedStatementMappedSpec
           .prepareFrom[Hotel]
 
       insert.execute(Hotels.h1)
+      insert.execute(Hotels.h1.copy(name = null))
+      insert.execute(Hotels.h1.copy(pois = null))
 
-      val query =
-        """SELECT * FROM hotels WHERE id = ?""".stripMargin.toCQL.prepare[String].as[Hotel]
+      val query = """SELECT * FROM hotels WHERE id = ?""".stripMargin.toCQL
+        .prepare[String]
+        .as[Hotel]
 
       query.execute(Hotels.h1.id).nextOption() shouldBe Some(Hotels.h1)
 
-      val mappedQuery =
-        """SELECT * FROM hotels WHERE id = ?""".stripMargin.toCQL.prepareFrom[Hotel].as[Hotel]
+      val mappedQuery = """SELECT * FROM hotels WHERE id = ?""".stripMargin.toCQL
+        .prepareFrom[Hotel]
+        .as[Hotel]
 
       mappedQuery.execute(Hotels.h1).nextOption() shouldBe Some(Hotels.h1)
+
+      withClue("and handle not ignore null fields") {
+        val insertWithNulls = insert.withIgnoreNullFields(ignore = false)
+
+        insertWithNulls.execute(Hotels.h1)
+        insertWithNulls.execute(Hotels.h1.copy(name = null))
+        insertWithNulls.execute(Hotels.h1.copy(pois = null))
+      }
     }
 
     "prepare a query (async)" in {

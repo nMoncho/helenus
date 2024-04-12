@@ -26,6 +26,7 @@ import scala.reflect.ClassTag
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.cql.BoundStatement
 import com.datastax.oss.driver.api.core.cql.PreparedStatement
+import net.nmoncho.helenus.ScalaBoundStatement
 import net.nmoncho.helenus.api.RowMapper
 import net.nmoncho.helenus.internal.cql.DerivedMapping.Builder
 
@@ -41,6 +42,13 @@ trait Mapping[T] extends RowMapper[T] {
     * @return binder function
     */
   def apply(pstmt: PreparedStatement): T => BoundStatement
+
+  /** Creates a function that will take a [[T]] and will produce a [[ScalaBoundStatement]]
+    *
+    * @param pstmt [[ScalaPreparedStatement]] that produces the [[ScalaBoundStatement]]
+    * @return binder function
+    */
+  def apply[Out](pstmt: ScalaPreparedStatement[T, Out]): T => ScalaBoundStatement[Out]
 
   /** Creates a new [[Mapping]] instance which also handles Computed Columns
     *
