@@ -48,7 +48,7 @@ abstract class AbstractMapCodecSpec[Coll[_, _] <: scala.collection.Map[_, _]](na
     builder.result()
   }
 
-  "MapCodec" should {
+  s"MapCodec (implementation = $name)" should {
     "encode-decode" in {
       encode(null.asInstanceOf[Coll[String, Int]]) shouldBe None
       encode(emptyMap) shouldBe Some("0x00000000")

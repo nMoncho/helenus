@@ -89,7 +89,7 @@ trait CassandraSpec extends BeforeAndAfterAll with BeforeAndAfterEach { this: Su
       session.execute(SimpleStatement.newInstance(ddl).setConsistencyLevel(ConsistencyLevel.ALL))
     } catch {
       case _: AlreadyExistsException => // ignore
-      case _ =>
+      case _: Throwable =>
         Thread.sleep(50)
         executeDDL(ddl)
     } finally {

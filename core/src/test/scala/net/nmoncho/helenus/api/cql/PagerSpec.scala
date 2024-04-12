@@ -24,7 +24,6 @@ package api.cql
 
 import java.time.LocalDate
 
-import scala.annotation.nowarn
 import scala.util.Failure
 import scala.util.Success
 
@@ -40,7 +39,6 @@ import org.scalatest.time.Seconds
 import org.scalatest.time.Span
 import org.scalatest.wordspec.AnyWordSpec
 
-@nowarn("cat=unused-imports")
 class PagerSpec
     extends AnyWordSpec
     with Matchers
@@ -141,10 +139,10 @@ class PagerSpec
       withClue("fail on invalid string form") {
         val pstmt = "SELECT * FROM hotels".toCQL.prepareUnit.as[Hotel]
         pstmt.pager(pager1.encodePagingState.value) match {
-          case Success(value) =>
+          case Success(_) =>
             fail("not here")
 
-          case Failure(exception) =>
+          case Failure(_) =>
           // all good
         }
       }
