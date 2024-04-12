@@ -185,7 +185,7 @@ class ScalaPreparedStatementMapped[T1, Out](pstmt: PreparedStatement, mapper: Ro
 
   override val tupled: T1 => BoundStatement = apply
 
-  private val bstmt: T1 => BoundStatement = mapping(pstmt)
+  private val bstmt: T1 => BoundStatement = mapping(this)
 
   /** Bounds an input [[T1]] value and returns a [[BoundStatement]] */
   def apply(t1: T1): ScalaBoundStatement[Out] =

@@ -28,9 +28,11 @@ import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.cql.BoundStatement
 import com.datastax.oss.driver.api.core.cql.PreparedStatement
 import com.datastax.oss.driver.api.core.cql.Row
+import net.nmoncho.helenus.ScalaBoundStatement
 import net.nmoncho.helenus.api.ColumnNamingScheme
 import net.nmoncho.helenus.api.DefaultColumnNamingScheme
 import net.nmoncho.helenus.api.cql.Mapping
+import net.nmoncho.helenus.api.cql.ScalaPreparedStatement
 import org.slf4j.LoggerFactory
 import shapeless.::
 import shapeless.HList
@@ -48,8 +50,8 @@ object DerivedMapping {
 
   private val log = LoggerFactory.getLogger(classOf[DerivedMapping[_]])
 
-  type Binder[T]     = (BoundStatement, T) => BoundStatement
-  type FieldToColumn = Map[String, String]
+  type Binder[T, Out] = (ScalaBoundStatement[Out], T) => ScalaBoundStatement[Out]
+  type FieldToColumn  = Map[String, String]
 
   trait Builder[T] extends (FieldToColumn => FieldCollector[T])
 
@@ -67,7 +69,12 @@ object DerivedMapping {
 
     override def apply(row: Row): T = collector(row)
 
-    override def apply(pstmt: PreparedStatement): T => BoundStatement = {
+    override def apply(pstmt: PreparedStatement): T => BoundStatement =
+      apply(pstmt.asInstanceOf[ScalaPreparedStatement[Unit, Row]])
+
+    override def apply[Out](
+        pstmt: ScalaPreparedStatement[T, Out]
+    ): T => ScalaBoundStatement[Out] = {
       verify(pstmt)
 
       val collected = collector(pstmt)
@@ -76,7 +83,9 @@ object DerivedMapping {
       }
 
       (t: T) =>
-        requiredComputed.foldLeft(collected(pstmt.bind(), t)) { (bstmt, compute) =>
+        requiredComputed.foldLeft(
+          collected(pstmt.bind().asInstanceOf[ScalaBoundStatement[Out]], t)
+        ) { (bstmt, compute) =>
           compute(bstmt, t)
         }
     }
@@ -123,7 +132,6 @@ object DerivedMapping {
         )
       }
     }
-
   }
 
   /** A [[BindParameterCollector]] allows to bind a parameter [[T]] to a [[PreparedStatement]]
@@ -138,7 +146,7 @@ object DerivedMapping {
       * @param pstmt to bind
       * @return binder function
       */
-    def apply(pstmt: PreparedStatement): Binder[T]
+    def apply[Out](pstmt: ScalaPreparedStatement[T, Out]): Binder[T, Out]
 
     /** Checks if the [[PreparedStatement]] uses the [[column]] defined by this [[BindParameterCollector]], and
       * accumulates the results in an accumulator
@@ -205,14 +213,15 @@ object DerivedMapping {
         accumulated
       }
 
-    override def apply(pstmt: PreparedStatement): Binder[T] =
-      if (contains(pstmt)) { (bstmt, t) =>
+    override def apply[Out](pstmt: ScalaPreparedStatement[T, Out]): Binder[T, Out] =
+      if (contains(pstmt) && pstmt.options.ignoreNullFields) { (bstmt, t) =>
         setIfDefined(bstmt, column, compute(t), codec)
+      } else if (contains(pstmt)) { (bstmt, t) =>
+        bstmt.set(column, compute(t), codec).asInstanceOf[ScalaBoundStatement[Out]]
       } else { (bstmt, _) =>
         log.debug("Ignoring missing column [{}] from query [{}]", column, pstmt.getQuery: Any)
         bstmt
       }
-
   }
 
   implicit def lastElementCollector[K <: Symbol, H](
@@ -242,9 +251,13 @@ object DerivedMapping {
       override def apply(row: Row): FieldType[K, H] :: HNil =
         (witness.value ->> row.get(column, codec)).asInstanceOf[FieldType[K, H]] :: HNil
 
-      override def apply(pstmt: PreparedStatement): Binder[FieldType[K, H] :: HNil] =
-        if (contains(pstmt)) { (bstmt, t) =>
+      override def apply[Out](
+          pstmt: ScalaPreparedStatement[FieldType[K, H] :: HNil, Out]
+      ): Binder[FieldType[K, H] :: HNil, Out] =
+        if (contains(pstmt) && pstmt.options.ignoreNullFields) { (bstmt, t) =>
           setIfDefined(bstmt, column, t.head, codec)
+        } else if (contains(pstmt)) { (bstmt, t) =>
+          bstmt.set(column, t.head, codec).asInstanceOf[ScalaBoundStatement[Out]]
         } else { (bstmt, _) =>
           log.debug("Ignoring missing column [{}] from query [{}]", column, pstmt.getQuery: Any)
           bstmt
@@ -262,7 +275,9 @@ object DerivedMapping {
       override protected val column: String =
         mapping.getOrElse(witness.value.name, columnMapper.map(witness.value.name))
 
-      private val tailCollector = tailBuilder(mapping)
+      private val tailCollector: FieldCollector[T] with BindParameterCollector[T] = tailBuilder(
+        mapping
+      )
 
       override val columns: Set[String] = tailCollector.columns + column
 
@@ -282,12 +297,18 @@ object DerivedMapping {
         (witness.value ->> row.get(column, codec))
           .asInstanceOf[FieldType[K, H]] :: tailCollector(row)
 
-      override def apply(pstmt: PreparedStatement): Binder[FieldType[K, H] :: T] = {
-        val tail = tailCollector(pstmt)
+      override def apply[Out](
+          pstmt: ScalaPreparedStatement[FieldType[K, H] :: T, Out]
+      ): Binder[FieldType[K, H] :: T, Out] = {
+        val tail = tailCollector(pstmt.asInstanceOf[ScalaPreparedStatement[T, Out]])
 
         // TODO investigate if we can do a short-circuit to avoid processing fields after all have been bound
-        if (contains(pstmt)) { (bstmt, t) =>
+        if (contains(pstmt) && pstmt.options.ignoreNullFields) { (bstmt, t) =>
           val bs = setIfDefined(bstmt, column, t.head, codec)
+
+          tail(bs, t.tail)
+        } else if (contains(pstmt)) { (bstmt, t) =>
+          val bs = bstmt.set(column, t.head, codec).asInstanceOf[ScalaBoundStatement[Out]]
 
           tail(bs, t.tail)
         } else { (bstmt, t) =>
@@ -319,8 +340,8 @@ object DerivedMapping {
 
       override def apply(row: Row): A = gen.from(collector(row))
 
-      override def apply(pstmt: PreparedStatement): Binder[A] = {
-        val binder = collector(pstmt)
+      override def apply[Out](pstmt: ScalaPreparedStatement[A, Out]): Binder[A, Out] = {
+        val binder = collector[Out](pstmt.asInstanceOf[ScalaPreparedStatement[R, Out]])
 
         (bstmt, a) => binder(bstmt, gen.to(a))
       }
@@ -333,13 +354,14 @@ object DerivedMapping {
 
   /** Sets the value to the [[BoundStatement]] only if not-null to avoid tombstones
     */
-  private def setIfDefined[T](
-      bstmt: BoundStatement,
+  private def setIfDefined[T, Out](
+      bstmt: ScalaBoundStatement[Out],
       column: String,
       value: T,
       codec: TypeCodec[T]
-  ): BoundStatement =
-    if (value == null || value == None) bstmt else bstmt.set(column, value, codec)
+  ): ScalaBoundStatement[Out] =
+    if (value == null || value == None) bstmt
+    else bstmt.set(column, value, codec).asInstanceOf[ScalaBoundStatement[Out]]
 
   /** Verifies if a [[TypeCodec]] can <em>accept</em> (or handle) a column defined in a [[PreparedStatement]]
     *
