@@ -25,7 +25,7 @@ object Dependencies {
     val mockito    = "5.11.0"
     val scalaCheck = "1.18.0"
     val scalaTest  = "3.2.18"
-    val logback    = "1.5.5"
+    val logback    = "1.5.6"
   }
 
   // 'core' dependencies
