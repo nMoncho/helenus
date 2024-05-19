@@ -9,7 +9,7 @@ object Dependencies {
     val dseJavaDriver         = "4.17.0"
     val scalaCollectionCompat = "2.12.0"
     val scalaJava8Compat      = "1.0.2"
-    val shapeless             = "2.3.10"
+    val shapeless             = "2.3.12"
     val slf4j                 = "2.0.13"
 
     val akka    = "2.6.20" // 2.7 changed to business license
