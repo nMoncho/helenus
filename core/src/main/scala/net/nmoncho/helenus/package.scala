@@ -503,7 +503,8 @@ package object helenus extends CodecDerivation {
       */
     @nowarn("cat=unused-imports")
     def iter(timeout: FiniteDuration)(implicit ec: ExecutionContext): Iterator[T] = {
-      import scala.collection.compat._ // Don't remove me 'import scala.collection.compat._'
+      // Don't remove me 'import scala.collection.compat._'
+      import scala.collection.compat._ // scalafix:ok
       // FIXME Using `TraversableOnce` Scala 2.12, also it doesn't lazily concat iterators
       // since `compat` implementation is different
       def concat(): TraversableOnce[T] =

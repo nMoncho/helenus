@@ -33,7 +33,7 @@ import shapeless.IsTuple
   *
   * @tparam T type to get from a row
   */
-trait RowMapper[T] {
+trait RowMapper[T] extends Serializable {
 
   def apply(row: Row): T
 
@@ -49,7 +49,7 @@ object RowMapper {
   /** Knows how to extract a column from a [[Row]] into a Scala type [[A]]
     * @tparam A target type
     */
-  trait ColumnMapper[A] {
+  trait ColumnMapper[A] extends Serializable {
     def apply(columnName: String, row: Row): A
   }
 

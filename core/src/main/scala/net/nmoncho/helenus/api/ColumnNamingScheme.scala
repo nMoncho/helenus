@@ -31,7 +31,7 @@ import com.datastax.oss.driver.internal.core.util.Strings
   * A [[ColumnNamingScheme]] can be used for this purpose (inspired by Avro4s).
   * This trait assumes that the starting point is <b>camel case</b>
   */
-sealed trait ColumnNamingScheme {
+sealed trait ColumnNamingScheme extends Serializable {
   def map(fieldName: String): String
 
   /** Returns the field name in a format appropriate for concatenation in a CQL query.

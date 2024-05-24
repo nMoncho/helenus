@@ -2,7 +2,7 @@ import sbt.*
 
 object Dependencies {
   object Version {
-    val scala213 = "2.13.13"
+    val scala213 = "2.13.11"
     val scala212 = "2.12.19"
 
     val cassandraUnit         = "4.3.1.0"
@@ -18,14 +18,17 @@ object Dependencies {
     val akkaBusl    = "2.8.5"
     val alpakkaBusl = "6.0.2"
 
+    val flink = "1.18.0"
+
     val pekkoConnector = "1.0.2"
     val pekkoTestKit   = "1.0.2"
 
     // Test Dependencies
-    val mockito    = "5.12.0"
-    val scalaCheck = "1.18.0"
-    val scalaTest  = "3.2.18"
-    val logback    = "1.5.6"
+    val mockito       = "5.12.0"
+    val scalaCheck    = "1.18.0"
+    val scalaTest     = "3.2.18"
+    val scalaTestPlus = "3.2.18.0"
+    val logback       = "1.5.6"
   }
 
   // 'core' dependencies
@@ -46,12 +49,19 @@ object Dependencies {
   val alpakkaBusl = "com.lightbend.akka" %% "akka-stream-alpakka-cassandra" % Version.alpakkaBusl
   val akkaTestKitBusl = "com.typesafe.akka" %% "akka-testkit" % Version.akkaBusl
 
+  // 'flink' dependencies
+  val flinkCore          = "org.apache.flink" % "flink-core"           % Version.flink
+  val flinkStreamingJava = "org.apache.flink" % "flink-streaming-java" % Version.flink
+  val flinkConnectorBase = "org.apache.flink" % "flink-connector-base" % Version.flink
+  val flinkTestUtils     = "org.apache.flink" % "flink-test-utils"     % Version.flink
+
   // 'pekko' dependencies
   val pekkoConnector = "org.apache.pekko" %% "pekko-connectors-cassandra" % Version.pekkoConnector
   val pekkoTestKit   = "org.apache.pekko" %% "pekko-testkit"              % Version.pekkoTestKit
 
-  val mockito    = "org.mockito"     % "mockito-core"    % Version.mockito
-  val scalaCheck = "org.scalacheck" %% "scalacheck"      % Version.scalaCheck
-  val scalaTest  = "org.scalatest"  %% "scalatest"       % Version.scalaTest
-  val logback    = "ch.qos.logback"  % "logback-classic" % Version.logback
+  val mockito       = "org.mockito"        % "mockito-core"    % Version.mockito
+  val scalaCheck    = "org.scalacheck"    %% "scalacheck"      % Version.scalaCheck
+  val scalaTest     = "org.scalatest"     %% "scalatest"       % Version.scalaTest
+  val scalaTestPlus = "org.scalatestplus" %% "scalacheck-1-17" % Version.scalaTestPlus
+  val logback       = "ch.qos.logback"     % "logback-classic" % Version.logback
 }
