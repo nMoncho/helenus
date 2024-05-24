@@ -23,9 +23,6 @@ addCommandAlias(
   "; scalafmtCheckAll; headerCheckAll; scalafixAll --check"
 )
 
-ThisBuild / scalafixDependencies += "com.github.liancheng" %% "organize-imports" % "0.6.0"
-ThisBuild / scalafixScalaBinaryVersion := scalaBinaryVersion.value
-
 lazy val root = project
   .in(file("."))
   .settings(basicSettings)
@@ -34,7 +31,7 @@ lazy val root = project
     mimaFailOnNoPrevious := false,
     Test / testOptions += Tests.Setup(() => EmbeddedDatabase.start())
   )
-  .aggregate(docs, core, bench, akka, akkaBusl, pekko)
+  .aggregate(docs, core, bench, akka, akkaBusl, pekko, flink)
 
 lazy val basicSettings = Seq(
   organization := "net.nmoncho",
@@ -138,11 +135,12 @@ lazy val core = project
       Dependencies.shapeless,
       Dependencies.slf4j,
       // Test Dependencies
-      Dependencies.mockito    % Test,
-      Dependencies.scalaCheck % Test,
-      Dependencies.scalaTest  % Test,
-      Dependencies.logback    % Test,
-      "net.java.dev.jna"      % "jna" % "5.14.0" % Test // Fixes M1 JNA issue
+      Dependencies.mockito       % Test,
+      Dependencies.scalaCheck    % Test,
+      Dependencies.scalaTest     % Test,
+      Dependencies.scalaTestPlus % Test,
+      Dependencies.logback       % Test,
+      "net.java.dev.jna"         % "jna" % "5.14.0" % Test // Fixes M1 JNA issue
     ),
     scalacOptions ++= crossSetting(
       scalaVersion.value,
@@ -240,5 +238,26 @@ lazy val pekko = project
       Dependencies.pekkoTestKit   % Test,
       // Adding this until Alpakka aligns version with Pekko TestKit
       "org.apache.pekko" %% "pekko-stream" % Dependencies.Version.pekkoTestKit
+    )
+  )
+
+lazy val flink = project
+  .settings(basicSettings)
+  .dependsOn(
+    core % "compile->compile;test->test"
+  ) // FIXME there are several excluded or shaded dependencies from the Java Driver, why?
+  .settings(
+    name := "helenus-flink",
+    scalaVersion := Dependencies.Version.scala213,
+    Test / testOptions += Tests.Setup(() => EmbeddedDatabase.start()),
+    Test / fork := true,
+    crossScalaVersions := List(Dependencies.Version.scala212, Dependencies.Version.scala213),
+    mimaFailOnNoPrevious := false,
+    libraryDependencies ++= Seq(
+      Dependencies.dseJavaDriver,
+      Dependencies.flinkCore          % "provided,test",
+      Dependencies.flinkStreamingJava % "provided,test",
+      Dependencies.flinkConnectorBase % "provided,test",
+      Dependencies.flinkTestUtils     % "provided,test"
     )
   )

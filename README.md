@@ -11,6 +11,13 @@ Helenus is collection of Scala utilities for Apache Cassandra. Its goal is to
 make interacting with Cassandra easier, in a type-safe manner, while trying to
 avoid introducing a complex API.
 
+We also provide integration against several streaming libraries:
+
+- Akka v2.6 (Apache License)
+- Akka BUSL
+- Flink (Experimental)
+- Pekko
+
 ## Installation
 
 Include the library into you project definition:
@@ -64,7 +71,7 @@ import net.nmoncho.helenus._
 
 // Then mark your session implicit
 implicit val session: CqlSession = getSession
-// session: CqlSession = com.datastax.oss.driver.internal.core.session.DefaultSession@6fdfb85c
+// session: CqlSession = com.datastax.oss.driver.internal.core.session.DefaultSession@6ce6edd8
 
 case class Address(street: String, city: String, stateOrProvince: String, postalCode: String, country: String)
 
@@ -76,7 +83,7 @@ implicit val typeCodec: TypeCodec[Address] = Codec.udtOf[Address]()
 
 // We can derive how query results map to case classes
 implicit val rowMapper: RowMapper[Hotel] = RowMapper[Hotel]
-// rowMapper: RowMapper[Hotel] = net.nmoncho.helenus.internal.CaseClassRowMapperDerivation$$anonfun$net$nmoncho$helenus$internal$CaseClassRowMapperDerivation$$$nestedInanonfun$genericCCRowMapperBuilder$1$1@73f0a094
+// rowMapper: RowMapper[Hotel] = net.nmoncho.helenus.internal.CaseClassRowMapperDerivation$$anonfun$net$nmoncho$helenus$internal$CaseClassRowMapperDerivation$$$nestedInanonfun$genericCCRowMapperBuilder$1$1@14c049f2
 
 val hotelId = "h1"
 // hotelId: String = "h1"
@@ -85,7 +92,7 @@ val hotelId = "h1"
 val hotelsById = "SELECT * FROM hotels WHERE id = ?".toCQL
     .prepare[String]
     .as[Hotel]
-// hotelsById: internal.cql.ScalaPreparedStatement1[String, Hotel] = net.nmoncho.helenus.internal.cql.ScalaPreparedStatement1@5b6d6277
+// hotelsById: internal.cql.ScalaPreparedStatement1[String, Hotel] = net.nmoncho.helenus.internal.cql.ScalaPreparedStatement1@4b9b45d8
 
 // We can extract a single result using `nextOption()`, or
 // use `to(Coll)` to transform the result to a collection
@@ -108,7 +115,7 @@ hotelsById.execute("h1").nextOption()
 
 // We can also run the same using CQL interpolated queries
 val interpolatedHotelsById = cql"SELECT * FROM hotels WHERE id = $hotelId"
-// interpolatedHotelsById: api.cql.WrappedBoundStatement[com.datastax.oss.driver.api.core.cql.Row] = net.nmoncho.helenus.api.cql.WrappedBoundStatement@2a8b3e62
+// interpolatedHotelsById: api.cql.WrappedBoundStatement[com.datastax.oss.driver.api.core.cql.Row] = net.nmoncho.helenus.api.cql.WrappedBoundStatement@61a5462f
 
 interpolatedHotelsById.as[Hotel].execute().nextOption()
 // res1: Option[Hotel] = Some(
