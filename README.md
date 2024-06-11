@@ -23,7 +23,7 @@ We also provide integration against several streaming libraries:
 Include the library into you project definition:
 
 ```scala
-libraryDependencies += "net.nmoncho" %% "helenus-core" % "1.5.0"
+libraryDependencies += "net.nmoncho" %% "helenus-core" % "1.6.0"
 ```
 
 ## Motivation
