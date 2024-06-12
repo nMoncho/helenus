@@ -18,7 +18,7 @@ object Dependencies {
     val akkaBusl    = "2.8.5"
     val alpakkaBusl = "6.0.2"
 
-    val flink = "1.18.0"
+    val flink = "1.18.1"
 
     val pekkoConnector = "1.0.2"
     val pekkoTestKit   = "1.0.3"
