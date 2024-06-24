@@ -32,7 +32,7 @@ import shapeless.ops.hlist.Tupler
   * @tparam A original type
   * @tparam B target type
   */
-trait Adapter[A, B] {
+trait Adapter[A, B] extends Serializable {
   def apply(a: A): B
 }
 
@@ -68,7 +68,7 @@ object Adapter {
       new Builder[A, p.Out](a => p(to(a), fn(a) :: HNil))
   }
 
-  trait NoOpBuilder[A] {
+  trait NoOpBuilder[A] extends Serializable {
     type Repr <: HList
     type Out
 

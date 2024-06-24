@@ -32,7 +32,7 @@ import net.nmoncho.helenus.flink.sink._
 import net.nmoncho.helenus.flink.source._
 import org.apache.flink.api.common.io.InputFormat
 import org.apache.flink.api.common.io.OutputFormatBase
-import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.typeinfo.{ TypeInformation => FlinkTypeInformation }
 import org.apache.flink.api.connector.source._
 import org.apache.flink.api.java.DataSet
 import org.apache.flink.api.java.ExecutionEnvironment
@@ -110,7 +110,7 @@ package object flink {
       */
     def asSource(config: CassandraSource.Config)(
         implicit mapper: RowMapper[Out],
-        typeInformation: TypeInformation[Out]
+        typeInformation: FlinkTypeInformation[Out]
     ): Source[Out, CassandraSplit, CassandraEnumeratorState] =
       net.nmoncho.helenus.flink.source.asSource(bstmt, config)
 
@@ -130,7 +130,7 @@ package object flink {
     /** Invokes this [[ExecutionEnvironment.createInput]] provided that there is an implicit [[TypeInformation]]
       */
     def createDataSource[Out](inputFormat: InputFormat[Out, _])(
-        implicit typeInfo: TypeInformation[Out]
+        implicit typeInfo: FlinkTypeInformation[Out]
     ): DataSource[Out] =
       env.createInput(inputFormat, typeInfo)
 

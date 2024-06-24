@@ -27,6 +27,7 @@ import net.nmoncho.helenus.flink.models.Hotel
 import net.nmoncho.helenus.flink.source.CassandraSource
 import net.nmoncho.helenus.utils.HotelsTestData
 import org.apache.flink.api.java.ExecutionEnvironment
+import org.apache.flink.api.java.operators.DataSource
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -40,7 +41,7 @@ class DataSetSourceTest extends AnyFlatSpec with Matchers with FlinkCassandraSpe
     val query =
       (session: CqlSession) => "SELECT * FROM hotels".toCQL(session).prepareUnit.as[Hotel].apply()
 
-    val input = job.createDataSource(
+    val input: DataSource[Hotel] = job.createDataSource(
       query.asInputFormat(
         CassandraSource
           .Config()
