@@ -26,7 +26,7 @@ object Dependencies {
     // Test Dependencies
     val mockito       = "5.12.0"
     val scalaCheck    = "1.18.0"
-    val scalaTest     = "3.2.18"
+    val scalaTest     = "3.2.19"
     val scalaTestPlus = "3.2.18.0"
     val logback       = "1.5.6"
   }
