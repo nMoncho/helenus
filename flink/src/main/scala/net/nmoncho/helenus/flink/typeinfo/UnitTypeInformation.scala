@@ -22,16 +22,16 @@
 package net.nmoncho.helenus.flink.typeinfo
 
 import org.apache.flink.api.common.ExecutionConfig
-import org.apache.flink.api.common.typeinfo.{ TypeInformation => FlinkTypeInformation }
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils._
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton
 import org.apache.flink.core.memory.DataInputView
 import org.apache.flink.core.memory.DataOutputView
 
-/** [[TypeInformation]] implementation for [[Unit]]
+/** [[WrappedTypeInformation]] implementation for [[Unit]]
   * Follows a similar implementation than for [[Void]]
   */
-object UnitTypeInformation extends FlinkTypeInformation[Unit] {
+object UnitTypeInformation extends TypeInformation[Unit] {
 
   override def isBasicType: Boolean = true
 

@@ -24,12 +24,12 @@ package net.nmoncho.helenus.flink.typeinfo
 import scala.reflect.ClassTag
 
 import org.apache.flink.api.common.ExecutionConfig
-import org.apache.flink.api.common.typeinfo.{ TypeInformation => FlinkTypeInformation }
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils._
 import org.apache.flink.core.memory.DataInputView
 import org.apache.flink.core.memory.DataOutputView
 
-/** Provides a [[TypeInformation]] implementation for a [[Outer]] by mapping
+/** Provides a [[WrappedTypeInformation]] implementation for a [[Outer]] by mapping
   * another implementation for [[Inner]]
   *
   * @param toOuter how to convert from inner to outer
@@ -41,8 +41,8 @@ class MappedTypedInformation[Outer, Inner](
     toOuter: Inner => Outer,
     toInner: Outer => Inner,
     tag: ClassTag[Outer],
-    inner: FlinkTypeInformation[Inner]
-) extends FlinkTypeInformation[Outer] {
+    inner: TypeInformation[Inner]
+) extends TypeInformation[Outer] {
 
   override val isBasicType: Boolean = inner.isBasicType
 

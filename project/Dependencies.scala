@@ -2,7 +2,7 @@ import sbt.*
 
 object Dependencies {
   object Version {
-    val scala213 = "2.13.14"
+    val scala213 = "2.13.12"
     val scala212 = "2.12.19"
 
     val cassandraUnit         = "4.3.1.0"

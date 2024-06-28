@@ -48,7 +48,7 @@ final case class Hotel(id: String, name: String, phone: String, address: Address
 
 object Hotel {
 
-  import net.nmoncho.helenus.flink.typeinfo.TypeInfoFactory._
+  import net.nmoncho.helenus.flink.typeinfo.TypeInformationDerivation._
 
   implicit val rowMapper: RowMapper[Hotel] = new RowMapper[Hotel] {
     override def apply(row: Row): Hotel = Hotel(
@@ -64,6 +64,6 @@ object Hotel {
   implicit val adapter: Adapter[Hotel, (String, String, String, Address)] =
     Adapter[Hotel]
 
-  implicit val addressTypeInformation: TypeInformation[Address] = pojoFactory[Address]
-  implicit val hotelTypeInformation: TypeInformation[Hotel]     = pojoFactory[Hotel]
+  implicit val addressTypeInformation: TypeInformation[Address] = Pojo[Address]
+  implicit val hotelTypeInformation: TypeInformation[Hotel]     = Pojo[Hotel]
 }

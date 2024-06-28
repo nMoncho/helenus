@@ -24,6 +24,7 @@ package net.nmoncho.helenus.flink.typeinfo
 import scala.reflect.ClassTag
 
 import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.core.memory.DataInputDeserializer
 import org.apache.flink.core.memory.DataOutputSerializer
 import org.scalacheck.Gen
@@ -35,7 +36,9 @@ class TypeInformationAnyValSpec
     extends AnyPropSpec
     with ScalaCheckPropertyChecks
     with Matchers
-    with TypeGenerators {
+    with TypeGenerators
+    with ImplicitTypes
+    with TypeInformationDerivation {
 
   private val successful = minSuccessful(500)
   private val config     = new ExecutionConfig
