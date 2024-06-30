@@ -19,28 +19,35 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package net.nmoncho.helenus.internal.compat
+package net.nmoncho.helenus.internal.reactive
 
-import java.util.concurrent.CompletionStage
+import org.mockito.ArgumentMatchers._
+import org.mockito.Mockito._
+import org.reactivestreams.Subscriber
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
-import scala.concurrent.Future
+class EmptyPublisherSpec extends AnyWordSpec with Matchers {
 
-object FutureConverters {
+  "EmptyPublisher" should {
+    "complete a subscription as soon as it's created" in {
+      val published  = new EmptyPublisher[String]
+      val subscriber = mock(classOf[Subscriber[String]])
 
-  def asScala[T](cs: CompletionStage[T]): Future[T] =
-    cs.asScala
+      published.subscribe(subscriber)
 
-  def asJava[T](f: Future[T]): CompletionStage[T] =
-    f.asJava
+      verify(subscriber, atMostOnce()).onComplete()
+      verify(subscriber, never()).onNext(any())
+      verify(subscriber, never()).onError(any())
+      verify(subscriber, never()).onSubscribe(any())
+    }
 
-  implicit class CompletionStageOps[T](private val cs: CompletionStage[T]) extends AnyVal {
-    def asScala: Future[T] = scala.jdk.javaapi.FutureConverters.asScala(cs)
+    "require an non-null subscriber" in {
+      val published = new EmptyPublisher[String]
+
+      intercept[IllegalArgumentException](
+        published.subscribe(null)
+      )
+    }
   }
-
-  // $COVERAGE-OFF$
-  implicit class FutureOps[T](private val f: Future[T]) extends AnyVal {
-    def asJava: CompletionStage[T] = scala.jdk.javaapi.FutureConverters.asJava(f)
-  }
-  // $COVERAGE-ON$
-
 }

@@ -78,11 +78,17 @@ class RowMapperSpec
         .execute()
         .nextOption() shouldBe Some(Hotels.h4.name)
 
-      whenReady(query(Hotels.h5.id).executeAsync()) { p =>
-        p.currPage.nextOption() shouldBe Some(Hotels.h5.name)
+      val page = whenReady(query(Hotels.h5.id).executeAsync()) { page =>
+        page.currPage.nextOption() shouldBe Some(Hotels.h5.name)
+
+        page
       }
 
-      withClue(",with an Either field") {
+      whenReady(page.nextPage) { next =>
+        next shouldBe empty
+      }
+
+      withClue(", with an Either field") {
         case class Hotel2(
             id: String,
             name: String,

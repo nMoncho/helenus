@@ -25,22 +25,28 @@ import java.util.concurrent.CompletionStage
 
 import scala.concurrent.Future
 
-object FutureConverters {
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
-  def asScala[T](cs: CompletionStage[T]): Future[T] =
-    cs.asScala
+class FutureConvertersSpec extends AnyWordSpec with Matchers {
+  import FutureConverters._
 
-  def asJava[T](f: Future[T]): CompletionStage[T] =
-    f.asJava
+  "FutureConverters" should {
+    "convert scala.concurrent.Future <-> CompletionStage (extension methods)" in {
+      val future = Future.successful("foo")
 
-  implicit class CompletionStageOps[T](private val cs: CompletionStage[T]) extends AnyVal {
-    def asScala: Future[T] = scala.jdk.javaapi.FutureConverters.asScala(cs)
+      future.asJava shouldBe a[CompletionStage[String]]
+
+      future.asJava.asScala shouldBe a[Future[String]]
+    }
+
+    "convert scala.concurrent.Future <-> CompletionStage" in {
+      val future = Future.successful("foo")
+
+      FutureConverters.asJava(future) shouldBe a[CompletionStage[String]]
+
+      FutureConverters.asScala(FutureConverters.asJava(future)) shouldBe a[Future[String]]
+    }
   }
-
-  // $COVERAGE-OFF$
-  implicit class FutureOps[T](private val f: Future[T]) extends AnyVal {
-    def asJava: CompletionStage[T] = scala.jdk.javaapi.FutureConverters.asJava(f)
-  }
-  // $COVERAGE-ON$
 
 }

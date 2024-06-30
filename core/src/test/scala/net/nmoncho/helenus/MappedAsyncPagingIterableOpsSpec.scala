@@ -44,8 +44,8 @@ class MappedAsyncPagingIterableOpsSpec
     with ScalaFutures {
 
   import HotelsTestData._
-  import scala.collection.compat._ // Don't remove me
 
+  import scala.collection.compat._
   import scala.concurrent.ExecutionContext.Implicits.global
 
   private implicit lazy val cqlSession: CqlSession = session
@@ -126,6 +126,19 @@ class MappedAsyncPagingIterableOpsSpec
       }
 
       whenReady(test)(_ => ())
+    }
+
+    "convert to an iterator" in {
+      whenReady(
+        "SELECT * FROM hotels".toCQLAsync.prepareUnit
+          .as[Hotel]
+          .map(_.withPageSize(2))
+          .executeAsync()
+      ) { pi =>
+        val iterator = pi.iter(20.seconds)
+
+        iterator.toSet shouldEqual Hotels.all.toSet
+      }
     }
   }
 

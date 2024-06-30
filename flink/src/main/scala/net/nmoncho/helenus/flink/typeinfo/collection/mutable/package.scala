@@ -22,7 +22,7 @@
 package net.nmoncho.helenus.flink.typeinfo.collection
 
 import scala.collection.compat._
-import scala.collection.{mutable => mutablecoll}
+import scala.collection.{ mutable => mutablecoll }
 
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.TypeInformation

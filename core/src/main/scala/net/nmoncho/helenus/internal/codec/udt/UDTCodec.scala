@@ -23,7 +23,10 @@ package net.nmoncho.helenus.internal.codec.udt
 
 import java.nio.ByteBuffer
 
+import scala.jdk.OptionConverters.RichOptional
+
 import com.datastax.oss.driver.api.core.CqlIdentifier
+import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.ProtocolVersion
 import com.datastax.oss.driver.api.core.`type`.DataType
 import com.datastax.oss.driver.api.core.`type`.UserDefinedType
@@ -48,12 +51,19 @@ trait UDTCodec[T] { that: TypeCodec[T] =>
   private[helenus] def isKeyspaceBlank: Boolean =
     userDefinedType.getKeyspace.asInternal().isBlank
 
+  private[helenus] def existsInKeyspace(session: CqlSession): Boolean = (for {
+    keyspaceName <- session.getKeyspace.toScala
+    keyspace <- session.getMetadata.getKeyspace(keyspaceName).toScala
+    udt <- keyspace.getUserDefinedType(userDefinedType.getName).toScala
+  } yield udt).nonEmpty
+
   /** Wraps this [[TypeCodec]] and points its CQL Type to the provided keyspace.
     *
     * Note: This is useful when the `keyspace` have been left empty, and this codec will be registered. If this codec is
     * not registered, this method it's not necessary.
     */
   private[helenus] def forKeyspace(keyspace: String): TypeCodec[T] = new TypeCodec[T] {
+
     private val adaptedUserDefinedType = new DefaultUserDefinedType(
       CqlIdentifier.fromInternal(keyspace),
       userDefinedType.getName,

@@ -99,7 +99,8 @@ package object helenus extends CodecDerivation {
             val keyspace = session.sessionKeyspace
 
             codecs.foreach {
-              case codec: UDTCodec[_] if codec.isKeyspaceBlank =>
+              case codec: UDTCodec[_]
+                  if codec.isKeyspaceBlank || !codec.existsInKeyspace(session) =>
                 keyspace
                   .map(k => codec.forKeyspace(k.getName.asInternal()))
                   .orElse {
@@ -507,24 +508,24 @@ package object helenus extends CodecDerivation {
       import scala.collection.compat._ // scalafix:ok
       // FIXME Using `TraversableOnce` Scala 2.12, also it doesn't lazily concat iterators
       // since `compat` implementation is different
-      def concat(): TraversableOnce[T] =
-        pi
+      def concat(current: MappedAsyncPagingIterable[T]): TraversableOnce[T] =
+        current
           .currentPage()
           .iterator()
           .asScala
           .concat {
-            if (pi.hasMorePages) {
+            if (current.hasMorePages) {
               log.debug("fetching more pages")
-              Await.ready(pi.fetchNextPage().asScala, timeout)
+              val next = Await.result(current.fetchNextPage().asScala, timeout)
 
-              concat()
+              concat(next)
             } else {
               log.debug("no more pages")
               Iterator()
             }
           }
 
-      concat().iterator
+      concat(pi).iterator
     }
   }
 

@@ -30,6 +30,7 @@ import com.datastax.oss.driver.api.core.cql.Row
 import net.nmoncho.helenus.api.ColumnNamingScheme
 import net.nmoncho.helenus.api.DefaultColumnNamingScheme
 import net.nmoncho.helenus.api.SnakeCase
+import net.nmoncho.helenus.internal.codec.UdtCodecSpec.IceCream3
 import net.nmoncho.helenus.utils.CassandraSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
@@ -183,6 +184,12 @@ class CassandraUdtCodecSpec extends AnyWordSpec with Matchers with CassandraSpec
       )
 
       exception.getMessage should include("cherries_number is not a field in this UDT")
+    }
+
+    "be registered on the session" in {
+      val codec: TypeCodec[IceCream3] = Codec.udtOf[IceCream3]()
+
+      session.registerCodecs(codec).isSuccess shouldBe true
     }
   }
 
