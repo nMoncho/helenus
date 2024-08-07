@@ -126,7 +126,7 @@ package object helenus extends CodecDerivation {
   }
 
   /** Creates a [[BoundStatement]] using String Interpolation.
-    * There is also an asynchronous alternative, which is `asyncCql` instead of `cql`.
+    * There is also an asynchronous alternative, which is `cqlAsync` instead of `cql`.
     *
     * This won't execute the bound statement yet, just set its arguments.
     *
