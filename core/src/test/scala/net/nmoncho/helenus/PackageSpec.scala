@@ -21,6 +21,12 @@
 
 package net.nmoncho.helenus
 
+import scala.util.Success
+
+import com.datastax.oss.driver.internal.core.`type`.DefaultListType
+import com.datastax.oss.driver.internal.core.`type`.PrimitiveType
+import com.datastax.oss.protocol.internal.ProtocolConstants
+import net.nmoncho.helenus.models.Address
 import net.nmoncho.helenus.utils.CassandraSpec
 import org.scalatest.OptionValues._
 import org.scalatest.matchers.should.Matchers
@@ -46,6 +52,29 @@ class PackageSpec extends AnyWordSpec with Matchers with CassandraSpec {
       defaultProfile.value.getName shouldEqual "default"
 
       session.executionProfile("another-profile") should not be defined
+    }
+
+    "register codecs" in {
+      val listStringCodec = Codec[List[String]]
+
+      session.registerCodecs(listStringCodec) shouldBe a[Success[_]]
+
+      session.getContext.getCodecRegistry
+        .codecFor(
+          new DefaultListType(new PrimitiveType(ProtocolConstants.DataType.VARCHAR), true)
+        ) shouldBe listStringCodec
+    }
+
+    "register UDT codecs" in {
+      val keyspace = session.sessionKeyspace.map(_.getName.asInternal()).getOrElse("")
+
+      withClue("registering codec with a keyspace") {
+        session.registerCodecs(Codec.udtOf[Address](keyspace)) shouldBe a[Success[_]]
+      }
+
+      withClue("registering codec without a specific keyspace") {
+        session.registerCodecs(Codec.udtOf[Address]()) shouldBe a[Success[_]]
+      }
     }
   }
 
