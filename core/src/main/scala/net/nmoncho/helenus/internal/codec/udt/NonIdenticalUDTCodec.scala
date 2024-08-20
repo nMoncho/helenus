@@ -25,6 +25,7 @@ package internal.codec.udt
 import scala.reflect.ClassTag
 
 import com.datastax.oss.driver.api.core.CqlSession
+import com.datastax.oss.driver.api.core.`type`.DataType
 import com.datastax.oss.driver.api.core.`type`.UserDefinedType
 import com.datastax.oss.driver.api.core.`type`.codec.MappingCodec
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
@@ -146,6 +147,13 @@ object NonIdenticalUDTCodec {
 
       override val getCqlType: UserDefinedType =
         super.getCqlType.asInstanceOf[UserDefinedType]
+
+      override def accepts(cqlType: DataType): Boolean = cqlType match {
+        case aUDT: UserDefinedType =>
+          udt.getFieldNames == aUDT.getFieldNames && udt.getFieldTypes == aUDT.getFieldTypes
+
+        case _ => false
+      }
 
       override def innerToOuter(value: UdtValue): A =
         codec.innerToOuter(value)

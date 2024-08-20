@@ -25,6 +25,7 @@ package internal.codec
 import java.util.UUID
 
 import com.datastax.oss.driver.api.core.ProtocolVersion
+import com.datastax.oss.driver.api.core.`type`.UserDefinedType
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.cql.Row
 import net.nmoncho.helenus.api.ColumnNamingScheme
@@ -136,6 +137,8 @@ class CassandraUdtCodecSpec extends AnyWordSpec with Matchers with CassandraSpec
 
   override protected lazy val keyspace: String = "udt_codec_tests"
 
+  private lazy val pstmt = session.prepare("INSERT INTO udt_table(id, ice) VALUES (?, ?)")
+
   "UdtCodec" should {
     "work with Cassandra" in {
       val id = UUID.randomUUID()
@@ -147,6 +150,8 @@ class CassandraUdtCodecSpec extends AnyWordSpec with Matchers with CassandraSpec
       val rowOpt = query(id)
       rowOpt shouldBe defined
       rowOpt.foreach(row => row.get("ice", IceCream.codec) shouldBe ice)
+
+      accepts(IceCream.codec) shouldBe true
     }
 
     "work when fields are in different order (with session)" in {
@@ -159,6 +164,8 @@ class CassandraUdtCodecSpec extends AnyWordSpec with Matchers with CassandraSpec
       val rowOpt = query(id)
       rowOpt shouldBe defined
       rowOpt.foreach(row => row.get("ice", IceCreamShuffled.codec) shouldBe ice)
+
+      accepts(IceCreamShuffled.codec) shouldBe true
     }
 
     "work when fields are in different order (with fields)" in {
@@ -175,6 +182,8 @@ class CassandraUdtCodecSpec extends AnyWordSpec with Matchers with CassandraSpec
       val rowOpt = query(id)
       rowOpt shouldBe defined
       rowOpt.foreach(row => row.get("ice", codec) shouldBe ice)
+
+      accepts(codec) shouldBe true
     }
 
     "fail on invalid mapping" in {
@@ -199,7 +208,6 @@ class CassandraUdtCodecSpec extends AnyWordSpec with Matchers with CassandraSpec
   }
 
   private def insert[T](id: UUID, ice: T, codec: TypeCodec[T]): Unit = {
-    val pstmt = session.prepare("INSERT INTO udt_table(id, ice) VALUES (?, ?)")
     val bstmt = pstmt
       .bind()
       .set(0, id, uuidCodec)
@@ -207,9 +215,14 @@ class CassandraUdtCodecSpec extends AnyWordSpec with Matchers with CassandraSpec
     session.execute(bstmt)
   }
 
+  private def accepts(codec: TypeCodec[_]): Boolean =
+    codec.accepts(pstmt.getVariableDefinitions.get(1).getType.asInstanceOf[UserDefinedType])
+
   case class IceCream(name: String, numCherries: Int, cone: Boolean)
 
   object IceCream {
+    implicit val colMapper: ColumnNamingScheme = SnakeCase
+
     implicit val codec: TypeCodec[IceCream] = Codec.udtOf[IceCream]()
   }
 

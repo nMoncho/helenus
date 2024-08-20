@@ -132,7 +132,7 @@ object IdenticalUDTCodec {
     override val getJavaType: GenericType[A] =
       GenericType.of(tag.runtimeClass.asInstanceOf[Class[A]])
 
-    override val getCqlType: DataType = {
+    override val getCqlType: UserDefinedType = {
       import scala.jdk.CollectionConverters._
 
       val (identifiers, dataTypes) =
@@ -152,7 +152,8 @@ object IdenticalUDTCodec {
 
     override def accepts(cqlType: DataType): Boolean = cqlType match {
       case udt: UserDefinedType =>
-        udt.getFieldTypes == getCqlType.asInstanceOf[UserDefinedType].getFieldTypes
+        udt.getFieldNames == getCqlType.getFieldNames &&
+        udt.getFieldTypes == getCqlType.getFieldTypes
 
       case _ => false
     }
@@ -279,9 +280,8 @@ object IdenticalUDTCodec {
   ): IdenticalUDTCodec[FieldType[K, H] :: T] =
     new IdenticalUDTCodec[FieldType[K, H] :: T] {
 
-      private val fieldName   = witness.value.name
-      private val column      = columnNamingScheme.map(fieldName)
-      private val prettyCqlId = columnNamingScheme.asCql(fieldName, pretty = true)
+      private val fieldName = witness.value.name
+      private val column    = columnNamingScheme.map(fieldName)
 
       override val columns: List[(String, DataType)] =
         (column -> headCodec.getCqlType) :: tailCodec.columns
@@ -326,7 +326,7 @@ object IdenticalUDTCodec {
           sb: mutable.StringBuilder
       ): mutable.StringBuilder = {
         val headFormat = sb
-          .append(prettyCqlId)
+          .append(columnNamingScheme.asCql(fieldName, pretty = true))
           .append(fieldSeparator)
           .append(
             if (value == null || value.head == null) NULL
@@ -339,7 +339,7 @@ object IdenticalUDTCodec {
 
       @inline override def parse(value: String, idx: Int): (FieldType[K, H] :: T, Int) = {
         val fieldNameEnd =
-          skipSpacesAndExpectId(value, idx, prettyCqlId)
+          skipSpacesAndExpectId(value, idx, columnNamingScheme.asCql(fieldName, pretty = true))
         val valueStart         = skipSpacesAndExpect(value, fieldNameEnd, fieldSeparator)
         val (parsed, valueEnd) = parseWithCodec(value, headCodec, valueStart)
         val afterValue         = skipSpacesAndExpect(value, valueEnd, separator)
