@@ -21,7 +21,7 @@ object Dependencies {
     val flink = "1.18.1"
 
     val pekkoConnector = "1.0.2"
-    val pekkoTestKit   = "1.0.3"
+    val pekkoTestKit   = "1.1.0"
 
     // Test Dependencies
     val mockito       = "5.13.0"
