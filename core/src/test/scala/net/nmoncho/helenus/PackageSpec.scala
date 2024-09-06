@@ -55,7 +55,7 @@ class PackageSpec extends AnyWordSpec with Matchers with CassandraSpec {
     }
 
     "register codecs" in {
-      val listStringCodec = Codec[List[String]]
+      val listStringCodec = Codec.of[List[String]]
 
       session.registerCodecs(listStringCodec) shouldBe a[Success[_]]
 
@@ -69,11 +69,11 @@ class PackageSpec extends AnyWordSpec with Matchers with CassandraSpec {
       val keyspace = session.sessionKeyspace.map(_.getName.asInternal()).getOrElse("")
 
       withClue("registering codec with a keyspace") {
-        session.registerCodecs(Codec.udtOf[Address](keyspace)) shouldBe a[Success[_]]
+        session.registerCodecs(Codec.of[Address](keyspace)) shouldBe a[Success[_]]
       }
 
       withClue("registering codec without a specific keyspace") {
-        session.registerCodecs(Codec.udtOf[Address]()) shouldBe a[Success[_]]
+        session.registerCodecs(Codec.of[Address]()) shouldBe a[Success[_]]
       }
     }
   }

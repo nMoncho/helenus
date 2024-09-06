@@ -39,5 +39,5 @@ object Address {
 
   final val Empty: Address = Address("", "", "", "", "")
 
-  implicit val typeCodec: TypeCodec[Address] = Codec.udtOf[Address]()
+  implicit val typeCodec: TypeCodec[Address] = Codec.of[Address]()
 }

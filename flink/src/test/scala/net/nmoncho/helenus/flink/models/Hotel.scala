@@ -39,7 +39,7 @@ final case class Address(
 }
 
 object Address {
-  implicit val addressCodec: TypeCodec[Address] = Codec.udtOf[Address]()
+  implicit val addressCodec: TypeCodec[Address] = Codec.of[Address]()
 }
 
 final case class Hotel(id: String, name: String, phone: String, address: Address) {

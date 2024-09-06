@@ -24,14 +24,18 @@ package internal.codec
 
 import java.util.UUID
 
+import scala.jdk.OptionConverters.RichOptional
+
 import com.datastax.oss.driver.api.core.ProtocolVersion
 import com.datastax.oss.driver.api.core.`type`.UserDefinedType
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.cql.Row
+import com.datastax.oss.driver.api.core.servererrors.ServerError
 import net.nmoncho.helenus.api.ColumnNamingScheme
 import net.nmoncho.helenus.api.DefaultColumnNamingScheme
 import net.nmoncho.helenus.api.SnakeCase
 import net.nmoncho.helenus.internal.codec.UdtCodecSpec.IceCream3
+import net.nmoncho.helenus.internal.codec.udt.UnifiedUDTCodec
 import net.nmoncho.helenus.utils.CassandraSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
@@ -39,7 +43,7 @@ import org.scalatest.wordspec.AnyWordSpec
 class UdtCodecSpec extends AnyWordSpec with Matchers {
   import UdtCodecSpec._
 
-  private val codec: TypeCodec[IceCream] = Codec.udtOf[IceCream]()
+  private val codec: TypeCodec[IceCream] = Codec.of[IceCream]()
 
   "UdtCodec" should {
 
@@ -55,7 +59,7 @@ class UdtCodecSpec extends AnyWordSpec with Matchers {
     }
 
     "encode-decode a case class with a tuple" in {
-      val codec: TypeCodec[IceCream2] = Codec.udtOf[IceCream2]()
+      val codec: TypeCodec[IceCream2] = Codec.of[IceCream2]()
 
       val sundae  = IceCream2("Sundae", 3, cone = false, 1 -> 2)
       val vanilla = IceCream2("Vanilla", 3, cone = true, 2 -> 1)
@@ -68,7 +72,7 @@ class UdtCodecSpec extends AnyWordSpec with Matchers {
     }
 
     "encode-decode a case class with a options" in {
-      val codec: TypeCodec[IceCream3] = Codec.udtOf[IceCream3]()
+      val codec: TypeCodec[IceCream3] = Codec.of[IceCream3]()
 
       withClue("with defined values") {
         val sundae  = IceCream3("Sundae", 3, cone = Some(false), Some(1 -> 2))
@@ -155,10 +159,25 @@ class CassandraUdtCodecSpec extends AnyWordSpec with Matchers with CassandraSpec
     }
 
     "work when fields are in different order (with session)" in {
-      val id = UUID.randomUUID()
+      val codec = IceCreamShuffled.codec
+      val id    = UUID.randomUUID()
+      val ice   = IceCreamShuffled(2, cone = false, "Vanilla")
+
       query(id) shouldBe empty
 
-      val ice = IceCreamShuffled(2, cone = false, "Vanilla")
+      withClue("fail before adaptation") {
+        val exception = intercept[ServerError](
+          insert(UUID.randomUUID(), ice, codec)
+        )
+
+        exception.getMessage should include("Expected 4 or 0 byte int")
+      }
+
+      // this adaptation would be done after a statement is prepared,
+      // so we're hacking this in the middle for this test
+      val udt = session.sessionKeyspace.flatMap(_.getUserDefinedType("ice_cream").toScala).get
+      codec.asInstanceOf[UnifiedUDTCodec[_]].adapt(udt)
+
       insert(id, ice, IceCreamShuffled.codec)
 
       val rowOpt = query(id)
@@ -187,16 +206,31 @@ class CassandraUdtCodecSpec extends AnyWordSpec with Matchers with CassandraSpec
     }
 
     "fail on invalid mapping" in {
-      val ice = IceCreamInvalid(2, cone = false, "Vanilla")
+      val codec = IceCreamInvalid.codec
+      val ice   = IceCreamInvalid(2, cone = false, "Vanilla")
+
+      withClue("fail before adaptation") {
+        val exception = intercept[ServerError](
+          insert(UUID.randomUUID(), ice, codec)
+        )
+
+        exception.getMessage should include("Expected 4 or 0 byte int")
+      }
+
+      // this adaptation would be done after a statement is prepared,
+      // so we're hacking this in the middle for this test
+      val udt = session.sessionKeyspace.flatMap(_.getUserDefinedType("ice_cream").toScala).get
+      codec.asInstanceOf[UnifiedUDTCodec[_]].adapt(udt)
+
       val exception = intercept[IllegalArgumentException](
-        insert(UUID.randomUUID(), ice, IceCreamInvalid.codec)
+        insert(UUID.randomUUID(), ice, codec)
       )
 
       exception.getMessage should include("cherries_number is not a field in this UDT")
     }
 
     "be registered on the session" in {
-      val codec: TypeCodec[IceCream3] = Codec.udtOf[IceCream3]()
+      val codec: TypeCodec[IceCream3] = Codec.of[IceCream3]()
 
       session.registerCodecs(codec).isSuccess shouldBe true
     }
@@ -223,7 +257,7 @@ class CassandraUdtCodecSpec extends AnyWordSpec with Matchers with CassandraSpec
   object IceCream {
     implicit val colMapper: ColumnNamingScheme = SnakeCase
 
-    implicit val codec: TypeCodec[IceCream] = Codec.udtOf[IceCream]()
+    implicit val codec: TypeCodec[IceCream] = Codec.of[IceCream]()
   }
 
   case class IceCreamShuffled(numCherries: Int, cone: Boolean, name: String)
@@ -232,7 +266,7 @@ class CassandraUdtCodecSpec extends AnyWordSpec with Matchers with CassandraSpec
     implicit val colMapper: ColumnNamingScheme = SnakeCase
 
     implicit val codec: TypeCodec[IceCreamShuffled] =
-      Codec.udtFrom[IceCreamShuffled](session, name = "ice_cream")
+      Codec.of[IceCreamShuffled](name = "ice_cream")
   }
 
   case class IceCreamInvalid(cherriesNumber: Int, cone: Boolean, name: String)
@@ -241,7 +275,7 @@ class CassandraUdtCodecSpec extends AnyWordSpec with Matchers with CassandraSpec
     implicit val colMapper: ColumnNamingScheme = SnakeCase
 
     implicit val codec: TypeCodec[IceCreamInvalid] =
-      Codec.udtFrom[IceCreamInvalid](session, name = "ice_cream")
+      Codec.of[IceCreamInvalid](name = "ice_cream")
   }
 
   override def beforeAll(): Unit = {
