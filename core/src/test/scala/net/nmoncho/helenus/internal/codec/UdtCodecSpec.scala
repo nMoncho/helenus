@@ -35,6 +35,8 @@ import net.nmoncho.helenus.api.ColumnNamingScheme
 import net.nmoncho.helenus.api.DefaultColumnNamingScheme
 import net.nmoncho.helenus.api.SnakeCase
 import net.nmoncho.helenus.internal.codec.UdtCodecSpec.IceCream3
+import net.nmoncho.helenus.internal.codec.udt.NonIdenticalUDTCodec
+import net.nmoncho.helenus.internal.codec.udt.UDTCodec
 import net.nmoncho.helenus.internal.codec.udt.UnifiedUDTCodec
 import net.nmoncho.helenus.utils.CassandraSpec
 import org.scalatest.matchers.should.Matchers
@@ -118,6 +120,25 @@ class UdtCodecSpec extends AnyWordSpec with Matchers {
       codec.parse(codec.format(vanilla)) shouldEqual vanilla
     }
 
+    "be extended with UDTCodec" in {
+      val vanilla  = IceCream("Vanilla", 3, cone = true)
+      val udtCodec = codec.asInstanceOf[UDTCodec[IceCream]]
+
+      udtCodec.isKeyspaceBlank shouldBe false
+
+      val adaptedKeyspace = "foobar"
+      val adapted         = udtCodec.forKeyspace(adaptedKeyspace)
+      val cqlType         = adapted.getCqlType
+
+      cqlType shouldBe a[UserDefinedType]
+      cqlType.asInstanceOf[UserDefinedType].getKeyspace.asInternal() shouldBe adaptedKeyspace
+
+      adapted.decode(
+        codec.encode(vanilla, ProtocolVersion.DEFAULT),
+        ProtocolVersion.DEFAULT
+      ) shouldBe vanilla
+      adapted.parse(adapted.format(vanilla)) shouldEqual vanilla
+    }
   }
 }
 
@@ -156,6 +177,12 @@ class CassandraUdtCodecSpec extends AnyWordSpec with Matchers with CassandraSpec
       rowOpt.foreach(row => row.get("ice", IceCream.codec) shouldBe ice)
 
       accepts(IceCream.codec) shouldBe true
+
+      withClue("be extended with UDTCodec") {
+        val udtCodec = IceCream.codec.asInstanceOf[UDTCodec[IceCream]]
+
+        udtCodec.existsInKeyspace(session) shouldBe true
+      }
     }
 
     "work when fields are in different order (with session)" in {
@@ -175,8 +202,7 @@ class CassandraUdtCodecSpec extends AnyWordSpec with Matchers with CassandraSpec
 
       // this adaptation would be done after a statement is prepared,
       // so we're hacking this in the middle for this test
-      val udt = session.sessionKeyspace.flatMap(_.getUserDefinedType("ice_cream").toScala).get
-      codec.asInstanceOf[UnifiedUDTCodec[_]].adapt(udt)
+      codec.asInstanceOf[UnifiedUDTCodec[_]].adapt(iceCreamUDT())
 
       insert(id, ice, IceCreamShuffled.codec)
 
@@ -219,8 +245,7 @@ class CassandraUdtCodecSpec extends AnyWordSpec with Matchers with CassandraSpec
 
       // this adaptation would be done after a statement is prepared,
       // so we're hacking this in the middle for this test
-      val udt = session.sessionKeyspace.flatMap(_.getUserDefinedType("ice_cream").toScala).get
-      codec.asInstanceOf[UnifiedUDTCodec[_]].adapt(udt)
+      codec.asInstanceOf[UnifiedUDTCodec[_]].adapt(iceCreamUDT())
 
       val exception = intercept[IllegalArgumentException](
         insert(UUID.randomUUID(), ice, codec)
@@ -233,6 +258,14 @@ class CassandraUdtCodecSpec extends AnyWordSpec with Matchers with CassandraSpec
       val codec: TypeCodec[IceCream3] = Codec.of[IceCream3]()
 
       session.registerCodecs(codec).isSuccess shouldBe true
+    }
+
+    "be derived on NonIdenticalUdtCodec" in {
+      val c1 = NonIdenticalUDTCodec[IceCreamShuffled](session, keyspace, "ice_cream")
+      val c2 = NonIdenticalUDTCodec[IceCreamShuffled](iceCreamUDT())
+
+      c2.accepts(c1.getCqlType) shouldBe true
+      c1.accepts(c2.getCqlType) shouldBe true
     }
   }
 
@@ -251,6 +284,9 @@ class CassandraUdtCodecSpec extends AnyWordSpec with Matchers with CassandraSpec
 
   private def accepts(codec: TypeCodec[_]): Boolean =
     codec.accepts(pstmt.getVariableDefinitions.get(1).getType.asInstanceOf[UserDefinedType])
+
+  private def iceCreamUDT(): UserDefinedType =
+    session.sessionKeyspace.flatMap(_.getUserDefinedType("ice_cream").toScala).get
 
   case class IceCream(name: String, numCherries: Int, cone: Boolean)
 

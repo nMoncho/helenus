@@ -306,6 +306,7 @@ trait TupleCodecDerivation {
     parsed -> next
   }
 
+  // $COVERAGE-OFF$
   /** [[java.lang.reflect.Type]] implementation using an underlying Scala Reflect [[Type]]
     * This is only used for [[com.datastax.oss.driver.shaded.guava.common.reflect.TypeToken]] and [[GenericType]] for tuples
     *
@@ -324,4 +325,5 @@ trait TupleCodecDerivation {
         false
     }
   }
+  // $COVERAGE-ON$
 }

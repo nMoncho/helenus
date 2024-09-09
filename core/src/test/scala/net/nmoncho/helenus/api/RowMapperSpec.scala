@@ -27,6 +27,7 @@ import scala.annotation.nowarn
 import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.cql.Row
 import net.nmoncho.helenus.api.RowMapper.ColumnMapper
+import net.nmoncho.helenus.internal.cql.ScalaPreparedStatement1
 import net.nmoncho.helenus.models.Address
 import net.nmoncho.helenus.models.Hotel
 import net.nmoncho.helenus.utils.CassandraSpec
@@ -48,7 +49,8 @@ class RowMapperSpec
     with ScalaFutures {
 
   import HotelsTestData._
-  import scala.collection.compat._ // Don't remove me
+
+  import scala.collection.compat._
   import scala.concurrent.ExecutionContext.Implicits.global
 
   private implicit lazy val cqlSession: CqlSession = session
@@ -142,21 +144,40 @@ class RowMapperSpec
       hotelH1Opt.map(_.name) shouldBe Some(Hotels.h1.name)
 
       withClue("(when using an explicit mapper)") {
-        val query = "SELECT * FROM hotels WHERE id = ?".toCQL
-          .prepare[String]
-          .as((row: Row) =>
-            Hotel(
-              row.getCol[String]("id"),
-              row.getCol[String]("name"),
-              row.getCol[String]("phone"),
-              row.getCol[Address]("address"),
-              row.getCol[Set[String]]("pois")
-            )
-          )
+        def assertQuery(pstmt: ScalaPreparedStatement1[String, Hotel]) = {
+          val hotelH1Opt = pstmt.execute(Hotels.h1.id).nextOption()
+          hotelH1Opt shouldBe defined
+          hotelH1Opt.map(_.name) shouldBe Some(Hotels.h1.name)
+        }
 
-        val hotelH1Opt = query.execute(Hotels.h1.id).nextOption()
-        hotelH1Opt shouldBe defined
-        hotelH1Opt.map(_.name) shouldBe Some(Hotels.h1.name)
+        val query = "SELECT id, name, phone, address, pois FROM hotels WHERE id = ?".toCQL
+          .prepare[String]
+
+        val withNameGetCol = query.as((row: Row) =>
+          Hotel(
+            row.getCol[String]("id"),
+            row.getCol[String]("name"),
+            row.getCol[String]("phone"),
+            row.getCol[Address]("address"),
+            row.getCol[Set[String]]("pois")
+          )
+        )
+
+        val withIndexGetCol = query.as((row: Row) =>
+          Hotel(
+            row.getCol[String](0),
+            row.getCol[String](1),
+            row.getCol[String](2),
+            row.getCol[Address](3),
+            row.getCol[Set[String]](4)
+          )
+        )
+
+        val withAs = query.as(_.as[Hotel])
+
+        assertQuery(withNameGetCol)
+        assertQuery(withIndexGetCol)
+        assertQuery(withAs)
       }
     }
 

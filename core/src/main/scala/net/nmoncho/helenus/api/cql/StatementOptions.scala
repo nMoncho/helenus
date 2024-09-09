@@ -55,6 +55,7 @@ case class StatementOptions(
       bstmtOptions.consistencyLevel.map(bs6.setConsistencyLevel).getOrElse(bs6)
     }
 
+  // $COVERAGE-OFF$
   def ignoreNullFields: Boolean = pstmtOptions.ignoreNullFields
 
   def profile: Option[DriverExecutionProfile] = bstmtOptions.profile
@@ -72,7 +73,7 @@ case class StatementOptions(
   def pageSize: Int = bstmtOptions.pageSize
 
   def consistencyLevel: Option[ConsistencyLevel] = bstmtOptions.consistencyLevel
-
+  // $COVERAGE-ON$
 }
 
 object StatementOptions {

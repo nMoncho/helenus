@@ -35,13 +35,15 @@ import org.slf4j.LoggerFactory
 class UnifiedUDTCodec[A <: Product](
     @volatile private var underlying: TypeCodec[A],
     mappingCodec: UserDefinedType => TypeCodec[A]
-)(implicit tag: ClassTag[A]) extends TypeCodec[A] {
+)(implicit tag: ClassTag[A])
+    extends TypeCodec[A]
+    with UDTCodec[A] {
 
   private var adapted = false
 
   private[helenus] def adapt(udt: UserDefinedType): Boolean = this.synchronized {
 
-    if(!adapted && !underlying.accepts(udt)) {
+    if (!adapted && !underlying.accepts(udt)) {
       UnifiedUDTCodec.log.info(
         "Adapting UDT Codec for class [{}] since an IdenticalUDTCodec doesn't provide the same field order",
         tag.runtimeClass.getCanonicalName()

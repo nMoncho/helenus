@@ -59,8 +59,10 @@ class TakeOperator[A](pub: Publisher[A], amount: Int) {
       }
     }
 
+    // $COVERAGE-OFF$
     override def onError(t: Throwable): Unit =
       subscriber.onError(t)
+    // $COVERAGE-ON$
 
     override def onComplete(): Unit =
       subscriber.onComplete()

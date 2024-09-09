@@ -89,6 +89,7 @@ class PagerSerializerSpec
 
       val continuePager1 = withClue("a non initial page should have a valid paging state") {
         pager1PS should not be empty
+
         queryHotels.pager(pager1PS.value) match {
           case Success(value) =>
             value
@@ -103,6 +104,12 @@ class PagerSerializerSpec
         val (_, continuePage) = continuePager1.execute(pageSize)
 
         nextPage.toSeq shouldEqual continuePage.toSeq
+      }
+
+      withClue("encode with extension method") {
+        val ps = pager1.pagingState.value
+
+        ps.encode() shouldBe a[Success[_]]
       }
     }
 

@@ -63,6 +63,27 @@ class MapOperatorSpec extends AnyWordSpec with Matchers with Eventually with Cas
         subscriber.elems.toList shouldBe expected
       }
     }
+
+    "propagate errors" in {
+      val publisher = new SubmissionPublisher[Int]()
+      val op = new MapOperator(
+        FlowAdapters.toPublisher(publisher),
+        (s: Int) => s / s
+      )
+
+      val subscriber = new EndSubscriber[Int]()
+      op.publisher.subscribe(
+        FlowAdapters.toSubscriber(subscriber)
+      )
+
+      val items = List(0, 1, 2)
+      items.foreach(publisher.submit)
+      publisher.close()
+
+      eventually {
+        subscriber.elems.toList shouldBe empty
+      }
+    }
   }
 
   "ReactiveResultSet" should {
@@ -112,7 +133,7 @@ object MapOperatorSpec {
     implicit val rowMapper: RowMapper[IceCream] = RowMapper[IceCream]
   }
 
-  private class EndSubscriber[T]() extends Flow.Subscriber[T] {
+  class EndSubscriber[T]() extends Flow.Subscriber[T] {
     private var subscription: Subscription = _
     val elems: ListBuffer[T]               = new ListBuffer[T]()
 
