@@ -29,6 +29,7 @@ import org.apache.flink.api.common.typeutils._
 import org.apache.flink.core.memory.DataInputView
 import org.apache.flink.core.memory.DataOutputView
 
+// $COVERAGE-OFF$
 abstract class IterableTypeInformation[T, Iter[T] <: scala.collection.Iterable[T]](
     val inner: TypeInformation[T]
 )(
@@ -155,3 +156,4 @@ object IterableTypeInformation {
   }
 
 }
+// $COVERAGE-ON$

@@ -27,10 +27,12 @@ import java.util
 import scala.collection.immutable.Queue
 
 import com.datastax.oss.driver.api.core.CqlSession
+import com.datastax.oss.driver.internal.core.metadata.token.TokenFactory
 import net.nmoncho.helenus.flink.FlinkCassandraSpec
 import net.nmoncho.helenus.flink.models.Hotel
 import net.nmoncho.helenus.flink.source.CassandraSplit.CassandraPartitioner
 import net.nmoncho.helenus.flink.source.CassandraSplit.CassandraPartitioner.Murmur3Partitioner
+import net.nmoncho.helenus.flink.source.CassandraSplit.CassandraPartitioner.RandomPartitioner
 import net.nmoncho.helenus.flink.source.CassandraSplit.TokenRange
 import net.nmoncho.helenus.utils.HotelsTestData
 import org.apache.flink.api.connector.source.ReaderInfo
@@ -224,6 +226,11 @@ class CassandraSourceSpec extends AnyWordSpec with Matchers with FlinkCassandraS
 
     "be created from `system.local` table" in {
       CassandraPartitioner(None, session) shouldBe Murmur3Partitioner
+    }
+
+    "provide a token factory" in {
+      Murmur3Partitioner.factory shouldBe a[TokenFactory]
+      RandomPartitioner.factory shouldBe a[TokenFactory]
     }
   }
 

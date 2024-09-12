@@ -30,6 +30,7 @@ import org.apache.flink.api.common.typeutils._
 import org.apache.flink.core.memory.DataInputView
 import org.apache.flink.core.memory.DataOutputView
 
+// $COVERAGE-OFF$
 class MapTypeInformation[K, V](
     val key: TypeInformation[K],
     val value: TypeInformation[V]
@@ -174,3 +175,4 @@ object MapTypeInformation {
   }
 
 }
+// $COVERAGE-ON$

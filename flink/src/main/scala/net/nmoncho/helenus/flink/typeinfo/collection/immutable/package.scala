@@ -24,6 +24,7 @@ package collection
 
 import org.apache.flink.api.common.typeinfo.TypeInformation
 
+// $COVERAGE-OFF$
 package object immutable {
 
   class ListTypeInformation[T](inner: TypeInformation[T])
@@ -51,3 +52,4 @@ package object immutable {
   }
 
 }
+// $COVERAGE-ON$

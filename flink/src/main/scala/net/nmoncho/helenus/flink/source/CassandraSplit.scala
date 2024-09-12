@@ -284,6 +284,8 @@ object CassandraSplit {
   )
 
   object TokenRange {
+    // $COVERAGE-OFF$
+    // Given this is read from `system.size_estimates` which is empty at test time, we cannot test it
     implicit val mapper: RowMapper[TokenRange] = new RowMapper[TokenRange] {
       override def apply(row: Row): TokenRange = TokenRange(
         partitionCount    = row.getCol[Long]("partitions_count"),
@@ -292,5 +294,6 @@ object CassandraSplit {
         rangeEnd          = row.getCol[Long]("range_end")
       )
     }
+    // $COVERAGE-ON$
   }
 }

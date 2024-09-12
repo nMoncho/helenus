@@ -32,6 +32,7 @@ import scala.reflect.ClassTag
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple
 
+// $COVERAGE-OFF$
 object Types {
 
   val Void: TypeInformation[Void] = org.apache.flink.api.common.typeinfo.Types.VOID
@@ -183,3 +184,4 @@ object Types {
   ): TypeInformation[mutable.Set[T]] =
     new collection.mutable.SetTypeInformation[T](inner)
 }
+// $COVERAGE-ON$

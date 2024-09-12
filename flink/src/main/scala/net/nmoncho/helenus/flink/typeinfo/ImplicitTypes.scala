@@ -33,6 +33,7 @@ import scala.reflect.ClassTag
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple
 
+// $COVERAGE-OFF$
 trait ImplicitTypes {
 
   implicit val voidTypeInfo: TypeInformation[Void] = Types.Void
@@ -164,3 +165,4 @@ trait ImplicitTypes {
 }
 
 object ImplicitTypes extends ImplicitTypes
+// $COVERAGE-ON$

@@ -29,6 +29,7 @@ import org.apache.flink.api.common.typeutils._
 import org.apache.flink.core.memory.DataInputView
 import org.apache.flink.core.memory.DataOutputView
 
+// $COVERAGE-OFF$
 /** Provides a [[WrappedTypeInformation]] implementation for a [[Outer]] by mapping
   * another implementation for [[Inner]]
   *
@@ -162,3 +163,4 @@ object MappedTypedInformation {
   ): MappedTypedInformation[Outer, Inner] =
     new MappedTypedInformation(toOuter, toInner, tag, inner)
 }
+// $COVERAGE-ON$

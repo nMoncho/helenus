@@ -28,6 +28,7 @@ import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton
 import org.apache.flink.core.memory.DataInputView
 import org.apache.flink.core.memory.DataOutputView
 
+// $COVERAGE-OFF$
 /** [[WrappedTypeInformation]] implementation for [[Unit]]
   * Follows a similar implementation than for [[Void]]
   */
@@ -94,3 +95,4 @@ object UnitTypeInformation extends TypeInformation[Unit] {
 
   override def toString: String = "UnitTypeInformation"
 }
+// $COVERAGE-ON$

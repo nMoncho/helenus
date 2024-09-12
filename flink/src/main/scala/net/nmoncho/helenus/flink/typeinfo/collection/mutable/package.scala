@@ -32,6 +32,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot
 
 import IterableTypeInformation.Serializer
 
+// $COVERAGE-OFF$
 package object mutable {
 
   abstract class MutableIterableTypeInformation[T, Iter[T] <: scala.collection.mutable.Iterable[T]](
@@ -96,3 +97,4 @@ package object mutable {
   }
 
 }
+// $COVERAGE-ON$
