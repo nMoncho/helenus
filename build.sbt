@@ -223,24 +223,6 @@ lazy val akkaBusl = project
       "com.typesafe.akka" %% "akka-stream" % Dependencies.Version.akkaBusl
     )
   )
-
-lazy val pekko = project
-  .settings(basicSettings)
-  .dependsOn(core % "compile->compile;test->test")
-  .settings(
-    name := "helenus-pekko",
-    scalaVersion := Dependencies.Version.scala213,
-    Test / testOptions += Tests.Setup(() => EmbeddedDatabase.start()),
-    mimaPreviousArtifacts := Set("net.nmoncho" %% "helenus-pekko" % "1.0.0"),
-    crossScalaVersions := List(Dependencies.Version.scala213),
-    libraryDependencies ++= Seq(
-      Dependencies.pekkoConnector % "provided,test",
-      Dependencies.pekkoTestKit   % Test,
-      // Adding this until Alpakka aligns version with Pekko TestKit
-      "org.apache.pekko" %% "pekko-stream" % Dependencies.Version.pekkoTestKit
-    )
-  )
-
 lazy val flink = project
   .settings(basicSettings)
   .dependsOn(
@@ -259,5 +241,36 @@ lazy val flink = project
       Dependencies.flinkStreamingJava % "provided,test",
       Dependencies.flinkConnectorBase % "provided,test",
       Dependencies.flinkTestUtils     % "provided,test"
+    )
+  )
+
+lazy val monix = project
+  .dependsOn(core % "compile->compile;test->test")
+  .settings(
+    name := "helenus-monix",
+    scalaVersion := Dependencies.Version.scala213,
+    crossScalaVersions := List(Dependencies.Version.scala213, Dependencies.Version.scala212),
+    Test / testOptions += Tests.Setup(() => EmbeddedDatabase.start()),
+    libraryDependencies ++= Seq(
+      Dependencies.dseJavaDriver % Provided,
+      Dependencies.monix         % "provided,test",
+      Dependencies.monixReactive % "provided,test"
+    )
+  )
+
+lazy val pekko = project
+  .settings(basicSettings)
+  .dependsOn(core % "compile->compile;test->test")
+  .settings(
+    name := "helenus-pekko",
+    scalaVersion := Dependencies.Version.scala213,
+    Test / testOptions += Tests.Setup(() => EmbeddedDatabase.start()),
+    mimaPreviousArtifacts := Set("net.nmoncho" %% "helenus-pekko" % "1.0.0"),
+    crossScalaVersions := List(Dependencies.Version.scala213),
+    libraryDependencies ++= Seq(
+      Dependencies.pekkoConnector % "provided,test",
+      Dependencies.pekkoTestKit   % Test,
+      // Adding this until Alpakka aligns version with Pekko TestKit
+      "org.apache.pekko" %% "pekko-stream" % Dependencies.Version.pekkoTestKit
     )
   )
