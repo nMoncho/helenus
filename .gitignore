@@ -77,3 +77,4 @@ akka/target/
 akka-busl/target/
 pekko/target/
 flink/target/
+monix/target/

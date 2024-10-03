@@ -31,7 +31,7 @@ lazy val root = project
     mimaFailOnNoPrevious := false,
     Test / testOptions += Tests.Setup(() => EmbeddedDatabase.start())
   )
-  .aggregate(docs, core, bench, akka, akkaBusl, pekko, flink)
+  .aggregate(docs, core, bench, akka, akkaBusl, pekko, flink, monix)
 
 lazy val basicSettings = Seq(
   organization := "net.nmoncho",
@@ -223,24 +223,6 @@ lazy val akkaBusl = project
       "com.typesafe.akka" %% "akka-stream" % Dependencies.Version.akkaBusl
     )
   )
-
-lazy val pekko = project
-  .settings(basicSettings)
-  .dependsOn(core % "compile->compile;test->test")
-  .settings(
-    name := "helenus-pekko",
-    scalaVersion := Dependencies.Version.scala213,
-    Test / testOptions += Tests.Setup(() => EmbeddedDatabase.start()),
-    mimaPreviousArtifacts := Set("net.nmoncho" %% "helenus-pekko" % "1.0.0"),
-    crossScalaVersions := List(Dependencies.Version.scala213),
-    libraryDependencies ++= Seq(
-      Dependencies.pekkoConnector % "provided,test",
-      Dependencies.pekkoTestKit   % Test,
-      // Adding this until Alpakka aligns version with Pekko TestKit
-      "org.apache.pekko" %% "pekko-stream" % Dependencies.Version.pekkoTestKit
-    )
-  )
-
 lazy val flink = project
   .settings(basicSettings)
   .dependsOn(
@@ -259,5 +241,38 @@ lazy val flink = project
       Dependencies.flinkStreamingJava % "provided,test",
       Dependencies.flinkConnectorBase % "provided,test",
       Dependencies.flinkTestUtils     % "provided,test"
+    )
+  )
+
+lazy val monix = project
+  .settings(basicSettings)
+  .dependsOn(core % "compile->compile;test->test")
+  .settings(
+    name := "helenus-monix",
+    scalaVersion := Dependencies.Version.scala213,
+    crossScalaVersions := List(Dependencies.Version.scala213, Dependencies.Version.scala212),
+    Test / testOptions += Tests.Setup(() => EmbeddedDatabase.start()),
+    mimaFailOnNoPrevious := false,
+    libraryDependencies ++= Seq(
+      Dependencies.dseJavaDriver % Provided,
+      Dependencies.monix         % "provided,test",
+      Dependencies.monixReactive % "provided,test"
+    )
+  )
+
+lazy val pekko = project
+  .settings(basicSettings)
+  .dependsOn(core % "compile->compile;test->test")
+  .settings(
+    name := "helenus-pekko",
+    scalaVersion := Dependencies.Version.scala213,
+    Test / testOptions += Tests.Setup(() => EmbeddedDatabase.start()),
+    mimaPreviousArtifacts := Set("net.nmoncho" %% "helenus-pekko" % "1.0.0"),
+    crossScalaVersions := List(Dependencies.Version.scala213),
+    libraryDependencies ++= Seq(
+      Dependencies.pekkoConnector % "provided,test",
+      Dependencies.pekkoTestKit   % Test,
+      // Adding this until Alpakka aligns version with Pekko TestKit
+      "org.apache.pekko" %% "pekko-stream" % Dependencies.Version.pekkoTestKit
     )
   )

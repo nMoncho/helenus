@@ -20,6 +20,8 @@ object Dependencies {
 
     val flink = "1.18.1"
 
+    val monix = "3.4.1"
+
     val pekkoConnector = "1.0.2"
     val pekkoTestKit   = "1.1.2"
 
@@ -54,6 +56,10 @@ object Dependencies {
   val flinkStreamingJava = "org.apache.flink" % "flink-streaming-java" % Version.flink
   val flinkConnectorBase = "org.apache.flink" % "flink-connector-base" % Version.flink
   val flinkTestUtils     = "org.apache.flink" % "flink-test-utils"     % Version.flink
+
+  // 'monix' dependencies
+  val monix         = "io.monix" %% "monix"          % Version.monix
+  val monixReactive = "io.monix" %% "monix-reactive" % Version.monix
 
   // 'pekko' dependencies
   val pekkoConnector = "org.apache.pekko" %% "pekko-connectors-cassandra" % Version.pekkoConnector
