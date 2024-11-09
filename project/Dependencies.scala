@@ -24,7 +24,7 @@ object Dependencies {
     val pekkoTestKit   = "1.1.1"
 
     // Test Dependencies
-    val mockito       = "5.14.0"
+    val mockito       = "5.14.2"
     val scalaCheck    = "1.18.1"
     val scalaTest     = "3.2.19"
     val scalaTestPlus = "3.2.18.0"
