@@ -3,7 +3,7 @@ import sbt.*
 object Dependencies {
   object Version {
     val scala213 = "2.13.15" // JLine fails on this version, downgrade to 2.13.12 to use REPL
-    val scala212 = "2.12.19"
+    val scala212 = "2.12.20"
 
     val cassandraUnit         = "4.3.1.0"
     val dseJavaDriver         = "4.17.0"
