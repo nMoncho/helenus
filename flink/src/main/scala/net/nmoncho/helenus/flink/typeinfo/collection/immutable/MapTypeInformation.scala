@@ -123,7 +123,7 @@ object MapTypeInformation {
 
       (0 until size)
         .foldLeft(factory.newBuilder) { (builder, _) =>
-          builder.addOne(keySerializer.deserialize(source) -> valueSerializer.deserialize(source))
+          builder += keySerializer.deserialize(source) -> valueSerializer.deserialize(source)
         }
         .result()
     }

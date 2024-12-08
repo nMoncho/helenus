@@ -55,7 +55,12 @@ package object mutable {
     override def isImmutableType: Boolean = false
 
     override def copy(from: Iter[T]): Iter[T] =
-      from.foldLeft(factory.newBuilder)(_.addOne(_)).result()
+      from
+        .foldLeft(factory.newBuilder) { (iter, value) =>
+          iter += value
+          iter
+        }
+        .result()
 
     override def snapshotConfiguration(): TypeSerializerSnapshot[Iter[T]] =
       new CompositeTypeSerializerSnapshot[Iter[T], Serializer[T, Iter]](this.getClass) {

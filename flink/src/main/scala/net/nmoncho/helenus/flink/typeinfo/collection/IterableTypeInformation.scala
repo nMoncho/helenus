@@ -112,7 +112,7 @@ object IterableTypeInformation {
 
       (0 until size)
         .foldLeft(factory.newBuilder) { (builder, _) =>
-          builder.addOne(innerSerializer.deserialize(source))
+          builder += innerSerializer.deserialize(source)
         }
         .result()
     }

@@ -104,7 +104,12 @@ object MapTypeInformation {
       factory.newBuilder.result()
 
     override def copy(from: mutable.Map[K, V]): mutable.Map[K, V] =
-      from.foldLeft(factory.newBuilder)(_.addOne(_)).result()
+      from
+        .foldLeft(factory.newBuilder) { (iter, value) =>
+          iter += value
+          iter
+        }
+        .result()
 
     override def copy(from: mutable.Map[K, V], reuse: mutable.Map[K, V]): mutable.Map[K, V] =
       copy(from)
@@ -125,7 +130,7 @@ object MapTypeInformation {
 
       (0 until size)
         .foldLeft(factory.newBuilder) { (builder, _) =>
-          builder.addOne(keySerializer.deserialize(source) -> valueSerializer.deserialize(source))
+          builder += keySerializer.deserialize(source) -> valueSerializer.deserialize(source)
         }
         .result()
     }
