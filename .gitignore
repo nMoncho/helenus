@@ -78,3 +78,4 @@ akka-busl/target/
 pekko/target/
 flink/target/
 monix/target/
+zio/target/

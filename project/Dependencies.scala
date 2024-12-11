@@ -25,6 +25,9 @@ object Dependencies {
     val pekkoConnector = "1.0.2"
     val pekkoTestKit   = "1.1.2"
 
+    val zio               = "2.1.13"
+    val zioStreamsInterop = "2.0.2"
+
     // Test Dependencies
     val mockito       = "5.14.2"
     val scalaCheck    = "1.18.1"
@@ -64,6 +67,14 @@ object Dependencies {
   // 'pekko' dependencies
   val pekkoConnector = "org.apache.pekko" %% "pekko-connectors-cassandra" % Version.pekkoConnector
   val pekkoTestKit   = "org.apache.pekko" %% "pekko-testkit"              % Version.pekkoTestKit
+
+  // 'zio' dependencies
+  val zio               = "dev.zio" %% "zio"                         % Version.zio
+  val zioStreams        = "dev.zio" %% "zio-streams"                 % Version.zio
+  val zioStreamsInterop = "dev.zio" %% "zio-interop-reactivestreams" % Version.zioStreamsInterop
+  val zioTest           = "dev.zio" %% "zio-test"                    % Version.zio
+  val zioTestSbt        = "dev.zio" %% "zio-test-sbt"                % Version.zio
+  val zioTestMagnolia   = "dev.zio" %% "zio-test-magnolia"           % Version.zio
 
   val mockito       = "org.mockito"        % "mockito-core"    % Version.mockito
   val scalaCheck    = "org.scalacheck"    %% "scalacheck"      % Version.scalaCheck
