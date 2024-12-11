@@ -21,6 +21,8 @@
 
 package net.nmoncho.helenus.api
 
+import scala.util.Try
+
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.cql.Row
 import net.nmoncho.helenus.internal.DerivedRowMapper
@@ -45,6 +47,18 @@ object RowMapper {
   type ColumnName = String
 
   val identity: RowMapper[Row] = (row: Row) => row
+
+  trait SafeRowMapper[T] extends RowMapper[Try[T]]
+
+  object SafeRowMapper {
+
+    def apply[T](implicit mapper: SafeRowMapper[T]): SafeRowMapper[T] =
+      mapper
+
+    implicit def fromUnsafe[T](implicit mapper: RowMapper[T]): SafeRowMapper[T] =
+      (row: Row) => Try(mapper(row))
+
+  }
 
   /** Knows how to extract a column from a [[Row]] into a Scala type [[A]]
     * @tparam A target type
