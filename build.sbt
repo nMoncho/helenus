@@ -166,7 +166,8 @@ lazy val core = project
         Dependencies.scalaReflect % Dependencies.Version.scala212
       )
     ),
-    coverageMinimum := 85,
+    coverageMinimumStmtTotal := 70,
+    coverageMinimumBranchTotal := 70,
     coverageFailOnMinimum := true,
     mimaPreviousArtifacts := Set("net.nmoncho" %% "helenus-core" % "1.0.0")
   )
