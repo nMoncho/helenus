@@ -15,12 +15,12 @@ addCommandAlias(
 
 addCommandAlias(
   "styleFix",
-  "; scalafmtSbt; scalafmtAll; headerCreateAll; scalafixAll"
+  "; scalafmtSbt; +scalafmtAll; +headerCreateAll; scalafixAll"
 )
 
 addCommandAlias(
   "styleCheck",
-  "; scalafmtCheckAll; headerCheckAll; scalafixAll --check"
+  "; +scalafmtCheckAll; +headerCheckAll; scalafixAll --check"
 )
 
 lazy val root = project
