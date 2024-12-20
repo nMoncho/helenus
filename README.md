@@ -17,13 +17,14 @@ We also provide integration against several streaming libraries:
 - Akka BUSL
 - Flink (Experimental)
 - Pekko
+- ZIO
 
 ## Installation
 
 Include the library into you project definition:
 
 ```scala
-libraryDependencies += "net.nmoncho" %% "helenus-core" % "1.7.0"
+libraryDependencies += "net.nmoncho" %% "helenus-core" % "1.8.0"
 ```
 
 ## Motivation
@@ -56,7 +57,7 @@ As of this version, Helenus supports the following types:
   - This means, if used properly, no more boxing.
 - Collections: `Seq`, `List`, `Vector`, `Map`, `Set`, `SortedMap`, `SortedSet`.
   - If you need a codec that isn't provided out of the box, please read [this guide](https://github.com/nMoncho/helenus/wiki/Codecs#where-is-the-typecodec-for-x-collection) on how to add it.
-- Enumerations: Can be encoded by name or by order. See [Enumeration Codecs](#enumeration-codecs).
+- Enumerations: Can be encoded by name or by order. See [Enumeration Codecs](https://github.com/nMoncho/helenus/wiki/Codecs).
 - Tuples: Encoded as regular Cassandra tuples
 - Case Classes: Encoded as regular Cassandra UDTs
 - Others: `Option`, and `Either` (encoded as a tuple).
@@ -71,19 +72,19 @@ import net.nmoncho.helenus._
 
 // Then mark your session implicit
 implicit val session: CqlSession = getSession
-// session: CqlSession = com.datastax.oss.driver.internal.core.session.DefaultSession@3e2eb76f
+// session: CqlSession = com.datastax.oss.driver.internal.core.session.DefaultSession@e8be214
 
 case class Address(street: String, city: String, stateOrProvince: String, postalCode: String, country: String)
 
 case class Hotel(id: String, name: String, phone: String, address: Address, pois: Set[String])
 
 // We can derive Cassandra TypeCodecs used to map UDTs to case classes
-implicit val typeCodec: TypeCodec[Address] = Codec.udtOf[Address]()
+implicit val typeCodec: TypeCodec[Address] = Codec.of[Address]()
 // typeCodec: TypeCodec[Address] = UtdCodec[Address]
 
 // We can derive how query results map to case classes
 implicit val rowMapper: RowMapper[Hotel] = RowMapper[Hotel]
-// rowMapper: RowMapper[Hotel] = net.nmoncho.helenus.internal.CaseClassRowMapperDerivation$$anonfun$net$nmoncho$helenus$internal$CaseClassRowMapperDerivation$$$nestedInanonfun$genericCCRowMapperBuilder$1$1@4e837ca7
+// rowMapper: RowMapper[Hotel] = net.nmoncho.helenus.internal.CaseClassRowMapperDerivation$$anonfun$net$nmoncho$helenus$internal$CaseClassRowMapperDerivation$$$nestedInanonfun$genericCCRowMapperBuilder$1$1@6a16d36c
 
 val hotelId = "h1"
 // hotelId: String = "h1"
@@ -92,7 +93,7 @@ val hotelId = "h1"
 val hotelsById = "SELECT * FROM hotels WHERE id = ?".toCQL
     .prepare[String]
     .as[Hotel]
-// hotelsById: internal.cql.ScalaPreparedStatement1[String, Hotel] = net.nmoncho.helenus.internal.cql.ScalaPreparedStatement1@429e189a
+// hotelsById: internal.cql.ScalaPreparedStatement1[String, Hotel] = net.nmoncho.helenus.internal.cql.ScalaPreparedStatement1@6d340786
 
 // We can extract a single result using `nextOption()`, or
 // use `to(Coll)` to transform the result to a collection
@@ -115,7 +116,7 @@ hotelsById.execute("h1").nextOption()
 
 // We can also run the same using CQL interpolated queries
 val interpolatedHotelsById = cql"SELECT * FROM hotels WHERE id = $hotelId"
-// interpolatedHotelsById: api.cql.WrappedBoundStatement[com.datastax.oss.driver.api.core.cql.Row] = net.nmoncho.helenus.api.cql.WrappedBoundStatement@5e725c5d
+// interpolatedHotelsById: api.cql.WrappedBoundStatement[com.datastax.oss.driver.api.core.cql.Row] = net.nmoncho.helenus.api.cql.WrappedBoundStatement@2f350f60
 
 interpolatedHotelsById.as[Hotel].execute().nextOption()
 // res1: Option[Hotel] = Some(

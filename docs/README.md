@@ -17,6 +17,7 @@ We also provide integration against several streaming libraries:
 - Akka BUSL
 - Flink (Experimental)
 - Pekko
+- ZIO
 
 ## Installation
 
@@ -56,7 +57,7 @@ As of this version, Helenus supports the following types:
   - This means, if used properly, no more boxing.
 - Collections: `Seq`, `List`, `Vector`, `Map`, `Set`, `SortedMap`, `SortedSet`.
   - If you need a codec that isn't provided out of the box, please read [this guide](https://github.com/nMoncho/helenus/wiki/Codecs#where-is-the-typecodec-for-x-collection) on how to add it.
-- Enumerations: Can be encoded by name or by order. See [Enumeration Codecs](#enumeration-codecs).
+- Enumerations: Can be encoded by name or by order. See [Enumeration Codecs](https://github.com/nMoncho/helenus/wiki/Codecs).
 - Tuples: Encoded as regular Cassandra tuples
 - Case Classes: Encoded as regular Cassandra UDTs
 - Others: `Option`, and `Either` (encoded as a tuple).
@@ -84,7 +85,7 @@ case class Address(street: String, city: String, stateOrProvince: String, postal
 case class Hotel(id: String, name: String, phone: String, address: Address, pois: Set[String])
 
 // We can derive Cassandra TypeCodecs used to map UDTs to case classes
-implicit val typeCodec: TypeCodec[Address] = Codec.udtOf[Address]()
+implicit val typeCodec: TypeCodec[Address] = Codec.of[Address]()
 
 // We can derive how query results map to case classes
 implicit val rowMapper: RowMapper[Hotel] = RowMapper[Hotel]
