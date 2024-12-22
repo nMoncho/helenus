@@ -223,7 +223,7 @@ object ZIOQueriesSpec extends ZCassandraSpec {
       isFailure
     ) &&
     assertZIO("SELECT * ice_creams".toZCQL.prepareUnit.exit)(
-      fails(isSubtype[InvalidQueryException](anything))
+      fails(isSubtype[InvalidStatementException](anything))
     )
   }
 
@@ -260,7 +260,7 @@ object ZIOQueriesSpec extends ZCassandraSpec {
       isFailure
     ) &&
     assertZIO("SELECT * ice_creams".toZCQL.prepareUnitAsync.exit)(
-      fails(isSubtype[InvalidQueryException](anything))
+      fails(isSubtype[InvalidStatementException](anything))
     )
   }
 

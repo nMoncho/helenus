@@ -41,7 +41,7 @@ class ZLazyCqlSession(hostname: String, port: Int) extends ZCqlSession {
 
   private lazy val underlying = new ZDefaultCqlSession(session)
 
-  override def close(): IO[Throwable, Unit] =
+  override def close(): IO[CassandraException, Unit] =
     underlying.close()
 
   override def prepare(query: String): IO[CassandraException, PreparedStatement] =
@@ -50,23 +50,23 @@ class ZLazyCqlSession(hostname: String, port: Int) extends ZCqlSession {
   override def prepareAsync(query: String): IO[CassandraException, PreparedStatement] =
     underlying.prepareAsync(query)
 
-  override def execute(statement: String): IO[Throwable, ResultSet] =
+  override def execute(statement: String): IO[CassandraException, ResultSet] =
     underlying.execute(statement)
 
   override def execute[Out: RowMapper](
       statement: ScalaBoundStatement[Out]
-  ): IO[Throwable, PagingIterable[Try[Out]]] =
+  ): IO[CassandraException, PagingIterable[Try[Out]]] =
     underlying.execute(statement)
 
-  override def executeAsync(statement: String): IO[Throwable, AsyncResultSet] =
+  override def executeAsync(statement: String): IO[CassandraException, AsyncResultSet] =
     underlying.executeAsync(statement)
 
   override def executeAsync[Out: RowMapper](
       stmt: ScalaBoundStatement[Out]
-  ): IO[Throwable, MappedAsyncPagingIterable[Try[Out]]] =
+  ): IO[CassandraException, MappedAsyncPagingIterable[Try[Out]]] =
     underlying.executeAsync(stmt)
 
-  override def executeAsyncFromJava(bs: BoundStatement): IO[Throwable, AsyncResultSet] =
+  override def executeAsyncFromJava(bs: BoundStatement): IO[CassandraException, AsyncResultSet] =
     underlying.executeAsyncFromJava(bs)
 
   object unsafe {

@@ -42,92 +42,92 @@ import net.nmoncho.helenus.zio.macros.ZIOCqlQueryInterpolation
 package object zio extends CodecDerivation {
 
   type ZPagingIterable[Out] =
-    ZIO[ZCqlSession, Throwable, PagingIterable[Out]]
+    ZIO[ZCqlSession, CassandraException, PagingIterable[Out]]
 
   type ZAsyncPagingIterable[Out] =
-    ZIO[ZCqlSession, Throwable, MappedAsyncPagingIterable[Out]]
+    ZIO[ZCqlSession, CassandraException, MappedAsyncPagingIterable[Out]]
 
   type ZCqlStream[Out] =
-    ZStream[ZCqlSession, Throwable, Chunk[Out]]
+    ZStream[ZCqlSession, CassandraException, Chunk[Out]]
 
   type ZWrappedBoundStatement[Out] =
-    ZIO[ZCqlSession, Throwable, WrappedBoundStatement[Out]]
+    ZIO[ZCqlSession, CassandraException, WrappedBoundStatement[Out]]
 
   type ZScalaPreparedStatement[In, Out] =
-    ZIO[ZCqlSession, Throwable, ScalaPreparedStatement[In, Out]]
+    ZIO[ZCqlSession, CassandraException, ScalaPreparedStatement[In, Out]]
 
   type ZAdaptedScalaPreparedStatement[In2, In, Out] =
-    ZIO[ZCqlSession, Throwable, AdaptedScalaPreparedStatement[In2, In, Out]]
+    ZIO[ZCqlSession, CassandraException, AdaptedScalaPreparedStatement[In2, In, Out]]
 
   type ZScalaPreparedStatementUnit[Out] =
-    ZIO[ZCqlSession, Throwable, ScalaPreparedStatementUnit[Out]]
+    ZIO[ZCqlSession, CassandraException, ScalaPreparedStatementUnit[Out]]
 
   type ZScalaPreparedStatement1[T1, Out] =
-    ZIO[ZCqlSession, Throwable, ScalaPreparedStatement1[T1, Out]]
+    ZIO[ZCqlSession, CassandraException, ScalaPreparedStatement1[T1, Out]]
 
   type ZScalaPreparedStatement2[T1, T2, Out] =
-    ZIO[ZCqlSession, Throwable, ScalaPreparedStatement2[T1, T2, Out]]
+    ZIO[ZCqlSession, CassandraException, ScalaPreparedStatement2[T1, T2, Out]]
 
   // format: off
   type ZScalaPreparedStatement3[T1, T2, T3, Out] =
-    ZIO[ZCqlSession, Throwable, ScalaPreparedStatement3[T1, T2, T3, Out]]
+    ZIO[ZCqlSession, CassandraException, ScalaPreparedStatement3[T1, T2, T3, Out]]
 
   type ZScalaPreparedStatement4[T1, T2, T3, T4, Out] =
-    ZIO[ZCqlSession, Throwable, ScalaPreparedStatement4[T1, T2, T3, T4, Out]]
+    ZIO[ZCqlSession, CassandraException, ScalaPreparedStatement4[T1, T2, T3, T4, Out]]
 
   type ZScalaPreparedStatement5[T1, T2, T3, T4, T5, Out] =
-    ZIO[ZCqlSession, Throwable, ScalaPreparedStatement5[T1, T2, T3, T4, T5, Out]]
+    ZIO[ZCqlSession, CassandraException, ScalaPreparedStatement5[T1, T2, T3, T4, T5, Out]]
 
   type ZScalaPreparedStatement6[T1, T2, T3, T4, T5, T6, Out] =
-    ZIO[ZCqlSession, Throwable, ScalaPreparedStatement6[T1, T2, T3, T4, T5, T6, Out]]
+    ZIO[ZCqlSession, CassandraException, ScalaPreparedStatement6[T1, T2, T3, T4, T5, T6, Out]]
 
   type ZScalaPreparedStatement7[T1, T2, T3, T4, T5, T6, T7, Out] =
-    ZIO[ZCqlSession, Throwable, ScalaPreparedStatement7[T1, T2, T3, T4, T5, T6, T7, Out]]
+    ZIO[ZCqlSession, CassandraException, ScalaPreparedStatement7[T1, T2, T3, T4, T5, T6, T7, Out]]
 
   type ZScalaPreparedStatement8[T1, T2, T3, T4, T5, T6, T7, T8, Out] =
-    ZIO[ZCqlSession, Throwable, ScalaPreparedStatement8[T1, T2, T3, T4, T5, T6, T7, T8, Out]]
+    ZIO[ZCqlSession, CassandraException, ScalaPreparedStatement8[T1, T2, T3, T4, T5, T6, T7, T8, Out]]
 
   type ZScalaPreparedStatement9[T1, T2, T3, T4, T5, T6, T7, T8, T9, Out] =
-    ZIO[ZCqlSession, Throwable, ScalaPreparedStatement9[T1, T2, T3, T4, T5, T6, T7, T8, T9, Out]]
+    ZIO[ZCqlSession, CassandraException, ScalaPreparedStatement9[T1, T2, T3, T4, T5, T6, T7, T8, T9, Out]]
 
   type ZScalaPreparedStatement10[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, Out] =
-    ZIO[ZCqlSession, Throwable, ScalaPreparedStatement10[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, Out]]
+    ZIO[ZCqlSession, CassandraException, ScalaPreparedStatement10[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, Out]]
 
   type ZScalaPreparedStatement11[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, Out] =
-    ZIO[ZCqlSession, Throwable, ScalaPreparedStatement11[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, Out]]
+    ZIO[ZCqlSession, CassandraException, ScalaPreparedStatement11[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, Out]]
 
   type ZScalaPreparedStatement12[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, Out] =
-    ZIO[ZCqlSession, Throwable, ScalaPreparedStatement12[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, Out]]
+    ZIO[ZCqlSession, CassandraException, ScalaPreparedStatement12[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, Out]]
 
   type ZScalaPreparedStatement13[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, Out] =
-    ZIO[ZCqlSession, Throwable, ScalaPreparedStatement13[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, Out]]
+    ZIO[ZCqlSession, CassandraException, ScalaPreparedStatement13[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, Out]]
 
   type ZScalaPreparedStatement14[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, Out] =
-    ZIO[ZCqlSession, Throwable, ScalaPreparedStatement14[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, Out]]
+    ZIO[ZCqlSession, CassandraException, ScalaPreparedStatement14[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, Out]]
 
   type ZScalaPreparedStatement15[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, Out] =
-    ZIO[ZCqlSession, Throwable, ScalaPreparedStatement15[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, Out]]
+    ZIO[ZCqlSession, CassandraException, ScalaPreparedStatement15[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, Out]]
 
   type ZScalaPreparedStatement16[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, Out] =
-    ZIO[ZCqlSession, Throwable, ScalaPreparedStatement16[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, Out]]
+    ZIO[ZCqlSession, CassandraException, ScalaPreparedStatement16[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, Out]]
 
   type ZScalaPreparedStatement17[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, Out] =
-    ZIO[ZCqlSession, Throwable, ScalaPreparedStatement17[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, Out]]
+    ZIO[ZCqlSession, CassandraException, ScalaPreparedStatement17[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, Out]]
 
   type ZScalaPreparedStatement18[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, Out] =
-    ZIO[ZCqlSession, Throwable, ScalaPreparedStatement18[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, Out]]
+    ZIO[ZCqlSession, CassandraException, ScalaPreparedStatement18[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, Out]]
 
   type ZScalaPreparedStatement19[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, Out] =
-    ZIO[ZCqlSession, Throwable, ScalaPreparedStatement19[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, Out]]
+    ZIO[ZCqlSession, CassandraException, ScalaPreparedStatement19[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, Out]]
 
   type ZScalaPreparedStatement20[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, Out] =
-    ZIO[ZCqlSession, Throwable, ScalaPreparedStatement20[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, Out]]
+    ZIO[ZCqlSession, CassandraException, ScalaPreparedStatement20[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, Out]]
 
   type ZScalaPreparedStatement21[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, Out] =
-    ZIO[ZCqlSession, Throwable, ScalaPreparedStatement21[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, Out]]
+    ZIO[ZCqlSession, CassandraException, ScalaPreparedStatement21[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, Out]]
 
   type ZScalaPreparedStatement22[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, Out] =
-    ZIO[ZCqlSession, Throwable, ScalaPreparedStatement22[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, Out]]
+    ZIO[ZCqlSession, CassandraException, ScalaPreparedStatement22[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, Out]]
 
   // format: on
 
@@ -148,7 +148,9 @@ package object zio extends CodecDerivation {
 
   }
 
-  private def executeStatement[In, Out: RowMapper](prepared: ZIO[ZCqlSession, Throwable, In])(
+  private def executeStatement[In, Out: RowMapper](
+      prepared: ZIO[ZCqlSession, CassandraException, In]
+  )(
       fn: In => ScalaBoundStatement[Out]
   ): ZPagingIterable[Try[Out]] = for {
     session <- ZIO.service[ZCqlSession]
@@ -156,7 +158,9 @@ package object zio extends CodecDerivation {
     result <- session.execute(fn(pstmt))
   } yield result
 
-  private def executeStatementAsync[In, Out: RowMapper](prepared: ZIO[ZCqlSession, Throwable, In])(
+  private def executeStatementAsync[In, Out: RowMapper](
+      prepared: ZIO[ZCqlSession, CassandraException, In]
+  )(
       fn: In => ScalaBoundStatement[Out]
   ): ZAsyncPagingIterable[Try[Out]] = for {
     session <- ZIO.service[ZCqlSession]
@@ -186,7 +190,7 @@ package object zio extends CodecDerivation {
       }
     )
 
-  private def executeSink[In, A](prepared: ZIO[ZCqlSession, Throwable, In])(
+  private def executeSink[In, A](prepared: ZIO[ZCqlSession, CassandraException, In])(
       fn: In => A => BoundStatement
   ): ZSink[ZCqlSession, Throwable, A, Nothing, Unit] = ZSink.foreach { in =>
     for {
@@ -198,14 +202,21 @@ package object zio extends CodecDerivation {
 
   private def paginate[Out](
       initial: MappedAsyncPagingIterable[Out]
-  ): ZStream[Any, Throwable, MappedAsyncPagingIterable[Out]] =
-    ZStream.paginateZIO(initial) { current =>
-      if (current.hasMorePages) {
-        ZIO.fromCompletionStage(current.fetchNextPage()).map(next => current -> Some(next))
-      } else {
-        ZIO.succeed(current -> None)
+  ): ZStream[Any, CassandraException, MappedAsyncPagingIterable[Out]] =
+    ZStream
+      .paginateZIO(initial) { current =>
+        if (current.hasMorePages) {
+          ZIO.fromCompletionStage(current.fetchNextPage()).map(next => current -> Some(next))
+        } else {
+          ZIO.succeed(current -> None)
+        }
       }
-    }
+      .mapError(ex =>
+        new PaginationException(
+          "Something went wrong while trying to paginate a stream",
+          ex
+        )
+      )
 
   import scala.language.experimental.macros
 
@@ -998,7 +1009,7 @@ package object zio extends CodecDerivation {
       * <p>This is convenient for queries that are known to return exactly one row, for example count
       * queries.
       */
-    def oneOption: ZIO[ZCqlSession, Throwable, Option[Out]] = pi.flatMap { underlying =>
+    def oneOption: ZIO[ZCqlSession, CassandraException, Option[Out]] = pi.flatMap { underlying =>
       underlying.nextOption() match {
         case Some(Success(value)) =>
           ZIO.succeed(Some(value))
@@ -1031,7 +1042,7 @@ package object zio extends CodecDerivation {
       */
     def to[Col[_]](factory: Factory[Out, Col[Out]])(
         implicit cbf: BuildFrom[Nothing, Out, Col[Out]]
-    ): ZIO[ZCqlSession, Throwable, Col[Out]] =
+    ): ZIO[ZCqlSession, CassandraException, Col[Out]] =
       pi.flatMap { underlying =>
         val it = underlying.iter
 
@@ -1072,7 +1083,7 @@ package object zio extends CodecDerivation {
       * If you know the result size is small, consider using the `.to(Coll)` method.
       * Otherwise consider using async execution where you can control the pages within ZIO
       */
-    def iterator: ZIO[ZCqlSession, Throwable, Iterator[Try[Out]]] =
+    def iterator: ZIO[ZCqlSession, CassandraException, Iterator[Try[Out]]] =
       pi.map(_.iter)
 
   }
@@ -1088,7 +1099,7 @@ package object zio extends CodecDerivation {
      * Unlike the synchronous page, this iterator <em>won't</em> fetch more pages
      * when it runs out of records. To do that, use the `fetchNextPage()` method
      */
-    def currentAndNextPage: ZIO[ZCqlSession, Throwable, (Iterator[Try[Out]], ZAsyncPagingIterable[Try[Out]])] =
+    def currentAndNextPage: ZIO[ZCqlSession, CassandraException, (Iterator[Try[Out]], ZAsyncPagingIterable[Try[Out]])] =
       zpi.map(_.currPage -> fetchNextPage)
     // format: on
 
@@ -1097,7 +1108,9 @@ package object zio extends CodecDerivation {
       zpi.flatMap(fetchNextPage)
 
     private def fetchNextPage(underlying: MappedAsyncPagingIterable[Try[Out]]) =
-      ZIO.fromCompletionStage(underlying.fetchNextPage())
+      ZIO
+        .fromCompletionStage(underlying.fetchNextPage())
+        .mapError(new PaginationException("Something went wrong while trying to fetch a page", _))
 
     /** Returns the next element from the results.
       *
@@ -1108,7 +1121,7 @@ package object zio extends CodecDerivation {
       *
       * @return [[Some]] value if results haven't been exhausted, [[None]] otherwise
       */
-    def oneOption: ZIO[ZCqlSession, Throwable, Option[Out]] = zpi.flatMap { underlying =>
+    def oneOption: ZIO[ZCqlSession, CassandraException, Option[Out]] = zpi.flatMap { underlying =>
       underlying.oneOption match {
         case Some(Success(value)) =>
           ZIO.succeed(Some(value))
@@ -1139,7 +1152,7 @@ package object zio extends CodecDerivation {
       *
       * @return [[Some]] value if results haven't been exhausted, [[None]] otherwise
       */
-    def nextOption: ZIO[ZCqlSession, Throwable, (Option[Out], ZAsyncPagingIterable[Try[Out]])] = {
+    def nextOption: ZIO[ZCqlSession, CassandraException, (Option[Out], ZAsyncPagingIterable[Try[Out]])] = {
       zpi.flatMap { underlying =>
         underlying.oneOption match {
           case Some(Success(value)) =>
@@ -1178,7 +1191,7 @@ package object zio extends CodecDerivation {
       */
     def to[Col[_]](factory: Factory[Out, Col[Out]])(
         implicit cbf: BuildFrom[Nothing, Out, Col[Out]]
-    ): ZIO[ZCqlSession, Throwable, Col[Out]] =
+    ): ZIO[ZCqlSession, CassandraException, Col[Out]] =
       zpi.flatMap { underlying =>
         val it = underlying.currentPage().iterator()
 

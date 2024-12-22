@@ -27,10 +27,19 @@ sealed abstract class CassandraException(message: String, cause: Throwable)
 class SessionOpenException(message: String, cause: Throwable)
     extends CassandraException(message, cause)
 
-class InvalidQueryException(message: String, cause: Throwable)
+class SessionClosingException(message: String, cause: Throwable)
+    extends CassandraException(message, cause)
+
+class InvalidStatementException(message: String, cause: Throwable)
+    extends CassandraException(message, cause)
+
+class StatementExecutionException(message: String, cause: Throwable)
     extends CassandraException(message, cause)
 
 class InvalidMappingException(message: String, cause: Throwable)
+    extends CassandraException(message, cause)
+
+class PaginationException(message: String, cause: Throwable)
     extends CassandraException(message, cause)
 
 class GenericCassandraException(message: String, cause: Throwable)

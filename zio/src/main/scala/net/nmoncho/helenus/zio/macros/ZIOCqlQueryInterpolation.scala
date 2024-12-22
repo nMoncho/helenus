@@ -26,6 +26,7 @@ import scala.reflect.macros.blackbox
 import com.datastax.oss.driver.api.core.cql.Row
 import com.datastax.oss.driver.internal.core.util.Strings
 import net.nmoncho.helenus.api.cql.WrappedBoundStatement
+import net.nmoncho.helenus.zio.CassandraException
 import net.nmoncho.helenus.zio.ZCqlSession
 import zio.ZIO
 
@@ -33,30 +34,34 @@ object ZIOCqlQueryInterpolation {
 
   def zcql(
       c: blackbox.Context
-  )(params: c.Expr[Any]*): c.Expr[ZIO[ZCqlSession, Throwable, WrappedBoundStatement[Row]]] = {
+  )(
+      params: c.Expr[Any]*
+  ): c.Expr[ZIO[ZCqlSession, CassandraException, WrappedBoundStatement[Row]]] = {
     import c.universe._
 
     val (stmt, bounders) = buildStatementAndBounders(c)(params)
 
-    c.Expr[ZIO[ZCqlSession, Throwable, WrappedBoundStatement[Row]]](
+    c.Expr[ZIO[ZCqlSession, CassandraException, WrappedBoundStatement[Row]]](
       q"""_root_.zio.ZIO.serviceWithZIO[_root_.net.nmoncho.helenus.zio.ZCqlSession](
          _.prepare($stmt).map { pstmt => var bstmt = pstmt.bind(); ..$bounders; new _root_.net.nmoncho.helenus.api.cql.WrappedBoundStatement(bstmt)(_root_.net.nmoncho.helenus.api.RowMapper.identity) }
-       )
+       ).mapError(new _root_.net.nmoncho.helenus.zio.StatementExecutionException("Something went wrong while trying to execute an interpolated statement", _))
        """
     )
   }
 
   def zcqlAsync(
       c: blackbox.Context
-  )(params: c.Expr[Any]*): c.Expr[ZIO[ZCqlSession, Throwable, WrappedBoundStatement[Row]]] = {
+  )(
+      params: c.Expr[Any]*
+  ): c.Expr[ZIO[ZCqlSession, CassandraException, WrappedBoundStatement[Row]]] = {
     import c.universe._
 
     val (stmt, bounders) = buildStatementAndBounders(c)(params)
 
-    c.Expr[ZIO[ZCqlSession, Throwable, WrappedBoundStatement[Row]]](
+    c.Expr[ZIO[ZCqlSession, CassandraException, WrappedBoundStatement[Row]]](
       q"""_root_.zio.ZIO.serviceWithZIO[_root_.net.nmoncho.helenus.zio.ZCqlSession](
          _.prepareAsync($stmt).map { pstmt => var bstmt = pstmt.bind(); ..$bounders; new _root_.net.nmoncho.helenus.api.cql.WrappedBoundStatement(bstmt)(_root_.net.nmoncho.helenus.api.RowMapper.identity) }
-       )
+       ).mapError(new _root_.net.nmoncho.helenus.zio.StatementExecutionException("Something went wrong while trying to execute async an interpolated statement", _))
        """
     )
   }

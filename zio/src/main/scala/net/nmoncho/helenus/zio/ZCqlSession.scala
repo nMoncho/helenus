@@ -134,7 +134,7 @@ trait ZCqlSession {
 
   /** Closes this session
     */
-  def close(): IO[Throwable, Unit]
+  def close(): IO[CassandraException, Unit]
 
   /** Prepares a query synchronously
     *
@@ -155,7 +155,7 @@ trait ZCqlSession {
     * @param statement statement to executed
     * @return [[ResultSet]] from execution
     */
-  def execute(statement: String): IO[Throwable, ResultSet]
+  def execute(statement: String): IO[CassandraException, ResultSet]
 
   /** Executes a [[ScalaBoundStatement]] synchronously
     *
@@ -165,14 +165,14 @@ trait ZCqlSession {
     */
   def execute[Out: RowMapper](
       stmt: ScalaBoundStatement[Out]
-  ): IO[Throwable, PagingIterable[Try[Out]]]
+  ): IO[CassandraException, PagingIterable[Try[Out]]]
 
   /** Executes a simple (unprepared) statement asynchronously
     *
     * @param statement statement to executed
     * @return [[AsyncResultSet]] from execution
     */
-  def executeAsync(statement: String): IO[Throwable, AsyncResultSet]
+  def executeAsync(statement: String): IO[CassandraException, AsyncResultSet]
 
   /** Executes a [[ScalaBoundStatement]] asynchronously
     *
@@ -182,30 +182,35 @@ trait ZCqlSession {
     */
   def executeAsync[Out: RowMapper](
       stmt: ScalaBoundStatement[Out]
-  ): IO[Throwable, MappedAsyncPagingIterable[Try[Out]]]
+  ): IO[CassandraException, MappedAsyncPagingIterable[Try[Out]]]
 
   /** Executes a [[BoundStatement]] asynchronously
     *
     * @param bs statement to execute
     * @return [[AsyncResultSet]] from execution
     */
-  def executeAsyncFromJava(bs: BoundStatement): IO[Throwable, AsyncResultSet]
+  def executeAsyncFromJava(bs: BoundStatement): IO[CassandraException, AsyncResultSet]
 }
 
 class ZDefaultCqlSession(private val session: CqlSession) extends ZCqlSession {
 
-  override def close(): IO[Throwable, Unit] =
-    ZIO.fromCompletionStage(session.closeAsync()).map(_ => ())
+  override def close(): IO[CassandraException, Unit] =
+    ZIO
+      .fromCompletionStage(session.closeAsync())
+      .map(_ => ())
+      .mapError(
+        new SessionClosingException("Something went wrong while closing the session", _)
+      )
 
   override def prepare(query: String): IO[CassandraException, PreparedStatement] =
     ZIO
       .attempt(session.prepare(query))
       .mapError {
         case syntaxError: SyntaxError =>
-          new InvalidQueryException(s"Invalid query syntax [$query]", syntaxError)
+          new InvalidStatementException(s"Invalid query syntax [$query]", syntaxError)
 
         case npe: NullPointerException if query == null =>
-          new InvalidQueryException("Query cannot be null", npe)
+          new InvalidStatementException("Query cannot be null", npe)
 
         case ex =>
           new GenericCassandraException(s"Something went wrong while preparing query [$query]", ex)
@@ -216,53 +221,74 @@ class ZDefaultCqlSession(private val session: CqlSession) extends ZCqlSession {
       .fromCompletionStage(session.prepareAsync(query))
       .mapError {
         case syntaxError: SyntaxError =>
-          new InvalidQueryException(s"Invalid query syntax [$query]", syntaxError)
+          new InvalidStatementException(s"Invalid query syntax [$query]", syntaxError)
 
         case npe: NullPointerException if query == null =>
-          new InvalidQueryException("Query cannot be null", npe)
+          new InvalidStatementException("Query cannot be null", npe)
 
         case ex =>
           new GenericCassandraException(s"Something went wrong while preparing query [$query]", ex)
       }
 
-  override def execute(statement: String): IO[Throwable, ResultSet] =
-    ZIO.attempt(session.execute(statement))
+  override def execute(statement: String): IO[CassandraException, ResultSet] =
+    ZIO
+      .attempt(session.execute(statement))
+      .mapError(ex =>
+        new StatementExecutionException(
+          "Something went wrong while trying to execute a statement",
+          ex
+        )
+      )
 
   override def execute[Out: RowMapper](
       statement: ScalaBoundStatement[Out]
-  ): IO[Throwable, PagingIterable[Try[Out]]] = {
+  ): IO[CassandraException, PagingIterable[Try[Out]]] = {
     val mapper = implicitly[RowMapper[Out]]
 
     ZIO
       .attempt(session.execute(statement))
       .map(rs => rs.map[Try[Out]]((row: Row) => Try(mapper(row))))
       .mapError(ex =>
-        new GenericCassandraException(
+        new StatementExecutionException(
           "Something went wrong while trying to execute a statement",
           ex
         )
       )
   }
 
-  override def executeAsync(statement: String): IO[Throwable, AsyncResultSet] =
-    ZIO.fromCompletionStage(session.executeAsync(statement))
+  override def executeAsync(statement: String): IO[CassandraException, AsyncResultSet] =
+    ZIO
+      .fromCompletionStage(session.executeAsync(statement))
+      .mapError(ex =>
+        new StatementExecutionException(
+          "Something went wrong while trying to execute async a statement",
+          ex
+        )
+      )
 
   override def executeAsync[Out: RowMapper](
       statement: ScalaBoundStatement[Out]
-  ): IO[Throwable, MappedAsyncPagingIterable[Try[Out]]] = {
+  ): IO[CassandraException, MappedAsyncPagingIterable[Try[Out]]] = {
     val mapper = implicitly[RowMapper[Out]]
 
     ZIO
       .fromCompletionStage(session.executeAsync(statement))
       .map(rs => rs.map[Try[Out]]((row: Row) => Try(mapper(row))))
       .mapError(ex =>
-        new GenericCassandraException(
+        new StatementExecutionException(
           "Something went wrong while trying to execute async a statement",
           ex
         )
       )
   }
 
-  override def executeAsyncFromJava(bs: BoundStatement): IO[Throwable, AsyncResultSet] =
-    ZIO.fromCompletionStage(session.executeAsync(bs))
+  override def executeAsyncFromJava(bs: BoundStatement): IO[CassandraException, AsyncResultSet] =
+    ZIO
+      .fromCompletionStage(session.executeAsync(bs))
+      .mapError(ex =>
+        new StatementExecutionException(
+          "Something went wrong while trying to execute a statement",
+          ex
+        )
+      )
 }
