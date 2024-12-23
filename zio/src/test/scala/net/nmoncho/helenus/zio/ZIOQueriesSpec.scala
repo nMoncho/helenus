@@ -44,6 +44,7 @@ object ZIOQueriesSpec extends ZCassandraSpec {
     errorHandlingTest,
     errorAsyncHandlingTest,
     errorStreamHandlingTest,
+    syncPaginationNextOptionTest,
     asyncPaginationTest,
     asyncPaginationNextOptionTest
   ) @@ TestAspect.beforeAll(beforeAll()) @@ TestAspect.before(beforeEach()) @@ TestAspect.sequential
@@ -304,6 +305,34 @@ object ZIOQueriesSpec extends ZCassandraSpec {
       assertTrue(page4.isEmpty)
     }
   }
+
+  private def syncPaginationNextOptionTest =
+    test("should paginate results with sync execution (nextOption)") {
+      val query = "SELECT * FROM ice_creams".toZCQL.prepareUnit
+        .to[IceCream]
+        .execute()
+
+      for {
+        _ <- ZIO.foreach(ijes)(SyncQueries.insertFrom)
+        firstAndPage <- query.nextOption
+        (first, zPage2) = firstAndPage
+        secondAndPage <- zPage2.nextOption
+        (second, zPage3) = secondAndPage
+        thirdAndPage <- zPage3.nextOption
+        (third, zPage4) = thirdAndPage
+        forthAndPagePage <- zPage4.nextOption
+        (forth, _) = forthAndPagePage
+
+        // make sure that `to` fetches all records
+        all <- query.to(List)
+      } yield {
+        assertTrue(first.nonEmpty) &&
+        assertTrue(second.nonEmpty) &&
+        assertTrue(third.nonEmpty) &&
+        assertTrue(forth.isEmpty) &&
+        assertTrue(all.toSet == ijes.toSet)
+      }
+    }
 
   private def asyncPaginationNextOptionTest =
     test("should paginate results with async execution (nextOption)") {

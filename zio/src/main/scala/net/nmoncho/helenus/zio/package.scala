@@ -1801,6 +1801,40 @@ package object zio extends CodecDerivation {
       }
     }
 
+    // format: off
+    /** Returns the next element from the results.
+      *
+      * It also returns the [[PagingIterable]] that should be used next, since this could be the
+      * last element from the page. A [[PagingIterable]] effectively represents a pagination mechanism
+      *
+      * This is convenient for queries that are known to return exactly one element, for example
+      * count queries.
+      *
+      * @return [[Some]] value if results haven't been exhausted, [[None]] otherwise
+      */
+    def nextOption: ZIO[ZCqlSession, CassandraException, (Option[Out], ZPagingIterable[Try[Out]])] = {
+      pi.flatMap { underlying =>
+        underlying.nextOption() match {
+          case Some(Success(value)) =>
+            ZIO.succeed(Some(value) -> ZIO.succeed(underlying))
+
+          case Some(Failure(iae: IllegalArgumentException)) =>
+            ZIO.fail(
+              new InvalidMappingException("Something went wrong while trying to decode a row", iae)
+            )
+
+          case Some(Failure(t)) =>
+            ZIO.fail(
+              new GenericCassandraException("Something went wrong while getting the next row", t)
+            )
+
+          case _ =>
+            ZIO.succeed(None -> pi)
+        }
+      }
+    }
+    // format: on
+
     /** This [[PagingIterable]] as a Scala Collection; <b>not recommended for queries that return a
       * large number of elements</b>.
       *
