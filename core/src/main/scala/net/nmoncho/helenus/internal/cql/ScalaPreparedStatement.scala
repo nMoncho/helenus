@@ -74,7 +74,7 @@ class AdaptedScalaPreparedStatement[In2, In, Out](pstmt: ScalaPreparedStatement[
   def execute(t1: In2)(implicit session: CqlSession): PagingIterable[Out] =
     apply(t1).execute()
 
-  /** Executes this [[PreparedStatement]] in a asynchronous fashion using
+  /** Executes this [[PreparedStatement]] in an asynchronous fashion using
    * the provided [[In]] input value
    *
    * @return a future of [[MappedAsyncPagingIterable]]
@@ -134,7 +134,7 @@ class ScalaPreparedStatementUnit[Out](pstmt: PreparedStatement, mapper: RowMappe
   def execute()(implicit session: CqlSession): PagingIterable[Out] =
     apply().execute()
 
-  /** Executes this [[PreparedStatement]] in a asynchronous fashion
+  /** Executes this [[PreparedStatement]] in an asynchronous fashion
    *
    * @return a future of [[MappedAsyncPagingIterable]]
    */
@@ -198,7 +198,7 @@ class ScalaPreparedStatementMapped[T1, Out](pstmt: PreparedStatement, mapper: Ro
   def execute(t1: T1)(implicit session: CqlSession): PagingIterable[Out] =
     apply(t1).execute()
 
-  /** Executes this [[PreparedStatement]] in a asynchronous fashion using
+  /** Executes this [[PreparedStatement]] in an asynchronous fashion using
    * the provided [[T1]] input value
    *
    * @return a future of [[MappedAsyncPagingIterable]]
@@ -267,7 +267,7 @@ class ScalaPreparedStatement1[T1, Out](pstmt: PreparedStatement, mapper: RowMapp
   def execute(t1: T1)(implicit session: CqlSession): PagingIterable[Out] =
     apply(t1).execute()
 
-  /** Executes this [[PreparedStatement]] in a asynchronous fashion using
+  /** Executes this [[PreparedStatement]] in an asynchronous fashion using
    * the provided [[T1]] input value
    *
    * @return a future of [[MappedAsyncPagingIterable]]
@@ -334,7 +334,7 @@ class ScalaPreparedStatement1[T1, Out](pstmt: PreparedStatement, mapper: RowMapp
 //        |  def execute($parameterList)(implicit session: CqlSession): PagingIterable[Out] =
 //        |    apply($methodParameters).execute()
 //        |
-//        |  /** Executes this [[PreparedStatement]] in a asynchronous fashion
+//        |  /** Executes this [[PreparedStatement]] in an asynchronous fashion
 //        |   *
 //        |   * @return a future of [[MappedAsyncPagingIterable]]
 //        |   */
@@ -398,7 +398,7 @@ class ScalaPreparedStatement2[T1, T2, Out](pstmt: PreparedStatement, mapper: Row
   def execute(t1: T1, t2: T2)(implicit session: CqlSession): PagingIterable[Out] =
     apply(t1, t2).execute()
 
-  /** Executes this [[PreparedStatement]] in a asynchronous fashion
+  /** Executes this [[PreparedStatement]] in an asynchronous fashion
    *
    * @return a future of [[MappedAsyncPagingIterable]]
    */
@@ -460,7 +460,7 @@ class ScalaPreparedStatement3[T1, T2, T3, Out](pstmt: PreparedStatement, mapper:
   def execute(t1: T1, t2: T2, t3: T3)(implicit session: CqlSession): PagingIterable[Out] =
     apply(t1, t2, t3).execute()
 
-  /** Executes this [[PreparedStatement]] in a asynchronous fashion
+  /** Executes this [[PreparedStatement]] in an asynchronous fashion
    *
    * @return a future of [[MappedAsyncPagingIterable]]
    */
@@ -522,7 +522,7 @@ class ScalaPreparedStatement4[T1, T2, T3, T4, Out](pstmt: PreparedStatement, map
   def execute(t1: T1, t2: T2, t3: T3, t4: T4)(implicit session: CqlSession): PagingIterable[Out] =
     apply(t1, t2, t3, t4).execute()
 
-  /** Executes this [[PreparedStatement]] in a asynchronous fashion
+  /** Executes this [[PreparedStatement]] in an asynchronous fashion
    *
    * @return a future of [[MappedAsyncPagingIterable]]
    */
@@ -584,7 +584,7 @@ class ScalaPreparedStatement5[T1, T2, T3, T4, T5, Out](pstmt: PreparedStatement,
   def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5)(implicit session: CqlSession): PagingIterable[Out] =
     apply(t1, t2, t3, t4, t5).execute()
 
-  /** Executes this [[PreparedStatement]] in a asynchronous fashion
+  /** Executes this [[PreparedStatement]] in an asynchronous fashion
    *
    * @return a future of [[MappedAsyncPagingIterable]]
    */
@@ -646,7 +646,7 @@ class ScalaPreparedStatement6[T1, T2, T3, T4, T5, T6, Out](pstmt: PreparedStatem
   def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6)(implicit session: CqlSession): PagingIterable[Out] =
     apply(t1, t2, t3, t4, t5, t6).execute()
 
-  /** Executes this [[PreparedStatement]] in a asynchronous fashion
+  /** Executes this [[PreparedStatement]] in an asynchronous fashion
    *
    * @return a future of [[MappedAsyncPagingIterable]]
    */
@@ -708,7 +708,7 @@ class ScalaPreparedStatement7[T1, T2, T3, T4, T5, T6, T7, Out](pstmt: PreparedSt
   def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7)(implicit session: CqlSession): PagingIterable[Out] =
     apply(t1, t2, t3, t4, t5, t6, t7).execute()
 
-  /** Executes this [[PreparedStatement]] in a asynchronous fashion
+  /** Executes this [[PreparedStatement]] in an asynchronous fashion
    *
    * @return a future of [[MappedAsyncPagingIterable]]
    */
@@ -770,7 +770,7 @@ class ScalaPreparedStatement8[T1, T2, T3, T4, T5, T6, T7, T8, Out](pstmt: Prepar
   def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8)(implicit session: CqlSession): PagingIterable[Out] =
     apply(t1, t2, t3, t4, t5, t6, t7, t8).execute()
 
-  /** Executes this [[PreparedStatement]] in a asynchronous fashion
+  /** Executes this [[PreparedStatement]] in an asynchronous fashion
    *
    * @return a future of [[MappedAsyncPagingIterable]]
    */
@@ -832,7 +832,7 @@ class ScalaPreparedStatement9[T1, T2, T3, T4, T5, T6, T7, T8, T9, Out](pstmt: Pr
   def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9)(implicit session: CqlSession): PagingIterable[Out] =
     apply(t1, t2, t3, t4, t5, t6, t7, t8, t9).execute()
 
-  /** Executes this [[PreparedStatement]] in a asynchronous fashion
+  /** Executes this [[PreparedStatement]] in an asynchronous fashion
    *
    * @return a future of [[MappedAsyncPagingIterable]]
    */
@@ -894,7 +894,7 @@ class ScalaPreparedStatement10[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, Out](pst
   def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10)(implicit session: CqlSession): PagingIterable[Out] =
     apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10).execute()
 
-  /** Executes this [[PreparedStatement]] in a asynchronous fashion
+  /** Executes this [[PreparedStatement]] in an asynchronous fashion
    *
    * @return a future of [[MappedAsyncPagingIterable]]
    */
@@ -956,7 +956,7 @@ class ScalaPreparedStatement11[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, Out
   def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11)(implicit session: CqlSession): PagingIterable[Out] =
     apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11).execute()
 
-  /** Executes this [[PreparedStatement]] in a asynchronous fashion
+  /** Executes this [[PreparedStatement]] in an asynchronous fashion
    *
    * @return a future of [[MappedAsyncPagingIterable]]
    */
@@ -1018,7 +1018,7 @@ class ScalaPreparedStatement12[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12)(implicit session: CqlSession): PagingIterable[Out] =
     apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12).execute()
 
-  /** Executes this [[PreparedStatement]] in a asynchronous fashion
+  /** Executes this [[PreparedStatement]] in an asynchronous fashion
    *
    * @return a future of [[MappedAsyncPagingIterable]]
    */
@@ -1080,7 +1080,7 @@ class ScalaPreparedStatement13[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13)(implicit session: CqlSession): PagingIterable[Out] =
     apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13).execute()
 
-  /** Executes this [[PreparedStatement]] in a asynchronous fashion
+  /** Executes this [[PreparedStatement]] in an asynchronous fashion
    *
    * @return a future of [[MappedAsyncPagingIterable]]
    */
@@ -1142,7 +1142,7 @@ class ScalaPreparedStatement14[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14)(implicit session: CqlSession): PagingIterable[Out] =
     apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14).execute()
 
-  /** Executes this [[PreparedStatement]] in a asynchronous fashion
+  /** Executes this [[PreparedStatement]] in an asynchronous fashion
    *
    * @return a future of [[MappedAsyncPagingIterable]]
    */
@@ -1204,7 +1204,7 @@ class ScalaPreparedStatement15[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15)(implicit session: CqlSession): PagingIterable[Out] =
     apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15).execute()
 
-  /** Executes this [[PreparedStatement]] in a asynchronous fashion
+  /** Executes this [[PreparedStatement]] in an asynchronous fashion
    *
    * @return a future of [[MappedAsyncPagingIterable]]
    */
@@ -1266,7 +1266,7 @@ class ScalaPreparedStatement16[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16)(implicit session: CqlSession): PagingIterable[Out] =
     apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16).execute()
 
-  /** Executes this [[PreparedStatement]] in a asynchronous fashion
+  /** Executes this [[PreparedStatement]] in an asynchronous fashion
    *
    * @return a future of [[MappedAsyncPagingIterable]]
    */
@@ -1328,7 +1328,7 @@ class ScalaPreparedStatement17[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17)(implicit session: CqlSession): PagingIterable[Out] =
     apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17).execute()
 
-  /** Executes this [[PreparedStatement]] in a asynchronous fashion
+  /** Executes this [[PreparedStatement]] in an asynchronous fashion
    *
    * @return a future of [[MappedAsyncPagingIterable]]
    */
@@ -1390,7 +1390,7 @@ class ScalaPreparedStatement18[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18)(implicit session: CqlSession): PagingIterable[Out] =
     apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18).execute()
 
-  /** Executes this [[PreparedStatement]] in a asynchronous fashion
+  /** Executes this [[PreparedStatement]] in an asynchronous fashion
    *
    * @return a future of [[MappedAsyncPagingIterable]]
    */
@@ -1452,7 +1452,7 @@ class ScalaPreparedStatement19[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19)(implicit session: CqlSession): PagingIterable[Out] =
     apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19).execute()
 
-  /** Executes this [[PreparedStatement]] in a asynchronous fashion
+  /** Executes this [[PreparedStatement]] in an asynchronous fashion
    *
    * @return a future of [[MappedAsyncPagingIterable]]
    */
@@ -1514,7 +1514,7 @@ class ScalaPreparedStatement20[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20)(implicit session: CqlSession): PagingIterable[Out] =
     apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20).execute()
 
-  /** Executes this [[PreparedStatement]] in a asynchronous fashion
+  /** Executes this [[PreparedStatement]] in an asynchronous fashion
    *
    * @return a future of [[MappedAsyncPagingIterable]]
    */
@@ -1576,7 +1576,7 @@ class ScalaPreparedStatement21[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21)(implicit session: CqlSession): PagingIterable[Out] =
     apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21).execute()
 
-  /** Executes this [[PreparedStatement]] in a asynchronous fashion
+  /** Executes this [[PreparedStatement]] in an asynchronous fashion
    *
    * @return a future of [[MappedAsyncPagingIterable]]
    */
@@ -1638,7 +1638,7 @@ class ScalaPreparedStatement22[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21, t22: T22)(implicit session: CqlSession): PagingIterable[Out] =
     apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21, t22).execute()
 
-  /** Executes this [[PreparedStatement]] in a asynchronous fashion
+  /** Executes this [[PreparedStatement]] in an asynchronous fashion
    *
    * @return a future of [[MappedAsyncPagingIterable]]
    */

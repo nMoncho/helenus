@@ -245,18 +245,39 @@ package object zio extends CodecDerivation {
       private val bstmt: ZWrappedBoundStatement[Out]
   ) extends AnyVal {
 
+    /** Maps the result from this [[BoundStatement]] with a different [[Out2]]
+      * as long as there is an implicit [[RowMapper]] and [[Out]] is [[Row]] (this is
+      * meant to avoid calling `as` twice)
+      */
     def to[Out2](implicit ev: Out =:= Row, m: RowMapper[Out2]): ZWrappedBoundStatement[Out2] =
       bstmt.map(_.as[Out2])
 
+    /** Executes this [[ScalaBoundStatement]]
+      *
+      * @return [[PagingIterable]] of [[Out]] output values
+      */
     def execute()(implicit m: RowMapper[Out]): ZPagingIterable[Try[Out]] =
       executeStatement(bstmt)(_.asInstanceOf[ScalaBoundStatement[Out]])
 
+    /** Executes this [[ScalaBoundStatement]] in an asynchronous fashion
+      *
+      * @return a future of [[MappedAsyncPagingIterable]]
+      */
     def executeAsync()(implicit m: RowMapper[Out]): ZAsyncPagingIterable[Try[Out]] =
       executeStatementAsync(bstmt)(_.asInstanceOf[ScalaBoundStatement[Out]])
 
+    /** Executes this [[BoundStatement]] as a stream
+      *
+      * @return [[ZStream]] of [[Out]] output values
+      */
     def stream()(implicit m: RowMapper[Out]): ZCqlStream[Try[Out]] =
       executeStream(executeAsync())
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream,
+      * where all the elements in a page ([[Chunk]]) a validated (ie. are `Success`)
+      *
+      * @return [[ZStream]] of [[Out]] output values
+      */
     def streamValidated()(implicit m: RowMapper[Out]): ZCqlStream[Out] =
       executeStreamValidated(stream())
   }
@@ -265,6 +286,13 @@ package object zio extends CodecDerivation {
       private val pstmt: ZScalaPreparedStatement[In, Out]
   ) extends AnyVal {
 
+    /** Adapts this [[ScalaPreparedStatement]] converting [[In2]] values with the provided adapter
+      * into a [[In]] value (ie. the original type of this statement)
+      *
+      * @param a Adapter on how to adapt an [[In2]] value into [[In]] value
+      * @tparam In2 new input type
+      * @return adapted [[ScalaPreparedStatement]] with new [[In2]] input type
+      */
     def from[In2](implicit a: Adapter[In2, In]): ZAdaptedScalaPreparedStatement[In2, In, Out] =
       pstmt.map(_.from)
 
@@ -281,24 +309,55 @@ package object zio extends CodecDerivation {
     type Self     = AdaptedScalaPreparedStatement[In2, In, Out]
     type Opts     = Options[In2, Out]
 
+    /** Maps the result from this [[ScalaPreparedStatement]] with a different [[Out2]]
+      * as long as there is an implicit [[RowMapper]] and [[Out]] is [[Row]] (this is
+      * meant to avoid calling `as` twice)
+      */
     def to[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): ZSelf[Out2] =
       pstmt.map(_.as[Out2])
 
+    /** Executes this [[ScalaPreparedStatement]]
+      *
+      * @return [[PagingIterable]] of [[Out]] output values
+      */
     def execute(in: In2)(implicit m: RowMapper[Out]): ZPagingIterable[Try[Out]] =
       executeStatement(pstmt)(_(in))
 
+    /** Executes this [[ScalaPreparedStatement]] in an asynchronous fashion
+      *
+      * @return a future of [[MappedAsyncPagingIterable]]
+      */
     def executeAsync(in: In2)(implicit m: RowMapper[Out]): ZAsyncPagingIterable[Try[Out]] =
       executeStatementAsync(pstmt)(_(in))
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream
+      *
+      * @return [[ZStream]] of [[Try]] of [[Out]] output values
+      */
     def stream(in: In2)(implicit m: RowMapper[Out]): ZCqlStream[Try[Out]] =
       executeStream(executeAsync(in))
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream,
+      * where all the elements in a page ([[Chunk]]) a validated (ie. are `Success`)
+      *
+      * @return [[ZStream]] of [[Out]] output values
+      */
     def streamValidated(in: In2)(implicit m: RowMapper[Out]): ZCqlStream[Out] =
       executeStreamValidated(stream(in))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]]
+      *
+      * @param options statement options to set
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(options: StatementOptions): ZSelf[Out] =
       pstmt.map(_.withOptions(options))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]], in an inline fashion
+      *
+      * @param fn sets options
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(fn: Opts => Opts): ZSelf[Out] =
       pstmt.map(fn(_).asInstanceOf[Self])
   }
@@ -311,24 +370,55 @@ package object zio extends CodecDerivation {
     type Self     = ScalaPreparedStatementUnit[Out]
     type Opts     = Options[Unit, Out]
 
+    /** Maps the result from this [[ScalaPreparedStatement]] with a different [[Out2]]
+      * as long as there is an implicit [[RowMapper]] and [[Out]] is [[Row]] (this is
+      * meant to avoid calling `as` twice)
+      */
     def to[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): ZSelf[Out2] =
       pstmt.map(_.as[Out2])
 
+    /** Executes this [[ScalaPreparedStatement]]
+      *
+      * @return [[PagingIterable]] of [[Out]] output values
+      */
     def execute()(implicit m: RowMapper[Out]): ZPagingIterable[Try[Out]] =
       executeStatement(pstmt)(_())
 
+    /** Executes this [[ScalaPreparedStatement]] in an asynchronous fashion
+      *
+      * @return a future of [[MappedAsyncPagingIterable]]
+      */
     def executeAsync()(implicit m: RowMapper[Out]): ZAsyncPagingIterable[Try[Out]] =
       executeStatementAsync(pstmt)(_())
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream
+      *
+      * @return [[ZStream]] of [[Try]] of [[Out]] output values
+      */
     def stream()(implicit m: RowMapper[Out]): ZCqlStream[Try[Out]] =
       executeStream(executeAsync())
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream,
+      * where all the elements in a page ([[Chunk]]) a validated (ie. are `Success`)
+      *
+      * @return [[ZStream]] of [[Out]] output values
+      */
     def streamValidated()(implicit m: RowMapper[Out]): ZCqlStream[Out] =
       executeStreamValidated(stream())
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]]
+      *
+      * @param options statement options to set
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(options: StatementOptions): ZSelf[Out] =
       pstmt.map(_.withOptions(options))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]], in an inline fashion
+      *
+      * @param fn sets options
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(fn: Opts => Opts): ZSelf[Out] =
       pstmt.map(fn(_).asInstanceOf[Self])
   }
@@ -341,24 +431,55 @@ package object zio extends CodecDerivation {
     type Self     = ScalaPreparedStatement1[T1, Out]
     type Opts     = Options[T1, Out]
 
+    /** Maps the result from this [[ScalaPreparedStatement]] with a different [[Out2]]
+      * as long as there is an implicit [[RowMapper]] and [[Out]] is [[Row]] (this is
+      * meant to avoid calling `as` twice)
+      */
     def to[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): ZSelf[Out2] =
       pstmt.map(_.as[Out2])
 
+    /** Executes this [[ScalaPreparedStatement]]
+      *
+      * @return [[PagingIterable]] of [[Out]] output values
+      */
     def execute(t1: T1)(implicit m: RowMapper[Out]): ZPagingIterable[Try[Out]] =
       executeStatement(pstmt)(_(t1))
 
+    /** Executes this [[ScalaPreparedStatement]] in an asynchronous fashion
+      *
+      * @return a future of [[MappedAsyncPagingIterable]]
+      */
     def executeAsync(t1: T1)(implicit m: RowMapper[Out]): ZAsyncPagingIterable[Try[Out]] =
       executeStatementAsync(pstmt)(_(t1))
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream
+      *
+      * @return [[ZStream]] of [[Try]] of [[Out]] output values
+      */
     def stream(t1: T1)(implicit m: RowMapper[Out]): ZCqlStream[Try[Out]] =
       executeStream(executeAsync(t1))
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream,
+      * where all the elements in a page ([[Chunk]]) a validated (ie. are `Success`)
+      *
+      * @return [[ZStream]] of [[Out]] output values
+      */
     def streamValidated(t1: T1)(implicit m: RowMapper[Out]): ZCqlStream[Out] =
       executeStreamValidated(stream(t1))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]]
+      *
+      * @param options statement options to set
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(options: StatementOptions): ZSelf[Out] =
       pstmt.map(_.withOptions(options))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]], in an inline fashion
+      *
+      * @param fn sets options
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(fn: Opts => Opts): ZSelf[Out] =
       pstmt.map(fn(_).asInstanceOf[Self])
   }
@@ -371,24 +492,55 @@ package object zio extends CodecDerivation {
     type Self     = ScalaPreparedStatement2[T1, T2, Out]
     type Opts     = Options[(T1, T2), Out]
 
+    /** Maps the result from this [[ScalaPreparedStatement]] with a different [[Out2]]
+      * as long as there is an implicit [[RowMapper]] and [[Out]] is [[Row]] (this is
+      * meant to avoid calling `as` twice)
+      */
     def to[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): ZSelf[Out2] =
       pstmt.map(_.as[Out2])
 
+    /** Executes this [[ScalaPreparedStatement]]
+      *
+      * @return [[PagingIterable]] of [[Out]] output values
+      */
     def execute(t1: T1, t2: T2)(implicit m: RowMapper[Out]): ZPagingIterable[Try[Out]] =
       executeStatement(pstmt)(_(t1, t2))
 
+    /** Executes this [[ScalaPreparedStatement]] in an asynchronous fashion
+      *
+      * @return a future of [[MappedAsyncPagingIterable]]
+      */
     def executeAsync(t1: T1, t2: T2)(implicit m: RowMapper[Out]): ZAsyncPagingIterable[Try[Out]] =
       executeStatementAsync(pstmt)(_(t1, t2))
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream
+      *
+      * @return [[ZStream]] of [[Try]] of [[Out]] output values
+      */
     def stream(t1: T1, t2: T2)(implicit m: RowMapper[Out]): ZCqlStream[Try[Out]] =
       executeStream(executeAsync(t1, t2))
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream,
+      * where all the elements in a page ([[Chunk]]) a validated (ie. are `Success`)
+      *
+      * @return [[ZStream]] of [[Out]] output values
+      */
     def streamValidated(t1: T1, t2: T2)(implicit m: RowMapper[Out]): ZCqlStream[Out] =
       executeStreamValidated(stream(t1, t2))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]]
+      *
+      * @param options statement options to set
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(options: StatementOptions): ZSelf[Out] =
       pstmt.map(_.withOptions(options))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]], in an inline fashion
+      *
+      * @param fn sets options
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(fn: Opts => Opts): ZSelf[Out] =
       pstmt.map(fn(_).asInstanceOf[Self])
   }
@@ -403,24 +555,55 @@ package object zio extends CodecDerivation {
     type Self     = ScalaPreparedStatement3[T1, T2, T3, Out]
     type Opts     = Options[(T1, T2, T3), Out]
 
+    /** Maps the result from this [[ScalaPreparedStatement]] with a different [[Out2]]
+      * as long as there is an implicit [[RowMapper]] and [[Out]] is [[Row]] (this is
+      * meant to avoid calling `as` twice)
+      */
     def to[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): ZSelf[Out2] =
       pstmt.map(_.as[Out2])
 
+    /** Executes this [[ScalaPreparedStatement]]
+      *
+      * @return [[PagingIterable]] of [[Out]] output values
+      */
     def execute(t1: T1, t2: T2, t3: T3)(implicit m: RowMapper[Out]): ZPagingIterable[Try[Out]] =
       executeStatement(pstmt)(_(t1, t2, t3))
 
+    /** Executes this [[ScalaPreparedStatement]] in an asynchronous fashion
+      *
+      * @return a future of [[MappedAsyncPagingIterable]]
+      */
     def executeAsync(t1: T1, t2: T2, t3: T3)(implicit m: RowMapper[Out]): ZAsyncPagingIterable[Try[Out]] =
       executeStatementAsync(pstmt)(_(t1, t2, t3))
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream
+      *
+      * @return [[ZStream]] of [[Try]] of [[Out]] output values
+      */
     def stream(t1: T1, t2: T2, t3: T3)(implicit m: RowMapper[Out]): ZCqlStream[Try[Out]] =
       executeStream(executeAsync(t1, t2, t3))
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream,
+      * where all the elements in a page ([[Chunk]]) a validated (ie. are `Success`)
+      *
+      * @return [[ZStream]] of [[Out]] output values
+      */
     def streamValidated(t1: T1, t2: T2, t3: T3)(implicit m: RowMapper[Out]): ZCqlStream[Out] =
       executeStreamValidated(stream(t1, t2, t3))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]]
+      *
+      * @param options statement options to set
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(options: StatementOptions): ZSelf[Out] =
       pstmt.map(_.withOptions(options))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]], in an inline fashion
+      *
+      * @param fn sets options
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(fn: Opts => Opts): ZSelf[Out] =
       pstmt.map(fn(_).asInstanceOf[Self])
   }
@@ -433,24 +616,55 @@ package object zio extends CodecDerivation {
     type Self     = ScalaPreparedStatement4[T1, T2, T3, T4, Out]
     type Opts     = Options[(T1, T2, T3, T4), Out]
 
+    /** Maps the result from this [[ScalaPreparedStatement]] with a different [[Out2]]
+      * as long as there is an implicit [[RowMapper]] and [[Out]] is [[Row]] (this is
+      * meant to avoid calling `as` twice)
+      */
     def to[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): ZSelf[Out2] =
       pstmt.map(_.as[Out2])
 
+    /** Executes this [[ScalaPreparedStatement]]
+      *
+      * @return [[PagingIterable]] of [[Out]] output values
+      */
     def execute(t1: T1, t2: T2, t3: T3, t4: T4)(implicit m: RowMapper[Out]): ZPagingIterable[Try[Out]] =
       executeStatement(pstmt)(_(t1, t2, t3, t4))
 
+    /** Executes this [[ScalaPreparedStatement]] in an asynchronous fashion
+      *
+      * @return a future of [[MappedAsyncPagingIterable]]
+      */
     def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4)(implicit m: RowMapper[Out]): ZAsyncPagingIterable[Try[Out]] =
       executeStatementAsync(pstmt)(_(t1, t2, t3, t4))
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream
+      *
+      * @return [[ZStream]] of [[Try]] of [[Out]] output values
+      */
     def stream(t1: T1, t2: T2, t3: T3, t4: T4)(implicit m: RowMapper[Out]): ZCqlStream[Try[Out]] =
       executeStream(executeAsync(t1, t2, t3, t4))
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream,
+      * where all the elements in a page ([[Chunk]]) a validated (ie. are `Success`)
+      *
+      * @return [[ZStream]] of [[Out]] output values
+      */
     def streamValidated(t1: T1, t2: T2, t3: T3, t4: T4)(implicit m: RowMapper[Out]): ZCqlStream[Out] =
       executeStreamValidated(stream(t1, t2, t3, t4))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]]
+      *
+      * @param options statement options to set
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(options: StatementOptions): ZSelf[Out] =
       pstmt.map(_.withOptions(options))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]], in an inline fashion
+      *
+      * @param fn sets options
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(fn: Opts => Opts): ZSelf[Out] =
       pstmt.map(fn(_).asInstanceOf[Self])
   }
@@ -463,24 +677,55 @@ package object zio extends CodecDerivation {
     type Self     = ScalaPreparedStatement5[T1, T2, T3, T4, T5, Out]
     type Opts     = Options[(T1, T2, T3, T4, T5), Out]
 
+    /** Maps the result from this [[ScalaPreparedStatement]] with a different [[Out2]]
+      * as long as there is an implicit [[RowMapper]] and [[Out]] is [[Row]] (this is
+      * meant to avoid calling `as` twice)
+      */
     def to[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): ZSelf[Out2] =
       pstmt.map(_.as[Out2])
 
+    /** Executes this [[ScalaPreparedStatement]]
+      *
+      * @return [[PagingIterable]] of [[Out]] output values
+      */
     def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5)(implicit m: RowMapper[Out]): ZPagingIterable[Try[Out]] =
       executeStatement(pstmt)(_(t1, t2, t3, t4, t5))
 
+    /** Executes this [[ScalaPreparedStatement]] in an asynchronous fashion
+      *
+      * @return a future of [[MappedAsyncPagingIterable]]
+      */
     def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5)(implicit m: RowMapper[Out]): ZAsyncPagingIterable[Try[Out]] =
       executeStatementAsync(pstmt)(_(t1, t2, t3, t4, t5))
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream
+      *
+      * @return [[ZStream]] of [[Try]] of [[Out]] output values
+      */
     def stream(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5)(implicit m: RowMapper[Out]): ZCqlStream[Try[Out]] =
       executeStream(executeAsync(t1, t2, t3, t4, t5))
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream,
+      * where all the elements in a page ([[Chunk]]) a validated (ie. are `Success`)
+      *
+      * @return [[ZStream]] of [[Out]] output values
+      */
     def streamValidated(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5)(implicit m: RowMapper[Out]): ZCqlStream[Out] =
       executeStreamValidated(stream(t1, t2, t3, t4, t5))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]]
+      *
+      * @param options statement options to set
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(options: StatementOptions): ZSelf[Out] =
       pstmt.map(_.withOptions(options))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]], in an inline fashion
+      *
+      * @param fn sets options
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(fn: Opts => Opts): ZSelf[Out] =
       pstmt.map(fn(_).asInstanceOf[Self])
   }
@@ -493,24 +738,55 @@ package object zio extends CodecDerivation {
     type Self     = ScalaPreparedStatement6[T1, T2, T3, T4, T5, T6, Out]
     type Opts     = Options[(T1, T2, T3, T4, T5, T6), Out]
 
+    /** Maps the result from this [[ScalaPreparedStatement]] with a different [[Out2]]
+      * as long as there is an implicit [[RowMapper]] and [[Out]] is [[Row]] (this is
+      * meant to avoid calling `as` twice)
+      */
     def to[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): ZSelf[Out2] =
       pstmt.map(_.as[Out2])
 
+    /** Executes this [[ScalaPreparedStatement]]
+      *
+      * @return [[PagingIterable]] of [[Out]] output values
+      */
     def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6)(implicit m: RowMapper[Out]): ZPagingIterable[Try[Out]] =
       executeStatement(pstmt)(_(t1, t2, t3, t4, t5, t6))
 
+    /** Executes this [[ScalaPreparedStatement]] in an asynchronous fashion
+      *
+      * @return a future of [[MappedAsyncPagingIterable]]
+      */
     def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6)(implicit m: RowMapper[Out]): ZAsyncPagingIterable[Try[Out]] =
       executeStatementAsync(pstmt)(_(t1, t2, t3, t4, t5, t6))
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream
+      *
+      * @return [[ZStream]] of [[Try]] of [[Out]] output values
+      */
     def stream(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6)(implicit m: RowMapper[Out]): ZCqlStream[Try[Out]] =
       executeStream(executeAsync(t1, t2, t3, t4, t5, t6))
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream,
+      * where all the elements in a page ([[Chunk]]) a validated (ie. are `Success`)
+      *
+      * @return [[ZStream]] of [[Out]] output values
+      */
     def streamValidated(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6)(implicit m: RowMapper[Out]): ZCqlStream[Out] =
       executeStreamValidated(stream(t1, t2, t3, t4, t5, t6))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]]
+      *
+      * @param options statement options to set
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(options: StatementOptions): ZSelf[Out] =
       pstmt.map(_.withOptions(options))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]], in an inline fashion
+      *
+      * @param fn sets options
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(fn: Opts => Opts): ZSelf[Out] =
       pstmt.map(fn(_).asInstanceOf[Self])
   }
@@ -523,24 +799,55 @@ package object zio extends CodecDerivation {
     type Self     = ScalaPreparedStatement7[T1, T2, T3, T4, T5, T6, T7, Out]
     type Opts     = Options[(T1, T2, T3, T4, T5, T6, T7), Out]
 
+    /** Maps the result from this [[ScalaPreparedStatement]] with a different [[Out2]]
+      * as long as there is an implicit [[RowMapper]] and [[Out]] is [[Row]] (this is
+      * meant to avoid calling `as` twice)
+      */
     def to[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): ZSelf[Out2] =
       pstmt.map(_.as[Out2])
 
+    /** Executes this [[ScalaPreparedStatement]]
+      *
+      * @return [[PagingIterable]] of [[Out]] output values
+      */
     def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7)(implicit m: RowMapper[Out]): ZPagingIterable[Try[Out]] =
       executeStatement(pstmt)(_(t1, t2, t3, t4, t5, t6, t7))
 
+    /** Executes this [[ScalaPreparedStatement]] in an asynchronous fashion
+      *
+      * @return a future of [[MappedAsyncPagingIterable]]
+      */
     def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7)(implicit m: RowMapper[Out]): ZAsyncPagingIterable[Try[Out]] =
       executeStatementAsync(pstmt)(_(t1, t2, t3, t4, t5, t6, t7))
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream
+      *
+      * @return [[ZStream]] of [[Try]] of [[Out]] output values
+      */
     def stream(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7)(implicit m: RowMapper[Out]): ZCqlStream[Try[Out]] =
       executeStream(executeAsync(t1, t2, t3, t4, t5, t6, t7))
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream,
+      * where all the elements in a page ([[Chunk]]) a validated (ie. are `Success`)
+      *
+      * @return [[ZStream]] of [[Out]] output values
+      */
     def streamValidated(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7)(implicit m: RowMapper[Out]): ZCqlStream[Out] =
       executeStreamValidated(stream(t1, t2, t3, t4, t5, t6, t7))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]]
+      *
+      * @param options statement options to set
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(options: StatementOptions): ZSelf[Out] =
       pstmt.map(_.withOptions(options))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]], in an inline fashion
+      *
+      * @param fn sets options
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(fn: Opts => Opts): ZSelf[Out] =
       pstmt.map(fn(_).asInstanceOf[Self])
   }
@@ -553,24 +860,55 @@ package object zio extends CodecDerivation {
     type Self     = ScalaPreparedStatement8[T1, T2, T3, T4, T5, T6, T7, T8, Out]
     type Opts     = Options[(T1, T2, T3, T4, T5, T6, T7, T8), Out]
 
+    /** Maps the result from this [[ScalaPreparedStatement]] with a different [[Out2]]
+      * as long as there is an implicit [[RowMapper]] and [[Out]] is [[Row]] (this is
+      * meant to avoid calling `as` twice)
+      */
     def to[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): ZSelf[Out2] =
       pstmt.map(_.as[Out2])
 
+    /** Executes this [[ScalaPreparedStatement]]
+      *
+      * @return [[PagingIterable]] of [[Out]] output values
+      */
     def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8)(implicit m: RowMapper[Out]): ZPagingIterable[Try[Out]] =
       executeStatement(pstmt)(_(t1, t2, t3, t4, t5, t6, t7, t8))
 
+    /** Executes this [[ScalaPreparedStatement]] in an asynchronous fashion
+      *
+      * @return a future of [[MappedAsyncPagingIterable]]
+      */
     def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8)(implicit m: RowMapper[Out]): ZAsyncPagingIterable[Try[Out]] =
       executeStatementAsync(pstmt)(_(t1, t2, t3, t4, t5, t6, t7, t8))
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream
+      *
+      * @return [[ZStream]] of [[Try]] of [[Out]] output values
+      */
     def stream(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8)(implicit m: RowMapper[Out]): ZCqlStream[Try[Out]] =
       executeStream(executeAsync(t1, t2, t3, t4, t5, t6, t7, t8))
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream,
+      * where all the elements in a page ([[Chunk]]) a validated (ie. are `Success`)
+      *
+      * @return [[ZStream]] of [[Out]] output values
+      */
     def streamValidated(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8)(implicit m: RowMapper[Out]): ZCqlStream[Out] =
       executeStreamValidated(stream(t1, t2, t3, t4, t5, t6, t7, t8))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]]
+      *
+      * @param options statement options to set
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(options: StatementOptions): ZSelf[Out] =
       pstmt.map(_.withOptions(options))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]], in an inline fashion
+      *
+      * @param fn sets options
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(fn: Opts => Opts): ZSelf[Out] =
       pstmt.map(fn(_).asInstanceOf[Self])
   }
@@ -583,24 +921,55 @@ package object zio extends CodecDerivation {
     type Self     = ScalaPreparedStatement9[T1, T2, T3, T4, T5, T6, T7, T8, T9, Out]
     type Opts     = Options[(T1, T2, T3, T4, T5, T6, T7, T8, T9), Out]
 
+    /** Maps the result from this [[ScalaPreparedStatement]] with a different [[Out2]]
+      * as long as there is an implicit [[RowMapper]] and [[Out]] is [[Row]] (this is
+      * meant to avoid calling `as` twice)
+      */
     def to[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): ZSelf[Out2] =
       pstmt.map(_.as[Out2])
 
+    /** Executes this [[ScalaPreparedStatement]]
+      *
+      * @return [[PagingIterable]] of [[Out]] output values
+      */
     def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9)(implicit m: RowMapper[Out]): ZPagingIterable[Try[Out]] =
       executeStatement(pstmt)(_(t1, t2, t3, t4, t5, t6, t7, t8, t9))
 
+    /** Executes this [[ScalaPreparedStatement]] in an asynchronous fashion
+      *
+      * @return a future of [[MappedAsyncPagingIterable]]
+      */
     def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9)(implicit m: RowMapper[Out]): ZAsyncPagingIterable[Try[Out]] =
       executeStatementAsync(pstmt)(_(t1, t2, t3, t4, t5, t6, t7, t8, t9))
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream
+      *
+      * @return [[ZStream]] of [[Try]] of [[Out]] output values
+      */
     def stream(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9)(implicit m: RowMapper[Out]): ZCqlStream[Try[Out]] =
       executeStream(executeAsync(t1, t2, t3, t4, t5, t6, t7, t8, t9))
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream,
+      * where all the elements in a page ([[Chunk]]) a validated (ie. are `Success`)
+      *
+      * @return [[ZStream]] of [[Out]] output values
+      */
     def streamValidated(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9)(implicit m: RowMapper[Out]): ZCqlStream[Out] =
       executeStreamValidated(stream(t1, t2, t3, t4, t5, t6, t7, t8, t9))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]]
+      *
+      * @param options statement options to set
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(options: StatementOptions): ZSelf[Out] =
       pstmt.map(_.withOptions(options))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]], in an inline fashion
+      *
+      * @param fn sets options
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(fn: Opts => Opts): ZSelf[Out] =
       pstmt.map(fn(_).asInstanceOf[Self])
   }
@@ -613,24 +982,55 @@ package object zio extends CodecDerivation {
     type Self     = ScalaPreparedStatement10[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, Out]
     type Opts     = Options[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10), Out]
 
+    /** Maps the result from this [[ScalaPreparedStatement]] with a different [[Out2]]
+      * as long as there is an implicit [[RowMapper]] and [[Out]] is [[Row]] (this is
+      * meant to avoid calling `as` twice)
+      */
     def to[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): ZSelf[Out2] =
       pstmt.map(_.as[Out2])
 
+    /** Executes this [[ScalaPreparedStatement]]
+      *
+      * @return [[PagingIterable]] of [[Out]] output values
+      */
     def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10)(implicit m: RowMapper[Out]): ZPagingIterable[Try[Out]] =
       executeStatement(pstmt)(_(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10))
 
+    /** Executes this [[ScalaPreparedStatement]] in an asynchronous fashion
+      *
+      * @return a future of [[MappedAsyncPagingIterable]]
+      */
     def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10)(implicit m: RowMapper[Out]): ZAsyncPagingIterable[Try[Out]] =
       executeStatementAsync(pstmt)(_(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10))
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream
+      *
+      * @return [[ZStream]] of [[Try]] of [[Out]] output values
+      */
     def stream(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10)(implicit m: RowMapper[Out]): ZCqlStream[Try[Out]] =
       executeStream(executeAsync(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10))
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream,
+      * where all the elements in a page ([[Chunk]]) a validated (ie. are `Success`)
+      *
+      * @return [[ZStream]] of [[Out]] output values
+      */
     def streamValidated(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10)(implicit m: RowMapper[Out]): ZCqlStream[Out] =
       executeStreamValidated(stream(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]]
+      *
+      * @param options statement options to set
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(options: StatementOptions): ZSelf[Out] =
       pstmt.map(_.withOptions(options))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]], in an inline fashion
+      *
+      * @param fn sets options
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(fn: Opts => Opts): ZSelf[Out] =
       pstmt.map(fn(_).asInstanceOf[Self])
   }
@@ -643,24 +1043,55 @@ package object zio extends CodecDerivation {
     type Self     = ScalaPreparedStatement11[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, Out]
     type Opts     = Options[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11), Out]
 
+    /** Maps the result from this [[ScalaPreparedStatement]] with a different [[Out2]]
+      * as long as there is an implicit [[RowMapper]] and [[Out]] is [[Row]] (this is
+      * meant to avoid calling `as` twice)
+      */
     def to[Out2](implicit ev: Out =:= Row, m: RowMapper[Out2]): ZSelf[Out2] =
       pstmt.map(_.as[Out2])
 
+    /** Executes this [[ScalaPreparedStatement]]
+      *
+      * @return [[PagingIterable]] of [[Out]] output values
+      */
     def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11)(implicit m: RowMapper[Out]): ZPagingIterable[Try[Out]] =
       executeStatement(pstmt)(_(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11))
 
+    /** Executes this [[ScalaPreparedStatement]] in an asynchronous fashion
+      *
+      * @return a future of [[MappedAsyncPagingIterable]]
+      */
     def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11)(implicit m: RowMapper[Out]): ZAsyncPagingIterable[Try[Out]] =
       executeStatementAsync(pstmt)(_(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11))
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream
+      *
+      * @return [[ZStream]] of [[Try]] of [[Out]] output values
+      */
     def stream(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11)(implicit m: RowMapper[Out]): ZCqlStream[Try[Out]] =
       executeStream(executeAsync(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11))
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream,
+      * where all the elements in a page ([[Chunk]]) a validated (ie. are `Success`)
+      *
+      * @return [[ZStream]] of [[Out]] output values
+      */
     def streamValidated(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11)(implicit m: RowMapper[Out]): ZCqlStream[Out] =
       executeStreamValidated(stream(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]]
+      *
+      * @param options statement options to set
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(options: StatementOptions): ZSelf[Out] =
       pstmt.map(_.withOptions(options))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]], in an inline fashion
+      *
+      * @param fn sets options
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(fn: Opts => Opts): ZSelf[Out] =
       pstmt.map(fn(_).asInstanceOf[Self])
   }
@@ -673,24 +1104,55 @@ package object zio extends CodecDerivation {
     type Self     = ScalaPreparedStatement12[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, Out]
     type Opts     = Options[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12), Out]
 
+    /** Maps the result from this [[ScalaPreparedStatement]] with a different [[Out2]]
+      * as long as there is an implicit [[RowMapper]] and [[Out]] is [[Row]] (this is
+      * meant to avoid calling `as` twice)
+      */
     def to[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): ZSelf[Out2] =
       pstmt.map(_.as[Out2])
 
+    /** Executes this [[ScalaPreparedStatement]]
+      *
+      * @return [[PagingIterable]] of [[Out]] output values
+      */
     def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12)(implicit m: RowMapper[Out]): ZPagingIterable[Try[Out]] =
       executeStatement(pstmt)(_(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12))
 
+    /** Executes this [[ScalaPreparedStatement]] in an asynchronous fashion
+      *
+      * @return a future of [[MappedAsyncPagingIterable]]
+      */
     def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12)(implicit m: RowMapper[Out]): ZAsyncPagingIterable[Try[Out]] =
       executeStatementAsync(pstmt)(_(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12))
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream
+      *
+      * @return [[ZStream]] of [[Try]] of [[Out]] output values
+      */
     def stream(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12)(implicit m: RowMapper[Out]): ZCqlStream[Try[Out]] =
       executeStream(executeAsync(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12))
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream,
+      * where all the elements in a page ([[Chunk]]) a validated (ie. are `Success`)
+      *
+      * @return [[ZStream]] of [[Out]] output values
+      */
     def streamValidated(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12)(implicit m: RowMapper[Out]): ZCqlStream[Out] =
       executeStreamValidated(stream(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]]
+      *
+      * @param options statement options to set
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(options: StatementOptions): ZSelf[Out] =
       pstmt.map(_.withOptions(options))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]], in an inline fashion
+      *
+      * @param fn sets options
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(fn: Opts => Opts): ZSelf[Out] =
       pstmt.map(fn(_).asInstanceOf[Self])
   }
@@ -703,24 +1165,55 @@ package object zio extends CodecDerivation {
     type Self = ScalaPreparedStatement13[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, Out]
     type Opts     = Options[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13), Out]
 
+    /** Maps the result from this [[ScalaPreparedStatement]] with a different [[Out2]]
+      * as long as there is an implicit [[RowMapper]] and [[Out]] is [[Row]] (this is
+      * meant to avoid calling `as` twice)
+      */
     def to[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): ZSelf[Out2] =
       pstmt.map(_.as[Out2])
 
+    /** Executes this [[ScalaPreparedStatement]]
+      *
+      * @return [[PagingIterable]] of [[Out]] output values
+      */
     def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13)(implicit m: RowMapper[Out]): ZPagingIterable[Try[Out]] =
       executeStatement(pstmt)(_(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13))
 
+    /** Executes this [[ScalaPreparedStatement]] in an asynchronous fashion
+      *
+      * @return a future of [[MappedAsyncPagingIterable]]
+      */
     def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13)(implicit m: RowMapper[Out]): ZAsyncPagingIterable[Try[Out]] =
       executeStatementAsync(pstmt)(_(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13))
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream
+      *
+      * @return [[ZStream]] of [[Try]] of [[Out]] output values
+      */
     def stream(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13)(implicit m: RowMapper[Out]): ZCqlStream[Try[Out]] =
       executeStream(executeAsync(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13))
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream,
+      * where all the elements in a page ([[Chunk]]) a validated (ie. are `Success`)
+      *
+      * @return [[ZStream]] of [[Out]] output values
+      */
     def streamValidated(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13)(implicit m: RowMapper[Out]): ZCqlStream[Out] =
       executeStreamValidated(stream(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]]
+      *
+      * @param options statement options to set
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(options: StatementOptions): ZSelf[Out] =
       pstmt.map(_.withOptions(options))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]], in an inline fashion
+      *
+      * @param fn sets options
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(fn: Opts => Opts): ZSelf[Out] =
       pstmt.map(fn(_).asInstanceOf[Self])
   }
@@ -733,24 +1226,55 @@ package object zio extends CodecDerivation {
     type Self     = ScalaPreparedStatement14[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, Out]
     type Opts     = Options[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14), Out]
 
+    /** Maps the result from this [[ScalaPreparedStatement]] with a different [[Out2]]
+      * as long as there is an implicit [[RowMapper]] and [[Out]] is [[Row]] (this is
+      * meant to avoid calling `as` twice)
+      */
     def to[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): ZSelf[Out2] =
       pstmt.map(_.as[Out2])
 
+    /** Executes this [[ScalaPreparedStatement]]
+      *
+      * @return [[PagingIterable]] of [[Out]] output values
+      */
     def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14)(implicit m: RowMapper[Out]): ZPagingIterable[Try[Out]] =
       executeStatement(pstmt)(_(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14))
 
+    /** Executes this [[ScalaPreparedStatement]] in an asynchronous fashion
+      *
+      * @return a future of [[MappedAsyncPagingIterable]]
+      */
     def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14)(implicit m: RowMapper[Out]): ZAsyncPagingIterable[Try[Out]] =
       executeStatementAsync(pstmt)(_(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14))
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream
+      *
+      * @return [[ZStream]] of [[Try]] of [[Out]] output values
+      */
     def stream(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14)(implicit m: RowMapper[Out]): ZCqlStream[Try[Out]] =
       executeStream(executeAsync(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14))
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream,
+      * where all the elements in a page ([[Chunk]]) a validated (ie. are `Success`)
+      *
+      * @return [[ZStream]] of [[Out]] output values
+      */
     def streamValidated(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14)(implicit m: RowMapper[Out]): ZCqlStream[Out] =
       executeStreamValidated(stream(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]]
+      *
+      * @param options statement options to set
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(options: StatementOptions): ZSelf[Out] =
       pstmt.map(_.withOptions(options))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]], in an inline fashion
+      *
+      * @param fn sets options
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(fn: Opts => Opts): ZSelf[Out] =
       pstmt.map(fn(_).asInstanceOf[Self])
   }
@@ -763,24 +1287,55 @@ package object zio extends CodecDerivation {
     type Self     = ScalaPreparedStatement15[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, Out]
     type Opts     = Options[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15), Out]
 
+    /** Maps the result from this [[ScalaPreparedStatement]] with a different [[Out2]]
+      * as long as there is an implicit [[RowMapper]] and [[Out]] is [[Row]] (this is
+      * meant to avoid calling `as` twice)
+      */
     def to[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): ZSelf[Out2] =
       pstmt.map(_.as[Out2])
 
+    /** Executes this [[ScalaPreparedStatement]]
+      *
+      * @return [[PagingIterable]] of [[Out]] output values
+      */
     def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15)(implicit m: RowMapper[Out]): ZPagingIterable[Try[Out]] =
       executeStatement(pstmt)(_(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15))
 
+    /** Executes this [[ScalaPreparedStatement]] in an asynchronous fashion
+      *
+      * @return a future of [[MappedAsyncPagingIterable]]
+      */
     def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15)(implicit m: RowMapper[Out]): ZAsyncPagingIterable[Try[Out]] =
       executeStatementAsync(pstmt)(_(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15))
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream
+      *
+      * @return [[ZStream]] of [[Try]] of [[Out]] output values
+      */
     def stream(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15)(implicit m: RowMapper[Out]): ZCqlStream[Try[Out]] =
       executeStream(executeAsync(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15))
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream,
+      * where all the elements in a page ([[Chunk]]) a validated (ie. are `Success`)
+      *
+      * @return [[ZStream]] of [[Out]] output values
+      */
     def streamValidated(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15)(implicit m: RowMapper[Out]): ZCqlStream[Out] =
       executeStreamValidated(stream(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]]
+      *
+      * @param options statement options to set
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(options: StatementOptions): ZSelf[Out] =
       pstmt.map(_.withOptions(options))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]], in an inline fashion
+      *
+      * @param fn sets options
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(fn: Opts => Opts): ZSelf[Out] =
       pstmt.map(fn(_).asInstanceOf[Self])
   }
@@ -793,24 +1348,55 @@ package object zio extends CodecDerivation {
     type Self     = ScalaPreparedStatement16[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, Out]
     type Opts     = Options[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16), Out]
 
+    /** Maps the result from this [[ScalaPreparedStatement]] with a different [[Out2]]
+      * as long as there is an implicit [[RowMapper]] and [[Out]] is [[Row]] (this is
+      * meant to avoid calling `as` twice)
+      */
     def to[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): ZSelf[Out2] =
       pstmt.map(_.as[Out2])
 
+    /** Executes this [[ScalaPreparedStatement]]
+      *
+      * @return [[PagingIterable]] of [[Out]] output values
+      */
     def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16)(implicit m: RowMapper[Out]): ZPagingIterable[Try[Out]] =
       executeStatement(pstmt)(_(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16))
 
+    /** Executes this [[ScalaPreparedStatement]] in an asynchronous fashion
+      *
+      * @return a future of [[MappedAsyncPagingIterable]]
+      */
     def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16)(implicit m: RowMapper[Out]): ZAsyncPagingIterable[Try[Out]] =
       executeStatementAsync(pstmt)(_(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16))
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream
+      *
+      * @return [[ZStream]] of [[Try]] of [[Out]] output values
+      */
     def stream(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16)(implicit m: RowMapper[Out]): ZCqlStream[Try[Out]] =
       executeStream(executeAsync(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16))
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream,
+      * where all the elements in a page ([[Chunk]]) a validated (ie. are `Success`)
+      *
+      * @return [[ZStream]] of [[Out]] output values
+      */
     def streamValidated(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16)(implicit m: RowMapper[Out]): ZCqlStream[Out] =
       executeStreamValidated(stream(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]]
+      *
+      * @param options statement options to set
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(options: StatementOptions): ZSelf[Out] =
       pstmt.map(_.withOptions(options))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]], in an inline fashion
+      *
+      * @param fn sets options
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(fn: Opts => Opts): ZSelf[Out] =
       pstmt.map(fn(_).asInstanceOf[Self])
   }
@@ -823,24 +1409,55 @@ package object zio extends CodecDerivation {
     type Self     = ScalaPreparedStatement17[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, Out]
     type Opts     = Options[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17), Out]
 
+    /** Maps the result from this [[ScalaPreparedStatement]] with a different [[Out2]]
+      * as long as there is an implicit [[RowMapper]] and [[Out]] is [[Row]] (this is
+      * meant to avoid calling `as` twice)
+      */
     def to[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): ZSelf[Out2] =
       pstmt.map(_.as[Out2])
 
+    /** Executes this [[ScalaPreparedStatement]]
+      *
+      * @return [[PagingIterable]] of [[Out]] output values
+      */
     def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17)(implicit m: RowMapper[Out]): ZPagingIterable[Try[Out]] =
       executeStatement(pstmt)(_(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17))
 
+    /** Executes this [[ScalaPreparedStatement]] in an asynchronous fashion
+      *
+      * @return a future of [[MappedAsyncPagingIterable]]
+      */
     def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17)(implicit m: RowMapper[Out]): ZAsyncPagingIterable[Try[Out]] =
       executeStatementAsync(pstmt)(_(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17))
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream
+      *
+      * @return [[ZStream]] of [[Try]] of [[Out]] output values
+      */
     def stream(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17)(implicit m: RowMapper[Out]): ZCqlStream[Try[Out]] =
       executeStream(executeAsync(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17))
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream,
+      * where all the elements in a page ([[Chunk]]) a validated (ie. are `Success`)
+      *
+      * @return [[ZStream]] of [[Out]] output values
+      */
     def streamValidated(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17)(implicit m: RowMapper[Out]): ZCqlStream[Out] =
       executeStreamValidated(stream(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]]
+      *
+      * @param options statement options to set
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(options: StatementOptions): ZSelf[Out] =
       pstmt.map(_.withOptions(options))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]], in an inline fashion
+      *
+      * @param fn sets options
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(fn: Opts => Opts): ZSelf[Out] =
       pstmt.map(fn(_).asInstanceOf[Self])
   }
@@ -853,24 +1470,55 @@ package object zio extends CodecDerivation {
     type Self     = ScalaPreparedStatement18[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, Out]
     type Opts     = Options[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18), Out]
 
+    /** Maps the result from this [[ScalaPreparedStatement]] with a different [[Out2]]
+      * as long as there is an implicit [[RowMapper]] and [[Out]] is [[Row]] (this is
+      * meant to avoid calling `as` twice)
+      */
     def to[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): ZSelf[Out2] =
       pstmt.map(_.as[Out2])
 
+    /** Executes this [[ScalaPreparedStatement]]
+      *
+      * @return [[PagingIterable]] of [[Out]] output values
+      */
     def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18)(implicit m: RowMapper[Out]): ZPagingIterable[Try[Out]] =
       executeStatement(pstmt)(_(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18))
 
+    /** Executes this [[ScalaPreparedStatement]] in an asynchronous fashion
+      *
+      * @return a future of [[MappedAsyncPagingIterable]]
+      */
     def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18)(implicit m: RowMapper[Out]): ZAsyncPagingIterable[Try[Out]] =
       executeStatementAsync(pstmt)(_(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18))
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream
+      *
+      * @return [[ZStream]] of [[Try]] of [[Out]] output values
+      */
     def stream(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18)(implicit m: RowMapper[Out]): ZCqlStream[Try[Out]] =
       executeStream(executeAsync(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18))
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream,
+      * where all the elements in a page ([[Chunk]]) a validated (ie. are `Success`)
+      *
+      * @return [[ZStream]] of [[Out]] output values
+      */
     def streamValidated(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18)(implicit m: RowMapper[Out]): ZCqlStream[Out] =
       executeStreamValidated(stream(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]]
+      *
+      * @param options statement options to set
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(options: StatementOptions): ZSelf[Out] =
       pstmt.map(_.withOptions(options))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]], in an inline fashion
+      *
+      * @param fn sets options
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(fn: Opts => Opts): ZSelf[Out] =
       pstmt.map(fn(_).asInstanceOf[Self])
   }
@@ -883,24 +1531,55 @@ package object zio extends CodecDerivation {
     type Self     = ScalaPreparedStatement19[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, Out]
     type Opts     = Options[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19), Out]
 
+    /** Maps the result from this [[ScalaPreparedStatement]] with a different [[Out2]]
+      * as long as there is an implicit [[RowMapper]] and [[Out]] is [[Row]] (this is
+      * meant to avoid calling `as` twice)
+      */
     def to[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): ZSelf[Out2] =
       pstmt.map(_.as[Out2])
 
+    /** Executes this [[ScalaPreparedStatement]]
+      *
+      * @return [[PagingIterable]] of [[Out]] output values
+      */
     def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19)(implicit m: RowMapper[Out]): ZPagingIterable[Try[Out]] =
       executeStatement(pstmt)(_(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19))
 
+    /** Executes this [[ScalaPreparedStatement]] in an asynchronous fashion
+      *
+      * @return a future of [[MappedAsyncPagingIterable]]
+      */
     def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19)(implicit m: RowMapper[Out]): ZAsyncPagingIterable[Try[Out]] =
       executeStatementAsync(pstmt)(_(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19))
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream
+      *
+      * @return [[ZStream]] of [[Try]] of [[Out]] output values
+      */
     def stream(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19)(implicit m: RowMapper[Out]): ZCqlStream[Try[Out]] =
       executeStream(executeAsync(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19))
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream,
+      * where all the elements in a page ([[Chunk]]) a validated (ie. are `Success`)
+      *
+      * @return [[ZStream]] of [[Out]] output values
+      */
     def streamValidated(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19)(implicit m: RowMapper[Out]): ZCqlStream[Out] =
       executeStreamValidated(stream(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]]
+      *
+      * @param options statement options to set
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(options: StatementOptions): ZSelf[Out] =
       pstmt.map(_.withOptions(options))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]], in an inline fashion
+      *
+      * @param fn sets options
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(fn: Opts => Opts): ZSelf[Out] =
       pstmt.map(fn(_).asInstanceOf[Self])
   }
@@ -913,24 +1592,55 @@ package object zio extends CodecDerivation {
     type Self     = ScalaPreparedStatement20[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, Out]
     type Opts     = Options[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20), Out]
 
+    /** Maps the result from this [[ScalaPreparedStatement]] with a different [[Out2]]
+      * as long as there is an implicit [[RowMapper]] and [[Out]] is [[Row]] (this is
+      * meant to avoid calling `as` twice)
+      */
     def to[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): ZSelf[Out2] =
       pstmt.map(_.as[Out2])
 
+    /** Executes this [[ScalaPreparedStatement]]
+      *
+      * @return [[PagingIterable]] of [[Out]] output values
+      */
     def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20)(implicit m: RowMapper[Out]): ZPagingIterable[Try[Out]] =
       executeStatement(pstmt)(_(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20))
 
+    /** Executes this [[ScalaPreparedStatement]] in an asynchronous fashion
+      *
+      * @return a future of [[MappedAsyncPagingIterable]]
+      */
     def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20)(implicit m: RowMapper[Out]): ZAsyncPagingIterable[Try[Out]] =
       executeStatementAsync(pstmt)(_(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20))
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream
+      *
+      * @return [[ZStream]] of [[Try]] of [[Out]] output values
+      */
     def stream(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20)(implicit m: RowMapper[Out]): ZCqlStream[Try[Out]] =
       executeStream(executeAsync(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20))
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream,
+      * where all the elements in a page ([[Chunk]]) a validated (ie. are `Success`)
+      *
+      * @return [[ZStream]] of [[Out]] output values
+      */
     def streamValidated(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20)(implicit m: RowMapper[Out]): ZCqlStream[Out] =
       executeStreamValidated(stream(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]]
+      *
+      * @param options statement options to set
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(options: StatementOptions): ZSelf[Out] =
       pstmt.map(_.withOptions(options))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]], in an inline fashion
+      *
+      * @param fn sets options
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(fn: Opts => Opts): ZSelf[Out] =
       pstmt.map(fn(_).asInstanceOf[Self])
   }
@@ -943,24 +1653,55 @@ package object zio extends CodecDerivation {
     type Self     = ScalaPreparedStatement21[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, Out]
     type Opts     = Options[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21), Out]
 
+    /** Maps the result from this [[ScalaPreparedStatement]] with a different [[Out2]]
+      * as long as there is an implicit [[RowMapper]] and [[Out]] is [[Row]] (this is
+      * meant to avoid calling `as` twice)
+      */
     def to[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): ZSelf[Out2] =
       pstmt.map(_.as[Out2])
 
+    /** Executes this [[ScalaPreparedStatement]]
+      *
+      * @return [[PagingIterable]] of [[Out]] output values
+      */
     def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21)(implicit m: RowMapper[Out]): ZPagingIterable[Try[Out]] =
       executeStatement(pstmt)(_(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21))
 
+    /** Executes this [[ScalaPreparedStatement]] in an asynchronous fashion
+      *
+      * @return a future of [[MappedAsyncPagingIterable]]
+      */
     def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21)(implicit m: RowMapper[Out]): ZAsyncPagingIterable[Try[Out]] =
       executeStatementAsync(pstmt)(_(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21))
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream
+      *
+      * @return [[ZStream]] of [[Try]] of [[Out]] output values
+      */
     def stream(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21)(implicit m: RowMapper[Out]): ZCqlStream[Try[Out]] =
       executeStream(executeAsync(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21))
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream,
+      * where all the elements in a page ([[Chunk]]) a validated (ie. are `Success`)
+      *
+      * @return [[ZStream]] of [[Out]] output values
+      */
     def streamValidated(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21)(implicit m: RowMapper[Out]): ZCqlStream[Out] =
       executeStreamValidated(stream(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]]
+      *
+      * @param options statement options to set
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(options: StatementOptions): ZSelf[Out] =
       pstmt.map(_.withOptions(options))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]], in an inline fashion
+      *
+      * @param fn sets options
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(fn: Opts => Opts): ZSelf[Out] =
       pstmt.map(fn(_).asInstanceOf[Self])
   }
@@ -973,24 +1714,55 @@ package object zio extends CodecDerivation {
     type Self     = ScalaPreparedStatement22[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, Out]
     type Opts     = Options[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22), Out]
 
+    /** Maps the result from this [[ScalaPreparedStatement]] with a different [[Out2]]
+      * as long as there is an implicit [[RowMapper]] and [[Out]] is [[Row]] (this is
+      * meant to avoid calling `as` twice)
+      */
     def to[Out2](implicit ev: Out =:= Row, mapper: RowMapper[Out2]): ZSelf[Out2] =
       pstmt.map(_.as[Out2])
 
+    /** Executes this [[ScalaPreparedStatement]]
+      *
+      * @return [[PagingIterable]] of [[Out]] output values
+      */
     def execute(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21, t22: T22)(implicit m: RowMapper[Out]): ZPagingIterable[Try[Out]] =
       executeStatement(pstmt)(_(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21, t22))
 
+    /** Executes this [[ScalaPreparedStatement]] in an asynchronous fashion
+      *
+      * @return a future of [[MappedAsyncPagingIterable]]
+      */
     def executeAsync(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21, t22: T22)(implicit m: RowMapper[Out]): ZAsyncPagingIterable[Try[Out]] =
       executeStatementAsync(pstmt)(_(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21, t22))
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream
+      *
+      * @return [[ZStream]] of [[Try]] of [[Out]] output values
+      */
     def stream(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21, t22: T22)(implicit m: RowMapper[Out]): ZCqlStream[Try[Out]] =
       executeStream(executeAsync(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21, t22))
 
+    /** Executes this [[ScalaPreparedStatement]] as a stream,
+      * where all the elements in a page ([[Chunk]]) a validated (ie. are `Success`)
+      *
+      * @return [[ZStream]] of [[Out]] output values
+      */
     def streamValidated(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21, t22: T22)(implicit m: RowMapper[Out]): ZCqlStream[Out] =
       executeStreamValidated(stream(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21, t22))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]]
+      * 
+      * @param options statement options to set
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(options: StatementOptions): ZSelf[Out] =
       pstmt.map(_.withOptions(options))
 
+    /** Set [[StatementOptions]] to this [[ScalaPreparedStatement]], in an inline fashion
+      *
+      * @param fn sets options
+      * @return new [[ScalaPreparedStatement]] with options set
+      */
     def withOptions(fn: Opts => Opts): ZSelf[Out] =
       pstmt.map(fn(_).asInstanceOf[Self])
   }
@@ -1095,10 +1867,10 @@ package object zio extends CodecDerivation {
 
     // format: off
     /** Fetches the current page after execution as a Scala [[Iterator]]
-     *
-     * Unlike the synchronous page, this iterator <em>won't</em> fetch more pages
-     * when it runs out of records. To do that, use the `fetchNextPage()` method
-     */
+      *
+      * Unlike the synchronous page, this iterator <em>won't</em> fetch more pages
+      * when it runs out of records. To do that, use the `fetchNextPage()` method
+      */
     def currentAndNextPage: ZIO[ZCqlSession, CassandraException, (Iterator[Try[Out]], ZAsyncPagingIterable[Try[Out]])] =
       zpi.map(_.currPage -> fetchNextPage)
     // format: on
@@ -1143,15 +1915,15 @@ package object zio extends CodecDerivation {
 
     // format: off
     /** Returns the next element from the results.
-      *
-      * It also returns the [[MappedAsyncPagingIterable]] that should be used next, since this could be the
-      * last element from the page. A [[MappedAsyncPagingIterable]] effectively represents a pagination mechanism
-      *
-      * This is convenient for queries that are known to return exactly one element, for example
-      * count queries.
-      *
-      * @return [[Some]] value if results haven't been exhausted, [[None]] otherwise
-      */
+       *
+       * It also returns the [[MappedAsyncPagingIterable]] that should be used next, since this could be the
+       * last element from the page. A [[MappedAsyncPagingIterable]] effectively represents a pagination mechanism
+       *
+       * This is convenient for queries that are known to return exactly one element, for example
+       * count queries.
+       *
+       * @return [[Some]] value if results haven't been exhausted, [[None]] otherwise
+       */
     def nextOption: ZIO[ZCqlSession, CassandraException, (Option[Out], ZAsyncPagingIterable[Try[Out]])] = {
       zpi.flatMap { underlying =>
         underlying.oneOption match {

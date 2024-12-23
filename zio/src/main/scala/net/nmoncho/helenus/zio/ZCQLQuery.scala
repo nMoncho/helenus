@@ -38,6 +38,8 @@ object ZCQLQuery {
 
     def query: String
 
+    /** Prepares a query that doesn't take any query parameters
+      */
     def prepareUnit: ZScalaPreparedStatementUnit[Row] =
       ZIO.serviceWithZIO[ZCqlSession](
         _.prepare(query).map(
@@ -255,6 +257,8 @@ object ZCQLQuery {
 
     def query: String
 
+    /** Prepares a query that doesn't take any query parameters
+      */
     def prepareUnitAsync: ZScalaPreparedStatementUnit[Row] =
       ZIO.serviceWithZIO[ZCqlSession](
         _.prepareAsync(query).map(
