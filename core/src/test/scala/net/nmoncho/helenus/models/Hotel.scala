@@ -22,6 +22,7 @@
 package net.nmoncho.helenus.models
 
 import net.nmoncho.helenus.api.RowMapper
+import net.nmoncho.helenus.api._
 
 final case class Hotel(id: String, name: String, phone: String, address: Address, pois: Set[String])
 
@@ -32,4 +33,38 @@ object Hotel {
 
   def byPoi(id: String, name: String, phone: String, address: Address): Hotel =
     Hotel(id, name, phone, address, Set())
+
+  // override type PartitioningKey = (id.type, name.type)
+
+  // val foo: Query[Hotel] = select().where(id === "1" && name > "bar")
+
+  object hotels extends Hotels
+
 }
+
+abstract class Hotels extends Table[Hotels, Hotel] {
+  import net.nmoncho.helenus._
+
+  override type PartitioningKey = (id.type, name.type)
+
+  object id extends Column[String]
+  object name extends Column[String]
+  object phone extends Column[String]
+  object address extends Column[Address]
+  object pois extends Column[Set[String]]
+
+  def q: Query[String] = selectX3(id).where(id === "1" && name === "#")
+}
+
+//class Hotels2 extends Table[Hotels2, Hotel] {
+//  import net.nmoncho.helenus._
+//
+//  override type PartitioningKey = (id.type, name.type)
+//
+//  object id extends Column[String]
+//  object name extends Column[String]
+//  object phone extends Column[String]
+//  object address extends Column[Address]
+//  object pois extends Column[Set[String]]
+//
+//}
