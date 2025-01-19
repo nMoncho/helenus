@@ -735,9 +735,8 @@ package object pekko {
             .mapConcat(identity)
             .mapAsyncUnordered(writeSettings.parallelism) { list =>
               for {
-                boundStatements <- Future.traverse(list)(element =>
-                  futurePstmt.map(_.tupled(element))
-                )
+                boundStatements <- Future
+                  .traverse(list)(element => futurePstmt.map(_.tupled(element)))
                 batchStatement =
                   BatchStatement.newInstance(writeSettings.batchType).addAll(boundStatements.asJava)
                 execution <- session.executeWriteBatch(batchStatement).map(_ => list)(ec)
