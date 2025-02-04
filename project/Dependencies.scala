@@ -22,7 +22,7 @@ object Dependencies {
 
     val monix = "3.4.1"
 
-    val pekkoConnector = "1.0.2"
+    val pekkoConnector = "1.1.0"
     val pekkoTestKit   = "1.1.3"
 
     val zio               = "2.1.15"
