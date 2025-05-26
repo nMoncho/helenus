@@ -116,7 +116,7 @@ lazy val docs = project
     ),
     mdocOut := file("."),
     libraryDependencies ++= Seq(
-      Dependencies.dseJavaDriver,
+      Dependencies.ossJavaDriver,
       Dependencies.cassandraUnit
     )
   )
@@ -130,7 +130,7 @@ lazy val core = project
     Test / testOptions += Tests.Setup(() => EmbeddedDatabase.start()),
     crossScalaVersions := List(Dependencies.Version.scala213, Dependencies.Version.scala212),
     libraryDependencies ++= Seq(
-      Dependencies.dseJavaDriver % Provided,
+      Dependencies.ossJavaDriver % Provided,
       Dependencies.scalaCollectionCompat,
       Dependencies.shapeless,
       Dependencies.slf4j,
@@ -181,7 +181,7 @@ lazy val bench = project
     publish / skip := true,
     mimaFailOnNoPrevious := false,
     libraryDependencies ++= Seq(
-      Dependencies.dseJavaDriver,
+      Dependencies.ossJavaDriver,
       Dependencies.mockito
     )
   )
@@ -237,7 +237,7 @@ lazy val flink = project
     crossScalaVersions := List(Dependencies.Version.scala212, Dependencies.Version.scala213),
     mimaFailOnNoPrevious := false,
     libraryDependencies ++= Seq(
-      Dependencies.dseJavaDriver,
+      Dependencies.ossJavaDriver,
       Dependencies.flinkCore          % "provided,test",
       Dependencies.flinkStreamingJava % "provided,test",
       Dependencies.flinkConnectorBase % "provided,test",
@@ -255,7 +255,7 @@ lazy val monix = project
     Test / testOptions += Tests.Setup(() => EmbeddedDatabase.start()),
     mimaFailOnNoPrevious := false,
     libraryDependencies ++= Seq(
-      Dependencies.dseJavaDriver % Provided,
+      Dependencies.ossJavaDriver % Provided,
       Dependencies.monix         % "provided,test",
       Dependencies.monixReactive % "provided,test"
     )
@@ -288,7 +288,7 @@ lazy val zio = project
     Test / testOptions += Tests.Setup(() => EmbeddedDatabase.start()),
     mimaFailOnNoPrevious := false,
     libraryDependencies ++= Seq(
-      Dependencies.dseJavaDriver     % Provided,
+      Dependencies.ossJavaDriver     % Provided,
       Dependencies.zio               % "provided,test",
       Dependencies.zioStreams        % "provided,test",
       Dependencies.zioStreamsInterop % "provided,test",

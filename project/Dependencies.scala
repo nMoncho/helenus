@@ -6,7 +6,7 @@ object Dependencies {
     val scala212 = "2.12.20"
 
     val cassandraUnit         = "4.3.1.0"
-    val dseJavaDriver         = "4.17.0"
+    val ossJavaDriver         = "4.19.0"
     val scalaCollectionCompat = "2.13.0"
     val scalaJava8Compat      = "1.0.2"
     val shapeless             = "2.3.13"
@@ -37,9 +37,9 @@ object Dependencies {
   }
 
   // 'core' dependencies
-  val cassandraUnit = "org.cassandraunit" % "cassandra-unit"   % Version.cassandraUnit
-  val dseJavaDriver = "com.datastax.oss"  % "java-driver-core" % Version.dseJavaDriver
-  val scalaReflect  = "org.scala-lang"    % "scala-reflect" // This is Scala version dependent
+  val cassandraUnit = "org.cassandraunit"    % "cassandra-unit"   % Version.cassandraUnit
+  val ossJavaDriver = "org.apache.cassandra" % "java-driver-core" % Version.ossJavaDriver
+  val scalaReflect  = "org.scala-lang"       % "scala-reflect" // This is Scala version dependent
   val scalaCollectionCompat =
     "org.scala-lang.modules" %% "scala-collection-compat" % Version.scalaCollectionCompat
   val scalaJava8Compat = "org.scala-lang.modules" %% "scala-java8-compat" % Version.scalaJava8Compat
