@@ -79,7 +79,10 @@ class ScalaPreparedStatementSpec
         "SELECT * FROM hotels WHERE name = ?".toCQL
           .prepareAsync[String]
           .failed
-      )(failure => failure shouldBe a[InvalidQueryException])
+      ) { failure =>
+        failure shouldBe a[java.util.concurrent.CompletionException]
+        failure.getCause shouldBe a[InvalidQueryException]
+      }
     }
 
     "work as a function producing BoundStatement" in {
