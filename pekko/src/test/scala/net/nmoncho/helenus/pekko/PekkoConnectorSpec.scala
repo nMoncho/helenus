@@ -131,7 +131,7 @@ class PekkoConnectorSpec extends AnyWordSpec with Matchers with CassandraSpec wi
 
         val pager0 = query.pager().asReadSource(pageSize)
 
-        val (state0, rows0) = pager0.toMat(Sink.seq[IceCream])(Keep.both).run()
+        val (state0, rows0)     = pager0.toMat(Sink.seq[IceCream])(Keep.both).run()
         val (page0State, page0) = whenReady(rows0.flatMap(r => state0.map(r -> _))) {
           case (rows, state) =>
             rows should have size pageSize
@@ -208,7 +208,7 @@ class PekkoConnectorSpec extends AnyWordSpec with Matchers with CassandraSpec wi
       }
 
       withClue("work with interpolated queries") {
-        val name = "vanilla"
+        val name  = "vanilla"
         val query =
           cqlAsync"SELECT * FROM ice_creams WHERE name = $name".as[IceCream].asReadSource()
 
@@ -246,7 +246,7 @@ class PekkoConnectorSpec extends AnyWordSpec with Matchers with CassandraSpec wi
 
         val pager0 = query.pager().asReadSource(pageSize)
 
-        val (state0, rows0) = pager0.toMat(Sink.seq[IceCream])(Keep.both).run()
+        val (state0, rows0)     = pager0.toMat(Sink.seq[IceCream])(Keep.both).run()
         val (page0State, page0) = whenReady(rows0.flatMap(r => state0.map(r -> _))) {
           case (rows, state) =>
             rows should have size pageSize
@@ -364,7 +364,7 @@ object PekkoConnectorSpec {
   case class IceCream(name: String, numCherries: Int, cone: Boolean)
   object IceCream {
     import net.nmoncho.helenus._
-    implicit val rowMapper: RowMapper[IceCream] = RowMapper[IceCream]
+    implicit val rowMapper: RowMapper[IceCream]                        = RowMapper[IceCream]
     implicit val rowAdapter: Adapter[IceCream, (String, Int, Boolean)] =
       Adapter.builder[IceCream].build
   }

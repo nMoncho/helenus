@@ -84,7 +84,7 @@ abstract class AbstractMapCodec[K, V, M[K, V] <: scala.collection.Map[K, V]](
 
         // Decode Key
         val keySize = input.getInt()
-        val key =
+        val key     =
           if (keySize < 0) null.asInstanceOf[K]
           else {
             val copy = input.duplicate()
@@ -95,7 +95,7 @@ abstract class AbstractMapCodec[K, V, M[K, V] <: scala.collection.Map[K, V]](
 
         // Decode Value
         val valueSize = input.getInt()
-        val value =
+        val value     =
           if (valueSize < 0) null.asInstanceOf[V]
           else {
             val copy = input.duplicate()

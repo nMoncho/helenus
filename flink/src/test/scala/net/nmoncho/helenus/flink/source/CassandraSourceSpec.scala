@@ -74,7 +74,7 @@ class CassandraSourceSpec extends AnyWordSpec with Matchers with FlinkCassandraS
 
   "Cassandra Split Enumerator" should {
     "prepare splits on start, and then handle split requests" in {
-      val context = new MockSplitEnumeratorContext[CassandraSplit](parallelism)
+      val context   = new MockSplitEnumeratorContext[CassandraSplit](parallelism)
       val splitEnum = CassandraEnumeratorState.splitEnumerator(
         context,
         None,

@@ -100,7 +100,7 @@ object CqlQueryInterpolation {
 
         case other =>
           val symbol = other.symbol.name.toString
-          val named =
+          val named  =
             if (Strings.needsDoubleQuotes(symbol)) Strings.doubleQuote(symbol)
             else symbol
 

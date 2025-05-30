@@ -35,7 +35,7 @@ class PagerSpec
 
   import scala.concurrent.ExecutionContext.Implicits.global
 
-  private implicit lazy val cqlSession: CqlSession = session
+  private implicit lazy val cqlSession: CqlSession              = session
   private implicit val pagerSerializer: PagerSerializer[String] =
     PagerSerializer.DefaultPagingStateSerializer
 
@@ -93,7 +93,7 @@ class PagerSpec
 
     "page a single param query" in {
       val pageSize = 2
-      val pstmt =
+      val pstmt    =
         "SELECT date, room_number, is_available FROM available_rooms_by_hotel_date WHERE hotel_id = ?".toCQL
           .prepare[String]
           .as[(LocalDate, Short, Boolean)]
@@ -172,7 +172,7 @@ class PagerSpec
 
     "page a single param query" in {
       val pageSize = 2
-      val pager0 =
+      val pager0   =
         "SELECT date, room_number, is_available FROM available_rooms_by_hotel_date WHERE hotel_id = ?".toCQLAsync
           .prepare[String]
           .as[(LocalDate, Short, Boolean)]

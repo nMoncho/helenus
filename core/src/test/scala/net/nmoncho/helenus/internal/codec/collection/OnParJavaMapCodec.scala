@@ -32,7 +32,7 @@ abstract class OnParJavaMapCodec[ScalaColl[_, _] <: scala.collection.Map[_, _]](
   override def javaCodec: TypeCodec[util.Map[String, String]] =
     TypeCodecs.mapOf(TypeCodecs.TEXT, TypeCodecs.TEXT)
 
-  private val emptyColl = factory.newBuilder.result()
+  private val emptyColl  = factory.newBuilder.result()
   private val fooBarColl = {
     val builder = factory.newBuilder
     builder ++= Seq("foo" -> "bar", "bar" -> "baz")

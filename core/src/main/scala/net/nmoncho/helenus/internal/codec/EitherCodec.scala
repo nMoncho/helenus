@@ -92,7 +92,7 @@ class EitherCodec[A, B](left: TypeCodec[A], right: TypeCodec[B]) extends TypeCod
 
       val leftEndIdx    = ParseUtils.skipCQLValue(value, idx)
       val leftSubstring = value.substring(idx, leftEndIdx)
-      val leftValue =
+      val leftValue     =
         if (leftSubstring.equalsIgnoreCase(NULL))
           null.asInstanceOf[A] // need to do this due to `AnyVal` types not returning null
         else left.parse(leftSubstring)

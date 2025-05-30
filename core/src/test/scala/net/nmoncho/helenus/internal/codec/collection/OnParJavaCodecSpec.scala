@@ -30,7 +30,7 @@ abstract class OnParJavaCodecSpec[
 
   override def toJava(t: ScalaColl[String]): JavaColl[String]
 
-  private val emptyColl = factory.newBuilder.result()
+  private val emptyColl  = factory.newBuilder.result()
   private val fooBarColl = {
     val builder = factory.newBuilder
     builder ++= Seq("foo", "bar")

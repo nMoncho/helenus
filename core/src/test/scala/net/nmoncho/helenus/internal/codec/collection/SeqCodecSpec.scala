@@ -26,7 +26,7 @@ abstract class AbstractSeqCodecSpec[Coll[_] <: scala.collection.Seq[_]](name: St
   override protected val codec: TypeCodec[Coll[Int]]
   protected val sCodec: TypeCodec[Coll[String]]
 
-  private val emptySeq = intFactory.newBuilder.result()
+  private val emptySeq    = intFactory.newBuilder.result()
   private val oneTwoThree = {
     val builder = intFactory.newBuilder
     builder ++= Seq(1, 2, 3)
