@@ -26,7 +26,7 @@ class MonixSpec extends AnyWordSpec with Matchers with CassandraSpec with ScalaF
 
   import net.nmoncho.helenus._
 
-  private implicit lazy val cqlSession: CqlSession = session
+  private implicit lazy val cqlSession: CqlSession              = session
   private implicit val pagerSerializer: PagerSerializer[String] =
     PagerSerializer.DefaultPagingStateSerializer
 
@@ -105,7 +105,7 @@ class MonixSpec extends AnyWordSpec with Matchers with CassandraSpec with ScalaF
       testStream(ijes, observable, consumer)(identity)
 
       withClue("work with interpolated queries") {
-        val name = "vanilla"
+        val name  = "vanilla"
         val query =
           cqlAsync"SELECT * FROM ice_creams WHERE name = $name".as[IceCream].asObservable()
 
@@ -201,7 +201,7 @@ object MonixSpec {
   case class IceCream(name: String, numCherries: Int, cone: Boolean)
   object IceCream {
     import net.nmoncho.helenus._
-    implicit val rowMapper: RowMapper[IceCream] = RowMapper[IceCream]
+    implicit val rowMapper: RowMapper[IceCream]                        = RowMapper[IceCream]
     implicit val rowAdapter: Adapter[IceCream, (String, Int, Boolean)] =
       Adapter.builder[IceCream].build
   }

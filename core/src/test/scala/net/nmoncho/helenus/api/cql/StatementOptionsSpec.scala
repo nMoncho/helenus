@@ -36,7 +36,7 @@ class StatementOptionsSpec extends AnyWordSpec with Matchers {
 
     "apply only set options" in {
       // test setup
-      val bs = mockBoundStatement()
+      val bs      = mockBoundStatement()
       val options = StatementOptions.default.copy(
         bstmtOptions = StatementOptions.default.bstmtOptions.copy(
           routingKeyspace  = Some(CqlIdentifier.fromInternal("foo")),

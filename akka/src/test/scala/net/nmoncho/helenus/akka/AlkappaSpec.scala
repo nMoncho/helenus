@@ -133,7 +133,7 @@ class AlkappaSpec extends AnyWordSpec with Matchers with CassandraSpec with Scal
 
         val pager0 = query.pager().asReadSource(pageSize)
 
-        val (state0, rows0) = pager0.toMat(Sink.seq[IceCream])(Keep.both).run()
+        val (state0, rows0)     = pager0.toMat(Sink.seq[IceCream])(Keep.both).run()
         val (page0State, page0) = whenReady(rows0.flatMap(r => state0.map(r -> _))) {
           case (rows, state) =>
             rows should have size pageSize
@@ -210,7 +210,7 @@ class AlkappaSpec extends AnyWordSpec with Matchers with CassandraSpec with Scal
       }
 
       withClue("work with interpolated queries") {
-        val name = "vanilla"
+        val name  = "vanilla"
         val query =
           cqlAsync"SELECT * FROM ice_creams WHERE name = $name".as[IceCream].asReadSource()
 
@@ -224,7 +224,7 @@ class AlkappaSpec extends AnyWordSpec with Matchers with CassandraSpec with Scal
 
         val pager0 = query.pager().asReadSource(pageSize)
 
-        val (state0, rows0) = pager0.toMat(Sink.seq[IceCream])(Keep.both).run()
+        val (state0, rows0)     = pager0.toMat(Sink.seq[IceCream])(Keep.both).run()
         val (page0State, page0) = whenReady(rows0.flatMap(r => state0.map(r -> _))) {
           case (rows, state) =>
             rows should have size pageSize
@@ -366,7 +366,7 @@ object AlkappaSpec {
   case class IceCream(name: String, numCherries: Int, cone: Boolean)
   object IceCream {
     import net.nmoncho.helenus._
-    implicit val rowMapper: RowMapper[IceCream] = RowMapper[IceCream]
+    implicit val rowMapper: RowMapper[IceCream]                        = RowMapper[IceCream]
     implicit val rowAdapter: Adapter[IceCream, (String, Int, Boolean)] =
       Adapter.builder[IceCream].build
   }

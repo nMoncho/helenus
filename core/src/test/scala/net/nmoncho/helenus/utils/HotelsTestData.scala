@@ -99,7 +99,7 @@ object HotelsTestData {
     )
 
     final val rotterdamBoijmans: PointOfInterest = PointOfInterest(
-      name = "Museum Boijmans Van Beuningen",
+      name        = "Museum Boijmans Van Beuningen",
       description =
         "Museum in Rotterdam featuring art and design from the Middle Ages to the present day."
     )

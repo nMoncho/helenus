@@ -86,7 +86,7 @@ class UdtCodecSpec extends AnyWordSpec with Matchers {
 
     "create a codec from fields" in {
       implicit val colMapper: ColumnNamingScheme = DefaultColumnNamingScheme
-      val codec: TypeCodec[IceCream3] =
+      val codec: TypeCodec[IceCream3]            =
         Codec.udtFromFields[IceCream3]("", "", true)(_.name, _.cone, _.count, _.numCherries)
 
       val sundae  = IceCream3("Sundae", 3, cone = Some(false), Some(1 -> 2))
@@ -200,7 +200,7 @@ class CassandraUdtCodecSpec extends AnyWordSpec with Matchers with CassandraSpec
 
     "work when fields are in different order (with fields)" in {
       implicit val colMapper: ColumnNamingScheme = SnakeCase
-      val codec: TypeCodec[IceCreamShuffled] =
+      val codec: TypeCodec[IceCreamShuffled]     =
         Codec.udtFromFields[IceCreamShuffled]("", "", true)(_.name, _.numCherries, _.cone)
 
       val id = UUID.randomUUID()

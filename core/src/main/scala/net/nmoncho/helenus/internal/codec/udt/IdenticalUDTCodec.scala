@@ -220,7 +220,7 @@ object IdenticalUDTCodec {
         val input = buffer.duplicate()
 
         val elementSize = input.getInt
-        val element = if (elementSize < 0) {
+        val element     = if (elementSize < 0) {
           codec.decode(null, protocolVersion)
         } else {
           val element = input.slice()
@@ -291,7 +291,7 @@ object IdenticalUDTCodec {
           val input = buffer.duplicate()
 
           val elementSize = input.getInt
-          val element = if (elementSize < 0) {
+          val element     = if (elementSize < 0) {
             headCodec.decode(null, protocolVersion)
           } else {
             val element = input.slice()

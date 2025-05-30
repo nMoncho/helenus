@@ -35,7 +35,7 @@ class TupleCodecBenchmark {
 
   private val attachmentPoint = mock(classOf[AttachmentPoint])
   private val codecRegistry   = mock(classOf[CodecRegistry])
-  private val tupleType =
+  private val tupleType       =
     new DefaultTupleType(
       List(DataTypes.INT, DataTypes.INT, DataTypes.INT, DataTypes.INT, DataTypes.INT).asJava,
       attachmentPoint

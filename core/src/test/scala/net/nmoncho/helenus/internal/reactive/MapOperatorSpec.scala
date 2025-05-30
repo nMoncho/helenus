@@ -29,7 +29,7 @@ class MapOperatorSpec extends AnyWordSpec with Matchers with Eventually with Cas
   "MapOperator" should {
     "map elements from publisher" in {
       val publisher = new SubmissionPublisher[String]()
-      val op = new MapOperator(
+      val op        = new MapOperator(
         FlowAdapters.toPublisher(publisher),
         (s: String) => s.toInt
       )
@@ -51,7 +51,7 @@ class MapOperatorSpec extends AnyWordSpec with Matchers with Eventually with Cas
 
     "propagate errors" in {
       val publisher = new SubmissionPublisher[Int]()
-      val op = new MapOperator(
+      val op        = new MapOperator(
         FlowAdapters.toPublisher(publisher),
         (s: Int) => s / s
       )

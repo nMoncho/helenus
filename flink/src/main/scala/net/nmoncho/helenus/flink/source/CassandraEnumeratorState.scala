@@ -153,8 +153,8 @@ object CassandraEnumeratorState {
         )
 
       private def prepareSplits(): CassandraEnumeratorState = {
-        val parallelism = enumeratorContext.currentParallelism()
-        val partitioner = CassandraPartitioner(session)
+        val parallelism       = enumeratorContext.currentParallelism()
+        val partitioner       = CassandraPartitioner(session)
         val (keyspace, table) =
           extractKeyspaceTable(session, bstmt(session).getPreparedStatement.getQuery)
 
