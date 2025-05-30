@@ -115,7 +115,7 @@ class PagerSerializerSpec
 
     "react to a state from another statement" in runIfSafe {
       val queryHotels = "SELECT * FROM hotels".toCQL.prepareUnit.as[Hotel]
-      val queryRooms =
+      val queryRooms  =
         "SELECT date, room_number, is_available FROM available_rooms_by_hotel_date WHERE hotel_id = ?".toCQL
           .prepare[String]
           .as[(LocalDate, Short, Boolean)]

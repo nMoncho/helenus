@@ -52,7 +52,7 @@ object RowMapper {
         case Function(List(ValDef(_, TermName(name), _, _)), _) => name
       }
       val fieldName: String = findFieldName(expr, paramName)
-      val mapping = expr.tree
+      val mapping           = expr.tree
         .collect {
           case Apply(_, List(select @ Select(_))) => select
           case Apply(_, List(literal @ Literal(_))) => literal

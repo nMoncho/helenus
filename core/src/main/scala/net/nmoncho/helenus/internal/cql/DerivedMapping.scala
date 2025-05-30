@@ -62,7 +62,7 @@ object DerivedMapping {
     ): T => ScalaBoundStatement[Out] = {
       verify(pstmt)
 
-      val collected = collector(pstmt)
+      val collected        = collector(pstmt)
       val requiredComputed = computedColumns.collect {
         case (_, computed) if computed.contains(pstmt) => computed(pstmt)
       }

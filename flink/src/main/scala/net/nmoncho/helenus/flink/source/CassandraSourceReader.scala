@@ -66,7 +66,7 @@ class CassandraSourceReader[Out: RowMapper](
 
 object CassandraSourceReader {
 
-  type CassandraRow = (Row, ExecutionInfo)
+  type CassandraRow    = (Row, ExecutionInfo)
   type ReaderBase[Out] =
     SingleThreadMultiplexSourceReaderBase[CassandraRow, Out, CassandraSplit, CassandraSplit]
 
@@ -97,7 +97,7 @@ object CassandraSourceReader {
         val recordsBySplit = new util.HashMap[String, util.Collection[CassandraRow]]()
         val finishedSplits = new util.HashSet[String]()
 
-        val userQuery = bstmt(session)
+        val userQuery         = bstmt(session)
         val (keyspace, table) =
           extractKeyspaceTable(session, userQuery.getPreparedStatement.getQuery)
         val partitioningKey = fetchPartitioningKey(keyspace, table)
@@ -200,7 +200,7 @@ object CassandraSourceReader {
       )
     }
 
-    val whereIdx = query.toLowerCase.indexOf(" where ")
+    val whereIdx                 = query.toLowerCase.indexOf(" where ")
     val (insertionPoint, filter) = if (whereIdx != -1) {
       (whereIdx + " where ".length) -> s"(token($partitioningKey) >= ?) AND (token($partitioningKey) < ?) AND "
     } else {

@@ -17,7 +17,7 @@ trait TypeGenerators {
 
   type GenN[F[_], A] = Int => Gen[F[A]]
 
-  protected implicit val genBoolean: Gen[Boolean] = Gen.oneOf(true, false)
+  protected implicit val genBoolean: Gen[Boolean]            = Gen.oneOf(true, false)
   protected implicit val genJBoolean: Gen[java.lang.Boolean] =
     genBoolean.map(x => x: java.lang.Boolean)
 
