@@ -23,7 +23,7 @@ object Dependencies {
     val monix = "3.4.1"
 
     val pekkoConnector = "1.1.0"
-    val pekkoTestKit   = "1.1.3"
+    val pekkoTestKit   = "1.1.4"
 
     val zio               = "2.1.19"
     val zioStreamsInterop = "2.0.2"
