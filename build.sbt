@@ -140,7 +140,7 @@ lazy val core = project
       Dependencies.scalaTest     % Test,
       Dependencies.scalaTestPlus % Test,
       Dependencies.logback       % Test,
-      "net.java.dev.jna"         % "jna" % "5.18.0" % Test // Fixes M1 JNA issue
+      "net.java.dev.jna"         % "jna" % "5.18.1" % Test // Fixes M1 JNA issue
     ),
     scalacOptions ++= crossSetting(
       scalaVersion.value,
