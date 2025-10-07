@@ -7,7 +7,7 @@ object Dependencies {
 
     val cassandraUnit         = "4.3.1.0"
     val ossJavaDriver         = "4.19.0"
-    val scalaCollectionCompat = "2.13.0"
+    val scalaCollectionCompat = "2.14.0"
     val scalaJava8Compat      = "1.0.2"
     val shapeless             = "2.3.13"
     val slf4j                 = "2.0.17"
