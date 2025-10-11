@@ -89,6 +89,33 @@ lazy val basicSettings = Seq(
     ),
     ProblemFilters.exclude[IncompatibleResultTypeProblem](
       "net.nmoncho.helenus.api.cql.StatementOptions.copy*"
+    ),
+    ProblemFilters.exclude[DirectMissingMethodProblem](
+      "net.nmoncho.helenus.api.cql.StatementOptions.apply"
+    ),
+    ProblemFilters.exclude[ReversedMissingMethodProblem](
+      "net.nmoncho.helenus.api.type.codec.CodecDerivation.tokenCodec"
+    ),
+    ProblemFilters.exclude[ReversedMissingMethodProblem](
+      "net.nmoncho.helenus.api.type.codec.CodecDerivation.net$nmoncho$helenus$api$type$codec$CodecDerivation$_setter_$tokenCodec_="
+    ),
+    ProblemFilters.exclude[ReversedMissingMethodProblem](
+      "net.nmoncho.helenus.api.type.codec.CodecDerivation.murmur3TokenCodec"
+    ),
+    ProblemFilters.exclude[ReversedMissingMethodProblem](
+      "net.nmoncho.helenus.api.type.codec.CodecDerivation.net$nmoncho$helenus$api$type$codec$CodecDerivation$_setter_$murmur3TokenCodec_="
+    ),
+    ProblemFilters.exclude[ReversedMissingMethodProblem](
+      "net.nmoncho.helenus.api.type.codec.CodecDerivation.randomTokenCodec"
+    ),
+    ProblemFilters.exclude[ReversedMissingMethodProblem](
+      "net.nmoncho.helenus.api.type.codec.CodecDerivation.net$nmoncho$helenus$api$type$codec$CodecDerivation$_setter_$randomTokenCodec_="
+    ),
+    ProblemFilters.exclude[ReversedMissingMethodProblem](
+      "net.nmoncho.helenus.api.type.codec.CodecDerivation.byteOrderedTokenCodec"
+    ),
+    ProblemFilters.exclude[ReversedMissingMethodProblem](
+      "net.nmoncho.helenus.api.type.codec.CodecDerivation.net$nmoncho$helenus$api$type$codec$CodecDerivation$_setter_$byteOrderedTokenCodec_="
     )
   )
 )

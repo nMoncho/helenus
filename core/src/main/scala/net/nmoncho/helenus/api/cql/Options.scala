@@ -127,4 +127,16 @@ trait Options[In, Out] {
         options.bstmtOptions.copy(consistencyLevel = Some(consistencyLevel))
       )
     )
+
+  /** Sets whether this statement is idempotent or not
+    *
+    * You must mark queries as idempotent if you want to leverage features such as
+    * retry policies and speculative execution.
+    *
+    * @return new [[ScalaPreparedStatement]] instance with updated idempotency
+    */
+  def withIdempotent(idempotent: Boolean): Self =
+    withOptions(
+      options.copy(bstmtOptions = options.bstmtOptions.copy(idempotent = idempotent))
+    )
 }

@@ -22,6 +22,10 @@ import com.datastax.dse.driver.api.core.data.geometry.Point
 import com.datastax.dse.driver.api.core.data.geometry.Polygon
 import com.datastax.dse.driver.api.core.data.time.DateRange
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
+import com.datastax.oss.driver.api.core.metadata.token.Token
+import com.datastax.oss.driver.internal.core.metadata.token.ByteOrderedToken
+import com.datastax.oss.driver.internal.core.metadata.token.Murmur3Token
+import com.datastax.oss.driver.internal.core.metadata.token.RandomToken
 import net.nmoncho.helenus.internal.codec._
 import net.nmoncho.helenus.internal.codec.collection._
 import net.nmoncho.helenus.internal.codec.enums.EnumerationNominalCodec
@@ -96,6 +100,15 @@ object TypeCodecs {
 
   val dateRangeCodec: TypeCodec[DateRange] =
     com.datastax.dse.driver.api.core.`type`.codec.DseTypeCodecs.DATE_RANGE
+
+  // Token TypeCodecs
+  val tokenCodec: TypeCodec[Token] = TokenCodec.TokenCodec
+
+  val murmur3TokenCodec: TypeCodec[Murmur3Token] = TokenCodec.Murmur3TokenCodec
+
+  val randomTokenCodec: TypeCodec[RandomToken] = TokenCodec.RandomTokenCodec
+
+  val byteOrderedTokenCodec: TypeCodec[ByteOrderedToken] = TokenCodec.ByteOrderedTokenCodec
 
   /** Builds a new codec for an [[Enumeration]] by name */
   def enumerationNominalCodec[T <: Enumeration](enumeration: T): TypeCodec[T#Value] =

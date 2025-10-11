@@ -27,6 +27,10 @@ import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.`type`.codec.MappingCodec
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.`type`.reflect.GenericType
+import com.datastax.oss.driver.api.core.metadata.token.Token
+import com.datastax.oss.driver.internal.core.metadata.token.ByteOrderedToken
+import com.datastax.oss.driver.internal.core.metadata.token.Murmur3Token
+import com.datastax.oss.driver.internal.core.metadata.token.RandomToken
 import net.nmoncho.helenus.api.ColumnNamingScheme
 import net.nmoncho.helenus.api.DefaultColumnNamingScheme
 import net.nmoncho.helenus.api.NominalEncoded
@@ -80,6 +84,15 @@ trait CodecDerivation extends TupleCodecDerivation { that =>
   implicit final val polygonCodec: TypeCodec[Polygon] = TypeCodecs.polygonCodec
 
   implicit final val dateRangeCodec: TypeCodec[DateRange] = TypeCodecs.dateRangeCodec
+
+  // Token TypeCodecs
+  implicit val tokenCodec: TypeCodec[Token] = TypeCodecs.tokenCodec
+
+  implicit val murmur3TokenCodec: TypeCodec[Murmur3Token] = TypeCodecs.murmur3TokenCodec
+
+  implicit val randomTokenCodec: TypeCodec[RandomToken] = TypeCodecs.randomTokenCodec
+
+  implicit val byteOrderedTokenCodec: TypeCodec[ByteOrderedToken] = TypeCodecs.byteOrderedTokenCodec
 
   implicit def enumNominalCodec[T <: Enumeration](
       implicit w: Witness.Aux[T],
