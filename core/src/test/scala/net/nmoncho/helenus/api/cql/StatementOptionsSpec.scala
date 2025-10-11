@@ -74,6 +74,7 @@ class StatementOptionsSpec extends AnyWordSpec with Matchers {
     when(bs.setTimeout(any())).thenReturn(bs)
     when(bs.setPagingState(any[ByteBuffer]())).thenReturn(bs)
     when(bs.setConsistencyLevel(any())).thenReturn(bs)
+    when(bs.setIdempotent(any())).thenReturn(bs)
 
     bs
   }
