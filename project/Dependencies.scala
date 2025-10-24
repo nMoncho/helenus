@@ -6,7 +6,7 @@ object Dependencies {
     val scala212 = "2.12.20"
 
     val cassandraUnit         = "4.3.1.0"
-    val ossJavaDriver         = "4.19.0"
+    val ossJavaDriver         = "4.19.1"
     val scalaCollectionCompat = "2.13.0"
     val scalaJava8Compat      = "1.0.2"
     val shapeless             = "2.3.13"
