@@ -1,4 +1,4 @@
-import org.cassandraunit.utils.EmbeddedCassandraServerHelper
+import net.nmoncho.utils.EmbeddedCassandraServerHelper
 
 object EmbeddedDatabase {
 
