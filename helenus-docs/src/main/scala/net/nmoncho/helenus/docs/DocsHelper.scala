@@ -7,7 +7,7 @@
 package net.nmoncho.helenus.docs
 
 import com.datastax.oss.driver.api.core.CqlSession
-import net.nmoncho.utils.EmbeddedCassandraServerHelper
+import net.nmoncho.cassandraunit.utils.EmbeddedCassandraServerHelper
 
 object DocsHelper {
 
