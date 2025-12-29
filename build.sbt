@@ -243,7 +243,7 @@ lazy val akkaBusl = project
     scalaVersion := Dependencies.Version.scala213,
     Test / testOptions += Tests.Setup(() => EmbeddedDatabase.start()),
     crossScalaVersions := List(Dependencies.Version.scala213),
-    mimaFailOnNoPrevious := false,
+    mimaPreviousArtifacts := Set("net.nmoncho" %% "helenus-akka-busl" % "1.0.0"),
     libraryDependencies ++= Seq(
       Dependencies.alpakkaBusl     % "provided,test",
       Dependencies.akkaTestKitBusl % Test,
@@ -262,7 +262,7 @@ lazy val flink = project
     Test / testOptions += Tests.Setup(() => EmbeddedDatabase.start()),
     Test / fork := true,
     crossScalaVersions := List(Dependencies.Version.scala212, Dependencies.Version.scala213),
-    mimaFailOnNoPrevious := false,
+    mimaPreviousArtifacts := Set("net.nmoncho" %% "helenus-flink" % "1.7.0"),
     libraryDependencies ++= Seq(
       Dependencies.ossJavaDriver,
       Dependencies.flinkCore          % "provided,test",
@@ -280,7 +280,7 @@ lazy val monix = project
     scalaVersion := Dependencies.Version.scala213,
     crossScalaVersions := List(Dependencies.Version.scala213, Dependencies.Version.scala212),
     Test / testOptions += Tests.Setup(() => EmbeddedDatabase.start()),
-    mimaFailOnNoPrevious := false,
+    mimaPreviousArtifacts := Set("net.nmoncho" %% "helenus-monix" % "1.7.0"),
     libraryDependencies ++= Seq(
       Dependencies.ossJavaDriver % Provided,
       Dependencies.monix         % "provided,test",
@@ -313,7 +313,7 @@ lazy val zio = project
     scalaVersion := Dependencies.Version.scala213,
     crossScalaVersions := List(Dependencies.Version.scala213, Dependencies.Version.scala212),
     Test / testOptions += Tests.Setup(() => EmbeddedDatabase.start()),
-    mimaFailOnNoPrevious := false,
+    mimaPreviousArtifacts := Set("net.nmoncho" %% "helenus-zio" % "1.8.1"),
     libraryDependencies ++= Seq(
       Dependencies.ossJavaDriver     % Provided,
       Dependencies.zio               % "provided,test",
