@@ -5,7 +5,7 @@ object Dependencies {
     val scala213 = "2.13.18" // JLine fails on this version, downgrade to 2.13.12 to use REPL
     val scala212 = "2.12.21"
 
-    val cassandraUnit         = "3.11.19.2"
+    val cassandraUnit         = "5.0.6.0"
     val ossJavaDriver         = "4.19.2"
     val scalaCollectionCompat = "2.14.0"
     val scalaJava8Compat      = "1.0.2"
