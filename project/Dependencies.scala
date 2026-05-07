@@ -25,7 +25,7 @@ object Dependencies {
     val pekkoConnector = "1.3.0"
     val pekkoTestKit   = "1.6.0"
 
-    val zio               = "2.1.25"
+    val zio               = "2.1.26"
     val zioStreamsInterop = "2.0.2"
 
     // Test Dependencies
