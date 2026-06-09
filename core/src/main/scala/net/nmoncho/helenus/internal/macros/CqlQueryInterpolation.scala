@@ -16,6 +16,7 @@ import com.datastax.oss.driver.api.core.cql.PreparedStatement
 import com.datastax.oss.driver.api.core.cql.Row
 import com.datastax.oss.driver.internal.core.util.Strings
 import net.nmoncho.helenus.api.cql.WrappedBoundStatement
+import net.nmoncho.helenus.internal.cql.CqlValidator
 
 object CqlQueryInterpolation {
 
@@ -25,6 +26,15 @@ object CqlQueryInterpolation {
     import c.universe._
 
     val (stmt, bindParameters) = buildStatement(c)(params)
+
+    CqlValidator.validate(stmt) match {
+      case Right(_) => // do nothing, all good
+      case Left((error, pos)) =>
+        c.abort(
+          c.enclosingPosition.withPoint(c.enclosingPosition.point + pos),
+          s"Invalid CQL: $error"
+        )
+    }
 
     val bstmt = c.Expr[BoundStatement](
       q"$session.prepare($stmt).bind()"
@@ -52,6 +62,15 @@ object CqlQueryInterpolation {
     import c.universe._
 
     val (stmt, bindParameters) = buildStatement(c)(params)
+
+    CqlValidator.validate(stmt) match {
+      case Right(_) => // do nothing, all good
+      case Left((error, pos)) =>
+        c.abort(
+          c.enclosingPosition.withPoint(c.enclosingPosition.point + pos),
+          s"Invalid CQL: $error"
+        )
+    }
 
     val pstmt = c.Expr[Future[PreparedStatement]](
       q"$session.flatMap(s => _root_.net.nmoncho.helenus.internal.compat.FutureConverters.asScala(s.prepareAsync($stmt)))"

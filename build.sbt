@@ -161,6 +161,7 @@ lazy val core = project
       Dependencies.scalaCollectionCompat,
       Dependencies.shapeless,
       Dependencies.slf4j,
+      Dependencies.antlr4,
       // Test Dependencies
       Dependencies.mockito       % Test,
       Dependencies.scalaCheck    % Test,
