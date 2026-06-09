@@ -143,6 +143,20 @@ class CqlQueryInterpolationSpec
         }
       }
     }
+
+    "failed to compile with diagnostics" in {
+      import scala.concurrent.ExecutionContext.Implicits.global
+      val _ =
+        scala.concurrent.Future(()) // dummy value to avoid having issues with the "unused import"
+
+      assertCompiles("""cql"SELECT id FROM users"""") // sanity check
+
+      assertDoesNotCompile("""cql"SELEKT id FROM users"""")
+
+      assertCompiles("""cqlAsync"SELECT id FROM users"""") // sanity check
+
+      assertDoesNotCompile("""cqlAsync"SELEKT id FROM users"""")
+    }
   }
 
   override def beforeAll(): Unit = {

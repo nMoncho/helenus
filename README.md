@@ -45,8 +45,8 @@ similar experience by putting CQL first. Our goals are:
  - `TypeCodec`s for Scala types. Every type extending `AnyVal`, most Scala Collections, Scala `Enumeration`, etc.
    - Codecs for [UDTs](https://docs.datastax.com/en/cql-oss/3.3/cql/cql_using/useCreateUDT.html) defined as Case Classes.
    - Codecs for [Tuples](https://docs.datastax.com/en/cql-oss/3.3/cql/cql_using/useCreateTableTuple.html) defined with Scala Tuples.
- - CQL templating, with String Interpolation. See [usage](#usage).
- - `PreparedStatement`s and `BoundStatement`s extension methods
+ - CQL templating, with String Interpolation, validated at compile time. See [usage](#usage).
+ - `PreparedStatement`s and `BoundStatement`s extension methods.
 
 ### Supported Codecs
 
