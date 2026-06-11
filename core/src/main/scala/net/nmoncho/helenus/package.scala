@@ -300,10 +300,7 @@ package object helenus extends CodecDerivation {
   implicit class PreparedStatementSyncStringOps(private val query: String) extends AnyVal {
 
     def toCQL(implicit session: CqlSession): CQLQuery =
-      CQLQuery(
-        query,
-        session
-      )
+      macro internal.macros.CqlQueryInterpolation.toCQL
 
     def toCQLAsync(
         implicit futSession: Future[CqlSession],

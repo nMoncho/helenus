@@ -8,8 +8,6 @@ package net.nmoncho.helenus.internal.cql
 
 import scala.annotation.tailrec
 
-import net.nmocho.helenus.internal.cql.CqlLexer
-import net.nmocho.helenus.internal.cql.CqlParser
 import org.antlr.v4.runtime._
 
 /** CQL Validator without requiring connection to Cassandra
