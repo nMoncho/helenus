@@ -20,3 +20,27 @@ CREATE TYPE taz(address TEXT, number  INT);
 This also means that when creating a `TypeCodec`, the `UserDefinedType` users need
 to provide has to align with the `CQL TYPE` as defined in the database.
 
+## Compile-Time CQL Queries and ANTLR4
+
+The `CqlValidator` uses ANTLR4 to validate CQL queries. There are two `g4` files:
+
+- `core/src/main/antlr4/CqlLexer.g4`
+- `core/src/main/antlr4/CqlParser.64`
+
+These are used to generate Java classes that ANTRL4 then uses to validate the queries:
+
+- `core/src/main/java/net/nmoncho/helenus/internal/cql/CqlLexer.java`
+- `core/src/main/java/net/nmoncho/helenus/internal/cql/CqlParser.java`
+
+To generate these Java files we need to run ANTLR
+
+```bash
+$ curl -O https://www.antlr.org/download/antlr-4.13.2-complete.jar
+
+$ java -jar antlr-4.13.2-complete.jar \
+  -o ./core/src/main/java/net/nmoncho/helenus/internal/cql \        # output directory
+  -package net.nmoncho.helenus.internal.cql \                       # Java package name
+  -listener \                                                       # generate listener (default)
+  -visitor \                                                        # generate visitor classes
+  core/src/main/antlr4/CqlLexer.g4 core/src/main/antlr4/CqlParser.64
+```
