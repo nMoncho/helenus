@@ -19,7 +19,7 @@ object Dependencies {
     val akkaBusl    = "2.8.5"
     val alpakkaBusl = "6.0.2"
 
-    val flink = "1.20.4"
+    val flink = "1.20.5"
 
     val monix = "3.4.1"
 
