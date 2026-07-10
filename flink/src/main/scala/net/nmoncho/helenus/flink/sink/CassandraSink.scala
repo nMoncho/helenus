@@ -13,11 +13,10 @@ import com.datastax.oss.driver.api.core.CqlSessionBuilder
 import com.datastax.oss.driver.internal.core.config.typesafe.DefaultDriverConfigLoader
 import com.typesafe.config.ConfigFactory
 import org.apache.flink.streaming.api.datastream.DataStreamSink
-import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
-final class CassandraSink[T](underlying: Either[SingleOutputStreamOperator[T], DataStreamSink[T]]) {
+final class CassandraSink[T](underlying: DataStreamSink[T]) {
 
   /** Sets the name of this sink. This name is used by the visualization and logging during
     * runtime.
@@ -25,8 +24,7 @@ final class CassandraSink[T](underlying: Either[SingleOutputStreamOperator[T], D
     * @return The named sink.
     */
   def name(name: String): CassandraSink[T] = withUnderlying(
-    _.getTransformation.setName(name),
-    _.getLegacyTransformation.setName(name)
+    _.name(name)
   )
 
   /** Sets an ID for this operator.
@@ -41,8 +39,7 @@ final class CassandraSink[T](underlying: Either[SingleOutputStreamOperator[T], D
     * @return The operator with the specified ID.
     */
   def uid(uid: String): CassandraSink[T] = withUnderlying(
-    _.getTransformation.setUid(uid),
-    _.getLegacyTransformation.setUid(uid)
+    _.uid(uid)
   )
 
   /** Sets an user provided hash for this operator. This will be used AS IS the create the
@@ -67,8 +64,7 @@ final class CassandraSink[T](underlying: Either[SingleOutputStreamOperator[T], D
     * @return The operator with the user provided hash.
     */
   def setUidHash(uidHash: String): CassandraSink[T] = withUnderlying(
-    _.getTransformation.setUidHash(uidHash),
-    _.getLegacyTransformation.setUidHash(uidHash)
+    _.setUidHash(uidHash)
   )
 
   /** Sets the parallelism for this sink. The degree must be higher than zero.
@@ -77,7 +73,6 @@ final class CassandraSink[T](underlying: Either[SingleOutputStreamOperator[T], D
     * @return The sink with set parallelism.
     */
   def setParallelism(parallelism: Int): CassandraSink[T] = withUnderlying(
-    _.setParallelism(parallelism),
     _.setParallelism(parallelism)
   )
 
@@ -90,7 +85,6 @@ final class CassandraSink[T](underlying: Either[SingleOutputStreamOperator[T], D
     * @return The sink with chaining disabled
     */
   def disableChaining(): CassandraSink[T] = withUnderlying(
-    _.disableChaining(),
     _.disableChaining()
   )
 
@@ -106,15 +100,11 @@ final class CassandraSink[T](underlying: Either[SingleOutputStreamOperator[T], D
     * @param slotSharingGroup The slot sharing group name.
     */
   def slotSharingGroup(slotSharingGroup: String): CassandraSink[T] = withUnderlying(
-    _.getTransformation.setSlotSharingGroup(slotSharingGroup),
-    _.getLegacyTransformation.setSlotSharingGroup(slotSharingGroup)
+    _.slotSharingGroup(slotSharingGroup)
   )
 
-  private def withUnderlying(
-      left: SingleOutputStreamOperator[T] => Unit,
-      right: DataStreamSink[T] => Unit
-  ): CassandraSink[T] = {
-    underlying.fold(left, right)
+  private def withUnderlying(fn: DataStreamSink[T] => Any): CassandraSink[T] = {
+    fn(underlying)
     this
   }
 }

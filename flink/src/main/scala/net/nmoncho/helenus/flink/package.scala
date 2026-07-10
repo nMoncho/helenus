@@ -19,12 +19,10 @@ import org.apache.flink.api.common.io.InputFormat
 import org.apache.flink.api.common.io.OutputFormatBase
 import org.apache.flink.api.common.typeinfo.{ TypeInformation => FlinkTypeInformation }
 import org.apache.flink.api.connector.source._
-import org.apache.flink.api.java.DataSet
-import org.apache.flink.api.java.ExecutionEnvironment
-import org.apache.flink.api.java.operators.DataSink
-import org.apache.flink.api.java.operators.DataSource
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.streaming.api.functions.sink.SinkFunction
+import org.apache.flink.streaming.api.datastream.DataStreamSink
+import org.apache.flink.streaming.api.datastream.DataStreamSource
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 
 package object flink {
 
@@ -48,21 +46,14 @@ package object flink {
     def addCassandraSink[Out](
         pstmt: CqlSession => ScalaPreparedStatement[T, Out],
         config: CassandraSink.Config
-    ): CassandraSink[T] = {
-      val fn: SinkFunction[T] = asSinkFunction(pstmt, config)
+    ): CassandraSink[T] =
+      new CassandraSink(input.sinkTo(asSink(pstmt, config)).name("Cassandra Sink"))
 
-      new CassandraSink(Right(input.addSink(fn).name("Cassandra Sink")))
-    }
-
-  }
-
-  implicit class DataSetOps[T](private val input: DataSet[T]) extends AnyVal {
-
-    /** Adds a sink sending data to Cassandra
+    /** Adds a sink sending data to Cassandra, using an [[OutputFormatBase]]
       *
       * Statements can be defined and handed over in curried form by using `toCQL(_)`, for example:
       * {{{
-      *   dataSet.addCassandraSink(
+      *   dataStream.addCassandraOutput(
       *     "INSERT INTO hotels(id, name, address) VALUES (?, ?, ?)".toCQL(_)
       *      .prepare[Long, String, Address].
       *     config
@@ -71,15 +62,15 @@ package object flink {
       *
       * @param pstmt  function taking a [[CqlSession]] and providing a [[ScalaPreparedStatement]]
       * @param config cassandra config
-      * @return [[DataSink]]
+      * @return [[DataStreamSink]]
       */
     def addCassandraOutput[Out](
         pstmt: CqlSession => ScalaPreparedStatement[T, Out],
         config: CassandraSink.Config
-    ): DataSink[T] = {
+    ): DataStreamSink[T] = {
       val fn: OutputFormatBase[T, Unit] = asOutputFormat(pstmt, config)
 
-      input.output(fn).name("Cassandra Sink")
+      input.writeUsingOutputFormat(fn).name("Cassandra Sink")
     }
   }
 
@@ -110,13 +101,14 @@ package object flink {
       net.nmoncho.helenus.flink.source.asInputFormat(bstmt, config)
   }
 
-  implicit class ExecutionEnvironmentOps(private val env: ExecutionEnvironment) extends AnyVal {
+  implicit class StreamExecutionEnvironmentOps(private val env: StreamExecutionEnvironment)
+      extends AnyVal {
 
-    /** Invokes this [[ExecutionEnvironment.createInput]] provided that there is an implicit [[TypeInformation]]
+    /** Invokes this [[StreamExecutionEnvironment.createInput]] provided that there is an implicit [[TypeInformation]]
       */
     def createDataSource[Out](inputFormat: InputFormat[Out, _])(
         implicit typeInfo: FlinkTypeInformation[Out]
-    ): DataSource[Out] =
+    ): DataStreamSource[Out] =
       env.createInput(inputFormat, typeInfo)
 
   }

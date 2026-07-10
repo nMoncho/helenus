@@ -13,65 +13,63 @@ import com.datastax.oss.driver.api.core.CqlSession
 import net.nmoncho.helenus.api.cql.ScalaPreparedStatement
 import org.apache.flink.api.common.io.OutputFormatBase
 import org.apache.flink.api.common.io.SinkUtils
+import org.apache.flink.api.connector.sink2.Sink
+import org.apache.flink.api.connector.sink2.SinkWriter
+import org.apache.flink.api.connector.sink2.WriterInitContext
 import org.apache.flink.configuration.Configuration
-import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
-import org.apache.flink.streaming.api.functions.sink.SinkFunction
 
 package object sink {
 
-  /** Transforms a [[ScalaPreparedStatement]] into a Sink of type [[SinkFunction]]
+  /** Transforms a [[ScalaPreparedStatement]] into a Sink of type [[Sink]]
     *
     * @param pstmtBuilder function taking a [[CqlSession]] and providing a [[ScalaPreparedStatement]]
     * @param config       cassandra configuration
     * @tparam T input type for the [[ScalaPreparedStatement]]
     * @tparam Out
-    * @return [[SinkFunction]]
+    * @return [[Sink]]
     */
-  def asSinkFunction[T, Out](
+  def asSink[T, Out](
       pstmtBuilder: CqlSession => ScalaPreparedStatement[T, Out],
       config: CassandraSink.Config
-  ): SinkFunction[T] = new RichSinkFunction[T] /*with CheckpointedFunction*/ {
+  ): Sink[T] = new Sink[T] {
 
-    private val semaphore                             = new Semaphore(config.maxConcurrentRequests)
-    private var session: CqlSession                   = _
-    private var pstmt: ScalaPreparedStatement[T, Out] = _
+    override def createWriter(context: WriterInitContext): SinkWriter[T] = new SinkWriter[T] {
 
-    override def invoke(value: T): Unit = {
-      tryAcquire(1)
+      private val semaphore           = new Semaphore(config.maxConcurrentRequests)
+      private val session: CqlSession = config.session()
+      private val pstmt: ScalaPreparedStatement[T, Out] = pstmtBuilder(session)
 
-      session.executeAsync(pstmt.tupled(value)).whenComplete { (_, throwable) =>
-        if (throwable != null) {
-          CassandraSink.log.error("Error while sending value.", throwable)
-          config.failureHandler(throwable)
+      override def write(element: T, context: SinkWriter.Context): Unit = {
+        tryAcquire(1)
+
+        session.executeAsync(pstmt.tupled(element)).whenComplete { (_, throwable) =>
+          if (throwable != null) {
+            CassandraSink.log.error("Error while sending value.", throwable)
+            config.failureHandler(throwable)
+          }
+
+          semaphore.release()
         }
-
-        semaphore.release()
+        ()
       }
-    }
 
-    override def open(configuration: Configuration): Unit = {
-      super.open(configuration)
-      session = config.session()
+      override def flush(endOfInput: Boolean): Unit = {
+        tryAcquire(config.maxConcurrentRequests)
+        semaphore.release(config.maxConcurrentRequests)
+      }
 
-      pstmt = pstmtBuilder(session)
-    }
+      override def close(): Unit = {
+        flush(endOfInput = true)
+        session.close()
+      }
 
-    override def close(): Unit = {
-      flush()
-      session.close()
-    }
-
-    private def tryAcquire(permits: Int): Unit =
-      SinkUtils.tryAcquire(
-        permits,
-        config.maxConcurrentRequests,
-        config.maxConcurrentRequestsTimeout,
-        semaphore
-      )
-
-    private def flush(): Unit = {
-      tryAcquire(config.maxConcurrentRequests)
-      semaphore.release(config.maxConcurrentRequests)
+      private def tryAcquire(permits: Int): Unit =
+        SinkUtils.tryAcquire(
+          permits,
+          config.maxConcurrentRequests,
+          config.maxConcurrentRequestsTimeout,
+          semaphore
+        )
     }
   }
 

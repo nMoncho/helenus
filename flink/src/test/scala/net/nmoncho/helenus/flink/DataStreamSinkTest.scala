@@ -20,14 +20,14 @@ import org.scalatest.matchers.should.Matchers
 
 class DataStreamSinkTest extends AnyFlatSpec with Matchers with FlinkCassandraSpec {
 
-  "A ScalaPreparedStatement" should "work as a SinkFunction for a DataStream" in {
+  "A ScalaPreparedStatement" should "work as a Sink for a DataStream" in {
     val query = "SELECT * FROM hotels".toCQL(session).prepareUnit.as[Hotel]
     query.execute()(session).to(List) shouldBe empty
 
     val env = StreamExecutionEnvironment.getExecutionEnvironment
       .setParallelism(2)
 
-    val input: DataStream[Hotel] = env.fromElements(Hotels.all: _*)
+    val input: DataStream[Hotel] = env.fromData(Hotels.all: _*)
 
     val result: DataStream[(String, String, String, Address)] =
       input.map(new MapFunction[Hotel, (String, String, String, Address)] {
@@ -58,7 +58,7 @@ class DataStreamSinkTest extends AnyFlatSpec with Matchers with FlinkCassandraSp
     val env = StreamExecutionEnvironment.getExecutionEnvironment
       .setParallelism(2)
 
-    val input: DataStream[Hotel] = env.fromElements(Hotels.all: _*)
+    val input: DataStream[Hotel] = env.fromData(Hotels.all: _*)
 
     implicit val adapter: Adapter[Hotel, (String, String, String, Address, Set[String])] =
       Adapter[Hotel]

@@ -9,7 +9,7 @@ package net.nmoncho.helenus.flink.typeinfo.collection
 import scala.collection.compat._
 import scala.collection.{ mutable => mutablecoll }
 
-import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.serialization.SerializerConfig
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot
 import org.apache.flink.api.common.typeutils.TypeSerializer
@@ -26,7 +26,7 @@ package object mutable {
       implicit factory: Factory[T, Iter[T]]
   ) extends IterableTypeInformation[T, Iter](inner) {
 
-    override def createSerializer(config: ExecutionConfig): TypeSerializer[Iter[T]] = {
+    override def createSerializer(config: SerializerConfig): TypeSerializer[Iter[T]] = {
       val innerSerializer = inner.createSerializer(config)
 
       new MutableSerializer[T, Iter](innerSerializer, factory)

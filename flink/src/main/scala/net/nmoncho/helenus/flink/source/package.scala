@@ -71,12 +71,12 @@ package object source {
       override def getStatistics(cachedStatistics: BaseStatistics): BaseStatistics =
         cachedStatistics
 
-      override def configure(parameters: Configuration): Unit = ()
-
-      override def open(split: InputSplit): Unit = {
+      override def configure(parameters: Configuration): Unit = {
         session  = config.session()
         iterator = bstmtBuilder(session).execute()(session, mapper).iter
       }
+
+      override def open(split: InputSplit): Unit = ()
 
       override def close(): Unit =
         session.close()
