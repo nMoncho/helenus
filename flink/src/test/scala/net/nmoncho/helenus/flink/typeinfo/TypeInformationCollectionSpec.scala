@@ -9,7 +9,7 @@ package net.nmoncho.helenus.flink.typeinfo
 import scala.reflect.ClassTag
 
 import net.nmoncho.helenus.flink.models.Hotel
-import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.serialization.SerializerConfigImpl
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.core.memory.DataInputDeserializer
 import org.apache.flink.core.memory.DataOutputSerializer
@@ -26,7 +26,7 @@ class TypeInformationCollectionSpec
     with TypeInformationDerivation {
 
   private val successful = minSuccessful(500)
-  private val config     = new ExecutionConfig
+  private val config     = new SerializerConfigImpl
 
   verifyTypeInfoRoundTripForScalaJavaCollection[Int, List, java.util.List]()
 

@@ -6,7 +6,7 @@
 
 package net.nmoncho.helenus.flink.typeinfo
 
-import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.serialization.SerializerConfig
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils._
 import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton
@@ -36,7 +36,7 @@ object UnitTypeInformation extends TypeInformation[Unit] {
     case _ => false
   }
 
-  override def createSerializer(config: ExecutionConfig): TypeSerializer[Unit] =
+  override def createSerializer(config: SerializerConfig): TypeSerializer[Unit] =
     UnitTypeInformation.Serializer
 
   val Serializer: TypeSerializer[Unit] = new TypeSerializerSingleton[Unit] {

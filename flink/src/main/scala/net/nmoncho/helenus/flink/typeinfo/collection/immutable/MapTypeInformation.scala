@@ -8,7 +8,7 @@ package net.nmoncho.helenus.flink.typeinfo.collection.immutable
 
 import scala.collection.compat._
 
-import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.serialization.SerializerConfig
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils._
 import org.apache.flink.core.memory.DataInputView
@@ -53,7 +53,7 @@ class MapTypeInformation[K, V](
       }
     }
 
-  override def createSerializer(config: ExecutionConfig): TypeSerializer[Map[K, V]] = {
+  override def createSerializer(config: SerializerConfig): TypeSerializer[Map[K, V]] = {
     val keySerializer   = key.createSerializer(config)
     val valueSerializer = value.createSerializer(config)
 

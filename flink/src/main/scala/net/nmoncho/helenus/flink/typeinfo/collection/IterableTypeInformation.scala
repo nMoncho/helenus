@@ -8,7 +8,7 @@ package net.nmoncho.helenus.flink.typeinfo.collection
 
 import scala.collection.compat._
 
-import org.apache.flink.api.common.ExecutionConfig
+import org.apache.flink.api.common.serialization.SerializerConfig
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils._
 import org.apache.flink.core.memory.DataInputView
@@ -52,7 +52,7 @@ abstract class IterableTypeInformation[T, Iter[T] <: scala.collection.Iterable[T
       }
     }
 
-  override def createSerializer(config: ExecutionConfig): TypeSerializer[Iter[T]] = {
+  override def createSerializer(config: SerializerConfig): TypeSerializer[Iter[T]] = {
     val innerSerializer = inner.createSerializer(config)
 
     new IterableTypeInformation.Serializer[T, Iter](innerSerializer, factory)

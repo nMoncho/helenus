@@ -13,24 +13,23 @@ import net.nmoncho.helenus.models.Address
 import net.nmoncho.helenus.models.Hotel
 import net.nmoncho.helenus.utils.HotelsTestData.Hotels
 import org.apache.flink.api.common.functions.MapFunction
-import org.apache.flink.api.java.DataSet
-import org.apache.flink.api.java.ExecutionEnvironment
+import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class DataSetSinkTest extends AnyFlatSpec with Matchers with FlinkCassandraSpec {
+class OutputFormatSinkTest extends AnyFlatSpec with Matchers with FlinkCassandraSpec {
 
-  "A ScalaPreparedStatement" should "work as a DataSink for a DataSet" in {
+  "A ScalaPreparedStatement" should "work as an OutputFormat for a DataStream" in {
     val query = "SELECT * FROM hotels".toCQL(session).prepareUnit.as[Hotel]
     query.execute()(session).to(List) shouldBe empty
 
-    val job = ExecutionEnvironment.getExecutionEnvironment
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+      .setParallelism(2)
 
-    job.setParallelism(2)
+    val input: DataStream[Hotel] = env.fromData(Hotels.all: _*)
 
-    val input: DataSet[Hotel] = job.fromElements(Hotels.all: _*)
-
-    val result: DataSet[(String, String, String, Address, Set[String])] =
+    val result: DataStream[(String, String, String, Address, Set[String])] =
       input.map(new MapFunction[Hotel, (String, String, String, Address, Set[String])] {
         override def map(h: Hotel): (String, String, String, Address, Set[String]) =
           (h.id, h.name, h.phone, h.address, h.pois)
@@ -47,7 +46,7 @@ class DataSetSinkTest extends AnyFlatSpec with Matchers with FlinkCassandraSpec 
       )
       .setParallelism(1)
 
-    job.execute()
+    env.execute()
 
     query.execute()(session).to(List) should not be empty
   }
@@ -56,11 +55,10 @@ class DataSetSinkTest extends AnyFlatSpec with Matchers with FlinkCassandraSpec 
     val query = "SELECT * FROM hotels".toCQL(session).prepareUnit.as[Hotel]
     query.execute()(session).to(List) shouldBe empty
 
-    val job = ExecutionEnvironment.getExecutionEnvironment
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+      .setParallelism(2)
 
-    job.setParallelism(2)
-
-    val input: DataSet[Hotel] = job.fromElements(Hotels.all: _*)
+    val input: DataStream[Hotel] = env.fromData(Hotels.all: _*)
 
     implicit val adapter: Adapter[Hotel, (String, String, String, Address, Set[String])] =
       Adapter[Hotel]
@@ -77,7 +75,7 @@ class DataSetSinkTest extends AnyFlatSpec with Matchers with FlinkCassandraSpec 
       )
       .setParallelism(1)
 
-    job.execute()
+    env.execute()
 
     query.execute()(session).to(List) should not be empty
   }

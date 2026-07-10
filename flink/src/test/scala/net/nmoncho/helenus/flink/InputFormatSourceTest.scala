@@ -11,22 +11,21 @@ import com.datastax.oss.driver.api.core.CqlSession
 import net.nmoncho.helenus.flink.models.Hotel
 import net.nmoncho.helenus.flink.source.CassandraSource
 import net.nmoncho.helenus.utils.HotelsTestData
-import org.apache.flink.api.java.ExecutionEnvironment
-import org.apache.flink.api.java.operators.DataSource
+import org.apache.flink.streaming.api.datastream.DataStreamSource
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class DataSetSourceTest extends AnyFlatSpec with Matchers with FlinkCassandraSpec {
+class InputFormatSourceTest extends AnyFlatSpec with Matchers with FlinkCassandraSpec {
 
-  "A ScalaPreparedStatement" should "be used as a source" in {
-    val job = ExecutionEnvironment.getExecutionEnvironment
-
-    job.setParallelism(2)
+  "A ScalaPreparedStatement" should "be used as an InputFormat source" in {
+    val env = StreamExecutionEnvironment.getExecutionEnvironment
+      .setParallelism(2)
 
     val query =
       (session: CqlSession) => "SELECT * FROM hotels".toCQL(session).prepareUnit.as[Hotel].apply()
 
-    val input: DataSource[Hotel] = job.createDataSource(
+    val input: DataStreamSource[Hotel] = env.createDataSource(
       query.asInputFormat(
         CassandraSource
           .Config()
@@ -36,7 +35,7 @@ class DataSetSourceTest extends AnyFlatSpec with Matchers with FlinkCassandraSpe
 
     val sink = input.print("Cassandra Sink")
 
-    job.execute()
+    env.execute()
   }
 
   override def beforeAll(): Unit = {
