@@ -31,7 +31,7 @@ lazy val root = project
     mimaFailOnNoPrevious := false,
     Test / testOptions += Tests.Setup(() => EmbeddedDatabase.start())
   )
-  .aggregate(docs, core, bench, akka, akkaBusl, pekko, flink, monix, zio)
+  .aggregate(docs, core, bench, akka, akkaBusl, flink, monix, pekko, tables, zio)
 
 lazy val basicSettings = Seq(
   organization := "net.nmoncho",
@@ -304,6 +304,19 @@ lazy val pekko = project
       Dependencies.pekkoTestKit   % Test,
       // Adding this until Alpakka aligns version with Pekko TestKit
       "org.apache.pekko" %% "pekko-stream" % Dependencies.Version.pekkoTestKit
+    )
+  )
+
+lazy val tables = project
+  .settings(basicSettings)
+  .dependsOn(core % "compile->compile;test->test")
+  .settings(
+    name := "helenus-tables",
+    scalaVersion := Dependencies.Version.scala213,
+    crossScalaVersions := List(Dependencies.Version.scala213, Dependencies.Version.scala212),
+    Test / testOptions += Tests.Setup(() => EmbeddedDatabase.start()),
+    libraryDependencies ++= Seq(
+      Dependencies.ossJavaDriver % Provided
     )
   )
 
