@@ -6,4 +6,15 @@
 
 package net.nmoncho.helenus.api.cql
 
-object UsersTable extends TableDef("my_keyspace", "users")
+import java.util.UUID
+
+case class User(
+    id: UUID,
+    username: String,
+    age: Int,
+    email: String,
+    tags: Set[String],
+    metadata: Map[String, String]
+)
+
+object UsersTable extends Table[User]("my_keyspace", "users") {}
