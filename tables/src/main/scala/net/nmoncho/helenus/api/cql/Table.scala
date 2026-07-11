@@ -6,13 +6,17 @@
 
 package net.nmoncho.helenus.api.cql
 
+import scala.annotation.implicitNotFound
 import scala.annotation.unused
 
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import net.nmoncho.helenus.api.ColumnNamingScheme
 import net.nmoncho.helenus.api.DefaultColumnNamingScheme
 import net.nmoncho.helenus.api.cql.ddl.DropTable
+import shapeless.::
+import shapeless.Generic
 import shapeless.HList
+import shapeless.HNil
 
 sealed abstract class TableDef(val keyspace: String, val tableName: String) {
 
@@ -75,6 +79,44 @@ abstract class Table[A](keyspace: String, tableName: String)()
   /** How case-class field names map to CQL column names. */
   protected def naming: ColumnNamingScheme = DefaultColumnNamingScheme
 
+  /** Every table must register its columns; implement as
+    * `protected val columns = registerAllColumns(id :: ... :: HNil)`.
+    *
+    * This is the completeness half of the case-class contract: adding a field
+    * to `A` without declaring (and registering) a column val for it fails to
+    * compile here, because the registered list no longer matches `A`'s
+    * fields. The reference half is checked per val by [[column]].
+    */
+  protected def columns: Table.AllColumns
+
+  /** Checks that `cols` lists a column for EVERY field of `A`, in field
+    * declaration order, with matching value types. Computed columns are not
+    * fields and must not be listed.
+    */
+  protected def registerAllColumns[L <: HList, R <: HList](
+      @unused cols: L
+  )(implicit @unused gen: Generic.Aux[A, R], @unused covers: CoversFields[L, R]): Table.AllColumns =
+    new Table.AllColumns
+
+  /** Witnesses that `L` is a list of this table's columns whose value types
+    * are exactly `R` (the field types of `A`), in order.
+    */
+  @implicitNotFound(
+    "The registered columns ${L} do not cover the fields of the case class " +
+      "(expected value types ${R}, in field declaration order). " +
+      "Declare a column val for every field and list them all in registerAllColumns."
+  )
+  protected sealed trait CoversFields[L <: HList, R <: HList]
+
+  protected object CoversFields {
+
+    implicit val nil: CoversFields[HNil, HNil] = new CoversFields[HNil, HNil] {}
+
+    implicit def cons[H, C <: Column[H], LT <: HList, RT <: HList](
+        implicit rest: CoversFields[LT, RT]
+    ): CoversFields[C :: LT, H :: RT] = new CoversFields[C :: LT, H :: RT] {}
+  }
+
   /** Reference a field of `A` as a column, stating its type explicitly:
     * `column[UUID]("id")`. The compiler verifies (via [[FieldOfType]]) that
     * the field exists in `A` and that its type is exactly `V`, so table and
@@ -92,4 +134,14 @@ abstract class Table[A](keyspace: String, tableName: String)()
       implicit @unused field: FieldOfType[A, name0.type, V]
   ): Column[V] { type Tag = name0.type } =
     new Column[V](name0, naming.map(name0), frozen) { type Tag = name0.type }
+}
+
+object Table {
+
+  /** Proof token returned by `Table.registerAllColumns`: its only constructor
+    * is there, so implementing the abstract `columns` member forces the
+    * all-fields-registered check.
+    */
+  final class AllColumns private[cql] ()
+
 }
