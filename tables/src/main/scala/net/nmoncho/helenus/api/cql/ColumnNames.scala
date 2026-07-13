@@ -28,7 +28,7 @@ object ColumnNames {
     def names: List[String] = Nil
   }
 
-  implicit def hcons[H <: String, T <: HList](
+  implicit def hcons[H <: String with Singleton, T <: HList](
       implicit head: ValueOf[H],
       tail: ColumnNames[T]
   ): ColumnNames[H :: T] = new ColumnNames[H :: T] {

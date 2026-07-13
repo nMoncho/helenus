@@ -13,11 +13,17 @@ import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import net.nmoncho.helenus.api.ColumnNamingScheme
 import net.nmoncho.helenus.api.DefaultColumnNamingScheme
 import net.nmoncho.helenus.api.cql.ddl.DropTable
+import net.nmoncho.helenus.api.cql.dml.Select
 import shapeless.::
 import shapeless.Generic
 import shapeless.HList
 import shapeless.HNil
 
+/** Base of every table definition: holds the inner column / assignment
+  * classes, the type-level key declarations, and the entry points that do not
+  * depend on the mapped case class. Users never extend this directly; they
+  * extend [[Table]] with their case class.
+  */
 sealed abstract class TableDef(val keyspace: String, val tableName: String) {
 
   /** Type-level partition key: an `HList` of the partition-key columns' field
@@ -32,27 +38,26 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
     */
   type CK <: HList
 
-  /** Table's full name with keyspace */
-  def fullTableName: String = s"${keyspace}.${tableName}"
+  def fullTableName: String = s"$keyspace.$tableName"
 
-  // --------------- DDL ----------------
+  // ---- entry points that do not need the mapped case class ----------------
 
   def drop: DropTable = DropTable(this)
 
   /** A typed column of this table. Instances are obtained with
     * `column("fieldName")`, which checks the field against the mapped case
     * class; `fieldName` is the case-class field, `name` the CQL column name
-    * produced by the table's [[net.nmoncho.helenus.api.ColumnNamingScheme]].
+    * produced by the table's [[ColumnNamingScheme]].
     */
-  class Column[T](val fieldName: String, val name: String, val frozen: Boolean)(
-      implicit codec: TypeCodec[T]
-  ) {
+  class Column[T](val fieldName: String, val name: String)(implicit codec: TypeCodec[T]) {
 
     /** Type-level identity of this column: the literal type of the case-class
       * field name (e.g. `Tag = "id"`). Used in `PK` / `CK` declarations and
       * carried by predicates for the execute gates.
       */
     type Tag
+
+    // ---- clustering sort direction (for use inside `type CK`) ------------
 
     /** This column sorted ascending, e.g. `type CK = ts.Asc :: HNil` (same as a bare `ts.Tag`). */
     final type Asc = net.nmoncho.helenus.api.cql.Asc[Tag]
@@ -69,12 +74,13 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
     def desc: ColumnOrder = ColumnOrder(name, descending = true)
 
     override def toString: String =
-      s"Column($fieldName -> $name: ${codec.getCqlType.asCql(frozen, false)})"
+      s"Column($fieldName -> $name ${codec.getCqlType.asCql(false, false)})"
   }
+
 }
 
-abstract class Table[A](keyspace: String, tableName: String)()
-    extends TableDef(keyspace, tableName) {
+abstract class Table[A](keyspace0: String, tableName0: String)(implicit columnsForA: ColumnsFor[A])
+    extends TableDef(keyspace0, tableName0) {
 
   /** How case-class field names map to CQL column names. */
   protected def naming: ColumnNamingScheme = DefaultColumnNamingScheme
@@ -130,18 +136,35 @@ abstract class Table[A](keyspace: String, tableName: String)()
     * ascription widens away the `Tag` refinement and genuinely breaks
     * `PK` / `CK` derivation.
     */
-  protected def column[V: TypeCodec](name0: String with Singleton, frozen: Boolean = false)(
+  protected def column[V: TypeCodec](name0: String with Singleton)(
       implicit @unused field: FieldOfType[A, name0.type, V]
   ): Column[V] { type Tag = name0.type } =
-    new Column[V](name0, naming.map(name0), frozen) { type Tag = name0.type }
+    new Column[V](name0, naming.map(name0)) { type Tag = name0.type }
+
+  // ---- entry points that derive from the case class -----------------------
+
+  /** Select specific columns (all fields of `A` when none given). Nothing is constrained yet. */
+  def select(
+      cols: Column[_]*
+  )(implicit pk: ColumnNames[PK], ck: ClusteringOf[CK]): Select[this.type] =
+    Select[this.type](
+      this,
+      if (cols.isEmpty) columnsForA.columnDefs(naming).map(_.name) else cols.map(_.name),
+      keyColumnNames(pk, ck)
+    )
+
+  private def keyColumnNames(pk: ColumnNames[PK], ck: ClusteringOf[CK]): Seq[String] =
+    pk.names.map(naming.map) ++ ck.columns.map(c => naming.map(c.name))
 }
 
 object Table {
+
+  /** Registry entry for a computed column: CQL name, CQL type, and renderer. */
+  private[cql] final case class Computed[A](name: String, cqlType: String, render: A => String)
 
   /** Proof token returned by `Table.registerAllColumns`: its only constructor
     * is there, so implementing the abstract `columns` member forces the
     * all-fields-registered check.
     */
   final class AllColumns private[cql] ()
-
 }
