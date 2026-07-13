@@ -4,12 +4,12 @@
  * SPDX-License-Identifier: MIT
  */
 
-package net.nmoncho.helenus.api.cql
+package net.nmoncho.helenus
+package api.cql
 
 import java.util.UUID
 
-import shapeless.::
-import shapeless.HNil
+import shapeless._
 
 case class User(
     id: UUID,
@@ -21,19 +21,18 @@ case class User(
 )
 
 object UsersTable extends Table[User]("my_keyspace", "users") {
-  import net.nmoncho.helenus._
 
-  val id: Column[UUID]                      = column[UUID]("id")
-  val username: Column[String]              = column[String]("username")
-  val age: Column[Int]                      = column[Int]("age")
-  val email: Column[String]                 = column[String]("email")
-  val tags: Column[Set[String]]             = column[Set[String]]("tags")
-  val metadata: Column[Map[String, String]] = column[Map[String, String]]("metadata")
+  val id       = column[UUID]("id")
+  val username = column[String]("username")
+  val age      = column[Int]("age")
+  val email    = column[String]("email")
+  val tags     = column[Set[String]]("tags")
+  val metadata = column[Map[String, String]]("metadata")
 
   type PK = id.Tag :: HNil
   type CK = username.Tag :: HNil
 
-  override protected val columns: Table.AllColumns = registerAllColumns(
+  protected val columns: Table.AllColumns = registerAllColumns(
     id :: username :: age :: email :: tags :: metadata :: HNil
   )
 }
