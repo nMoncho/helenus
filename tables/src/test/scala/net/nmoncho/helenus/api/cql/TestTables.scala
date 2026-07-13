@@ -9,6 +9,8 @@ package api.cql
 
 import java.util.UUID
 
+import net.nmoncho.helenus.api.ColumnNamingScheme
+import net.nmoncho.helenus.api.SnakeCase
 import shapeless._
 
 case class User(
@@ -35,4 +37,39 @@ object UsersTable extends Table[User]("my_keyspace", "users") {
   protected val columns: Table.AllColumns = registerAllColumns(
     id :: username :: age :: email :: tags :: metadata :: HNil
   )
+}
+
+case class Event(tenantId: String, eventType: String, eventId: UUID, payload: String)
+
+object EventsTable extends Table[Event]("analytics", "events") {
+  override protected def naming: ColumnNamingScheme = SnakeCase
+
+  val tenantId  = column[String]("tenantId")
+  val eventType = column[String]("eventType")
+  val eventId   = column[UUID]("eventId")
+  val payload   = column[String]("payload")
+
+  protected val columns = registerAllColumns(tenantId :: eventType :: eventId :: payload :: HNil)
+
+  // Composite partition key + clustering column
+  type PK = tenantId.Tag :: eventType.Tag :: HNil
+  type CK = eventId.Tag :: HNil
+}
+
+case class Sensors(deviceId: UUID, year: Int, ts: Long, reading: Double)
+
+object SensorsTable extends Table[Sensors]("iot", "sensor_readings") {
+  override protected def naming: ColumnNamingScheme = SnakeCase
+
+  val deviceId = column[UUID]("deviceId")
+  val year     = column[Int]("year")
+  val ts       = column[Long]("ts")
+  val reading  = column[Double]("reading")
+
+  protected val columns = registerAllColumns(deviceId :: year :: ts :: reading :: HNil)
+
+  // Single partition key + two clustering columns (prefix rules apply).
+  // `ts` is declared descending; a bare column tag means ascending.
+  type PK = deviceId.Tag :: HNil
+  type CK = year.Tag :: ts.Desc :: HNil
 }

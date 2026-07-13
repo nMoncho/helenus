@@ -12,6 +12,7 @@ import scala.annotation.unused
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import net.nmoncho.helenus.api.ColumnNamingScheme
 import net.nmoncho.helenus.api.DefaultColumnNamingScheme
+import net.nmoncho.helenus.api.cql.ddl.CreateTable
 import net.nmoncho.helenus.api.cql.ddl.DropTable
 import net.nmoncho.helenus.api.cql.dml.Select
 import shapeless.::
@@ -75,6 +76,8 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
 
     override def toString: String =
       s"Column($fieldName -> $name ${codec.getCqlType.asCql(false, false)})"
+
+    def toCQL: String = s"$name ${codec.getCqlType.asCql(false, false)}"
   }
 
 }
@@ -142,6 +145,14 @@ abstract class Table[A](keyspace0: String, tableName0: String)(implicit columnsF
     new Column[V](name0, naming.map(name0)) { type Tag = name0.type }
 
   // ---- entry points that derive from the case class -----------------------
+
+  def create(implicit pk: ColumnNames[PK], ck: ClusteringOf[CK]): CreateTable =
+    CreateTable(
+      this,
+      columnsForA.columnDefs(naming),
+      pk.names.map(naming.map),
+      ck.columns.map(c => c.copy(name = naming.map(c.name)))
+    )
 
   /** Select specific columns (all fields of `A` when none given). Nothing is constrained yet. */
   def select(

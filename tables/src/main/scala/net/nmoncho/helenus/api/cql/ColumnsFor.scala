@@ -56,7 +56,8 @@ object ColumnsFor {
         rest: ReprColumns[T]
     ): ReprColumns[FieldType[K, H] :: T] = new ReprColumns[FieldType[K, H] :: T] {
       def columnDefs(naming: ColumnNamingScheme): List[ColumnDef] =
-        ColumnDef(naming.map(witness.value.name), ct.getCqlType.asCql(false, false)) :: rest.columnDefs(naming)
+        ColumnDef(naming.map(witness.value.name), ct.getCqlType.asCql(false, false)) :: rest
+          .columnDefs(naming)
     }
   }
 

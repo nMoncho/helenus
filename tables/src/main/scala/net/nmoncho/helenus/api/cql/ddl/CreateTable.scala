@@ -1,0 +1,54 @@
+/*
+ * Copyright 2021 the original author or authors
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
+package net.nmoncho.helenus.api.cql
+package ddl
+
+case class CreateTable(
+    table: TableDef,
+    columns: Seq[ColumnDef], // TODO change this for Table#Column
+    partitionKey: Seq[String],
+    clusteringColumns: Seq[ClusteringSpec],
+    ifNotExistsFlag: Boolean = false
+) {
+
+  def ifNotExists: CreateTable = copy(ifNotExistsFlag = true)
+
+  def toCQL: String = {
+    val ifNotExistsStr = if (ifNotExistsFlag) " IF NOT EXISTS" else ""
+
+    val columnDefs = columns.map(col => s"${col.name} ${col.cqlType}").mkString(", ")
+
+    val pkCols      = partitionKey
+    val clusterCols = clusteringColumns.map(_.name)
+
+    val primaryKey =
+      if (clusterCols.isEmpty && pkCols.size == 1)
+        s"PRIMARY KEY (${pkCols.head})"
+      else if (clusterCols.isEmpty)
+        s"PRIMARY KEY ((${pkCols.mkString(", ")}))"
+      else if (pkCols.size == 1)
+        s"PRIMARY KEY (${pkCols.head}, ${clusterCols.mkString(", ")})"
+      else
+        s"PRIMARY KEY ((${pkCols.mkString(", ")}), ${clusterCols.mkString(", ")})"
+
+    // The clustering order comes from the table's CK declaration (Asc / Desc
+    // markers). ASC is the CQL default, so the clause is only emitted when at
+    // least one column deviates from it.
+    val withClause =
+      if (!clusteringColumns.exists(_.descending)) ""
+      else {
+        val orderStr = clusteringColumns
+          .map(c => s"${c.name} ${c.direction}")
+          .mkString(", ")
+        s" WITH CLUSTERING ORDER BY ($orderStr)"
+      }
+
+    s"CREATE TABLE$ifNotExistsStr ${table.fullTableName} ($columnDefs, $primaryKey)$withClause"
+  }
+
+  override def toString: String = toCQL
+}
