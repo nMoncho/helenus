@@ -7,8 +7,6 @@
 package net.nmoncho.helenus.api.cql
 package dml
 
-
-
 final case class Select[T <: TableDef with Singleton](
     table: T,
     columns: Seq[String],
@@ -48,7 +46,7 @@ object Select {
       s: Select[T],
       allowFiltering: Boolean
   ): String = {
-    val colStr   = if (s.columns.isEmpty) "*" else s.columns.mkString(", ")
+    val colStr = if (s.columns.isEmpty) "*" else s.columns.mkString(", ")
 
     val whereStr = ""
 
