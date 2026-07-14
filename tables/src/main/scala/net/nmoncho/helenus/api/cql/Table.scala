@@ -15,6 +15,7 @@ import net.nmoncho.helenus.api.DefaultColumnNamingScheme
 import net.nmoncho.helenus.api.cql.ddl.CreateTable
 import net.nmoncho.helenus.api.cql.ddl.DropTable
 import net.nmoncho.helenus.api.cql.dml.BindMarker
+import net.nmoncho.helenus.api.cql.dml.Delete
 import net.nmoncho.helenus.api.cql.dml.Select
 import net.nmoncho.helenus.api.cql.dml.where.FilterBindPredicate
 import net.nmoncho.helenus.api.cql.dml.where._
@@ -233,6 +234,8 @@ abstract class Table[A](keyspace0: String, tableName0: String)(implicit columnsF
       if (cols.isEmpty) columnsForA.columnDefs(naming).map(_.name) else cols.map(_.name),
       keyColumnNames(pk, ck)
     )
+
+  def delete: Delete[this.type, HNil, HNil, HNil, HNil, DeleteMode.Rows] = Delete[this.type](this)
 
   private def keyColumnNames(pk: ColumnNames[PK], ck: ClusteringOf[CK]): Seq[String] =
     pk.names.map(naming.map) ++ ck.columns.map(c => naming.map(c.name))
