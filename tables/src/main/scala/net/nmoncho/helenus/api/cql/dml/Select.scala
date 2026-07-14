@@ -7,8 +7,13 @@
 package net.nmoncho.helenus.api.cql
 package dml
 
+import scala.annotation.unused
+
 import net.nmoncho.helenus.api.cql.dml.where.Predicate
+import net.nmoncho.helenus.api.cql.dml.where.PredicateShape
+import net.nmoncho.helenus.api.cql.dml.where.WhereClause
 import shapeless.HList
+import shapeless.ops.hlist.Prepend
 
 /** A typed SELECT builder.
   *
@@ -37,6 +42,37 @@ final case class Select[T <: TableDef with Singleton, Eq <: HList, In <: HList, 
     limitValue: Option[Int]          = None,
     orderByClauses: Seq[ColumnOrder] = Seq.empty
 ) {
+
+  /** Add the WHERE clause: a single predicate or several combined with `and`,
+    * e.g. `where(UsersTable.id === x and UsersTable.username === "alice")`.
+    * The clause's type-level contribution is computed by [[PredicateShape]]
+    * and merged into the query state; bound parameters (`?`) are appended to
+    * `Params` in writing order.
+    */
+  def where[
+      P <: WhereClause,
+      E <: HList,
+      I <: HList,
+      R <: HList,
+      Pm <: HList,
+      E2 <: HList,
+      I2 <: HList,
+      R2 <: HList,
+      P2 <: HList
+  ](pred: P)(
+      implicit ps: PredicateShape.Aux[P, E, I, R],
+      @unused pe: Prepend.Aux[E, Eq, E2],
+      @unused pi: Prepend.Aux[I, In, I2],
+      @unused pr: Prepend.Aux[R, Rng, R2]
+  ): Select[T, E2, I2, R2] =
+    new Select[T, E2, I2, R2](
+      table,
+      columns,
+      keyColumns,
+      predicates ++ ps.predicates(pred),
+      limitValue,
+      orderByClauses
+    )
 
   def limit(n: Int): Select[T, Eq, In, Rng] = copy(limitValue = Some(n))
 
