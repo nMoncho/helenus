@@ -9,6 +9,7 @@ package dml
 
 import scala.annotation.unused
 
+import net.nmoncho.helenus.api.cql.dml.where.CanSelect
 import net.nmoncho.helenus.api.cql.dml.where.Predicate
 import net.nmoncho.helenus.api.cql.dml.where.PredicateShape
 import net.nmoncho.helenus.api.cql.dml.where.WhereClause
@@ -74,6 +75,16 @@ final case class Select[T <: TableDef with Singleton, Eq <: HList, In <: HList, 
       orderByClauses
     )
 
+  // TODO unify this with `toCQL`, no need to have one that can be used as escape hatch
+  /** Run the query. Available only when the WHERE clause is a valid
+    * primary-key restriction (full partition key by `===`, a contiguous
+    * clustering `===` prefix, optionally ranges on the next clustering column,
+    * IN only on the last partition-key or clustering column), or when there
+    * is no WHERE clause at all, and no `?` marker is unbound. Otherwise this
+    * call does not compile; use `allowFiltering.execute` or [[toFunction]].
+    */
+  def execute()(implicit @unused ev: CanSelect[table.PK, table.CK, Eq, In, Rng]): String = toCQL
+
   /** Opt out of the primary-key requirement. The returned query can always be
     * executed, at the cost of a server-side `ALLOW FILTERING` scan.
     */
@@ -117,6 +128,8 @@ object Select {
   ](
       private val select: Select[T, Eq, In, Rng]
   ) {
+    def execute(): String = toCQL
+
     def toCQL: String = render(select, allowFiltering = true)
   }
 
