@@ -73,3 +73,7 @@ object SensorsTable extends Table[Sensors]("iot", "sensor_readings") {
   type PK = deviceId.Tag :: HNil
   type CK = year.Tag :: ts.Desc :: HNil
 }
+
+object TestValues {
+  val fixedId: UUID = UUID.fromString("123e4567-e89b-12d3-a456-426614174000")
+}
