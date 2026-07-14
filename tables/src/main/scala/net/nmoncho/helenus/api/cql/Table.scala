@@ -17,7 +17,6 @@ import net.nmoncho.helenus.api.cql.ddl.DropTable
 import net.nmoncho.helenus.api.cql.dml.BindMarker
 import net.nmoncho.helenus.api.cql.dml.Delete
 import net.nmoncho.helenus.api.cql.dml.Select
-import net.nmoncho.helenus.api.cql.dml.where.FilterBindPredicate
 import net.nmoncho.helenus.api.cql.dml.where._
 import shapeless.::
 import shapeless.Generic
@@ -151,6 +150,23 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
     def toCQL: String = s"$name ${codec.getCqlType.asCql(false, false)}"
   }
 
+  /** A SET / VALUES assignment. */
+  sealed class Assignment(val column: String, val value: String) {
+    def toCQL: String             = s"$column = $value"
+    override def toString: String = s"Assignment($toCQL)"
+  }
+
+  /** An assignment with a bound value (`col := ?`). The value arrives later
+    * as an argument of the function produced by `toFunction`, typed as the
+    * column's `V`.
+    */
+  final class BoundAssignment[V](column0: String, ct: TypeCodec[V])
+      extends Assignment(column0, "?")
+      with AssignmentHole {
+    private[cql] def fill(v: Any): TableDef#Assignment =
+      new Assignment(this.column, ct.format(v.asInstanceOf[V]))
+  }
+
 }
 
 abstract class Table[A](keyspace0: String, tableName0: String)(implicit columnsForA: ColumnsFor[A])
@@ -251,4 +267,11 @@ object Table {
     * all-fields-registered check.
     */
   final class AllColumns private[cql] ()
+}
+
+/** Runtime side of a bound assignment (`col := ?`), fillable later with an
+  * argument of the captured column type.
+  */
+sealed trait AssignmentHole {
+  private[cql] def fill(v: Any): TableDef#Assignment
 }
