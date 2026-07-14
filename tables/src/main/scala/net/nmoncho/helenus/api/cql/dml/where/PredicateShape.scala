@@ -28,43 +28,64 @@ sealed trait PredicateShape[P] {
   type Eq <: HList
   type In <: HList
   type Rng <: HList
+  type Params <: HList
 
   def predicates(p: P): List[Predicate]
 }
 
 object PredicateShape {
 
-  type Aux[P, E <: HList, I <: HList, R <: HList] =
-    PredicateShape[P] { type Eq = E; type In = I; type Rng = R }
+  type Aux[P, E <: HList, I <: HList, R <: HList, Pm <: HList] =
+    PredicateShape[P] { type Eq = E; type In = I; type Rng = R; type Params = Pm }
 
-  private def instance[P, E <: HList, I <: HList, R <: HList](
+  private def instance[P, E <: HList, I <: HList, R <: HList, Pm <: HList](
       f: P => List[Predicate]
-  ): Aux[P, E, I, R] =
+  ): Aux[P, E, I, R, Pm] =
     new PredicateShape[P] {
-      type Eq  = E
-      type In  = I
-      type Rng = R
+      type Eq     = E
+      type In     = I
+      type Rng    = R
+      type Params = Pm
 
       def predicates(p: P): List[Predicate] = f(p)
     }
 
   // ---- literal predicates -------------------------------------------------
 
-  implicit def equality[Col]: Aux[EqPredicate[Col], Col :: HNil, HNil, HNil] =
+  implicit def equality[Col]: Aux[EqPredicate[Col], Col :: HNil, HNil, HNil, HNil] =
     instance(List(_))
 
-  implicit def multiValue[Col]: Aux[InPredicate[Col], HNil, Col :: HNil, HNil] =
+  implicit def multiValue[Col]: Aux[InPredicate[Col], HNil, Col :: HNil, HNil, HNil] =
     instance(List(_))
 
-  implicit def range[Col]: Aux[RangePredicate[Col], HNil, HNil, Col :: HNil] =
+  implicit def range[Col]: Aux[RangePredicate[Col], HNil, HNil, Col :: HNil, HNil] =
     instance(List(_))
 
-  implicit val filtering: Aux[Predicate, HNil, HNil, RequiresFiltering :: HNil] =
+  implicit val filtering: Aux[Predicate, HNil, HNil, RequiresFiltering :: HNil, HNil] =
+    instance(List(_))
+
+  // ---- bind predicates (`?` marker): same gate contribution + a parameter --
+
+  implicit def equalityBind[Col, T]
+      : Aux[EqBindPredicate[Col, T], Col :: HNil, HNil, HNil, T :: HNil] =
+    instance(List(_))
+
+  implicit def multiValueBind[Col, T]
+      : Aux[InBindPredicate[Col, T], HNil, Col :: HNil, HNil, Seq[T] :: HNil] =
+    instance(List(_))
+
+  implicit def rangeBind[Col, T]
+      : Aux[RangeBindPredicate[Col, T], HNil, HNil, Col :: HNil, T :: HNil] =
+    instance(List(_))
+
+  implicit def filteringBind[T]
+      : Aux[FilterBindPredicate[T], HNil, HNil, RequiresFiltering :: HNil, T :: HNil] =
     instance(List(_))
 
   // ---- conjunctions ---------------------------------------------------------
 
-  implicit def conjunction[E <: HList, I <: HList, R <: HList]: Aux[Conjunction[E, I, R], E, I, R] =
+  implicit def conjunction[E <: HList, I <: HList, R <: HList, Pm <: HList]
+      : Aux[Conjunction[E, I, R, Pm], E, I, R, Pm] =
     instance(_.predicates)
 
 }

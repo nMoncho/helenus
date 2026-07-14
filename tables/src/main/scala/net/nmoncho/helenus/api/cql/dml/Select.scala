@@ -14,6 +14,7 @@ import net.nmoncho.helenus.api.cql.dml.where.Predicate
 import net.nmoncho.helenus.api.cql.dml.where.PredicateShape
 import net.nmoncho.helenus.api.cql.dml.where.WhereClause
 import shapeless.HList
+import shapeless.HNil
 import shapeless.ops.hlist.Prepend
 
 /** A typed SELECT builder.
@@ -24,6 +25,8 @@ import shapeless.ops.hlist.Prepend
   * @tparam Rng    type-level `HList` of the columns constrained so far with a
   *                range operator (plus the `RequiresFiltering` marker for
   *                predicates that always need filtering, such as `contains`)
+  * @tparam Params type-level `HList` of the bound parameter types collected
+  *                from `?` markers, in writing order
   *
   * The WHERE clause is built with a single [[where]] call; several predicates
   * are combined with the `and` combinator on predicates themselves, in any
@@ -35,7 +38,13 @@ import shapeless.ops.hlist.Prepend
   * constraints at all; every other query must
   * go through [[allowFiltering]]`.execute`.
   */
-final case class Select[T <: TableDef with Singleton, Eq <: HList, In <: HList, Rng <: HList](
+final case class Select[
+    T <: TableDef with Singleton,
+    Eq <: HList,
+    In <: HList,
+    Rng <: HList,
+    Params <: HList
+](
     table: T,
     columns: Seq[String],
     keyColumns: Seq[String],
@@ -61,12 +70,13 @@ final case class Select[T <: TableDef with Singleton, Eq <: HList, In <: HList, 
       R2 <: HList,
       P2 <: HList
   ](pred: P)(
-      implicit ps: PredicateShape.Aux[P, E, I, R],
+      implicit ps: PredicateShape.Aux[P, E, I, R, Pm],
       @unused pe: Prepend.Aux[E, Eq, E2],
       @unused pi: Prepend.Aux[I, In, I2],
-      @unused pr: Prepend.Aux[R, Rng, R2]
-  ): Select[T, E2, I2, R2] =
-    new Select[T, E2, I2, R2](
+      @unused pr: Prepend.Aux[R, Rng, R2],
+      @unused pp: Prepend.Aux[Params, Pm, P2]
+  ): Select[T, E2, I2, R2, P2] =
+    new Select[T, E2, I2, R2, P2](
       table,
       columns,
       keyColumns,
@@ -88,19 +98,19 @@ final case class Select[T <: TableDef with Singleton, Eq <: HList, In <: HList, 
   /** Opt out of the primary-key requirement. The returned query can always be
     * executed, at the cost of a server-side `ALLOW FILTERING` scan.
     */
-  def allowFiltering: Select.Filtering[T, Eq, In, Rng] = new Select.Filtering(this)
+  def allowFiltering: Select.Filtering[T, Eq, In, Rng, Params] = new Select.Filtering(this)
 
-  def limit(n: Int): Select[T, Eq, In, Rng] = copy(limitValue = Some(n))
+  def limit(n: Int): Select[T, Eq, In, Rng, Params] = copy(limitValue = Some(n))
 
   /** Add ORDER BY clauses, built from a column's `asc` / `desc` methods, e.g.
     * `orderBy(username.desc)` or `orderBy(year.asc, ts.desc)`. A bare column
     * defaults to ascending via the other overload.
     */
-  def orderBy(orders: ColumnOrder*): Select[T, Eq, In, Rng] =
+  def orderBy(orders: ColumnOrder*): Select[T, Eq, In, Rng, Params] =
     copy(orderByClauses = orderByClauses ++ orders)
 
   /** Order ascending by the given column (the CQL default direction). */
-  def orderBy(col: table.Column[_]): Select[T, Eq, In, Rng] =
+  def orderBy(col: table.Column[_]): Select[T, Eq, In, Rng, Params] =
     orderBy(col.asc)
 
   def toCQL: String = Select.render(this, allowFiltering = false)
@@ -110,12 +120,12 @@ final case class Select[T <: TableDef with Singleton, Eq <: HList, In <: HList, 
 
 object Select {
 
-  def apply[T <: TableDef with Singleton, Eq <: HList, In <: HList, Rng <: HList](
+  def apply[T <: TableDef with Singleton](
       table: T,
       columns: Seq[String],
       keyColumns: Seq[String]
-  ): Select[T, Eq, In, Rng] =
-    new Select[T, Eq, In, Rng](table, columns, keyColumns)
+  ): Select[T, HNil, HNil, HNil, HNil] =
+    new Select[T, HNil, HNil, HNil, HNil](table, columns, keyColumns)
 
   /** A SELECT that has opted into `ALLOW FILTERING`. Its [[execute]] and
     * [[toFunction]] carry no primary-key requirement.
@@ -124,17 +134,24 @@ object Select {
       T <: TableDef with Singleton,
       Eq <: HList,
       In <: HList,
-      Rng <: HList
+      Rng <: HList,
+      Params <: HList
   ](
-      private val select: Select[T, Eq, In, Rng]
+      private val select: Select[T, Eq, In, Rng, Params]
   ) {
     def execute(): String = toCQL
 
     def toCQL: String = render(select, allowFiltering = true)
   }
 
-  private def render[T <: TableDef with Singleton, Eq <: HList, In <: HList, Rng <: HList](
-      s: Select[T, Eq, In, Rng],
+  private def render[
+      T <: TableDef with Singleton,
+      Eq <: HList,
+      In <: HList,
+      Rng <: HList,
+      Params <: HList
+  ](
+      s: Select[T, Eq, In, Rng, Params],
       allowFiltering: Boolean
   ): String = {
     val colStr = if (s.columns.isEmpty) "*" else s.columns.mkString(", ")
@@ -164,9 +181,10 @@ object Select {
       T <: TableDef with Singleton,
       Eq <: HList,
       In <: HList,
-      Rng <: HList
+      Rng <: HList,
+      Params <: HList
   ](
-      s: Select[T, Eq, In, Rng]
+      s: Select[T, Eq, In, Rng, Params]
   ): Seq[Predicate] = {
     val keyIndex: Map[String, Int] = s.keyColumns.zipWithIndex.toMap
     s.predicates.sortBy(p => keyIndex.getOrElse(p.column, Int.MaxValue))

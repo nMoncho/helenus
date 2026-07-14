@@ -8,13 +8,16 @@ package net.nmoncho.helenus.api.cql
 
 import scala.annotation.implicitNotFound
 import scala.annotation.unused
+
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import net.nmoncho.helenus.api.ColumnNamingScheme
 import net.nmoncho.helenus.api.DefaultColumnNamingScheme
 import net.nmoncho.helenus.api.cql.ddl.CreateTable
 import net.nmoncho.helenus.api.cql.ddl.DropTable
-import net.nmoncho.helenus.api.cql.dml.{BindMarker, Select}
-import net.nmoncho.helenus.api.cql.dml.where.{FilterBindPredicate, _}
+import net.nmoncho.helenus.api.cql.dml.BindMarker
+import net.nmoncho.helenus.api.cql.dml.Select
+import net.nmoncho.helenus.api.cql.dml.where.FilterBindPredicate
+import net.nmoncho.helenus.api.cql.dml.where._
 import shapeless.::
 import shapeless.Generic
 import shapeless.HList
@@ -224,8 +227,8 @@ abstract class Table[A](keyspace0: String, tableName0: String)(implicit columnsF
   /** Select specific columns (all fields of `A` when none given). Nothing is constrained yet. */
   def select(
       cols: Column[_]*
-  )(implicit pk: ColumnNames[PK], ck: ClusteringOf[CK]): Select[this.type, HNil, HNil, HNil] =
-    Select[this.type, HNil, HNil, HNil](
+  )(implicit pk: ColumnNames[PK], ck: ClusteringOf[CK]): Select[this.type, HNil, HNil, HNil, HNil] =
+    Select[this.type, HNil, HNil, HNil, HNil](
       this,
       if (cols.isEmpty) columnsForA.columnDefs(naming).map(_.name) else cols.map(_.name),
       keyColumnNames(pk, ck)
