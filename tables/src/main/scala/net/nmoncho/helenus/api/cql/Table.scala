@@ -15,6 +15,7 @@ import net.nmoncho.helenus.api.DefaultColumnNamingScheme
 import net.nmoncho.helenus.api.cql.ddl.CreateTable
 import net.nmoncho.helenus.api.cql.ddl.DropTable
 import net.nmoncho.helenus.api.cql.dml.Select
+import net.nmoncho.helenus.api.cql.dml.where._
 import shapeless.::
 import shapeless.Generic
 import shapeless.HList
@@ -73,6 +74,46 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
 
     /** Descending ORDER BY clause for this column, e.g. `select().orderBy(ts.desc)`. */
     def desc: ColumnOrder = ColumnOrder(name, descending = true)
+
+    // ---- predicates -------------------------------------------------------
+
+    /** Equality predicate. Carries this column's field tag so the query
+      * builder can track, at compile time, which columns are constrained by
+      * equality.
+      */
+    def ===(value: T): EqPredicate[Tag] =
+      new EqPredicate[Tag](name, codec.format(value))
+
+    /** Range predicates. They also carry the column's field tag: a range is
+      * allowed without ALLOW FILTERING only on the clustering column that
+      * immediately follows the `===`-constrained prefix.
+      */
+    def >(value: T): RangePredicate[Tag] =
+      new RangePredicate[Tag](name, ">", codec.format(value))
+    def <(value: T): RangePredicate[Tag] =
+      new RangePredicate[Tag](name, "<", codec.format(value))
+    def >=(value: T): RangePredicate[Tag] =
+      new RangePredicate[Tag](name, ">=", codec.format(value))
+    def <=(value: T): RangePredicate[Tag] =
+      new RangePredicate[Tag](name, "<=", codec.format(value))
+
+    /** Never valid on a primary-key restriction: always requires ALLOW FILTERING. */
+    def !==(value: T): Predicate = Predicate(name, "!=", codec.format(value))
+
+    /** Multi-value equality. Carries the column's field tag: CQL allows IN
+      * only on the last component of the primary key (the gates check the
+      * position per statement type).
+      */
+    def in(values: Seq[T]): InPredicate[Tag] =
+      new InPredicate[Tag](name, s"(${values.map(codec.format).mkString(", ")})")
+
+    // TODO add evidence that this column is a collection
+    def contains(value: T): Predicate =
+      Predicate(name, "CONTAINS", codec.format(value))
+
+    // TODO add evidence that this column is a collection
+    def containsKye(value: T): Predicate =
+      Predicate(name, "CONTAINS KEY", codec.format(value))
 
     override def toString: String =
       s"Column($fieldName -> $name ${codec.getCqlType.asCql(false, false)})"
