@@ -61,4 +61,10 @@ object PredicateShape {
 
   implicit val filtering: Aux[Predicate, HNil, HNil, RequiresFiltering :: HNil] =
     instance(List(_))
+
+  // ---- conjunctions ---------------------------------------------------------
+
+  implicit def conjunction[E <: HList, I <: HList, R <: HList]: Aux[Conjunction[E, I, R], E, I, R] =
+    instance(_.predicates)
+
 }
