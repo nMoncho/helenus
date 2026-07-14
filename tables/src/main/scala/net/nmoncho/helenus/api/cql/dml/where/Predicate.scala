@@ -6,6 +6,11 @@
 
 package net.nmoncho.helenus.api.cql.dml.where
 
+import scala.annotation.unused
+
+import shapeless.HList
+import shapeless.ops.hlist.Prepend
+
 /** A WHERE-clause predicate. */
 sealed class Predicate(val column: String, val operator: String, val value: String)
     extends WhereClause {
@@ -16,6 +21,37 @@ sealed class Predicate(val column: String, val operator: String, val value: Stri
 object Predicate {
   def apply(column: String, operator: String, value: String): Predicate =
     new Predicate(column, operator, value)
+
+  /** `and` on a single predicate, combining it with another predicate or an
+    * existing [[Conjunction]] inside a `where(...)`. The type-level
+    * contributions of both sides are merged, so the `execute` gate sees
+    * through combined clauses. Defined in the `Predicate` companion so it is
+    * in the implicit scope of every predicate subtype without imports.
+    */
+  implicit final class PredicateAndOps[
+      P <: Predicate,
+      E <: HList,
+      I <: HList,
+      R <: HList
+  ](self: P)(
+      implicit ps: PredicateShape.Aux[P, E, I, R]
+  ) {
+    def and[
+        P2,
+        E2 <: HList,
+        I2 <: HList,
+        R2 <: HList,
+        EO <: HList,
+        IO <: HList,
+        RO <: HList
+    ](other: P2)(
+        implicit ps2: PredicateShape.Aux[P2, E2, I2, R2],
+        @unused pe: Prepend.Aux[E, E2, EO],
+        @unused pi: Prepend.Aux[I, I2, IO],
+        @unused pr: Prepend.Aux[R, R2, RO]
+    ): Conjunction[EO, IO, RO] =
+      new Conjunction(ps.predicates(self) ++ ps2.predicates(other))
+  }
 }
 
 /** An equality (`=`) predicate tagged with the column's field tag `Col` (the
