@@ -33,24 +33,28 @@ object Predicate {
       P <: Predicate,
       E <: HList,
       I <: HList,
-      R <: HList
+      R <: HList,
+      Pm <: HList
   ](self: P)(
-      implicit ps: PredicateShape.Aux[P, E, I, R]
+      implicit ps: PredicateShape.Aux[P, E, I, R, Pm]
   ) {
     def and[
         P2,
         E2 <: HList,
         I2 <: HList,
         R2 <: HList,
+        Pm2 <: HList,
         EO <: HList,
         IO <: HList,
-        RO <: HList
+        RO <: HList,
+        PO <: HList
     ](other: P2)(
-        implicit ps2: PredicateShape.Aux[P2, E2, I2, R2],
+        implicit ps2: PredicateShape.Aux[P2, E2, I2, R2, Pm2],
         @unused pe: Prepend.Aux[E, E2, EO],
         @unused pi: Prepend.Aux[I, I2, IO],
-        @unused pr: Prepend.Aux[R, R2, RO]
-    ): Conjunction[EO, IO, RO] =
+        @unused pr: Prepend.Aux[R, R2, RO],
+        @unused pp: Prepend.Aux[Pm, Pm2, PO]
+    ): Conjunction[EO, IO, RO, PO] =
       new Conjunction(ps.predicates(self) ++ ps2.predicates(other))
   }
 }
