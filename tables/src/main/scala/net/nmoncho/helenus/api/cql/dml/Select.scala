@@ -74,6 +74,11 @@ final case class Select[T <: TableDef with Singleton, Eq <: HList, In <: HList, 
       orderByClauses
     )
 
+  /** Opt out of the primary-key requirement. The returned query can always be
+    * executed, at the cost of a server-side `ALLOW FILTERING` scan.
+    */
+  def allowFiltering: Select.Filtering[T, Eq, In, Rng] = new Select.Filtering(this)
+
   def limit(n: Int): Select[T, Eq, In, Rng] = copy(limitValue = Some(n))
 
   /** Add ORDER BY clauses, built from a column's `asc` / `desc` methods, e.g.
@@ -100,6 +105,20 @@ object Select {
       keyColumns: Seq[String]
   ): Select[T, Eq, In, Rng] =
     new Select[T, Eq, In, Rng](table, columns, keyColumns)
+
+  /** A SELECT that has opted into `ALLOW FILTERING`. Its [[execute]] and
+    * [[toFunction]] carry no primary-key requirement.
+    */
+  final class Filtering[
+      T <: TableDef with Singleton,
+      Eq <: HList,
+      In <: HList,
+      Rng <: HList
+  ](
+      private val select: Select[T, Eq, In, Rng]
+  ) {
+    def toCQL: String = render(select, allowFiltering = true)
+  }
 
   private def render[T <: TableDef with Singleton, Eq <: HList, In <: HList, Rng <: HList](
       s: Select[T, Eq, In, Rng],
