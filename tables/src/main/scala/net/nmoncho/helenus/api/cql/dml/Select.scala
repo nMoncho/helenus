@@ -8,8 +8,28 @@ package net.nmoncho.helenus.api.cql
 package dml
 
 import net.nmoncho.helenus.api.cql.dml.where.Predicate
+import shapeless.HList
 
-final case class Select[T <: TableDef with Singleton](
+/** A typed SELECT builder.
+  *
+  * @tparam T      the singleton type of the table being queried
+  * @tparam Eq     type-level `HList` of the columns constrained so far with `===`
+  * @tparam In     type-level `HList` of the columns constrained so far with `in`
+  * @tparam Rng    type-level `HList` of the columns constrained so far with a
+  *                range operator (plus the `RequiresFiltering` marker for
+  *                predicates that always need filtering, such as `contains`)
+  *
+  * The WHERE clause is built with a single [[where]] call; several predicates
+  * are combined with the `and` combinator on predicates themselves, in any
+  * order: `where(UsersTable.id === x and UsersTable.username === "alice")`.
+  * Rendering reorders predicates to CQL order (partition key, then clustering
+  * columns, then the rest). The ungated [[execute]] is available only when
+  * the accumulated constraints form a valid primary-key restriction (see
+  * [[CanExecute]], including the IN placement rules), or when there are no
+  * constraints at all; every other query must
+  * go through [[allowFiltering]]`.execute`.
+  */
+final case class Select[T <: TableDef with Singleton, Eq <: HList, In <: HList, Rng <: HList](
     table: T,
     columns: Seq[String],
     keyColumns: Seq[String],
@@ -18,17 +38,17 @@ final case class Select[T <: TableDef with Singleton](
     orderByClauses: Seq[ColumnOrder] = Seq.empty
 ) {
 
-  def limit(n: Int): Select[T] = copy(limitValue = Some(n))
+  def limit(n: Int): Select[T, Eq, In, Rng] = copy(limitValue = Some(n))
 
   /** Add ORDER BY clauses, built from a column's `asc` / `desc` methods, e.g.
     * `orderBy(username.desc)` or `orderBy(year.asc, ts.desc)`. A bare column
     * defaults to ascending via the other overload.
     */
-  def orderBy(orders: ColumnOrder*): Select[T] =
+  def orderBy(orders: ColumnOrder*): Select[T, Eq, In, Rng] =
     copy(orderByClauses = orderByClauses ++ orders)
 
   /** Order ascending by the given column (the CQL default direction). */
-  def orderBy(col: table.Column[_]): Select[T] =
+  def orderBy(col: table.Column[_]): Select[T, Eq, In, Rng] =
     orderBy(col.asc)
 
   def toCQL: String = Select.render(this, allowFiltering = false)
@@ -38,15 +58,15 @@ final case class Select[T <: TableDef with Singleton](
 
 object Select {
 
-  def apply[T <: TableDef with Singleton](
+  def apply[T <: TableDef with Singleton, Eq <: HList, In <: HList, Rng <: HList](
       table: T,
       columns: Seq[String],
       keyColumns: Seq[String]
-  ): Select[T] =
-    new Select[T](table, columns, keyColumns)
+  ): Select[T, Eq, In, Rng] =
+    new Select[T, Eq, In, Rng](table, columns, keyColumns)
 
-  private def render[T <: TableDef with Singleton](
-      s: Select[T],
+  private def render[T <: TableDef with Singleton, Eq <: HList, In <: HList, Rng <: HList](
+      s: Select[T, Eq, In, Rng],
       allowFiltering: Boolean
   ): String = {
     val colStr = if (s.columns.isEmpty) "*" else s.columns.mkString(", ")
@@ -72,8 +92,13 @@ object Select {
     * relative order. Bound parameters are filled in writing order BEFORE this
     * reordering, so `?` positions and argument positions always agree.
     */
-  private def orderedPredicates[T <: TableDef with Singleton](
-      s: Select[T]
+  private def orderedPredicates[
+      T <: TableDef with Singleton,
+      Eq <: HList,
+      In <: HList,
+      Rng <: HList
+  ](
+      s: Select[T, Eq, In, Rng]
   ): Seq[Predicate] = {
     val keyIndex: Map[String, Int] = s.keyColumns.zipWithIndex.toMap
     s.predicates.sortBy(p => keyIndex.getOrElse(p.column, Int.MaxValue))

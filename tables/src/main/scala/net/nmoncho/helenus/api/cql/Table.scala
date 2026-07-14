@@ -198,8 +198,8 @@ abstract class Table[A](keyspace0: String, tableName0: String)(implicit columnsF
   /** Select specific columns (all fields of `A` when none given). Nothing is constrained yet. */
   def select(
       cols: Column[_]*
-  )(implicit pk: ColumnNames[PK], ck: ClusteringOf[CK]): Select[this.type] =
-    Select[this.type](
+  )(implicit pk: ColumnNames[PK], ck: ClusteringOf[CK]): Select[this.type, HNil, HNil, HNil] =
+    Select[this.type, HNil, HNil, HNil](
       this,
       if (cols.isEmpty) columnsForA.columnDefs(naming).map(_.name) else cols.map(_.name),
       keyColumnNames(pk, ck)
