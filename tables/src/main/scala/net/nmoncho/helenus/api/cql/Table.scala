@@ -16,7 +16,9 @@ import net.nmoncho.helenus.api.cql.ddl.CreateTable
 import net.nmoncho.helenus.api.cql.ddl.DropTable
 import net.nmoncho.helenus.api.cql.dml.BindMarker
 import net.nmoncho.helenus.api.cql.dml.Delete
+import net.nmoncho.helenus.api.cql.dml.Insert
 import net.nmoncho.helenus.api.cql.dml.Select
+import net.nmoncho.helenus.api.cql.dml.Update
 import net.nmoncho.helenus.api.cql.dml.where._
 import shapeless.::
 import shapeless.Generic
@@ -47,6 +49,12 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
   // ---- entry points that do not need the mapped case class ----------------
 
   def drop: DropTable = DropTable(this)
+
+  def insert: Insert[this.type, HNil] = Insert[this.type](this)
+
+  def update: Update[this.type, HNil, HNil, HNil, HNil, HNil] = Update[this.type](this)
+
+  def delete: Delete[this.type, HNil, HNil, HNil, HNil, DeleteMode.Rows] = Delete[this.type](this)
 
   /** A typed column of this table. Instances are obtained with
     * `column("fieldName")`, which checks the field against the mapped case
@@ -143,6 +151,13 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
     // TODO add evidence that this column is a collection
     def containsKey(@unused m: BindMarker): FilterBindPredicate[T] =
       new FilterBindPredicate(name, "CONTAINS KEY", codec)
+
+    // ---- assignment (used in INSERT / UPDATE) -----------------------------
+
+    def :=(value: T): Assignment = new Assignment(name, codec.format(value))
+
+    /** A bound assignment: `col := ?` (value supplied via `toFunction`). */
+    def :=(@unused m: BindMarker): BoundAssignment[T] = new BoundAssignment[T](name, codec)
 
     override def toString: String =
       s"Column($fieldName -> $name ${codec.getCqlType.asCql(false, false)})"
@@ -250,8 +265,6 @@ abstract class Table[A](keyspace0: String, tableName0: String)(implicit columnsF
       if (cols.isEmpty) columnsForA.columnDefs(naming).map(_.name) else cols.map(_.name),
       keyColumnNames(pk, ck)
     )
-
-  def delete: Delete[this.type, HNil, HNil, HNil, HNil, DeleteMode.Rows] = Delete[this.type](this)
 
   private def keyColumnNames(pk: ColumnNames[PK], ck: ClusteringOf[CK]): Seq[String] =
     pk.names.map(naming.map) ++ ck.columns.map(c => naming.map(c.name))
