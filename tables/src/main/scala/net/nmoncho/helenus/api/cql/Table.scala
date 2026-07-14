@@ -8,14 +8,13 @@ package net.nmoncho.helenus.api.cql
 
 import scala.annotation.implicitNotFound
 import scala.annotation.unused
-
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import net.nmoncho.helenus.api.ColumnNamingScheme
 import net.nmoncho.helenus.api.DefaultColumnNamingScheme
 import net.nmoncho.helenus.api.cql.ddl.CreateTable
 import net.nmoncho.helenus.api.cql.ddl.DropTable
-import net.nmoncho.helenus.api.cql.dml.Select
-import net.nmoncho.helenus.api.cql.dml.where._
+import net.nmoncho.helenus.api.cql.dml.{BindMarker, Select}
+import net.nmoncho.helenus.api.cql.dml.where.{FilterBindPredicate, _}
 import shapeless.::
 import shapeless.Generic
 import shapeless.HList
@@ -112,8 +111,35 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
       Predicate(name, "CONTAINS", codec.format(value))
 
     // TODO add evidence that this column is a collection
-    def containsKye(value: T): Predicate =
+    def containsKey(value: T): Predicate =
       Predicate(name, "CONTAINS KEY", codec.format(value))
+
+    // ---- bind-marker variants (used with toFunction) ----------------------
+    // Passing `?` instead of a value leaves a hole; the value arrives later
+    // as an argument of the function produced by `toFunction`, typed as this
+    // column's `T` (`in(?)` binds a whole `Seq[T]`).
+
+    def ===(@unused m: BindMarker): EqBindPredicate[Tag, T] =
+      new EqBindPredicate[Tag, T](name, codec)
+    def >(@unused m: BindMarker): RangeBindPredicate[Tag, T] =
+      new RangeBindPredicate[Tag, T](name, ">", codec)
+    def <(@unused m: BindMarker): RangeBindPredicate[Tag, T] =
+      new RangeBindPredicate[Tag, T](name, "<", codec)
+    def >=(@unused m: BindMarker): RangeBindPredicate[Tag, T] =
+      new RangeBindPredicate[Tag, T](name, ">=", codec)
+    def <=(@unused m: BindMarker): RangeBindPredicate[Tag, T] =
+      new RangeBindPredicate[Tag, T](name, "<=", codec)
+    def !==(@unused m: BindMarker): FilterBindPredicate[T] =
+      new FilterBindPredicate[T](name, "!=", codec)
+    def in(@unused m: BindMarker): InBindPredicate[Tag, T] =
+      new InBindPredicate[Tag, T](name, codec)
+
+    // TODO add evidence that this column is a collection
+    def contains(@unused m: BindMarker): FilterBindPredicate[T] =
+      new FilterBindPredicate[T](name, "CONTAINS", codec)
+    // TODO add evidence that this column is a collection
+    def containsKey(@unused m: BindMarker): FilterBindPredicate[T] =
+      new FilterBindPredicate(name, "CONTAINS KEY", codec)
 
     override def toString: String =
       s"Column($fieldName -> $name ${codec.getCqlType.asCql(false, false)})"
