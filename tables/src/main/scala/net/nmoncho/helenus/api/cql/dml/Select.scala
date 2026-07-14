@@ -9,12 +9,15 @@ package dml
 
 import scala.annotation.unused
 
+import net.nmoncho.helenus.api.cql.dml.where.BindHole
 import net.nmoncho.helenus.api.cql.dml.where.CanSelect
 import net.nmoncho.helenus.api.cql.dml.where.Predicate
 import net.nmoncho.helenus.api.cql.dml.where.PredicateShape
 import net.nmoncho.helenus.api.cql.dml.where.WhereClause
+import shapeless.::
 import shapeless.HList
 import shapeless.HNil
+import shapeless.ops.function.FnFromProduct
 import shapeless.ops.hlist.Prepend
 
 /** A typed SELECT builder.
@@ -98,6 +101,26 @@ final case class Select[
       @unused noUnboundParams: Params =:= HNil
   ): String = toCQL
 
+  /** Turn a query containing `?` markers into a `FunctionN` taking one
+    * argument per marker (typed as the bound column, in writing order) and
+    * returning the rendered CQL. Gated by the same rules as [[execute]]:
+    * bound key columns count toward the primary-key restriction exactly like
+    * literal ones.
+    */
+  def toFunction[F](
+      implicit @unused ev: CanSelect[table.PK, table.CK, Eq, In, Rng],
+      fp: FnFromProduct.Aux[Params => String, F]
+  ): F =
+    fp(params => Select.render(withBoundValues(params), allowFiltering = false))
+
+  private[dml] def withBoundValues(params: HList): Select[T, Eq, In, Rng, Params] = {
+    val values = Select.hlistValues(params).iterator
+    copy(predicates = predicates.map {
+      case hole: BindHole => hole.fill(values.next())
+      case complete => complete
+    })
+  }
+
   /** Opt out of the primary-key requirement. The returned query can always be
     * executed, at the cost of a server-side `ALLOW FILTERING` scan.
     */
@@ -145,6 +168,16 @@ object Select {
     def execute(): String = toCQL
 
     def toCQL: String = render(select, allowFiltering = true)
+
+    /** Like `Select.toFunction`, without the primary-key requirement. */
+    def toFunction[F](implicit fp: FnFromProduct.Aux[Params => String, F]): F =
+      fp(params => render(select.withBoundValues(params), allowFiltering = true))
+  }
+
+  /** Runtime view of the bound arguments, in writing order. */
+  private def hlistValues(l: HList): List[Any] = l match {
+    case HNil => Nil
+    case head :: tail => head :: hlistValues(tail)
   }
 
   private def render[
