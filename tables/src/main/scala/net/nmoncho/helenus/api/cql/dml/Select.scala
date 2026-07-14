@@ -93,7 +93,10 @@ final case class Select[
     * is no WHERE clause at all, and no `?` marker is unbound. Otherwise this
     * call does not compile; use `allowFiltering.execute` or [[toFunction]].
     */
-  def execute()(implicit @unused ev: CanSelect[table.PK, table.CK, Eq, In, Rng]): String = toCQL
+  def execute()(
+      implicit @unused ev: CanSelect[table.PK, table.CK, Eq, In, Rng],
+      @unused noUnboundParams: Params =:= HNil
+  ): String = toCQL
 
   /** Opt out of the primary-key requirement. The returned query can always be
     * executed, at the cost of a server-side `ALLOW FILTERING` scan.
