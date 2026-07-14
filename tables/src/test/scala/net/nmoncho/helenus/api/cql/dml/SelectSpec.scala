@@ -17,5 +17,15 @@ class SelectSpec extends AnyWordSpecLike with Matchers {
 
       query shouldBe "SELECT id, username, age FROM my_keyspace.users"
     }
+
+    "support ALLOW FILTERING" in {
+      val cql = UsersTable
+        .select(UsersTable.id)
+        .where(UsersTable.age > 25)
+        .allowFiltering
+        .toCQL
+
+      cql should endWith("ALLOW FILTERING")
+    }
   }
 }
