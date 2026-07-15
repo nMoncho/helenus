@@ -33,7 +33,12 @@ class DdlIntegrationSpec extends CassandraIntegrationSpec {
   "CreateTable" should "create a real table Cassandra accepts" in {
     execute(UsersTable.drop.ifExists.toCQL)
     execute(UsersTable.create.toCQL)
+    tableNames("my_keyspace") should contain("users")
 
+    UsersTable.drop.ifExists.execute()
+    tableNames("my_keyspace") should not contain "users"
+
+    UsersTable.create.execute()
     tableNames("my_keyspace") should contain("users")
   }
 

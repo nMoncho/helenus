@@ -7,6 +7,16 @@
 package net.nmoncho.helenus.api.cql
 package ddl
 
+import scala.annotation.unused
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
+
+import com.datastax.dse.driver.api.core.cql.reactive.ReactiveResultSet
+import com.datastax.oss.driver.api.core.CqlSession
+import com.datastax.oss.driver.api.core.cql.AsyncResultSet
+import com.datastax.oss.driver.api.core.cql.ResultSet
+import net.nmoncho.helenus.internal.compat.FutureConverters.CompletionStageOps
+
 case class CreateTable(
     table: TableDef,
     columns: Seq[TableDef#Column[_]],
@@ -16,6 +26,18 @@ case class CreateTable(
 ) {
 
   def ifNotExists: CreateTable = copy(ifNotExistsFlag = true)
+
+  def execute()(implicit session: CqlSession): ResultSet =
+    session.execute(toCQL)
+
+  def executeAsync()(
+      implicit session: CqlSession,
+      @unused ec: ExecutionContext
+  ): Future[AsyncResultSet] =
+    session.executeAsync(toCQL).asScala
+
+  def executeReactive()(implicit session: CqlSession): ReactiveResultSet =
+    session.executeReactive(toCQL)
 
   def toCQL: String = {
     val ifNotExistsStr = if (ifNotExistsFlag) " IF NOT EXISTS" else ""
