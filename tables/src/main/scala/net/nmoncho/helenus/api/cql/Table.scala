@@ -14,11 +14,7 @@ import net.nmoncho.helenus.api.ColumnNamingScheme
 import net.nmoncho.helenus.api.DefaultColumnNamingScheme
 import net.nmoncho.helenus.api.cql.ddl.CreateTable
 import net.nmoncho.helenus.api.cql.ddl.DropTable
-import net.nmoncho.helenus.api.cql.dml.BindMarker
-import net.nmoncho.helenus.api.cql.dml.Delete
-import net.nmoncho.helenus.api.cql.dml.Insert
-import net.nmoncho.helenus.api.cql.dml.Select
-import net.nmoncho.helenus.api.cql.dml.Update
+import net.nmoncho.helenus.api.cql.dml._
 import net.nmoncho.helenus.api.cql.dml.where._
 import shapeless.::
 import shapeless.Generic
@@ -56,6 +52,7 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
 
   def delete: Delete[this.type, HNil, HNil, HNil, HNil, DeleteMode.Rows] = Delete[this.type](this)
 
+  // TODO add `frozen` columns
   /** A typed column of this table. Instances are obtained with
     * `column("fieldName")`, which checks the field against the mapped case
     * class; `fieldName` is the case-class field, `name` the CQL column name
@@ -184,11 +181,55 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
 
 }
 
-abstract class Table[A](keyspace0: String, tableName0: String)(implicit columnsForA: ColumnsFor[A])
-    extends TableDef(keyspace0, tableName0) {
+/** A table definition mapped to the case class `A`, which is the single
+  * source of truth for the schema: DDL and full-row projections derive every
+  * column from `A`'s fields (via [[ColumnsFor]]). Column vals are checked
+  * references into `A`, and [[registerAllColumns]] enforces the other
+  * direction: every field of `A` must have a declared column, so case class
+  * and table can never drift in either direction.
+  *
+  * {{{
+  * case class Users(id: UUID, username: String, age: Int)
+  *
+  * object UsersTable extends Table[Users]("ks", "users") {
+  *   val id       = column[UUID]("id")         // checked: Users.id must be a UUID
+  *   val username = column[String]("username") // a typo'd name or type does not compile
+  *   val age      = column[Int]("age")
+  *
+  *   // checked: adding a field to Users without a column val fails here
+  *   protected val columns = registerAllColumns(id :: username :: age :: HNil)
+  *
+  *   type PK = id.Tag :: HNil
+  *   type CK = username.Tag :: HNil
+  * }
+  * }}}
+  *
+  * Field names are translated to CQL column names with [[naming]] (e.g.
+  * `deviceId` to `device_id` under [[SnakeCase]]).
+  *
+  * A table may also declare COMPUTED columns with [[computedColumn]]: stored
+  * columns derived from `A`'s fields but not fields themselves. They can be
+  * queried / used in keys like any column, and are written automatically by
+  * [[insertFrom]]; the [[RowMapper]] ignores them (it reads `A`'s fields by
+  * name, and never asks for a computed column).
+  *
+  * The schema derivations ([[ColumnsFor]], [[InsertValues]]) are resolved
+  * ONCE, as constructor implicits, at the `object X extends Table[A](...)`
+  * definition, where `A` is concrete. This is also where a field of `A`
+  * lacking a `CQLType` fails to compile, and it keeps every query entry point
+  * (`create` / `select` / `insertFrom`) free of shapeless implicits, which
+  * IDEs with weaker implicit search would flag at each call site.
+  */
+abstract class Table[A](keyspace0: String, tableName0: String)(
+    implicit columnsForA: ColumnsFor[A],
+    insertValuesForA: InsertValues[A]
+) extends TableDef(keyspace0, tableName0) {
 
   /** How case-class field names map to CQL column names. */
   protected def naming: ColumnNamingScheme = DefaultColumnNamingScheme
+
+  /** Computed columns declared on this table, in declaration order. */
+  private val computedColumns = scala.collection.mutable.ListBuffer.empty[Table.Computed[A]]
 
   /** Every table must register its columns; implement as
     * `protected val columns = registerAllColumns(id :: ... :: HNil)`.
@@ -246,12 +287,28 @@ abstract class Table[A](keyspace0: String, tableName0: String)(implicit columnsF
   ): Column[V] { type Tag = name0.type } =
     new Column[V](name0, naming.map(name0)) { type Tag = name0.type }
 
+  /** Declare a computed column: a stored column whose value is derived from an
+    * `A` via `compute`. Unlike [[column]] it is not a field of `A`, so it is
+    * skipped by the [[RowMapper]], but it participates in DDL, `insertFrom`,
+    * keys, and query predicates like any other column.
+    */
+  protected def computedColumn[Col](
+      name0: String with Singleton
+  )(compute: A => Col)(implicit ct: TypeCodec[Col]): Column[Col] { type Tag = name0.type } = {
+    val cqlName = naming.map(name0)
+    computedColumns += Table
+      .Computed[A](cqlName, ct.getCqlType.asCql(false, false), a => ct.format(compute(a)))
+    new Column[Col](name0, cqlName) { type Tag = name0.type }
+  }
+
   // ---- entry points that derive from the case class -----------------------
 
   def create(implicit pk: ColumnNames[PK], ck: ClusteringOf[CK]): CreateTable =
     CreateTable(
       this,
-      columnsForA.columnDefs(naming),
+      columnsForA.columnDefs(naming) ++ computedColumns.toList.map(c =>
+        ColumnDef(c.name, c.cqlType)
+      ),
       pk.names.map(naming.map),
       ck.columns.map(c => c.copy(name = naming.map(c.name)))
     )
@@ -265,6 +322,17 @@ abstract class Table[A](keyspace0: String, tableName0: String)(implicit columnsF
       if (cols.isEmpty) columnsForA.columnDefs(naming).map(_.name) else cols.map(_.name),
       keyColumnNames(pk, ck)
     )
+
+  /** Insert a whole entity: writes every field of `A` plus every computed
+    * column (filled by its `compute` function). The returned builder can be
+    * refined further (`ifNotExists`, `usingTTL`, extra `value(...)`).
+    */
+  def insertFrom(a: A): Insert[this.type, HNil] = {
+    val fieldAssignments =
+      insertValuesForA.values(a, naming).map { case (n, v) => new Assignment(n, v) }
+    val computedAssignments = computedColumns.toList.map(c => new Assignment(c.name, c.render(a)))
+    Insert[this.type](this).copy(assignments = fieldAssignments ++ computedAssignments)
+  }
 
   private def keyColumnNames(pk: ColumnNames[PK], ck: ClusteringOf[CK]): Seq[String] =
     pk.names.map(naming.map) ++ ck.columns.map(c => naming.map(c.name))
