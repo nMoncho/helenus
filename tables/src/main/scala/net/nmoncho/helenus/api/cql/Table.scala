@@ -52,13 +52,15 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
 
   def delete: Delete[this.type, HNil, HNil, HNil, HNil, DeleteMode.Rows] = Delete[this.type](this)
 
-  // TODO add `frozen` columns
   /** A typed column of this table. Instances are obtained with
     * `column("fieldName")`, which checks the field against the mapped case
     * class; `fieldName` is the case-class field, `name` the CQL column name
     * produced by the table's [[ColumnNamingScheme]].
     */
-  class Column[T](val fieldName: String, val name: String)(implicit codec: TypeCodec[T]) {
+  class Column[T](val fieldName: String, val name: String, val frozen: Boolean)(
+      implicit
+      val codec: TypeCodec[T] // TODO not sure if making this a `val` is the best approach...
+  ) {
 
     /** Type-level identity of this column: the literal type of the case-class
       * field name (e.g. `Tag = "id"`). Used in `PK` / `CK` declarations and
@@ -157,9 +159,9 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
     def :=(@unused m: BindMarker): BoundAssignment[T] = new BoundAssignment[T](name, codec)
 
     override def toString: String =
-      s"Column($fieldName -> $name ${codec.getCqlType.asCql(false, false)})"
+      s"Column($fieldName -> $name ${codec.getCqlType.asCql(frozen, false)})"
 
-    def toCQL: String = s"$name ${codec.getCqlType.asCql(false, false)}"
+    def toCQL: String = s"$name ${codec.getCqlType.asCql(frozen, false)}"
   }
 
   /** A SET / VALUES assignment. */
@@ -225,11 +227,18 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
     insertValuesForA: InsertValues[A]
 ) extends TableDef(keyspace0, tableName0) {
 
+  /** Registry entry for a computed column: CQL name, CQL type, and renderer. */
+  class ComputedColumn[T: TypeCodec](name: String, val cqlType: String, val render: A => T)
+      extends Column[T](name, name, false)
+
   /** How case-class field names map to CQL column names. */
   protected def naming: ColumnNamingScheme = DefaultColumnNamingScheme
 
+  /** Registered columns declared on this table, that are not computed, in declaration order. */
+  private val registeredColumns = scala.collection.mutable.ListBuffer.empty[Column[_]]
+
   /** Computed columns declared on this table, in declaration order. */
-  private val computedColumns = scala.collection.mutable.ListBuffer.empty[Table.Computed[A]]
+  private val computedColumns = scala.collection.mutable.ListBuffer.empty[ComputedColumn[_]]
 
   /** Every table must register its columns; implement as
     * `protected val columns = registerAllColumns(id :: ... :: HNil)`.
@@ -282,10 +291,15 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
     * ascription widens away the `Tag` refinement and genuinely breaks
     * `PK` / `CK` derivation.
     */
-  protected def column[V: TypeCodec](name0: String with Singleton)(
+  protected def column[V: TypeCodec](name0: String with Singleton, frozen: Boolean = false)(
       implicit @unused field: FieldOfType[A, name0.type, V]
-  ): Column[V] { type Tag = name0.type } =
-    new Column[V](name0, naming.map(name0)) { type Tag = name0.type }
+  ): Column[V] { type Tag = name0.type } = {
+    val col = new Column[V](name0, naming.map(name0), frozen) { type Tag = name0.type }
+
+    registeredColumns += col
+
+    col
+  }
 
   /** Declare a computed column: a stored column whose value is derived from an
     * `A` via `compute`. Unlike [[column]] it is not a field of `A`, so it is
@@ -293,12 +307,16 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
     * keys, and query predicates like any other column.
     */
   protected def computedColumn[Col](
-      name0: String with Singleton
+      name0: String with Singleton,
+      frozen: Boolean = false
   )(compute: A => Col)(implicit ct: TypeCodec[Col]): Column[Col] { type Tag = name0.type } = {
     val cqlName = naming.map(name0)
-    computedColumns += Table
-      .Computed[A](cqlName, ct.getCqlType.asCql(false, false), a => ct.format(compute(a)))
-    new Column[Col](name0, cqlName) { type Tag = name0.type }
+    computedColumns += new ComputedColumn(
+      cqlName,
+      ct.getCqlType.asCql(frozen, false),
+      a => compute(a)
+    )
+    new Column[Col](name0, cqlName, frozen) { type Tag = name0.type }
   }
 
   // ---- entry points that derive from the case class -----------------------
@@ -306,9 +324,7 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
   def create(implicit pk: ColumnNames[PK], ck: ClusteringOf[CK]): CreateTable =
     CreateTable(
       this,
-      columnsForA.columnDefs(naming) ++ computedColumns.toList.map(c =>
-        ColumnDef(c.name, c.cqlType)
-      ),
+      (registeredColumns ++ computedColumns).toSeq,
       pk.names.map(naming.map),
       ck.columns.map(c => c.copy(name = naming.map(c.name)))
     )
@@ -330,7 +346,9 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
   def insertFrom(a: A): Insert[this.type, HNil] = {
     val fieldAssignments =
       insertValuesForA.values(a, naming).map { case (n, v) => new Assignment(n, v) }
-    val computedAssignments = computedColumns.toList.map(c => new Assignment(c.name, c.render(a)))
+    val computedAssignments = computedColumns.toList.map(c =>
+      new Assignment(c.name, c.render(a).toString)
+    ) // FIXME this isn't going to work
     Insert[this.type](this).copy(assignments = fieldAssignments ++ computedAssignments)
   }
 
@@ -339,9 +357,6 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
 }
 
 object Table {
-
-  /** Registry entry for a computed column: CQL name, CQL type, and renderer. */
-  private[cql] final case class Computed[A](name: String, cqlType: String, render: A => String)
 
   /** Proof token returned by `Table.registerAllColumns`: its only constructor
     * is there, so implementing the abstract `columns` member forces the

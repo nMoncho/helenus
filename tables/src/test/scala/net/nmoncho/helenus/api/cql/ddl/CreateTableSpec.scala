@@ -16,7 +16,7 @@ class CreateTableSpec extends AnyWordSpec with Matchers {
     "generate a simple CREATE TABLE statement" in {
       UsersTable.create.toCQL shouldBe
       "CREATE TABLE my_keyspace.users " +
-      "(id uuid, username text, age int, email text, tags set<text>, metadata map<text, text>, " +
+      "(id uuid, username text, age int, email text, tags frozen<set<text>>, metadata map<text, text>, " +
       "PRIMARY KEY (id, username))"
     }
 
