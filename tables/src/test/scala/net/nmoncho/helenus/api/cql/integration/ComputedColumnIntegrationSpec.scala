@@ -34,7 +34,7 @@ class ComputedColumnIntegrationSpec extends CassandraIntegrationSpec {
         .where(
           MetricsTable.shard === 5 and MetricsTable.id === id and MetricsTable.name === "alice"
         )
-        .execute
+        .execute()
     ).head
 
     row.getUuid("id") shouldBe id
@@ -49,7 +49,7 @@ class ComputedColumnIntegrationSpec extends CassandraIntegrationSpec {
       MetricsTable
         .select(MetricsTable.id, MetricsTable.name, MetricsTable.shard)
         .where(MetricsTable.shard === 3 and MetricsTable.id === id)
-        .execute
+        .execute()
     ).head
 
     row.getInt("shard") shouldBe 3 // "bob".length

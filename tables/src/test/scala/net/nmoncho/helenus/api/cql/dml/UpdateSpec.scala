@@ -66,11 +66,11 @@ class UpdateSpec extends AnyFlatSpec with Matchers {
 
   // ---- execute gate: positive ----------------------------------------------
 
-  "Update.execute" should "be available when the entire primary key is === constrained" in {
+  "Update.execute()" should "be available when the entire primary key is === constrained" in {
     val cql = UsersTable.update
       .set(UsersTable.age := 31)
       .where(UsersTable.id === fixedId and UsersTable.username === "alice")
-      .execute
+      .execute()
 
     cql shouldBe s"UPDATE my_keyspace.users SET age = 31 WHERE id = $fixedId AND username = 'alice'"
   }
@@ -81,7 +81,7 @@ class UpdateSpec extends AnyFlatSpec with Matchers {
       .where(
         EventsTable.eventId === fixedId and EventsTable.eventType === "click" and EventsTable.tenantId === "acme"
       )
-      .execute
+      .execute()
 
     cql should include("WHERE event_id = ")
   }
@@ -90,7 +90,7 @@ class UpdateSpec extends AnyFlatSpec with Matchers {
     val cql = UsersTable.update
       .set(UsersTable.age := 31)
       .where(UsersTable.id === fixedId and UsersTable.username.in(Seq("alice", "bob")))
-      .execute
+      .execute()
 
     cql shouldBe
     "UPDATE my_keyspace.users SET age = 31 " +
@@ -104,7 +104,7 @@ class UpdateSpec extends AnyFlatSpec with Matchers {
         EventsTable.tenantId === "acme" and EventsTable.eventType === "click" and EventsTable.eventId
           .in(Seq(fixedId))
       )
-      .execute
+      .execute()
 
     cql should include(s"event_id IN ($fixedId)")
   }
@@ -112,12 +112,12 @@ class UpdateSpec extends AnyFlatSpec with Matchers {
   // ---- execute gate: negative ------------------------------------------------
 
   it should "NOT compile without a WHERE clause" in {
-    assertTypeError("""UsersTable.update.set(UsersTable.age := 31).execute""")
+    assertTypeError("""UsersTable.update.set(UsersTable.age := 31).execute()""")
   }
 
   it should "NOT compile when clustering columns are missing" in {
     assertTypeError(
-      """UsersTable.update.set(UsersTable.age := 31).where(UsersTable.id === fixedId).execute"""
+      """UsersTable.update.set(UsersTable.age := 31).where(UsersTable.id === fixedId).execute()"""
     )
   }
 
@@ -126,7 +126,7 @@ class UpdateSpec extends AnyFlatSpec with Matchers {
       """SensorsTable.update
            .set(SensorsTable.reading := 1.0)
            .where(SensorsTable.deviceId === fixedId and SensorsTable.year === 2026 and SensorsTable.ts > 100L)
-           .execute"""
+           .execute()"""
     )
   }
 
@@ -135,7 +135,7 @@ class UpdateSpec extends AnyFlatSpec with Matchers {
       """UsersTable.update
            .set(UsersTable.age := 31)
            .where(UsersTable.id === fixedId and UsersTable.username === "alice" and UsersTable.email === "a@b.c")
-           .execute"""
+           .execute()"""
     )
   }
 
@@ -144,7 +144,7 @@ class UpdateSpec extends AnyFlatSpec with Matchers {
       """UsersTable.update
            .set(UsersTable.age := 31)
            .where(UsersTable.id.in(Seq(fixedId)) and UsersTable.username === "alice")
-           .execute"""
+           .execute()"""
     )
   }
 
@@ -153,7 +153,7 @@ class UpdateSpec extends AnyFlatSpec with Matchers {
       """UsersTable.update
            .set(UsersTable.age := 31)
            .where(UsersTable.username.in(Seq("alice")))
-           .execute"""
+           .execute()"""
     )
   }
 
@@ -162,7 +162,7 @@ class UpdateSpec extends AnyFlatSpec with Matchers {
       """UsersTable.update
            .set(UsersTable.age := 31)
            .where(UsersTable.id === fixedId and UsersTable.username === "alice" and UsersTable.username.in(Seq("bob")))
-           .execute"""
+           .execute()"""
     )
   }
 
@@ -171,7 +171,7 @@ class UpdateSpec extends AnyFlatSpec with Matchers {
       """UsersTable.update
            .set(UsersTable.age := 31)
            .where(UsersTable.id === fixedId and UsersTable.username === "alice" and UsersTable.email.in(Seq("a@b.c")))
-           .execute"""
+           .execute()"""
     )
   }
 }

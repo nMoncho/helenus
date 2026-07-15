@@ -6,6 +6,8 @@
 
 package net.nmoncho.helenus.internal
 
+import scala.annotation.unused
+
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.cql.Row
 import net.nmoncho.helenus.api.ColumnNamingScheme
@@ -120,7 +122,7 @@ object DerivedRowMapper extends CaseClassRowMapperDerivation {
   }
 
   implicit def genericTupleRowMapper[T, R](
-      implicit isTuple: IsTuple[T],
+      implicit @unused isTuple: IsTuple[T],
       gen: Generic.Aux[T, R],
       mapper: DerivedIdxRowMapper[R]
   ): DerivedRowMapper[T] =

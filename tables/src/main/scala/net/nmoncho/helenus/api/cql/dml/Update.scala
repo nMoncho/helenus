@@ -137,7 +137,7 @@ final case class Update[
     * entire primary key (see [[CanUpdate]]) and no `?` marker is unbound;
     * otherwise this call does not compile.
     */
-  def execute(
+  def execute()(
       implicit @unused ev: CanUpdate[table.PK, table.CK, Eq, In, Rng],
       @unused noUnboundSet: SetPm =:= HNil,
       @unused noUnboundWhere: WherePm =:= HNil
