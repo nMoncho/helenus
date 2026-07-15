@@ -185,7 +185,7 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
 
 /** A table definition mapped to the case class `A`, which is the single
   * source of truth for the schema: DDL and full-row projections derive every
-  * column from `A`'s fields (via [[ColumnsFor]]). Column vals are checked
+  * column from `A`'s fields. Column vals are checked
   * references into `A`, and [[registerAllColumns]] enforces the other
   * direction: every field of `A` must have a declared column, so case class
   * and table can never drift in either direction.
@@ -215,7 +215,7 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
   * [[insertFrom]]; the [[RowMapper]] ignores them (it reads `A`'s fields by
   * name, and never asks for a computed column).
   *
-  * The schema derivations ([[ColumnsFor]], [[InsertValues]]) are resolved
+  * The schema derivations ([[InsertValues]]) are resolved
   * ONCE, as constructor implicits, at the `object X extends Table[A](...)`
   * definition, where `A` is concrete. This is also where a field of `A`
   * lacking a `CQLType` fails to compile, and it keeps every query entry point
@@ -223,8 +223,7 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
   * IDEs with weaker implicit search would flag at each call site.
   */
 abstract class Table[A](keyspace0: String, tableName0: String)(
-    implicit columnsForA: ColumnsFor[A],
-    insertValuesForA: InsertValues[A]
+    implicit insertValuesForA: InsertValues[A]
 ) extends TableDef(keyspace0, tableName0) {
 
   /** Registry entry for a computed column: CQL name, CQL type, and renderer. */
