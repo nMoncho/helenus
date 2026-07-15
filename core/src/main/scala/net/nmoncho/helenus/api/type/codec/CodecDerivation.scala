@@ -184,12 +184,13 @@ trait CodecDerivation extends TupleCodecDerivation { that =>
     ): TypeCodec[T] =
       codec
 
-    def of[T <: Product: ClassTag: IdenticalUDTCodec: NonIdenticalUDTCodec](
+    def of[T <: Product: IdenticalUDTCodec: NonIdenticalUDTCodec](
         keyspace: String = "",
         name: String     = "",
         frozen: Boolean  = true
     )(
-        implicit columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme
+        implicit columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme,
+        @unused ev: ClassTag[T]
     ): TypeCodec[T] = new UnifiedUDTCodec[T](
       IdenticalUDTCodec[T](keyspace, name, frozen),
       udt => NonIdenticalUDTCodec(udt)
@@ -199,7 +200,7 @@ trait CodecDerivation extends TupleCodecDerivation { that =>
       *
       * The case class fields need to be in the same order as CQL type. If they aren't,
       * please use [[of]] for a codec that does a check a runtime, or if you already know fields won't be in the same
-      * order [[nonIdenticalUdtCodecOf]] , or [[udtFromFields]].
+      * order [[nonIdenticalUdtOf]] , or [[udtFromFields]].
       *
       * With this [[TypeCodec]] implementation case class field <em>name</em> don't have to be the same as the CQL type,
       * only <em>order</em> is relevant. Which may not be what you need.
@@ -212,41 +213,13 @@ trait CodecDerivation extends TupleCodecDerivation { that =>
       * @tparam T type of the case class
       * @return [[TypeCodec]] for the desired case class
       */
-    @deprecated(
-      message = "Use Codec.identicalUdtOf, this method will be removed in 2.0",
-      since   = "1.7.0"
-    )
-    def udtOf[T: ClassTag: IdenticalUDTCodec](
+    def identicalUdtOf[T: IdenticalUDTCodec](
         keyspace: String = "",
         name: String     = "",
         frozen: Boolean  = true
     )(
-        implicit columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme
-    ): TypeCodec[T] = identicalUdtOf[T](keyspace, name, frozen)
-
-    /** Creates a [[TypeCodec]] for a case class
-      *
-      * The case class fields need to be in the same order as CQL type. If they aren't,
-      * please use [[of]] for a codec that does a check a runtime, or if you already know fields won't be in the same
-      * order [[nonIdenticalUdtCodecOf]] , or [[udtFromFields]].
-      *
-      * With this [[TypeCodec]] implementation case class field <em>name</em> don't have to be the same as the CQL type,
-      * only <em>order</em> is relevant. Which may not be what you need.
-      *
-      * @param keyspace  in which keyspace is the CQL type registered in. Optional, only define this parameter if you are
-      *                  going to register this codec, and the CQL type is on a different keyspace than the session.
-      * @param name      CQL Type Name. Optional, defaults to the name of the case class with the column mapper applied.
-      * @param frozen    where this type should be frozen or not.
-      * @param columnMapper how to map the case class fields to the CQL Type, and it's name if not specified
-      * @tparam T type of the case class
-      * @return [[TypeCodec]] for the desired case class
-      */
-    def identicalUdtOf[T: ClassTag: IdenticalUDTCodec](
-        keyspace: String = "",
-        name: String     = "",
-        frozen: Boolean  = true
-    )(
-        implicit columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme
+        implicit columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme,
+        @unused ev: ClassTag[T]
     ): TypeCodec[T] = IdenticalUDTCodec[T](keyspace, name, frozen)
 
     /** Creates a [[TypeCodec]] for a case class
@@ -265,40 +238,13 @@ trait CodecDerivation extends TupleCodecDerivation { that =>
       * @tparam T type of the case class
       * @return [[TypeCodec]] for the desired case class
       */
-    @deprecated(
-      message = "Use Codec.nonIdenticalUdtOf, this method will be removed in 2.0",
-      since   = "1.7.0"
-    )
-    def udtFrom[T: ClassTag: NonIdenticalUDTCodec](
+    def nonIdenticalUdtOf[T: NonIdenticalUDTCodec](
         session: CqlSession,
         keyspace: String = "",
         name: String     = ""
     )(
-        implicit columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme
-    ): TypeCodec[T] = NonIdenticalUDTCodec[T](session, keyspace, name)
-
-    /** Creates a [[TypeCodec]] for a case class
-      *
-      * Use this method when case class fields are <b>not</b> defined in the same order as CQL type. And
-      * you want to align these two with metadata coming from the database. Mapping between the case class and the CQL type
-      * happens by matching field names, use [[columnMapper]] to align these names.
-      *
-      * This method <b>requires</b> a connection to the database. If the context doesn't have a connection
-      * and case class fields are not aligned with its CQL type, consider using [[udtFromFields]]
-      *
-      * @param session       used to get the session metadata
-      * @param keyspace      in which keyspace is the CQL type registered in. Optional, defaults to session's keyspace.
-      * @param name          CQL Type Name. Optional, defaults to the name of the case class with the column mapper applied.
-      * @param columnMapper how to map the case class fields to the CQL Type, and it's name if not specified
-      * @tparam T type of the case class
-      * @return [[TypeCodec]] for the desired case class
-      */
-    def nonIdenticalUdtCodecOf[T: ClassTag: NonIdenticalUDTCodec](
-        session: CqlSession,
-        keyspace: String = "",
-        name: String     = ""
-    )(
-        implicit columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme
+        implicit columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme,
+        @unused ev: ClassTag[T]
     ): TypeCodec[T] = NonIdenticalUDTCodec[T](session, keyspace, name)
 
     /** Creates a [[TypeCodec]] for a case class
@@ -324,7 +270,7 @@ trait CodecDerivation extends TupleCodecDerivation { that =>
         frozen: Boolean
     )(fields: T => Any*)(
         implicit columnMapper: ColumnNamingScheme,
-        classTag: ClassTag[T]
+        @unused classTag: ClassTag[T]
     ): TypeCodec[T] =
       macro net.nmoncho.helenus.internal.macros.NonIdenticalCodec.buildCodec[T]
 
