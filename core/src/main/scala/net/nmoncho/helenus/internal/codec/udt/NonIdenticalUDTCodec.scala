@@ -85,7 +85,7 @@ object NonIdenticalUDTCodec {
     val clazz = tag.runtimeClass.asInstanceOf[Class[A]]
 
     val actualName =
-      if (name.isBlank) columnNamingScheme.map(clazz.getSimpleName)
+      if (name.isBlank) columnNamingScheme.apply(clazz.getSimpleName)
       else name
 
     val actualMetadata = Option(keyspace)
@@ -159,7 +159,7 @@ object NonIdenticalUDTCodec {
       columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme
   ): NonIdenticalUDTCodec[FieldType[K, H] :: HNil] =
     new NonIdenticalUDTCodec[FieldType[K, H] :: HNil] {
-      private val column = columnMapper.map(witness.value.name)
+      private val column = columnMapper.apply(witness.value.name)
 
       @inline override def innerToOuter(value: UdtValue): FieldType[K, H] :: HNil =
         (witness.value ->> value.get(column, codec)).asInstanceOf[FieldType[K, H]] :: HNil
@@ -178,7 +178,7 @@ object NonIdenticalUDTCodec {
   ): NonIdenticalUDTCodec[FieldType[K, H] :: T] =
     new NonIdenticalUDTCodec[FieldType[K, H] :: T] {
 
-      private val column = columnMapper.map(witness.value.name)
+      private val column = columnMapper.apply(witness.value.name)
 
       @inline override def innerToOuter(value: UdtValue): FieldType[K, H] :: T =
         (witness.value ->> value.get(column, codec))

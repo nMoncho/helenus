@@ -46,7 +46,7 @@ object InsertValues {
         rest: ReprValues[T]
     ): ReprValues[FieldType[K, H] :: T] = new ReprValues[FieldType[K, H] :: T] {
       def values(r: FieldType[K, H] :: T, naming: ColumnNamingScheme): List[(String, String)] =
-        (naming.map(witness.value.name), ct.format(r.head)) :: rest.values(r.tail, naming)
+        (naming.apply(witness.value.name), ct.format(r.head)) :: rest.values(r.tail, naming)
     }
   }
 

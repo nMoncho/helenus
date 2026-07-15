@@ -159,11 +159,11 @@ object NonIdenticalCodec {
     import scala.jdk.CollectionConverters._
 
     val actualKeyspace = if (keyspace.isBlank) "system" else keyspace
-    val actualName = if (name.isBlank) columnMapper.map(tag.runtimeClass.getSimpleName) else name
+    val actualName = if (name.isBlank) columnMapper.apply(tag.runtimeClass.getSimpleName) else name
 
     val fieldTypes = fields.map { case (_, codec) => codec.getCqlType }
     val fieldNames = fields.map { case (name, _) =>
-      CqlIdentifier.fromInternal(columnMapper.map(name))
+      CqlIdentifier.fromInternal(columnMapper.apply(name))
     }
 
     val udt = new DefaultUserDefinedType(

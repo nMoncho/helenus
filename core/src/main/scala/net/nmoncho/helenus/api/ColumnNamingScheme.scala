@@ -17,7 +17,7 @@ import com.datastax.oss.driver.internal.core.util.Strings
   * This trait assumes that the starting point is <b>camel case</b>
   */
 sealed trait ColumnNamingScheme extends Serializable {
-  def map(fieldName: String): String
+  def apply(fieldName: String): String
 
   /** Returns the field name in a format appropriate for concatenation in a CQL query.
     *
@@ -27,7 +27,7 @@ sealed trait ColumnNamingScheme extends Serializable {
     *               don't need to inspect the string).
     */
   def asCql(fieldName: String, pretty: Boolean): String = {
-    val column = map(fieldName)
+    val column = apply(fieldName)
 
     if (pretty && !Strings.needsDoubleQuotes(column)) column
     else Strings.doubleQuote(column)
@@ -35,13 +35,13 @@ sealed trait ColumnNamingScheme extends Serializable {
 }
 
 object DefaultColumnNamingScheme extends ColumnNamingScheme {
-  override def map(fieldName: String): String = fieldName
+  override def apply(fieldName: String): String = fieldName
 }
 
 object SnakeCase extends ColumnNamingScheme {
   final val separator = '_'
 
-  override def map(fieldName: String): String = {
+  override def apply(fieldName: String): String = {
     val col = mutable.ListBuffer[Char]()
     col += fieldName.head.toLower
     fieldName.tail.toCharArray.foreach { c =>
@@ -57,7 +57,7 @@ object SnakeCase extends ColumnNamingScheme {
 }
 
 object PascalCase extends ColumnNamingScheme {
-  override def map(fieldName: String): String =
+  override def apply(fieldName: String): String =
     if (fieldName.length == 1) fieldName.toUpperCase
     else {
       val chars = fieldName.toCharArray

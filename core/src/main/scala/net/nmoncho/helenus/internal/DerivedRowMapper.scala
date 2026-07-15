@@ -39,7 +39,7 @@ trait CaseClassRowMapperDerivation {
     (mapping: DerivedRowMapper.FieldToColumn) =>
       new DerivedNameRowMapper[FieldType[K, H] :: HNil] {
         override val column: String =
-          mapping.getOrElse(witness.value.name, columnMapper.map(witness.value.name))
+          mapping.getOrElse(witness.value.name, columnMapper.apply(witness.value.name))
 
         override def apply(row: Row): FieldType[K, H] :: HNil =
           (witness.value ->> colDecoder(column, row)).asInstanceOf[FieldType[K, H]] :: HNil
@@ -53,7 +53,7 @@ trait CaseClassRowMapperDerivation {
   ): DerivedRowMapper.Builder[FieldType[K, H] :: T] = (mapping: DerivedRowMapper.FieldToColumn) =>
     new DerivedNameRowMapper[FieldType[K, H] :: T] {
       override val column: String =
-        mapping.getOrElse(witness.value.name, columnMapper.map(witness.value.name))
+        mapping.getOrElse(witness.value.name, columnMapper.apply(witness.value.name))
 
       private val tailRowMapper = tailRowBuilder(mapping)
 

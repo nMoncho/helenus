@@ -217,7 +217,7 @@ object DerivedMapping {
     new FieldCollector[FieldType[K, H] :: HNil] {
 
       override protected val column: String =
-        mapping.getOrElse(witness.value.name, columnMapper.map(witness.value.name))
+        mapping.getOrElse(witness.value.name, columnMapper.apply(witness.value.name))
 
       override val columns: Set[String] = Set(column)
 
@@ -258,7 +258,7 @@ object DerivedMapping {
     new FieldCollector[FieldType[K, H] :: T] {
 
       override protected val column: String =
-        mapping.getOrElse(witness.value.name, columnMapper.map(witness.value.name))
+        mapping.getOrElse(witness.value.name, columnMapper.apply(witness.value.name))
 
       private val tailCollector: FieldCollector[T] with BindParameterCollector[T] = tailBuilder(
         mapping

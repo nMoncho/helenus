@@ -111,7 +111,7 @@ object IdenticalUDTCodec {
       else keyspace
 
     private val actualName =
-      if (name.isBlank) columnNamingScheme.map(tag.runtimeClass.getSimpleName)
+      if (name.isBlank) columnNamingScheme.apply(tag.runtimeClass.getSimpleName)
       else name
 
     override val getJavaType: GenericType[A] =
@@ -197,7 +197,7 @@ object IdenticalUDTCodec {
   ): IdenticalUDTCodec[FieldType[K, H] :: HNil] = new IdenticalUDTCodec[FieldType[K, H] :: HNil] {
 
     private val fieldName: String = witness.value.name
-    private val column: String    = columnNamingScheme.map(fieldName)
+    private val column: String    = columnNamingScheme.apply(fieldName)
 
     override val columns: List[(String, DataType)] = List(column -> codec.getCqlType)
 
@@ -266,7 +266,7 @@ object IdenticalUDTCodec {
     new IdenticalUDTCodec[FieldType[K, H] :: T] {
 
       private val fieldName = witness.value.name
-      private val column    = columnNamingScheme.map(fieldName)
+      private val column    = columnNamingScheme.apply(fieldName)
 
       override val columns: List[(String, DataType)] =
         (column -> headCodec.getCqlType) :: tailCodec.columns
