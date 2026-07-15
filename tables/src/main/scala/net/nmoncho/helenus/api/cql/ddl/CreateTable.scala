@@ -9,7 +9,7 @@ package ddl
 
 case class CreateTable(
     table: TableDef,
-    columns: Seq[ColumnDef], // TODO change this for Table#Column
+    columns: Seq[TableDef#Column[_]],
     partitionKey: Seq[String],
     clusteringColumns: Seq[ClusteringSpec],
     ifNotExistsFlag: Boolean = false
@@ -20,7 +20,9 @@ case class CreateTable(
   def toCQL: String = {
     val ifNotExistsStr = if (ifNotExistsFlag) " IF NOT EXISTS" else ""
 
-    val columnDefs = columns.map(col => s"${col.name} ${col.cqlType}").mkString(", ")
+    val columnDefs = columns
+      .map(col => s"${col.name} ${col.codec.getCqlType.asCql(col.frozen, false)}")
+      .mkString(", ")
 
     val pkCols      = partitionKey
     val clusterCols = clusteringColumns.map(_.name)

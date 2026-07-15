@@ -28,7 +28,7 @@ object UsersTable extends Table[User]("my_keyspace", "users") {
   val username = column[String]("username")
   val age      = column[Int]("age")
   val email    = column[String]("email")
-  val tags     = column[Set[String]]("tags")
+  val tags     = column[Set[String]]("tags", frozen = true)
   val metadata = column[Map[String, String]]("metadata")
 
   type PK = id.Tag :: HNil
