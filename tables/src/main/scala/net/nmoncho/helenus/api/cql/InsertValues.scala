@@ -18,8 +18,7 @@ import shapeless.Witness
 import shapeless.labelled.FieldType
 
 /** Renders every field of a case-class instance `A` as a `(cqlName, cqlLiteral)`
-  * pair, in field order. Used by `Table.insertFrom` to write a whole entity
-  * (the value twin of [[ColumnsFor]], which only derives names + types).
+  * pair, in field order. Used by `Table.insertFrom` to write a whole entity.
   */
 @implicitNotFound(
   "Cannot render the fields of ${A} for insert. " +
