@@ -43,15 +43,15 @@ class UpdateIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
       UsersTable
         .select(UsersTable.age)
         .where(UsersTable.id === id and UsersTable.username === username)
-        .execute
+        .execute()
     ).head.getInt("age")
 
-  "Update.execute" should "update exactly the row identified by the primary key" in {
+  "Update.execute()" should "update exactly the row identified by the primary key" in {
     execute(
       UsersTable.update
         .set(UsersTable.age := 31)
         .where(UsersTable.id === id and UsersTable.username === "alice")
-        .execute
+        .execute()
     )
 
     ageOf("alice") shouldBe 31
@@ -63,7 +63,7 @@ class UpdateIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
       UsersTable.update
         .set(UsersTable.age := 50)
         .where(UsersTable.id === id and UsersTable.username.in(Seq("alice", "bob")))
-        .execute
+        .execute()
     )
 
     ageOf("alice") shouldBe 50
@@ -76,7 +76,7 @@ class UpdateIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
         .usingTTL(7200)
         .set(UsersTable.age := 31)
         .where(UsersTable.id === id and UsersTable.username === "alice")
-        .execute
+        .execute()
     )
 
     val ttl = rows(
@@ -93,7 +93,7 @@ class UpdateIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
         .usingTimestamp(1000L)
         .set(UsersTable.age := 99)
         .where(UsersTable.id === id and UsersTable.username === "alice")
-        .execute
+        .execute()
     )
 
     ageOf("alice") shouldBe 30
@@ -105,7 +105,7 @@ class UpdateIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
         .set(UsersTable.age := 31)
         .where(UsersTable.id === id and UsersTable.username === "nobody")
         .ifExists
-        .execute
+        .execute()
     )
 
     result.wasApplied() shouldBe false

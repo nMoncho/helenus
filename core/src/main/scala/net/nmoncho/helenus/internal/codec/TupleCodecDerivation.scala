@@ -8,6 +8,7 @@ package net.nmoncho.helenus.internal.codec
 
 import java.nio.ByteBuffer
 
+import scala.annotation.unused
 import scala.collection.mutable
 
 import com.datastax.oss.driver.api.core.ProtocolVersion
@@ -23,7 +24,7 @@ trait TupleCodecDerivation {
 
   trait TupleCodec[T] extends TypeCodec[T]
 
-  def tupleOf[T: IsTuple](implicit c: TupleCodec[T]): TypeCodec[T] = c
+  def tupleOf[T](implicit @unused ev: IsTuple[T], c: TupleCodec[T]): TypeCodec[T] = c
 
   /** Adapter class for tuples' [[TypeCodec]]
     *
@@ -185,8 +186,10 @@ trait TupleCodecDerivation {
     *
     * A [[TypeTag]] is used to create a [[GenericType]] instance.
     */
-  implicit def tupleCodec[A: IsTuple: TypeTag, R](
-      implicit gen: Generic.Aux[A, R],
+  implicit def tupleCodec[A, R](
+      implicit @unused ev: IsTuple[A],
+      @unused tt: TypeTag[A],
+      gen: Generic.Aux[A, R],
       codec: TupleComponentCodec[R]
   ): TupleCodec[A] = new TupleCodec[A] {
 

@@ -52,18 +52,18 @@ class DeleteIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
     )
   }
 
-  private def userRows() = rows(UsersTable.select().where(UsersTable.id === id).execute)
+  private def userRows() = rows(UsersTable.select().where(UsersTable.id === id).execute())
 
-  "Delete.execute" should "delete a single row" in {
+  "Delete.execute()" should "delete a single row" in {
     execute(
-      UsersTable.delete.where(UsersTable.id === id and UsersTable.username === "alice").execute
+      UsersTable.delete.where(UsersTable.id === id and UsersTable.username === "alice").execute()
     )
 
     userRows().map(_.getString("username")) shouldBe List("bob")
   }
 
   it should "delete a whole partition" in {
-    execute(UsersTable.delete.where(UsersTable.id === id).execute)
+    execute(UsersTable.delete.where(UsersTable.id === id).execute())
 
     userRows() shouldBe empty
   }
@@ -74,14 +74,14 @@ class DeleteIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
         .where(
           SensorsTable.deviceId === deviceId and SensorsTable.year === 2026 and SensorsTable.ts > 100L
         )
-        .execute
+        .execute()
     )
 
     val remaining = rows(
       SensorsTable
         .select()
         .where(SensorsTable.deviceId === deviceId and SensorsTable.year === 2026)
-        .execute
+        .execute()
     )
     remaining.map(_.getLong("ts")) shouldBe List(50L)
   }
@@ -91,11 +91,11 @@ class DeleteIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
       UsersTable.delete
         .column(UsersTable.email)
         .where(UsersTable.id === id and UsersTable.username === "alice")
-        .execute
+        .execute()
     )
 
     val alice = rows(
-      UsersTable.select().where(UsersTable.id === id and UsersTable.username === "alice").execute
+      UsersTable.select().where(UsersTable.id === id and UsersTable.username === "alice").execute()
     ).head
     alice.isNull("email") shouldBe true
     alice.getInt("age") shouldBe 30
@@ -106,7 +106,7 @@ class DeleteIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
       UsersTable.delete
         .where(UsersTable.id === id and UsersTable.username === "nobody")
         .ifExists
-        .execute
+        .execute()
     )
 
     result.wasApplied() shouldBe false
@@ -118,7 +118,7 @@ class DeleteIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
       UsersTable.delete
         .usingTimestamp(1000L)
         .where(UsersTable.id === id and UsersTable.username === "alice")
-        .execute
+        .execute()
     )
 
     userRows().map(_.getString("username")).toSet shouldBe Set("alice", "bob")

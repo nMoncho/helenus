@@ -33,7 +33,7 @@ class InsertIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
 
   private def aliceRow() =
     rows(
-      UsersTable.select().where(UsersTable.id === id and UsersTable.username === "alice").execute
+      UsersTable.select().where(UsersTable.id === id and UsersTable.username === "alice").execute()
     ).headOption
 
   "Insert" should "write a row that can be read back" in {
@@ -59,7 +59,7 @@ class InsertIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
         .toCQL
     )
 
-    val row = rows(UsersTable.select().where(UsersTable.id === id).execute).head
+    val row = rows(UsersTable.select().where(UsersTable.id === id).execute()).head
     row.getString("username") shouldBe "o'reilly"
   }
 
@@ -128,7 +128,7 @@ class InsertIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
     execute(insertUser(id, "alice", 30))
     execute(insertUser(id, "bob", 25))
 
-    rows(UsersTable.select().where(UsersTable.id === id).execute) should have size 2
+    rows(UsersTable.select().where(UsersTable.id === id).execute()) should have size 2
   }
 
   it should "round-trip collection values" in {

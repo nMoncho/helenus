@@ -13,6 +13,7 @@ import java.time.LocalTime
 import java.util.UUID
 
 import scala.annotation.implicitNotFound
+import scala.annotation.unused
 import scala.collection.immutable.SortedMap
 import scala.collection.immutable.SortedSet
 import scala.collection.mutable
@@ -96,13 +97,13 @@ trait CodecDerivation extends TupleCodecDerivation { that =>
 
   implicit def enumNominalCodec[T <: Enumeration](
       implicit w: Witness.Aux[T],
-      annotation: Annotation[NominalEncoded, T]
+      @unused annotation: Annotation[NominalEncoded, T]
   ): TypeCodec[T#Value] =
     TypeCodecs.enumerationNominalCodec(w.value)
 
   implicit def enumOrdinalCodec[T <: Enumeration](
       implicit w: Witness.Aux[T],
-      annotation: Annotation[OrdinalEncoded, T]
+      @unused annotation: Annotation[OrdinalEncoded, T]
   ): TypeCodec[T#Value] =
     TypeCodecs.enumerationOrdinalCodec(w.value)
 

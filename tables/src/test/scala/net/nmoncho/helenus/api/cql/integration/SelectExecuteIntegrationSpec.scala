@@ -72,17 +72,20 @@ class SelectExecuteIntegrationSpec extends CassandraIntegrationSpec {
 
   // ---- shapes the gate admits, verified against real data -----------------
 
-  "Select.execute" should "run an unrestricted query" in {
-    rows(UsersTable.select().execute) should have size 3
+  "Select.execute()" should "run an unrestricted query" in {
+    rows(UsersTable.select().execute()) should have size 3
   }
 
   it should "return one partition when the partition key is constrained" in {
-    rows(UsersTable.select().where(UsersTable.id === userA).execute) should have size 2
+    rows(UsersTable.select().where(UsersTable.id === userA).execute()) should have size 2
   }
 
   it should "return a single row for a fully constrained primary key" in {
     val result = rows(
-      UsersTable.select().where(UsersTable.username === "alice" and UsersTable.id === userA).execute
+      UsersTable
+        .select()
+        .where(UsersTable.username === "alice" and UsersTable.id === userA)
+        .execute()
     )
     result should have size 1
     result.head.getInt("age") shouldBe 30
@@ -93,7 +96,7 @@ class SelectExecuteIntegrationSpec extends CassandraIntegrationSpec {
       EventsTable
         .select()
         .where(EventsTable.eventType === "click" and EventsTable.tenantId === "acme")
-        .execute
+        .execute()
     )
     result should have size 1
     result.head.getString("payload") shouldBe "p1"
@@ -106,7 +109,7 @@ class SelectExecuteIntegrationSpec extends CassandraIntegrationSpec {
         .where(
           SensorsTable.ts > 100L and SensorsTable.year === 2026 and SensorsTable.deviceId === deviceId
         )
-        .execute
+        .execute()
     )
     result.map(_.getLong("ts")).toSet shouldBe Set(150L, 250L)
   }
@@ -118,13 +121,15 @@ class SelectExecuteIntegrationSpec extends CassandraIntegrationSpec {
         .where(
           SensorsTable.deviceId === deviceId and SensorsTable.year === 2026 and SensorsTable.ts > 100L and SensorsTable.ts <= 250L
         )
-        .execute
+        .execute()
     )
     result.map(_.getLong("ts")).toSet shouldBe Set(150L, 250L)
   }
 
   it should "run IN on a single-column partition key" in {
-    rows(UsersTable.select().where(UsersTable.id.in(Seq(userA, userB))).execute) should have size 3
+    rows(
+      UsersTable.select().where(UsersTable.id.in(Seq(userA, userB))).execute()
+    ) should have size 3
   }
 
   it should "run IN on the last column of a composite partition key" in {
@@ -132,7 +137,7 @@ class SelectExecuteIntegrationSpec extends CassandraIntegrationSpec {
       EventsTable
         .select()
         .where(EventsTable.tenantId === "acme" and EventsTable.eventType.in(Seq("click", "view")))
-        .execute
+        .execute()
     )
     result.map(_.getString("payload")).toSet shouldBe Set("p1", "p2")
   }
@@ -145,7 +150,7 @@ class SelectExecuteIntegrationSpec extends CassandraIntegrationSpec {
           SensorsTable.deviceId
             .in(Seq(deviceId)) and SensorsTable.year === 2026 and SensorsTable.ts > 100L
         )
-        .execute
+        .execute()
     )
     result.map(_.getLong("ts")).toSet shouldBe Set(150L, 250L)
   }
@@ -158,7 +163,7 @@ class SelectExecuteIntegrationSpec extends CassandraIntegrationSpec {
       UsersTable
         .select(UsersTable.id, UsersTable.username, UsersTable.age)
         .where(UsersTable.id === userA and UsersTable.username.in(Seq("alice", "bob")))
-        .execute
+        .execute()
     )
     result.map(_.getString("username")).toSet shouldBe Set("alice", "bob")
   }
@@ -168,7 +173,7 @@ class SelectExecuteIntegrationSpec extends CassandraIntegrationSpec {
       SensorsTable
         .select()
         .where(SensorsTable.deviceId === deviceId and SensorsTable.year === 2026)
-        .execute
+        .execute()
     )
     result.map(_.getLong("ts")) shouldBe List(250L, 150L, 50L)
   }
@@ -179,17 +184,17 @@ class SelectExecuteIntegrationSpec extends CassandraIntegrationSpec {
         .select()
         .where(UsersTable.id === userA)
         .orderBy(UsersTable.username.desc)
-        .execute
+        .execute()
     )
     result.map(_.getString("username")) shouldBe List("bob", "alice")
   }
 
   it should "apply LIMIT" in {
-    rows(UsersTable.select().limit(2).execute) should have size 2
+    rows(UsersTable.select().limit(2).execute()) should have size 2
   }
 
   it should "run non-key filters through allowFiltering" in {
-    val result = rows(UsersTable.select().where(UsersTable.age > 26).allowFiltering.execute)
+    val result = rows(UsersTable.select().where(UsersTable.age > 26).allowFiltering.execute())
     result.map(_.getString("username")).toSet shouldBe Set("alice", "carol")
   }
 
