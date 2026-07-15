@@ -74,6 +74,27 @@ object SensorsTable extends Table[Sensors]("iot", "sensor_readings") {
   type CK = year.Tag :: ts.Desc :: HNil
 }
 
+// A table with a computed column (`shard`, derived from `name`) that is part
+// of the partition key. `shard` is not a field of Metric, so the RowMapper
+// ignores it, but it is written by insertFrom and required in queries.
+case class Metric(id: UUID, name: String, value: Double)
+
+object MetricsTable extends Table[Metric]("monitoring", "metrics") {
+  val id    = column[UUID]("id")
+  val name  = column[String]("name")
+  val value = column[Double]("value")
+  // NOTE: no val ascription here (`: Column[Int]` would widen away the Tag
+  // refinement and break the PK declaration below); Col is inferred from the
+  // compute lambda by plain inference, which IDEs handle fine.
+  val shard = computedColumn("shard")(_.name.length)
+
+  // Computed columns are not fields of Metric and are not registered.
+  protected val columns = registerAllColumns(id :: name :: value :: HNil)
+
+  type PK = shard.Tag :: id.Tag :: HNil
+  type CK = name.Tag :: HNil
+}
+
 object TestValues {
   val fixedId: UUID = UUID.fromString("123e4567-e89b-12d3-a456-426614174000")
 }
