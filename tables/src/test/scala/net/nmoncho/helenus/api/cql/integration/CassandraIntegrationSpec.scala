@@ -31,7 +31,7 @@ trait CassandraIntegrationSpec extends AnyFlatSpec with Matchers with BeforeAndA
 
   protected val contactPoint: String = s"$hostname:$port"
 
-  protected lazy val session: CqlSession = {
+  protected implicit lazy val session: CqlSession = {
     val s = CqlSession
       .builder()
       .addContactPoint(new InetSocketAddress(hostname, port))
