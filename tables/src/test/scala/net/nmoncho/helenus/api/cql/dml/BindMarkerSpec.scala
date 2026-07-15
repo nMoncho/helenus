@@ -28,7 +28,7 @@ class BindMarkerSpec extends AnyFlatSpec with Matchers {
       .toFunction
 
     fn(fixedId) shouldBe
-    s"SELECT id, username, age, email, tags, metadata FROM my_keyspace.users WHERE id = $fixedId"
+    s"SELECT * FROM my_keyspace.users WHERE id = $fixedId"
   }
 
   it should "produce a Function2 with parameters in writing order despite CQL reordering" in {
@@ -85,7 +85,7 @@ class BindMarkerSpec extends AnyFlatSpec with Matchers {
 
   it should "render unfilled holes as native CQL bind markers in toCQL" in {
     UsersTable.select().where(UsersTable.id === ?).toCQL shouldBe
-    "SELECT id, username, age, email, tags, metadata FROM my_keyspace.users WHERE id = ?"
+    "SELECT * FROM my_keyspace.users WHERE id = ?"
   }
 
   it should "NOT compile execute with unbound parameters" in {

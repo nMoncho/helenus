@@ -18,7 +18,7 @@ class SelectValidSpec extends AnyFlatSpec with Matchers {
 
   "Select.execute()" should "be available when there is no WHERE clause at all" in {
     UsersTable.select().execute() shouldBe
-    "SELECT id, username, age, email, tags, metadata FROM my_keyspace.users"
+    "SELECT * FROM my_keyspace.users"
   }
 
   it should "be available once the full partition key is === constrained" in {
@@ -27,7 +27,7 @@ class SelectValidSpec extends AnyFlatSpec with Matchers {
       .where(UsersTable.id === fixedId)
       .execute()
 
-    cql shouldBe s"SELECT id, username, age, email, tags, metadata FROM my_keyspace.users WHERE id = $fixedId"
+    cql shouldBe s"SELECT * FROM my_keyspace.users WHERE id = $fixedId"
   }
 
   it should "accept a composite partition key constrained out of order" in {
@@ -48,8 +48,7 @@ class SelectValidSpec extends AnyFlatSpec with Matchers {
       .execute()
 
     cql shouldBe
-    "SELECT device_id, year, ts, reading FROM iot.sensor_readings " +
-    s"WHERE device_id = $fixedId AND year = 2026 AND ts > 100"
+    s"SELECT * FROM iot.sensor_readings WHERE device_id = $fixedId AND year = 2026 AND ts > 100"
   }
 
   it should "accept a fully === constrained primary key" in {

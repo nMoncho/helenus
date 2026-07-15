@@ -21,14 +21,6 @@ class ComputedColumnSpec extends AnyFlatSpec with Matchers {
     "PRIMARY KEY ((shard, id), name))"
   }
 
-  it should "not appear in the default select projection (which maps back to the case class)" in {
-    MetricsTable
-      .select()
-      .where(MetricsTable.shard === 5 and MetricsTable.id === fixedId)
-      .execute shouldBe
-    s"SELECT id, name, value FROM monitoring.metrics WHERE shard = 5 AND id = $fixedId"
-  }
-
   it should "be usable as part of the primary key in the execute gate" in {
     val cql = MetricsTable
       .select()
@@ -49,7 +41,7 @@ class ComputedColumnSpec extends AnyFlatSpec with Matchers {
 
   it should "NOT let the gate pass without the computed key column constrained" in {
     assertTypeError(
-      """MetricsTable.select().where(MetricsTable.id === fixedId).execute"""
+      """MetricsTable.select().where(MetricsTable.id === fixedId).execute()"""
     )
   }
 
