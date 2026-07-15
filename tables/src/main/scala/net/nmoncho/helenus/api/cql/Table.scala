@@ -293,7 +293,7 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
   protected def column[V: TypeCodec](name0: String with Singleton, frozen: Boolean = false)(
       implicit @unused field: FieldOfType[A, name0.type, V]
   ): Column[V] { type Tag = name0.type } = {
-    val col = new Column[V](name0, naming.map(name0), frozen) { type Tag = name0.type }
+    val col = new Column[V](name0, naming.apply(name0), frozen) { type Tag = name0.type }
 
     registeredColumns += col
 
@@ -309,7 +309,7 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
       name0: String with Singleton,
       frozen: Boolean = false
   )(compute: A => Col)(implicit ct: TypeCodec[Col]): Column[Col] { type Tag = name0.type } = {
-    val cqlName = naming.map(name0)
+    val cqlName = naming.apply(name0)
     computedColumns += new ComputedColumn(
       cqlName,
       ct.getCqlType.asCql(frozen, false),
@@ -324,8 +324,8 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
     CreateTable(
       this,
       (registeredColumns ++ computedColumns).toSeq,
-      pk.names.map(naming.map),
-      ck.columns.map(c => c.copy(name = naming.map(c.name)))
+      pk.names.map(naming.apply),
+      ck.columns.map(c => c.copy(name = naming.apply(c.name)))
     )
 
   /** Select specific columns (all fields of `A` when none given). Nothing is constrained yet. */
@@ -352,7 +352,7 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
   }
 
   private def keyColumnNames(pk: ColumnNames[PK], ck: ClusteringOf[CK]): Seq[String] =
-    pk.names.map(naming.map) ++ ck.columns.map(c => naming.map(c.name))
+    pk.names.map(naming.apply) ++ ck.columns.map(c => naming.apply(c.name))
 }
 
 object Table {

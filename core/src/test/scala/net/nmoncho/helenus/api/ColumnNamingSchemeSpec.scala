@@ -18,22 +18,22 @@ class ColumnNamingSchemeSpec extends AnyWordSpec with Matchers {
   "DefaultColumnMapper" should {
     "map to camel case" in {
       withClue("the assumed starting point is camel case") {
-        DefaultColumnNamingScheme.map(camelCase) shouldBe camelCase
+        DefaultColumnNamingScheme.apply(camelCase) shouldBe camelCase
       }
     }
   }
 
   "SnakeCaseMapper" should {
     "map to snake case" in {
-      SnakeCase.map(camelCase) shouldBe snakeCase
+      SnakeCase.apply(camelCase) shouldBe snakeCase
     }
   }
 
   "PascalCaseMapper" should {
     "map to pascal case" in {
-      PascalCase.map("a") shouldBe "A"
-      PascalCase.map("A") shouldBe "A"
-      PascalCase.map(camelCase) shouldBe pascalCase
+      PascalCase.apply("a") shouldBe "A"
+      PascalCase.apply("A") shouldBe "A"
+      PascalCase.apply(camelCase) shouldBe pascalCase
     }
   }
 }
