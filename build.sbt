@@ -313,7 +313,7 @@ lazy val tables = project
   .settings(
     name := "helenus-tables",
     scalaVersion := Dependencies.Version.scala213,
-    crossScalaVersions := List(Dependencies.Version.scala213, Dependencies.Version.scala212),
+    crossScalaVersions := List(Dependencies.Version.scala213),
     Test / testOptions += Tests.Setup(() => EmbeddedDatabase.start()),
     libraryDependencies ++= Seq(
       Dependencies.ossJavaDriver % Provided
