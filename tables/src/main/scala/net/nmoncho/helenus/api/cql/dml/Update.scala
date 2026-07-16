@@ -50,14 +50,14 @@ final case class Update[
     WherePm <: HList
 ](
     table: T,
-    assignments: Seq[TableDef#Assignment] = Seq.empty,
-    predicates: Seq[Predicate]            = Seq.empty,
-    ttlSeconds: Option[Int]               = None,
-    timestampMicros: Option[Long]         = None,
-    ifExistsFlag: Boolean                 = false
+    assignments: Seq[TableDef#Assignment[_]] = Seq.empty,
+    predicates: Seq[Predicate]               = Seq.empty,
+    ttlSeconds: Option[Int]                  = None,
+    timestampMicros: Option[Long]            = None,
+    ifExistsFlag: Boolean                    = false
 ) {
 
-  def set(assignment: table.Assignment): Update[T, Eq, In, Rng, SetPm, WherePm] =
+  def set(assignment: table.Assignment[_]): Update[T, Eq, In, Rng, SetPm, WherePm] =
     copy(assignments = assignments :+ assignment)
 
   /** A bound assignment (`col := ?`), appended to the SET parameter list. */
@@ -122,7 +122,7 @@ final case class Update[
     ).flatten
 
     val usingStr = if (usingParts.isEmpty) "" else s" USING ${usingParts.mkString(" AND ")}"
-    val setStr   = assignments.map(_.toCQL).mkString(", ")
+    val setStr   = assignments.map(_.toUpdateCQL).mkString(", ")
 
     val whereStr =
       if (predicates.isEmpty) ""
@@ -155,15 +155,18 @@ final case class Update[
       fp: FnFromProduct.Aux[AllPm => String, F]
   ): F =
     fp { params =>
-      val values            = Binding.values(params).iterator
+      val values = Binding.values(params).iterator
+
       val filledAssignments = assignments.map {
-        case hole: AssignmentHole => hole.fill(values.next())
+        case hole: TableDef#BoundAssignment[Any] => hole.fill(values.next())
         case complete => complete
       }
+
       val filledPredicates = predicates.map {
         case hole: BindHole => hole.fill(values.next())
         case complete => complete
       }
+
       copy(assignments = filledAssignments, predicates = filledPredicates).toCQL
     }
 

@@ -7,8 +7,8 @@
 package net.nmoncho.helenus.api.cql
 
 import scala.annotation.implicitNotFound
+import scala.collection.mutable
 
-import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import net.nmoncho.helenus.api.ColumnNamingScheme
 import shapeless.::
 import shapeless.HList
@@ -25,28 +25,50 @@ import shapeless.labelled.FieldType
     "${A} must be a case class and every one of its fields needs a CQLType instance."
 )
 trait InsertValues[A] {
-  def values(a: A, naming: ColumnNamingScheme): List[(String, String)]
+  def values(
+      a: A,
+      byName: mutable.Map[String, TableDef#Column[_]],
+      naming: ColumnNamingScheme
+  ): List[TableDef#Assignment[_]]
 }
 
 object InsertValues {
 
   trait ReprValues[R <: HList] {
-    def values(r: R, naming: ColumnNamingScheme): List[(String, String)]
+    def values(
+        r: R,
+        byName: mutable.Map[String, TableDef#Column[_]],
+        naming: ColumnNamingScheme
+    ): List[TableDef#Assignment[_]]
   }
 
   object ReprValues {
 
     implicit val hnil: ReprValues[HNil] = new ReprValues[HNil] {
-      def values(r: HNil, naming: ColumnNamingScheme): List[(String, String)] = Nil
+      def values(
+          r: HNil,
+          byName: mutable.Map[String, TableDef#Column[_]],
+          naming: ColumnNamingScheme
+      ): List[TableDef#Assignment[_]] = Nil
     }
 
     implicit def hcons[K <: Symbol, H, T <: HList](
         implicit witness: Witness.Aux[K],
-        ct: TypeCodec[H],
         rest: ReprValues[T]
     ): ReprValues[FieldType[K, H] :: T] = new ReprValues[FieldType[K, H] :: T] {
-      def values(r: FieldType[K, H] :: T, naming: ColumnNamingScheme): List[(String, String)] =
-        (naming.apply(witness.value.name), ct.format(r.head)) :: rest.values(r.tail, naming)
+      def values(
+          r: FieldType[K, H] :: T,
+          byName: mutable.Map[String, TableDef#Column[_]],
+          naming: ColumnNamingScheme
+      ): List[TableDef#Assignment[_]] =
+        byName.get(witness.value.name) match {
+          case Some(col) =>
+            val column = col.asInstanceOf[TableDef#Column[H]]
+            (column := r.head) :: rest.values(r.tail, byName, naming)
+
+          case None =>
+            rest.values(r.tail, byName, naming)
+        }
     }
   }
 
@@ -54,7 +76,11 @@ object InsertValues {
       implicit gen: LabelledGeneric.Aux[A, R],
       repr: ReprValues[R]
   ): InsertValues[A] = new InsertValues[A] {
-    def values(a: A, naming: ColumnNamingScheme): List[(String, String)] =
-      repr.values(gen.to(a), naming)
+    def values(
+        a: A,
+        byName: mutable.Map[String, TableDef#Column[_]],
+        naming: ColumnNamingScheme
+    ): List[TableDef#Assignment[_]] =
+      repr.values(gen.to(a), byName, naming)
   }
 }

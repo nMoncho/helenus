@@ -8,6 +8,7 @@ package net.nmoncho.helenus.api.cql
 
 import scala.annotation.implicitNotFound
 import scala.annotation.unused
+import scala.collection.mutable
 
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import net.nmoncho.helenus.api.ColumnNamingScheme
@@ -91,20 +92,20 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
       * equality.
       */
     def ===(value: T): EqPredicate[Tag] =
-      new EqPredicate[Tag](name, codec.format(value))
+      new EqPredicate[Tag](this, codec.format(value))
 
     /** Range predicates. They also carry the column's field tag: a range is
       * allowed without ALLOW FILTERING only on the clustering column that
       * immediately follows the `===`-constrained prefix.
       */
     def >(value: T): RangePredicate[Tag] =
-      new RangePredicate[Tag](name, ">", codec.format(value))
+      new RangePredicate[Tag](this, ">", codec.format(value))
     def <(value: T): RangePredicate[Tag] =
-      new RangePredicate[Tag](name, "<", codec.format(value))
+      new RangePredicate[Tag](this, "<", codec.format(value))
     def >=(value: T): RangePredicate[Tag] =
-      new RangePredicate[Tag](name, ">=", codec.format(value))
+      new RangePredicate[Tag](this, ">=", codec.format(value))
     def <=(value: T): RangePredicate[Tag] =
-      new RangePredicate[Tag](name, "<=", codec.format(value))
+      new RangePredicate[Tag](this, "<=", codec.format(value))
 
     /** Never valid on a primary-key restriction: always requires ALLOW FILTERING. */
     def !==(value: T): Predicate = Predicate(name, "!=", codec.format(value))
@@ -114,7 +115,7 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
       * position per statement type).
       */
     def in(values: Seq[T]): InPredicate[Tag] =
-      new InPredicate[Tag](name, s"(${values.map(codec.format).mkString(", ")})")
+      new InPredicate[Tag](this, s"(${values.map(codec.format).mkString(", ")})")
 
     // TODO add evidence that this column is a collection
     def contains(value: T): Predicate =
@@ -130,33 +131,33 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
     // column's `T` (`in(?)` binds a whole `Seq[T]`).
 
     def ===(@unused m: BindMarker): EqBindPredicate[Tag, T] =
-      new EqBindPredicate[Tag, T](name, codec)
+      new EqBindPredicate[Tag, T](this, codec)
     def >(@unused m: BindMarker): RangeBindPredicate[Tag, T] =
-      new RangeBindPredicate[Tag, T](name, ">", codec)
+      new RangeBindPredicate[Tag, T](this, ">", codec)
     def <(@unused m: BindMarker): RangeBindPredicate[Tag, T] =
-      new RangeBindPredicate[Tag, T](name, "<", codec)
+      new RangeBindPredicate[Tag, T](this, "<", codec)
     def >=(@unused m: BindMarker): RangeBindPredicate[Tag, T] =
-      new RangeBindPredicate[Tag, T](name, ">=", codec)
+      new RangeBindPredicate[Tag, T](this, ">=", codec)
     def <=(@unused m: BindMarker): RangeBindPredicate[Tag, T] =
-      new RangeBindPredicate[Tag, T](name, "<=", codec)
+      new RangeBindPredicate[Tag, T](this, "<=", codec)
     def !==(@unused m: BindMarker): FilterBindPredicate[T] =
-      new FilterBindPredicate[T](name, "!=", codec)
+      new FilterBindPredicate[T](this, "!=", codec)
     def in(@unused m: BindMarker): InBindPredicate[Tag, T] =
-      new InBindPredicate[Tag, T](name, codec)
+      new InBindPredicate[Tag, T](this, codec)
 
     // TODO add evidence that this column is a collection
     def contains(@unused m: BindMarker): FilterBindPredicate[T] =
-      new FilterBindPredicate[T](name, "CONTAINS", codec)
+      new FilterBindPredicate[T](this, "CONTAINS", codec)
     // TODO add evidence that this column is a collection
     def containsKey(@unused m: BindMarker): FilterBindPredicate[T] =
-      new FilterBindPredicate(name, "CONTAINS KEY", codec)
+      new FilterBindPredicate(this, "CONTAINS KEY", codec)
 
     // ---- assignment (used in INSERT / UPDATE) -----------------------------
 
-    def :=(value: T): Assignment = new Assignment(name, codec.format(value))
+    def :=(value: T): Assignment[T] = new SimpleAssignment[T](this, value)
 
     /** A bound assignment: `col := ?` (value supplied via `toFunction`). */
-    def :=(@unused m: BindMarker): BoundAssignment[T] = new BoundAssignment[T](name, codec)
+    def :=(@unused m: BindMarker): BoundAssignment[T] = new BoundAssignment[T](this)
 
     override def toString: String =
       s"Column($fieldName -> $name ${codec.getCqlType.asCql(frozen, false)})"
@@ -164,21 +165,35 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
     def toCQL: String = s"$name ${codec.getCqlType.asCql(frozen, false)}"
   }
 
+  sealed trait Assignment[T] {
+    def column: Column[T]
+
+    def toCQL: String
+
+    def toUpdateCQL: String
+    def toInsertCQL: (String, String)
+  }
+
   /** A SET / VALUES assignment. */
-  sealed class Assignment(val column: String, val value: String) {
-    def toCQL: String             = s"$column = $value"
+  class SimpleAssignment[T](override val column: Column[T], val value: T) extends Assignment[T] {
+    override def toCQL: String    = s"${column.name} = ${column.codec.format(value)}"
     override def toString: String = s"Assignment($toCQL)"
+
+    def toUpdateCQL: String           = s"${column.name} = ${column.codec.format(value)}"
+    def toInsertCQL: (String, String) = (column.name, column.codec.format(value))
   }
 
   /** An assignment with a bound value (`col := ?`). The value arrives later
     * as an argument of the function produced by `toFunction`, typed as the
     * column's `V`.
     */
-  final class BoundAssignment[V](column0: String, ct: TypeCodec[V])
-      extends Assignment(column0, "?")
-      with AssignmentHole {
-    private[cql] def fill(v: Any): TableDef#Assignment =
-      new Assignment(this.column, ct.format(v.asInstanceOf[V]))
+  final class BoundAssignment[T](override val column: Column[T]) extends Assignment[T] {
+    def fill(v: T): TableDef#Assignment[T] = new SimpleAssignment[T](column, v)
+
+    override def toCQL: String = s"${column.name} = ?"
+
+    def toUpdateCQL: String           = s"${column.name} = ?"
+    def toInsertCQL: (String, String) = (column.name, "?")
   }
 
 }
@@ -227,14 +242,18 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
 ) extends TableDef(keyspace0, tableName0) {
 
   /** Registry entry for a computed column: CQL name, CQL type, and renderer. */
-  class ComputedColumn[T: TypeCodec](name: String, val cqlType: String, val render: A => T)
-      extends Column[T](name, name, false)
+  class ComputedColumn[T: TypeCodec](name: String, frozen: Boolean, val render: A => T)
+      extends Column[T](name, name, frozen) {
+
+    def fill(a: A): Assignment[T] = new SimpleAssignment[T](this, render(a))
+  }
 
   /** How case-class field names map to CQL column names. */
   protected def naming: ColumnNamingScheme = DefaultColumnNamingScheme
 
   /** Registered columns declared on this table, that are not computed, in declaration order. */
-  private val registeredColumns = scala.collection.mutable.ListBuffer.empty[Column[_]]
+  private val registeredColumns       = scala.collection.mutable.ListBuffer.empty[Column[_]]
+  private val registeredColumnsByName = scala.collection.mutable.Map.empty[String, Column[_]]
 
   /** Computed columns declared on this table, in declaration order. */
   private val computedColumns = scala.collection.mutable.ListBuffer.empty[ComputedColumn[_]]
@@ -296,6 +315,7 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
     val col = new Column[V](name0, naming.apply(name0), frozen) { type Tag = name0.type }
 
     registeredColumns += col
+    registeredColumnsByName += name0 -> col
 
     col
   }
@@ -310,11 +330,8 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
       frozen: Boolean = false
   )(compute: A => Col)(implicit ct: TypeCodec[Col]): Column[Col] { type Tag = name0.type } = {
     val cqlName = naming.apply(name0)
-    computedColumns += new ComputedColumn(
-      cqlName,
-      ct.getCqlType.asCql(frozen, false),
-      a => compute(a)
-    )
+    computedColumns += new ComputedColumn(cqlName, frozen, compute)
+
     new Column[Col](name0, cqlName, frozen) { type Tag = name0.type }
   }
 
@@ -343,11 +360,14 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
     * refined further (`ifNotExists`, `usingTTL`, extra `value(...)`).
     */
   def insertFrom(a: A): Insert[this.type, HNil] = {
-    val fieldAssignments =
-      insertValuesForA.values(a, naming).map { case (n, v) => new Assignment(n, v) }
-    val computedAssignments = computedColumns.toList.map(c =>
-      new Assignment(c.name, c.render(a).toString)
-    ) // FIXME this isn't going to work
+    val fieldAssignments = insertValuesForA.values(
+      a,
+      registeredColumnsByName.asInstanceOf[mutable.Map[String, TableDef#Column[_]]],
+      naming
+    )
+
+    val computedAssignments = computedColumns.toList.map(_.fill(a))
+
     Insert[this.type](this).copy(assignments = fieldAssignments ++ computedAssignments)
   }
 
@@ -362,11 +382,4 @@ object Table {
     * all-fields-registered check.
     */
   final class AllColumns private[cql] ()
-}
-
-/** Runtime side of a bound assignment (`col := ?`), fillable later with an
-  * argument of the captured column type.
-  */
-sealed trait AssignmentHole {
-  private[cql] def fill(v: Any): TableDef#Assignment
 }
