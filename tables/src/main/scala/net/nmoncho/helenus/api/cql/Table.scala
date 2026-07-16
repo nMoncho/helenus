@@ -117,13 +117,15 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
     def in(values: Seq[T]): InPredicate[Tag] =
       new InPredicate[Tag](this, s"(${values.map(codec.format).mkString(", ")})")
 
-    // TODO add evidence that this column is a collection
-    def contains(value: T): Predicate =
-      Predicate(name, "CONTAINS", codec.format(value))
+    // TODO contains may need an index, this would make queries require allow filtering if not present
+    // TODO handle Iterable being a Map, contains only handles values for Maps, not keys
+    def contains[V](value: V)(implicit @unused ev: T <:< Iterable[V], tc: TypeCodec[V]): Predicate =
+      Predicate(name, "CONTAINS", tc.format(value))
 
-    // TODO add evidence that this column is a collection
-    def containsKey(value: T): Predicate =
-      Predicate(name, "CONTAINS KEY", codec.format(value))
+    def containsKey[K](
+        value: K
+    )(implicit @unused ev: T <:< scala.collection.Map[K, _], tc: TypeCodec[K]): Predicate =
+      Predicate(name, "CONTAINS KEY", tc.format(value))
 
     // ---- bind-marker variants (used with toFunction) ----------------------
     // Passing `?` instead of a value leaves a hole; the value arrives later
