@@ -26,13 +26,13 @@ import shapeless.ops.hlist.Prepend
   */
 final case class Insert[T <: TableDef, Params <: HList](
     table: T,
-    assignments: Seq[TableDef#Assignment] = Seq.empty,
-    ttlSeconds: Option[Int]               = None,
-    timestampMicros: Option[Long]         = None,
-    ifNotExistsFlag: Boolean              = false
+    assignments: Seq[TableDef#Assignment[_]] = Seq.empty,
+    ttlSeconds: Option[Int]                  = None,
+    timestampMicros: Option[Long]            = None,
+    ifNotExistsFlag: Boolean                 = false
 ) {
 
-  def value(assignment: table.Assignment): Insert[T, Params] =
+  def value(assignment: table.Assignment[_]): Insert[T, Params] =
     copy(assignments = assignments :+ assignment)
 
   /** A bound value (`col := ?`), appended to the parameter list. */
@@ -60,8 +60,12 @@ final case class Insert[T <: TableDef, Params <: HList](
     // TODO just like Update, add this requirement at type-level
     require(assignments.nonEmpty, "INSERT must have at least one column value")
 
-    val cols = assignments.map(_.column).mkString(", ")
-    val vals = assignments.map(_.value).mkString(", ")
+    val (cols, vals) = assignments.foldLeft(Vector.empty[String] -> Vector.empty[String]) {
+      case ((cols, vals), as) =>
+        val (col, colVal) = as.toInsertCQL
+
+        (cols :+ col) -> (vals :+ colVal)
+    }
 
     val ifNotExistsStr = if (ifNotExistsFlag) " IF NOT EXISTS" else ""
 
@@ -72,7 +76,7 @@ final case class Insert[T <: TableDef, Params <: HList](
 
     val usingStr = if (usingParts.isEmpty) "" else s" USING ${usingParts.mkString(" AND ")}"
 
-    s"INSERT INTO ${table.fullTableName} ($cols) VALUES ($vals)$ifNotExistsStr$usingStr"
+    s"INSERT INTO ${table.fullTableName} (${cols.mkString(", ")}) VALUES (${vals.mkString(", ")})$ifNotExistsStr$usingStr"
   }
 
   /** Turn an insert containing `?` markers into a `FunctionN` taking one
@@ -82,8 +86,9 @@ final case class Insert[T <: TableDef, Params <: HList](
   def toFunction[F](implicit fp: FnFromProduct.Aux[Params => String, F]): F =
     fp { params =>
       val values = Binding.values(params).iterator
+
       copy(assignments = assignments.map {
-        case hole: AssignmentHole => hole.fill(values.next())
+        case hole: TableDef#BoundAssignment[Any] => hole.fill(values.next())
         case complete => complete
       }).toCQL
     }
