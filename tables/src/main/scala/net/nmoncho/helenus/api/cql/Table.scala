@@ -329,10 +329,11 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
       name0: String with Singleton,
       frozen: Boolean = false
   )(compute: A => Col)(implicit ct: TypeCodec[Col]): Column[Col] { type Tag = name0.type } = {
-    val cqlName = naming.apply(name0)
-    computedColumns += new ComputedColumn(cqlName, frozen, compute)
+    val col = new ComputedColumn(naming.apply(name0), frozen, compute) { type Tag = name0.type }
 
-    new Column[Col](name0, cqlName, frozen) { type Tag = name0.type }
+    computedColumns += col
+
+    col
   }
 
   // ---- entry points that derive from the case class -----------------------
