@@ -13,6 +13,11 @@ import net.nmoncho.helenus.api.cql.TableDef
 import shapeless.HList
 import shapeless.ops.hlist.Prepend
 
+//sealed trait Predicate[T] extends WhereClause {
+//  def column: TableDef#Column[T]
+//  def operator: String
+//}
+
 /** A WHERE-clause predicate. */
 sealed class Predicate(val column: TableDef#Column[_], val operator: String, val value: String)
     extends WhereClause {
@@ -93,7 +98,7 @@ final class InPredicate[Col, T](column: TableDef#Column[T], values: Seq[T])
 /** Runtime side of a bind predicate: a predicate whose value is a hole,
   * fillable later with an argument of the captured column type.
   */
-sealed trait BindHole { self: Predicate =>
+sealed trait BindPredicate { self: Predicate =>
 
   /** Completes this predicate with a value (internally type-safe by construction). */
   private[cql] def fill(v: Any): Predicate
@@ -102,7 +107,7 @@ sealed trait BindHole { self: Predicate =>
 /** A bound equality: `col === ?`. */
 final class EqBindPredicate[Col, T](column: TableDef#Column[_], ct: TypeCodec[T])
     extends Predicate(column, "=", "?")
-    with BindHole {
+    with BindPredicate {
   private[cql] def fill(v: Any): Predicate =
     Predicate(column, "=", ct.format(v.asInstanceOf[T]))
 
@@ -114,7 +119,7 @@ final class RangeBindPredicate[Col, T](
     operator: String,
     ct: TypeCodec[T]
 ) extends Predicate(column, operator, "?")
-    with BindHole {
+    with BindPredicate {
   private[cql] def fill(v: Any): Predicate =
     Predicate(column, operator, ct.format(v.asInstanceOf[T]))
 }
@@ -122,7 +127,7 @@ final class RangeBindPredicate[Col, T](
 /** A bound multi-value equality: `col.in(?)`, binding a whole `Seq[T]`. */
 final class InBindPredicate[Col, T](column: TableDef#Column[_], ct: TypeCodec[T])
     extends Predicate(column, "IN", "?")
-    with BindHole {
+    with BindPredicate {
   private[cql] def fill(v: Any): Predicate =
     Predicate(column, "IN", s"(${v.asInstanceOf[Seq[T]].map(ct.format).mkString(", ")})")
 }
@@ -130,7 +135,7 @@ final class InBindPredicate[Col, T](column: TableDef#Column[_], ct: TypeCodec[T]
 /** A bound filtering-only predicate: `col !== ?`, `col.contains(?)`. */
 final class FilterBindPredicate[T](column: TableDef#Column[_], operator: String, ct: TypeCodec[T])
     extends Predicate(column, operator, "?")
-    with BindHole {
+    with BindPredicate {
   private[cql] def fill(v: Any): Predicate =
     Predicate(column, operator, ct.format(v.asInstanceOf[T]))
 }

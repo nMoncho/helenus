@@ -9,7 +9,7 @@ package dml
 
 import scala.annotation.unused
 
-import net.nmoncho.helenus.api.cql.dml.where.BindHole
+import net.nmoncho.helenus.api.cql.dml.where.BindPredicate
 import net.nmoncho.helenus.api.cql.dml.where.CanDelete
 import net.nmoncho.helenus.api.cql.dml.where.DeleteMode
 import net.nmoncho.helenus.api.cql.dml.where.Predicate
@@ -141,7 +141,7 @@ final case class Delete[
       val values = Binding.values(params).iterator
 
       copy(predicates = predicates.map {
-        case hole: BindHole => hole.fill(values.next())
+        case hole: BindPredicate => hole.fill(values.next())
         case complete => complete
       }).toCQL
     }
