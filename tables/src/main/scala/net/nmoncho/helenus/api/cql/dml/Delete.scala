@@ -50,7 +50,7 @@ final case class Delete[
 ](
     table: T,
     columnsToDrop: Seq[TableDef#Column[_]] = Seq.empty,
-    predicates: Seq[Predicate[_]]          = Seq.empty,
+    predicates: Seq[Predicate[_, _]]       = Seq.empty,
     timestampMicros: Option[Duration]      = None,
     ifExistsFlag: Boolean                  = false
 ) {
@@ -117,6 +117,19 @@ final case class Delete[
     s"DELETE ${colStr}FROM ${table.fullTableName}$usingStr$whereStr$ifExistsStr"
   }
 
+  private def forPreparedStatement: String = {
+    val colStr   = if (columnsToDrop.isEmpty) "" else columnsToDrop.map(_.name).mkString(", ") + " "
+    val usingStr = timestampMicros
+      .map(ts => s" USING TIMESTAMP ${ts.dividedBy(Duration.of(1, ChronoUnit.MICROS))}")
+      .getOrElse("")
+    val whereStr =
+      if (predicates.isEmpty) ""
+      else s" WHERE ${predicates.map(_.forPreparedStatement).mkString(" AND ")}"
+    val ifExistsStr = if (ifExistsFlag) " IF EXISTS" else ""
+
+    s"DELETE ${colStr}FROM ${table.fullTableName}$usingStr$whereStr$ifExistsStr"
+  }
+
   /** Run the delete. Available only when the WHERE clause satisfies the CQL
     * rules for this delete's mode (see [[CanDelete]]) and no `?` marker is
     * unbound; otherwise this call does not compile. There is no
@@ -126,7 +139,14 @@ final case class Delete[
   def execute()(
       implicit @unused ev: CanDelete[M, table.PK, table.CK, Eq, In, Rng],
       @unused noUnboundParams: Params =:= HNil
-  ): String = toCQL
+  ): String =
+//    val pstmt = session.prepare(forPreparedStatement)
+//    val bstmt = predicates.zipWithIndex.foldLeft(pstmt.bind()) { case (bstmt, (p, idx)) =>
+//      bstmt.set()
+//    }
+//
+//    session.execute(pstmt)
+    toCQL
 
   /** Turn a delete containing `?` markers into a `FunctionN` taking one
     * argument per marker (typed as the bound column, in writing order) and
@@ -142,7 +162,7 @@ final case class Delete[
       val values = Binding.values(params).iterator
 
       copy(predicates = predicates.map {
-        case hole: BindPredicate[Any] => hole.fill(values.next())
+        case hole: BindPredicate[Any, Any] => hole.fill(values.next())
         case hole: InBindPredicate[_, Any] => hole.fill(values.next().asInstanceOf[Iterable[Any]])
         case complete => complete
       }).toCQL

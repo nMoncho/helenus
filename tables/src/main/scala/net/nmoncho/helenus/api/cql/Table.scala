@@ -103,7 +103,7 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
     def <=(value: T): RangePredicate[Tag, T] = new RangePredicate[Tag, T](this, "<=", value)
 
     /** Never valid on a primary-key restriction: always requires ALLOW FILTERING. */
-    def !==(value: T): Predicate[T] = Predicate(this, "!=", value)
+    def !==(value: T): Predicate[T, T] = Predicate(this, "!=", value)
 
     /** Multi-value equality. Carries the column's field tag: CQL allows IN
       * only on the last component of the primary key (the gates check the
