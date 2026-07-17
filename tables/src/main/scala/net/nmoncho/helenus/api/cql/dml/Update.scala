@@ -7,14 +7,12 @@
 package net.nmoncho.helenus.api.cql
 package dml
 
+import java.time.Duration
+import java.time.temporal.ChronoUnit
+
 import scala.annotation.unused
 
-import net.nmoncho.helenus.api.cql.dml.where.BindPredicate
-import net.nmoncho.helenus.api.cql.dml.where.CanUpdate
-import net.nmoncho.helenus.api.cql.dml.where.InBindPredicate
-import net.nmoncho.helenus.api.cql.dml.where.Predicate
-import net.nmoncho.helenus.api.cql.dml.where.PredicateShape
-import net.nmoncho.helenus.api.cql.dml.where.WhereClause
+import net.nmoncho.helenus.api.cql.dml.where._
 import shapeless.::
 import shapeless.HList
 import shapeless.HNil
@@ -53,8 +51,8 @@ final case class Update[
     table: T,
     assignments: Seq[TableDef#Assignment[_]] = Seq.empty,
     predicates: Seq[Predicate[_]]            = Seq.empty,
-    ttlSeconds: Option[Int]                  = None,
-    timestampMicros: Option[Long]            = None,
+    ttlSeconds: Option[Duration]             = None,
+    timestampMicros: Option[Duration]        = None,
     ifExistsFlag: Boolean                    = false
 ) {
 
@@ -106,9 +104,9 @@ final case class Update[
       ifExistsFlag
     )
 
-  def usingTTL(seconds: Int): Update[T, Eq, In, Rng, SetPm, WherePm] =
+  def usingTTL(seconds: Duration): Update[T, Eq, In, Rng, SetPm, WherePm] =
     copy(ttlSeconds = Some(seconds))
-  def usingTimestamp(micros: Long): Update[T, Eq, In, Rng, SetPm, WherePm] =
+  def usingTimestamp(micros: Duration): Update[T, Eq, In, Rng, SetPm, WherePm] =
     copy(timestampMicros = Some(micros))
 
   def ifExists: Update[T, Eq, In, Rng, SetPm, WherePm] = copy(ifExistsFlag = true)
@@ -118,8 +116,8 @@ final case class Update[
     require(assignments.nonEmpty, "UPDATE must have at least one SET assignment")
 
     val usingParts = Seq(
-      ttlSeconds.map(t => s"TTL $t"),
-      timestampMicros.map(ts => s"TIMESTAMP $ts")
+      ttlSeconds.map(t => s"TTL ${t.toSeconds}"),
+      timestampMicros.map(ts => s"TIMESTAMP ${ts.dividedBy(Duration.of(1, ChronoUnit.MICROS))}")
     ).flatten
 
     val usingStr = if (usingParts.isEmpty) "" else s" USING ${usingParts.mkString(" AND ")}"

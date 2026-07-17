@@ -7,6 +7,8 @@
 package net.nmoncho.helenus.api.cql
 package dml
 
+import java.time.Duration
+
 import net.nmoncho.helenus.api.cql.TestValues.fixedId
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -29,7 +31,7 @@ class UpdateSpec extends AnyFlatSpec with Matchers {
 
   it should "support USING TTL" in {
     val cql = UsersTable.update
-      .usingTTL(7200)
+      .usingTTL(Duration.ofSeconds(7200))
       .set(UsersTable.age := 31)
       .where(UsersTable.id === fixedId)
       .toCQL

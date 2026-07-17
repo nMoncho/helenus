@@ -7,6 +7,9 @@
 package net.nmoncho.helenus.api.cql
 package dml
 
+import java.time.Duration
+import java.time.temporal.ChronoUnit
+
 import scala.annotation.unused
 
 import shapeless.::
@@ -27,8 +30,8 @@ import shapeless.ops.hlist.Prepend
 final case class Insert[T <: TableDef, Params <: HList](
     table: T,
     assignments: Seq[TableDef#Assignment[_]] = Seq.empty,
-    ttlSeconds: Option[Int]                  = None,
-    timestampMicros: Option[Long]            = None,
+    ttlSeconds: Option[Duration]             = None,
+    timestampMicros: Option[Duration]        = None,
     ifNotExistsFlag: Boolean                 = false
 ) {
 
@@ -47,10 +50,10 @@ final case class Insert[T <: TableDef, Params <: HList](
       ifNotExistsFlag
     )
 
-  def usingTTL(seconds: Int): Insert[T, Params] =
+  def usingTTL(seconds: Duration): Insert[T, Params] =
     copy(ttlSeconds = Some(seconds))
 
-  def usingTimestamp(micros: Long): Insert[T, Params] =
+  def usingTimestamp(micros: Duration): Insert[T, Params] =
     copy(timestampMicros = Some(micros))
 
   def ifNotExists: Insert[T, Params] =
@@ -70,8 +73,8 @@ final case class Insert[T <: TableDef, Params <: HList](
     val ifNotExistsStr = if (ifNotExistsFlag) " IF NOT EXISTS" else ""
 
     val usingParts = Seq(
-      ttlSeconds.map(t => s"TTL $t"),
-      timestampMicros.map(ts => s"TIMESTAMP $ts")
+      ttlSeconds.map(t => s"TTL ${t.toSeconds}"),
+      timestampMicros.map(ts => s"TIMESTAMP ${ts.dividedBy(Duration.of(1, ChronoUnit.MICROS))}")
     ).flatten
 
     val usingStr = if (usingParts.isEmpty) "" else s" USING ${usingParts.mkString(" AND ")}"

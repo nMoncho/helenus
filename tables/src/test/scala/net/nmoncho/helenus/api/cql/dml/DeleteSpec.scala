@@ -7,6 +7,9 @@
 package net.nmoncho.helenus.api.cql
 package dml
 
+import java.time.Duration
+import java.time.temporal.ChronoUnit
+
 import net.nmoncho.helenus.api.cql.TestValues.fixedId
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -44,7 +47,7 @@ class DeleteSpec extends AnyFlatSpec with Matchers {
 
   it should "support USING TIMESTAMP" in {
     val cql = UsersTable.delete
-      .usingTimestamp(9_999_999L)
+      .usingTimestamp(Duration.of(9_999_999L, ChronoUnit.MICROS))
       .where(UsersTable.id === fixedId)
       .toCQL
 

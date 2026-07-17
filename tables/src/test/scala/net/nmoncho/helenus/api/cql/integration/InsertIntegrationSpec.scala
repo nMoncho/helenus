@@ -6,6 +6,8 @@
 
 package net.nmoncho.helenus.api.cql.integration
 
+import java.time.Duration
+import java.time.temporal.ChronoUnit
 import java.util.UUID
 
 import scala.jdk.CollectionConverters._
@@ -91,7 +93,7 @@ class InsertIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
         .value(UsersTable.id := id)
         .value(UsersTable.username := "alice")
         .value(UsersTable.age := 30)
-        .usingTTL(3600)
+        .usingTTL(Duration.ofHours(1))
         .toCQL
     )
 
@@ -108,7 +110,7 @@ class InsertIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
         .value(UsersTable.id := id)
         .value(UsersTable.username := "alice")
         .value(UsersTable.age := 30)
-        .usingTimestamp(1_000_000L)
+        .usingTimestamp(Duration.of(1_000_000L, ChronoUnit.MICROS))
         .toCQL
     )
 

@@ -7,6 +7,8 @@
 package net.nmoncho.helenus.api.cql
 package dml
 
+import java.time.Duration
+
 import net.nmoncho.helenus.api.cql.TestValues.fixedId
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -52,7 +54,11 @@ class ComputedColumnSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "still support chaining after insertFrom" in {
-    val cql = MetricsTable.insertFrom(Metric(fixedId, "bob", 2.0)).ifNotExists.usingTTL(60).toCQL
+    val cql = MetricsTable
+      .insertFrom(Metric(fixedId, "bob", 2.0))
+      .ifNotExists
+      .usingTTL(Duration.ofMinutes(1))
+      .toCQL
     cql should endWith("IF NOT EXISTS USING TTL 60")
     cql should include("shard) VALUES")
   }
