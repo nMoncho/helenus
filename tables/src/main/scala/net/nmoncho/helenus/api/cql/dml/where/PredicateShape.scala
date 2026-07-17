@@ -52,13 +52,13 @@ object PredicateShape {
 
   // ---- literal predicates -------------------------------------------------
 
-  implicit def equality[Col]: Aux[EqPredicate[Col], Col :: HNil, HNil, HNil, HNil] =
+  implicit def equality[Col, T]: Aux[EqPredicate[Col, T], Col :: HNil, HNil, HNil, HNil] =
     instance(List(_))
 
-  implicit def multiValue[Col]: Aux[InPredicate[Col], HNil, Col :: HNil, HNil, HNil] =
+  implicit def multiValue[Col, T]: Aux[InPredicate[Col, T], HNil, Col :: HNil, HNil, HNil] =
     instance(List(_))
 
-  implicit def range[Col]: Aux[RangePredicate[Col], HNil, HNil, Col :: HNil, HNil] =
+  implicit def range[Col, T]: Aux[RangePredicate[Col, T], HNil, HNil, Col :: HNil, HNil] =
     instance(List(_))
 
   implicit val filtering: Aux[Predicate, HNil, HNil, RequiresFiltering :: HNil, HNil] =
