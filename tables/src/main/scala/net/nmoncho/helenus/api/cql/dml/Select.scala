@@ -11,6 +11,7 @@ import scala.annotation.unused
 
 import net.nmoncho.helenus.api.cql.dml.where.BindPredicate
 import net.nmoncho.helenus.api.cql.dml.where.CanSelect
+import net.nmoncho.helenus.api.cql.dml.where.InBindPredicate
 import net.nmoncho.helenus.api.cql.dml.where.Predicate
 import net.nmoncho.helenus.api.cql.dml.where.PredicateShape
 import net.nmoncho.helenus.api.cql.dml.where.WhereClause
@@ -51,7 +52,7 @@ final case class Select[
     table: T,
     columns: Seq[String],
     keyColumns: Seq[String],
-    predicates: Seq[Predicate]       = Seq.empty,
+    predicates: Seq[Predicate[_]]    = Seq.empty,
     limitValue: Option[Int]          = None,
     orderByClauses: Seq[ColumnOrder] = Seq.empty
 ) {
@@ -116,7 +117,8 @@ final case class Select[
   private[dml] def withBoundValues(params: HList): Select[T, Eq, In, Rng, Params] = {
     val values = Select.hlistValues(params).iterator
     copy(predicates = predicates.map {
-      case hole: BindPredicate => hole.fill(values.next())
+      case hole: BindPredicate[Any] => hole.fill(values.next())
+      case hole: InBindPredicate[_, Any] => hole.fill(values.next().asInstanceOf[Iterable[Any]])
       case complete => complete
     })
   }
@@ -221,7 +223,7 @@ object Select {
       Params <: HList
   ](
       s: Select[T, Eq, In, Rng, Params]
-  ): Seq[Predicate] = {
+  ): Seq[Predicate[_]] = {
     val keyIndex: Map[String, Int] = s.keyColumns.zipWithIndex.toMap
     s.predicates.sortBy(p => keyIndex.getOrElse(p.column.name, Int.MaxValue))
   }

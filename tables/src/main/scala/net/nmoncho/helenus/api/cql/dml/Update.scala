@@ -11,6 +11,7 @@ import scala.annotation.unused
 
 import net.nmoncho.helenus.api.cql.dml.where.BindPredicate
 import net.nmoncho.helenus.api.cql.dml.where.CanUpdate
+import net.nmoncho.helenus.api.cql.dml.where.InBindPredicate
 import net.nmoncho.helenus.api.cql.dml.where.Predicate
 import net.nmoncho.helenus.api.cql.dml.where.PredicateShape
 import net.nmoncho.helenus.api.cql.dml.where.WhereClause
@@ -51,7 +52,7 @@ final case class Update[
 ](
     table: T,
     assignments: Seq[TableDef#Assignment[_]] = Seq.empty,
-    predicates: Seq[Predicate]               = Seq.empty,
+    predicates: Seq[Predicate[_]]            = Seq.empty,
     ttlSeconds: Option[Int]                  = None,
     timestampMicros: Option[Long]            = None,
     ifExistsFlag: Boolean                    = false
@@ -163,7 +164,8 @@ final case class Update[
       }
 
       val filledPredicates = predicates.map {
-        case hole: BindPredicate => hole.fill(values.next())
+        case hole: BindPredicate[Any] => hole.fill(values.next())
+        case hole: InBindPredicate[_, Any] => hole.fill(values.next().asInstanceOf[Iterable[Any]])
         case complete => complete
       }
 

@@ -30,7 +30,7 @@ sealed trait PredicateShape[P] {
   type Rng <: HList
   type Params <: HList
 
-  def predicates(p: P): List[Predicate]
+  def predicates(p: P): List[Predicate[_]]
 }
 
 object PredicateShape {
@@ -39,7 +39,7 @@ object PredicateShape {
     PredicateShape[P] { type Eq = E; type In = I; type Rng = R; type Params = Pm }
 
   private def instance[P, E <: HList, I <: HList, R <: HList, Pm <: HList](
-      f: P => List[Predicate]
+      f: P => List[Predicate[_]]
   ): Aux[P, E, I, R, Pm] =
     new PredicateShape[P] {
       type Eq     = E
@@ -47,7 +47,7 @@ object PredicateShape {
       type Rng    = R
       type Params = Pm
 
-      def predicates(p: P): List[Predicate] = f(p)
+      def predicates(p: P): List[Predicate[_]] = f(p)
     }
 
   // ---- literal predicates -------------------------------------------------
@@ -61,7 +61,7 @@ object PredicateShape {
   implicit def range[Col, T]: Aux[RangePredicate[Col, T], HNil, HNil, Col :: HNil, HNil] =
     instance(List(_))
 
-  implicit val filtering: Aux[Predicate, HNil, HNil, RequiresFiltering :: HNil, HNil] =
+  implicit val filtering: Aux[Predicate[_], HNil, HNil, RequiresFiltering :: HNil, HNil] =
     instance(List(_))
 
   // ---- bind predicates (`?` marker): same gate contribution + a parameter --

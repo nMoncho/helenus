@@ -91,24 +91,19 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
       * builder can track, at compile time, which columns are constrained by
       * equality.
       */
-    def ===(value: T): EqPredicate[Tag, T] =
-      new EqPredicate[Tag, T](this, value)
+    def ===(value: T): EqPredicate[Tag, T] = new EqPredicate[Tag, T](this, value)
 
     /** Range predicates. They also carry the column's field tag: a range is
       * allowed without ALLOW FILTERING only on the clustering column that
       * immediately follows the `===`-constrained prefix.
       */
-    def >(value: T): RangePredicate[Tag, T] =
-      new RangePredicate[Tag, T](this, ">", value)
-    def <(value: T): RangePredicate[Tag, T] =
-      new RangePredicate[Tag, T](this, "<", value)
-    def >=(value: T): RangePredicate[Tag, T] =
-      new RangePredicate[Tag, T](this, ">=", value)
-    def <=(value: T): RangePredicate[Tag, T] =
-      new RangePredicate[Tag, T](this, "<=", value)
+    def >(value: T): RangePredicate[Tag, T]  = new RangePredicate[Tag, T](this, ">", value)
+    def <(value: T): RangePredicate[Tag, T]  = new RangePredicate[Tag, T](this, "<", value)
+    def >=(value: T): RangePredicate[Tag, T] = new RangePredicate[Tag, T](this, ">=", value)
+    def <=(value: T): RangePredicate[Tag, T] = new RangePredicate[Tag, T](this, "<=", value)
 
     /** Never valid on a primary-key restriction: always requires ALLOW FILTERING. */
-    def !==(value: T): Predicate = Predicate(this, "!=", codec.format(value))
+    def !==(value: T): Predicate[T] = Predicate(this, "!=", value)
 
     /** Multi-value equality. Carries the column's field tag: CQL allows IN
       * only on the last component of the primary key (the gates check the
@@ -119,13 +114,13 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
 
     // TODO contains may need an index, this would make queries require allow filtering if not present
     // TODO handle Iterable being a Map, contains only handles values for Maps, not keys
-    def contains[V](value: V)(implicit @unused ev: T <:< Iterable[V], tc: TypeCodec[V]): Predicate =
-      Predicate(this, "CONTAINS", tc.format(value))
-
-    def containsKey[K](
-        value: K
-    )(implicit @unused ev: T <:< scala.collection.Map[K, _], tc: TypeCodec[K]): Predicate =
-      Predicate(this, "CONTAINS KEY", tc.format(value))
+//    def contains[V](value: V)(implicit @unused ev: T <:< Iterable[V]): Predicate[T] =
+//      Predicate(this, "CONTAINS", value)
+//
+//    def containsKey[K](
+//        value: K
+//    )(implicit @unused ev: T <:< scala.collection.Map[K, _], tc: TypeCodec[K]): Predicate[T] =
+//      Predicate(this, "CONTAINS KEY", value)
 
     // ---- bind-marker variants (used with toFunction) ----------------------
     // Passing `?` instead of a value leaves a hole; the value arrives later
@@ -133,26 +128,26 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
     // column's `T` (`in(?)` binds a whole `Seq[T]`).
 
     def ===(@unused m: BindMarker): EqBindPredicate[Tag, T] =
-      new EqBindPredicate[Tag, T](this, codec)
+      new EqBindPredicate[Tag, T](this)
     def >(@unused m: BindMarker): RangeBindPredicate[Tag, T] =
-      new RangeBindPredicate[Tag, T](this, ">", codec)
+      new RangeBindPredicate[Tag, T](this, ">")
     def <(@unused m: BindMarker): RangeBindPredicate[Tag, T] =
-      new RangeBindPredicate[Tag, T](this, "<", codec)
+      new RangeBindPredicate[Tag, T](this, "<")
     def >=(@unused m: BindMarker): RangeBindPredicate[Tag, T] =
-      new RangeBindPredicate[Tag, T](this, ">=", codec)
+      new RangeBindPredicate[Tag, T](this, ">=")
     def <=(@unused m: BindMarker): RangeBindPredicate[Tag, T] =
-      new RangeBindPredicate[Tag, T](this, "<=", codec)
+      new RangeBindPredicate[Tag, T](this, "<=")
     def !==(@unused m: BindMarker): FilterBindPredicate[T] =
-      new FilterBindPredicate[T](this, "!=", codec)
+      new FilterBindPredicate[T](this, "!=")
     def in(@unused m: BindMarker): InBindPredicate[Tag, T] =
-      new InBindPredicate[Tag, T](this, codec)
+      new InBindPredicate[Tag, T](this)
 
     // TODO add evidence that this column is a collection
-    def contains(@unused m: BindMarker): FilterBindPredicate[T] =
-      new FilterBindPredicate[T](this, "CONTAINS", codec)
+//    def contains(@unused m: BindMarker): FilterBindPredicate[T] =
+//      new FilterBindPredicate[T](this, "CONTAINS")
     // TODO add evidence that this column is a collection
-    def containsKey(@unused m: BindMarker): FilterBindPredicate[T] =
-      new FilterBindPredicate(this, "CONTAINS KEY", codec)
+//    def containsKey(@unused m: BindMarker): FilterBindPredicate[T] =
+//      new FilterBindPredicate(this, "CONTAINS KEY")
 
     // ---- assignment (used in INSERT / UPDATE) -----------------------------
 
