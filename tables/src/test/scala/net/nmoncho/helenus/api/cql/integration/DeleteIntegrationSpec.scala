@@ -6,6 +6,8 @@
 
 package net.nmoncho.helenus.api.cql.integration
 
+import java.time.Duration
+import java.time.temporal.ChronoUnit
 import java.util.UUID
 
 import com.datastax.oss.driver.api.core.servererrors.InvalidQueryException
@@ -116,7 +118,7 @@ class DeleteIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
     // The seed rows were written at server-now microseconds; timestamp 1000 is older.
     execute(
       UsersTable.delete
-        .usingTimestamp(1000L)
+        .usingTimestamp(Duration.of(1000, ChronoUnit.MICROS))
         .where(UsersTable.id === id and UsersTable.username === "alice")
         .execute()
     )

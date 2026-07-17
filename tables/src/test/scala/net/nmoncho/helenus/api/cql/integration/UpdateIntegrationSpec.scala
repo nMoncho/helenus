@@ -6,6 +6,8 @@
 
 package net.nmoncho.helenus.api.cql.integration
 
+import java.time.Duration
+import java.time.temporal.ChronoUnit
 import java.util.UUID
 
 import com.datastax.oss.driver.api.core.servererrors.InvalidQueryException
@@ -73,7 +75,7 @@ class UpdateIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
   it should "apply USING TTL" in {
     execute(
       UsersTable.update
-        .usingTTL(7200)
+        .usingTTL(Duration.ofSeconds(7200))
         .set(UsersTable.age := 31)
         .where(UsersTable.id === id and UsersTable.username === "alice")
         .execute()
@@ -90,7 +92,7 @@ class UpdateIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
     // The seed row was written at server-now microseconds; timestamp 1000 is older.
     execute(
       UsersTable.update
-        .usingTimestamp(1000L)
+        .usingTimestamp(Duration.of(1000, ChronoUnit.MICROS))
         .set(UsersTable.age := 99)
         .where(UsersTable.id === id and UsersTable.username === "alice")
         .execute()

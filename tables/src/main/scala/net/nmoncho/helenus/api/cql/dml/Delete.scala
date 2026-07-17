@@ -7,15 +7,12 @@
 package net.nmoncho.helenus.api.cql
 package dml
 
+import java.time.Duration
+import java.time.temporal.ChronoUnit
+
 import scala.annotation.unused
 
-import net.nmoncho.helenus.api.cql.dml.where.BindPredicate
-import net.nmoncho.helenus.api.cql.dml.where.CanDelete
-import net.nmoncho.helenus.api.cql.dml.where.DeleteMode
-import net.nmoncho.helenus.api.cql.dml.where.InBindPredicate
-import net.nmoncho.helenus.api.cql.dml.where.Predicate
-import net.nmoncho.helenus.api.cql.dml.where.PredicateShape
-import net.nmoncho.helenus.api.cql.dml.where.WhereClause
+import net.nmoncho.helenus.api.cql.dml.where._
 import shapeless.HList
 import shapeless.HNil
 import shapeless.ops.function.FnFromProduct
@@ -54,7 +51,7 @@ final case class Delete[
     table: T,
     columnsToDrop: Seq[TableDef#Column[_]] = Seq.empty,
     predicates: Seq[Predicate[_]]          = Seq.empty,
-    timestampMicros: Option[Long]          = None,
+    timestampMicros: Option[Duration]      = None,
     ifExistsFlag: Boolean                  = false
 ) {
 
@@ -102,14 +99,16 @@ final case class Delete[
       ifExistsFlag
     )
 
-  def usingTimestamp(micros: Long): Delete[T, Eq, In, Rng, Params, M] =
+  def usingTimestamp(micros: Duration): Delete[T, Eq, In, Rng, Params, M] =
     copy(timestampMicros = Some(micros))
 
   def ifExists: Delete[T, Eq, In, Rng, Params, M] = copy(ifExistsFlag = true)
 
   def toCQL: String = {
     val colStr   = if (columnsToDrop.isEmpty) "" else columnsToDrop.map(_.name).mkString(", ") + " "
-    val usingStr = timestampMicros.map(ts => s" USING TIMESTAMP $ts").getOrElse("")
+    val usingStr = timestampMicros
+      .map(ts => s" USING TIMESTAMP ${ts.dividedBy(Duration.of(1, ChronoUnit.MICROS))}")
+      .getOrElse("")
     val whereStr =
       if (predicates.isEmpty) ""
       else s" WHERE ${predicates.map(_.toCQL).mkString(" AND ")}"

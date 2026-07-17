@@ -7,6 +7,9 @@
 package net.nmoncho.helenus.api.cql
 package dml
 
+import java.time.Duration
+import java.time.temporal.ChronoUnit
+
 import net.nmoncho.helenus.api.cql.TestValues.fixedId
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -48,7 +51,7 @@ class InsertSpec extends AnyFlatSpec with Matchers {
     val cql = UsersTable.insert
       .value(UsersTable.id := fixedId)
       .value(UsersTable.username := "alice")
-      .usingTTL(3600)
+      .usingTTL(Duration.of(3600, ChronoUnit.SECONDS))
       .toCQL
 
     cql should endWith("USING TTL 3600")
@@ -58,7 +61,7 @@ class InsertSpec extends AnyFlatSpec with Matchers {
     val cql = UsersTable.insert
       .value(UsersTable.id := fixedId)
       .value(UsersTable.username := "alice")
-      .usingTimestamp(1_000_000L)
+      .usingTimestamp(Duration.of(1_000_000L, ChronoUnit.MICROS))
       .toCQL
 
     cql should endWith("USING TIMESTAMP 1000000")
