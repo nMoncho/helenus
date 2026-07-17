@@ -9,7 +9,7 @@ package dml
 
 import scala.annotation.unused
 
-import net.nmoncho.helenus.api.cql.dml.where.BindHole
+import net.nmoncho.helenus.api.cql.dml.where.BindPredicate
 import net.nmoncho.helenus.api.cql.dml.where.CanSelect
 import net.nmoncho.helenus.api.cql.dml.where.Predicate
 import net.nmoncho.helenus.api.cql.dml.where.PredicateShape
@@ -116,7 +116,7 @@ final case class Select[
   private[dml] def withBoundValues(params: HList): Select[T, Eq, In, Rng, Params] = {
     val values = Select.hlistValues(params).iterator
     copy(predicates = predicates.map {
-      case hole: BindHole => hole.fill(values.next())
+      case hole: BindPredicate => hole.fill(values.next())
       case complete => complete
     })
   }

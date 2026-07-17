@@ -9,7 +9,7 @@ package dml
 
 import scala.annotation.unused
 
-import net.nmoncho.helenus.api.cql.dml.where.BindHole
+import net.nmoncho.helenus.api.cql.dml.where.BindPredicate
 import net.nmoncho.helenus.api.cql.dml.where.CanUpdate
 import net.nmoncho.helenus.api.cql.dml.where.Predicate
 import net.nmoncho.helenus.api.cql.dml.where.PredicateShape
@@ -163,7 +163,7 @@ final case class Update[
       }
 
       val filledPredicates = predicates.map {
-        case hole: BindHole => hole.fill(values.next())
+        case hole: BindPredicate => hole.fill(values.next())
         case complete => complete
       }
 
