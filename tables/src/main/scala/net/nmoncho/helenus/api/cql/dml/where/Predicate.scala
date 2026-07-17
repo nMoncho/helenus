@@ -67,8 +67,8 @@ object Predicate {
   * `===`-constrained columns at the type level. It is otherwise an ordinary
   * [[Predicate]].
   */
-final class EqPredicate[Col](column: TableDef#Column[_], value: String)
-    extends Predicate(column.name, "=", value)
+final class EqPredicate[Col, T](column: TableDef#Column[T], value: T)
+    extends Predicate(column.name, "=", column.codec.format(value))
 
 /** A non-equality (`!=`) predicate tagged with the column's field tag `Col` (the
   * literal type of the case-class field name, e.g. `"id"`).
@@ -77,22 +77,22 @@ final class EqPredicate[Col](column: TableDef#Column[_], value: String)
   * `===`-constrained columns at the type level. It is otherwise an ordinary
   * [[Predicate]].
   */
-final class NotEqPredicate[Col](column: TableDef#Column[_], value: String)
-    extends Predicate(column.name, "=", value)
+final class NotEqPredicate[Col, T](column: TableDef#Column[T], value: T)
+    extends Predicate(column.name, "=", column.codec.format(value))
 
 /** A range (`<`, `>`, `<=`, `>=`) predicate tagged with the column's field tag
   * `Col`, tracked separately from equality constraints because CQL only
   * allows a range on the clustering column right after the `===` prefix.
   */
-final class RangePredicate[Col](column: TableDef#Column[_], operator: String, value: String)
-    extends Predicate(column.name, operator, value)
+final class RangePredicate[Col, T](column: TableDef#Column[T], operator: String, value: T)
+    extends Predicate(column.name, operator, column.codec.format(value))
 
 /** An `IN` predicate tagged with the column's field tag `Col`, tracked in its
   * own set because CQL only allows IN on the last component of the primary
   * key, a position each gate checks according to its statement type.
   */
-final class InPredicate[Col](column: TableDef#Column[_], values: String)
-    extends Predicate(column.name, "IN", values)
+final class InPredicate[Col, T](column: TableDef#Column[T], values: Seq[T])
+    extends Predicate(column.name, "IN", s"(${values.map(column.codec.format).mkString(", ")})")
 
 // ---- bind variants (built with the `?` marker) ---------------------------
 // Each mirrors its literal counterpart for the execute gates (same column-tag

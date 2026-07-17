@@ -91,21 +91,21 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
       * builder can track, at compile time, which columns are constrained by
       * equality.
       */
-    def ===(value: T): EqPredicate[Tag] =
-      new EqPredicate[Tag](this, codec.format(value))
+    def ===(value: T): EqPredicate[Tag, T] =
+      new EqPredicate[Tag, T](this, value)
 
     /** Range predicates. They also carry the column's field tag: a range is
       * allowed without ALLOW FILTERING only on the clustering column that
       * immediately follows the `===`-constrained prefix.
       */
-    def >(value: T): RangePredicate[Tag] =
-      new RangePredicate[Tag](this, ">", codec.format(value))
-    def <(value: T): RangePredicate[Tag] =
-      new RangePredicate[Tag](this, "<", codec.format(value))
-    def >=(value: T): RangePredicate[Tag] =
-      new RangePredicate[Tag](this, ">=", codec.format(value))
-    def <=(value: T): RangePredicate[Tag] =
-      new RangePredicate[Tag](this, "<=", codec.format(value))
+    def >(value: T): RangePredicate[Tag, T] =
+      new RangePredicate[Tag, T](this, ">", value)
+    def <(value: T): RangePredicate[Tag, T] =
+      new RangePredicate[Tag, T](this, "<", value)
+    def >=(value: T): RangePredicate[Tag, T] =
+      new RangePredicate[Tag, T](this, ">=", value)
+    def <=(value: T): RangePredicate[Tag, T] =
+      new RangePredicate[Tag, T](this, "<=", value)
 
     /** Never valid on a primary-key restriction: always requires ALLOW FILTERING. */
     def !==(value: T): Predicate = Predicate(name, "!=", codec.format(value))
@@ -114,8 +114,8 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
       * only on the last component of the primary key (the gates check the
       * position per statement type).
       */
-    def in(values: Seq[T]): InPredicate[Tag] =
-      new InPredicate[Tag](this, s"(${values.map(codec.format).mkString(", ")})")
+    def in(values: Seq[T]): InPredicate[Tag, T] =
+      new InPredicate[Tag, T](this, values)
 
     // TODO contains may need an index, this would make queries require allow filtering if not present
     // TODO handle Iterable being a Map, contains only handles values for Maps, not keys
