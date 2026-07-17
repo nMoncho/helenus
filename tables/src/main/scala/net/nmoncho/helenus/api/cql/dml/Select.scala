@@ -223,6 +223,6 @@ object Select {
       s: Select[T, Eq, In, Rng, Params]
   ): Seq[Predicate] = {
     val keyIndex: Map[String, Int] = s.keyColumns.zipWithIndex.toMap
-    s.predicates.sortBy(p => keyIndex.getOrElse(p.column, Int.MaxValue))
+    s.predicates.sortBy(p => keyIndex.getOrElse(p.column.name, Int.MaxValue))
   }
 }

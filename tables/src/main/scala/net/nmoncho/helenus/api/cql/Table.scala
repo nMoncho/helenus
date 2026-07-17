@@ -108,7 +108,7 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
       new RangePredicate[Tag, T](this, "<=", value)
 
     /** Never valid on a primary-key restriction: always requires ALLOW FILTERING. */
-    def !==(value: T): Predicate = Predicate(name, "!=", codec.format(value))
+    def !==(value: T): Predicate = Predicate(this, "!=", codec.format(value))
 
     /** Multi-value equality. Carries the column's field tag: CQL allows IN
       * only on the last component of the primary key (the gates check the
@@ -120,12 +120,12 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
     // TODO contains may need an index, this would make queries require allow filtering if not present
     // TODO handle Iterable being a Map, contains only handles values for Maps, not keys
     def contains[V](value: V)(implicit @unused ev: T <:< Iterable[V], tc: TypeCodec[V]): Predicate =
-      Predicate(name, "CONTAINS", tc.format(value))
+      Predicate(this, "CONTAINS", tc.format(value))
 
     def containsKey[K](
         value: K
     )(implicit @unused ev: T <:< scala.collection.Map[K, _], tc: TypeCodec[K]): Predicate =
-      Predicate(name, "CONTAINS KEY", tc.format(value))
+      Predicate(this, "CONTAINS KEY", tc.format(value))
 
     // ---- bind-marker variants (used with toFunction) ----------------------
     // Passing `?` instead of a value leaves a hole; the value arrives later
