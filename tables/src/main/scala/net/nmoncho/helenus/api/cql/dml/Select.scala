@@ -52,7 +52,7 @@ final case class Select[
     table: T,
     columns: Seq[String],
     keyColumns: Seq[String],
-    predicates: Seq[Predicate[_]]    = Seq.empty,
+    predicates: Seq[Predicate[_, _]] = Seq.empty,
     limitValue: Option[Int]          = None,
     orderByClauses: Seq[ColumnOrder] = Seq.empty
 ) {
@@ -117,7 +117,7 @@ final case class Select[
   private[dml] def withBoundValues(params: HList): Select[T, Eq, In, Rng, Params] = {
     val values = Select.hlistValues(params).iterator
     copy(predicates = predicates.map {
-      case hole: BindPredicate[Any] => hole.fill(values.next())
+      case hole: BindPredicate[Any, Any] => hole.fill(values.next())
       case hole: InBindPredicate[_, Any] => hole.fill(values.next().asInstanceOf[Iterable[Any]])
       case complete => complete
     })
@@ -223,7 +223,7 @@ object Select {
       Params <: HList
   ](
       s: Select[T, Eq, In, Rng, Params]
-  ): Seq[Predicate[_]] = {
+  ): Seq[Predicate[_, _]] = {
     val keyIndex: Map[String, Int] = s.keyColumns.zipWithIndex.toMap
     s.predicates.sortBy(p => keyIndex.getOrElse(p.column.name, Int.MaxValue))
   }

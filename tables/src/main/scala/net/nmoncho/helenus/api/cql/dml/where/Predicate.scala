@@ -12,22 +12,28 @@ import net.nmoncho.helenus.api.cql.TableDef
 import shapeless.HList
 import shapeless.ops.hlist.Prepend
 
-sealed trait Predicate[T] extends WhereClause {
+sealed trait Predicate[T, V] extends WhereClause {
   def column: TableDef#Column[T]
   def operator: String
 
   def toCQL: String = s"${column.name} $operator ?"
+
+  final def forPreparedStatement: String = s"${column.name} $operator ?"
 }
 
 /** A WHERE-clause predicate. */
-sealed class ValuePredicate[T](val column: TableDef#Column[T], val operator: String, val value: T)
-    extends Predicate[T] {
-  override def toCQL: String    = s"${column.name} $operator ${column.codec.format(value)}"
+sealed class ValuePredicate[T, V](
+    val column: TableDef#Column[T],
+    val operator: String,
+    val value: V
+) extends Predicate[T, V] {
+  override def toCQL: String =
+    s"${column.name} $operator ${column.codec.format(value.asInstanceOf[T])}"
   override def toString: String = s"Predicate($toCQL)"
 }
 
 object Predicate {
-  def apply[T](column: TableDef#Column[T], operator: String, value: T): Predicate[T] =
+  def apply[T](column: TableDef#Column[T], operator: String, value: T): Predicate[T, T] =
     new ValuePredicate(column, operator, value)
 
   /** `and` on a single predicate, combining it with another predicate or an
@@ -37,7 +43,7 @@ object Predicate {
     * in the implicit scope of every predicate subtype without imports.
     */
   implicit final class PredicateAndOps[
-      P <: Predicate[_],
+      P <: Predicate[_, _],
       E <: HList,
       I <: HList,
       R <: HList,
@@ -87,8 +93,8 @@ final class RangePredicate[Col, T](column: TableDef#Column[T], operator: String,
   * own set because CQL only allows IN on the last component of the primary
   * key, a position each gate checks according to its statement type.
   */
-final class InPredicate[Col, T](val column: TableDef#Column[T], val values: Iterable[T])
-    extends Predicate[T] {
+final class InPredicate[Col, T](column: TableDef#Column[T], values: Iterable[T])
+    extends ValuePredicate[T, Iterable[T]](column, "IN", values) {
   override val operator = "IN"
 
   override def toCQL: String =
@@ -106,41 +112,40 @@ final class InPredicate[Col, T](val column: TableDef#Column[T], val values: Iter
 /** Runtime side of a bind predicate: a predicate whose value is a hole,
   * fillable later with an argument of the captured column type.
   */
-sealed abstract class BindPredicate[T](val column: TableDef#Column[T], val operator: String)
-    extends Predicate[T] {
+sealed abstract class BindPredicate[T, V](val column: TableDef#Column[T], val operator: String)
+    extends Predicate[T, V] {
 
   /** Completes this predicate with a value (internally type-safe by construction). */
-  private[cql] def fill(v: T): Predicate[T]
+  private[cql] def fill(v: V): Predicate[T, V]
 }
 
 /** A bound equality: `col === ?`. */
 final class EqBindPredicate[Col, T](column: TableDef#Column[T])
-    extends BindPredicate[T](column, "=") {
-  private[cql] def fill(v: T): Predicate[T] = Predicate(column, "=", v)
+    extends BindPredicate[T, T](column, "=") {
+  private[cql] def fill(v: T): Predicate[T, T] = Predicate(column, "=", v)
 }
 
 /** A bound range: `col > ?`, `col <= ?`, ... */
 final class RangeBindPredicate[Col, T](
     column: TableDef#Column[T],
     operator: String
-) extends BindPredicate[T](column, operator) {
-  private[cql] def fill(v: T): Predicate[T] =
+) extends BindPredicate[T, T](column, operator) {
+  private[cql] def fill(v: T): Predicate[T, T] =
     Predicate(column, operator, v)
 }
 
 /** A bound multi-value equality: `col.in(?)`, binding a whole `Seq[T]`. */
-final class InBindPredicate[Col, T](val column: TableDef#Column[T]) extends Predicate[T] {
+final class InBindPredicate[Col, T](column: TableDef#Column[T])
+    extends BindPredicate[T, Iterable[T]](column, "IN") {
 
-  private[cql] def fill(v: Iterable[T]): Predicate[T] =
+  private[cql] def fill(v: Iterable[T]): Predicate[T, Iterable[T]] =
     new InPredicate(column, v)
-  // Predicate(column, "IN", s"(${v.asInstanceOf[Seq[T]].map(ct.format).mkString(", ")})")
 
-  override def operator: String = "IN"
 }
 
 /** A bound filtering-only predicate: `col !== ?`, `col.contains(?)`. */
 final class FilterBindPredicate[T](column: TableDef#Column[T], operator: String)
-    extends BindPredicate[T](column, operator) {
-  private[cql] def fill(v: T): Predicate[T] =
+    extends BindPredicate[T, T](column, operator) {
+  private[cql] def fill(v: T): Predicate[T, T] =
     Predicate(column, operator, v)
 }

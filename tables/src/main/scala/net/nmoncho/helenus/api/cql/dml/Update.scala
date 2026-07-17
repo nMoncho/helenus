@@ -50,7 +50,7 @@ final case class Update[
 ](
     table: T,
     assignments: Seq[TableDef#Assignment[_]] = Seq.empty,
-    predicates: Seq[Predicate[_]]            = Seq.empty,
+    predicates: Seq[Predicate[_, _]]         = Seq.empty,
     ttlSeconds: Option[Duration]             = None,
     timestampMicros: Option[Duration]        = None,
     ifExistsFlag: Boolean                    = false
@@ -162,7 +162,7 @@ final case class Update[
       }
 
       val filledPredicates = predicates.map {
-        case hole: BindPredicate[Any] => hole.fill(values.next())
+        case hole: BindPredicate[Any, Any] => hole.fill(values.next())
         case hole: InBindPredicate[_, Any] => hole.fill(values.next().asInstanceOf[Iterable[Any]])
         case complete => complete
       }

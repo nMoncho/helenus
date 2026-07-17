@@ -24,7 +24,7 @@ import shapeless.ops.hlist.Prepend
   * them back through the [[PredicateShape]] instance for `Conjunction`.
   */
 final class Conjunction[E <: HList, I <: HList, R <: HList, Pm <: HList](
-    val predicates: List[Predicate[_]]
+    val predicates: List[Predicate[_, _]]
 ) extends WhereClause {
   override def toString: String = predicates.map(_.toCQL).mkString(" AND ")
 }
