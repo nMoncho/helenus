@@ -30,7 +30,7 @@ class DeleteSpec extends AnyFlatSpec with Matchers {
     val cql = UsersTable.delete
       .column(UsersTable.email)
       .column(UsersTable.tags)
-      .where(UsersTable.id === fixedId)
+      .where(UsersTable.id === fixedId and UsersTable.username === "alice")
       .toCQL
 
     cql should startWith("DELETE email, tags FROM")
@@ -68,15 +68,15 @@ class DeleteSpec extends AnyFlatSpec with Matchers {
 
   // ---- execute() gate: positive ----------------------------------------------
 
-  "Delete.execute()" should "be available for a whole-partition delete" in {
-    UsersTable.delete.where(UsersTable.id === fixedId).execute() shouldBe
+  "Delete.toCQL" should "be available for a whole-partition delete" in {
+    UsersTable.delete.where(UsersTable.id === fixedId).toCQL shouldBe
     s"DELETE FROM my_keyspace.users WHERE id = $fixedId"
   }
 
   it should "be available for a single-row delete" in {
     val cql = UsersTable.delete
       .where(UsersTable.id === fixedId and UsersTable.username === "alice")
-      .execute()
+      .toCQL
 
     cql shouldBe s"DELETE FROM my_keyspace.users WHERE id = $fixedId AND username = 'alice'"
   }
@@ -86,7 +86,7 @@ class DeleteSpec extends AnyFlatSpec with Matchers {
       .where(
         SensorsTable.deviceId === fixedId and SensorsTable.year === 2026 and SensorsTable.ts > 100L
       )
-      .execute()
+      .toCQL
 
     cql should include(s"WHERE device_id = $fixedId AND year = 2026 AND ts > 100")
   }
@@ -95,7 +95,7 @@ class DeleteSpec extends AnyFlatSpec with Matchers {
     val cql = UsersTable.delete
       .column(UsersTable.email)
       .where(UsersTable.id === fixedId and UsersTable.username === "alice")
-      .execute()
+      .toCQL
 
     cql shouldBe s"DELETE email FROM my_keyspace.users WHERE id = $fixedId AND username = 'alice'"
   }
@@ -103,22 +103,22 @@ class DeleteSpec extends AnyFlatSpec with Matchers {
   // ---- execute() gate: negative ------------------------------------------------
 
   it should "NOT compile without a WHERE clause" in {
-    assertTypeError("""UsersTable.delete.execute()""")
+    assertTypeError("""UsersTable.delete.toCQL""")
   }
 
   it should "NOT compile when a non-key column is constrained" in {
-    assertTypeError("""UsersTable.delete.where(UsersTable.age > 25).execute()""")
+    assertTypeError("""UsersTable.delete.where(UsersTable.age > 25).toCQL""")
   }
 
   it should "NOT compile when the partition key is only partially constrained" in {
-    assertTypeError("""EventsTable.delete.where(EventsTable.tenantId === "acme").execute()""")
+    assertTypeError("""EventsTable.delete.where(EventsTable.tenantId === "acme").toCQL""")
   }
 
   it should "NOT compile a range delete that skips a clustering column" in {
     assertTypeError(
       """SensorsTable.delete
            .where(SensorsTable.deviceId === fixedId and SensorsTable.ts > 100L)
-           .execute()"""
+           .toCQL"""
     )
   }
 
@@ -127,7 +127,7 @@ class DeleteSpec extends AnyFlatSpec with Matchers {
       """UsersTable.delete
            .column(UsersTable.email)
            .where(UsersTable.id === fixedId)
-           .execute()"""
+           .toCQL"""
     )
   }
 
@@ -136,7 +136,7 @@ class DeleteSpec extends AnyFlatSpec with Matchers {
       """SensorsTable.delete
            .column(SensorsTable.reading)
            .where(SensorsTable.deviceId === fixedId and SensorsTable.year === 2026 and SensorsTable.ts > 100L)
-           .execute()"""
+           .toCQL"""
     )
   }
 
@@ -144,7 +144,7 @@ class DeleteSpec extends AnyFlatSpec with Matchers {
     assertTypeError(
       """UsersTable.delete
            .where(UsersTable.id === fixedId and UsersTable.username.in(Seq("alice")))
-           .execute()"""
+           .toCQL"""
     )
   }
 
@@ -153,7 +153,7 @@ class DeleteSpec extends AnyFlatSpec with Matchers {
       """UsersTable.delete
            .column(UsersTable.email)
            .where(UsersTable.id === fixedId and UsersTable.username.in(Seq("alice")))
-           .execute()"""
+           .toCQL"""
     )
   }
 }

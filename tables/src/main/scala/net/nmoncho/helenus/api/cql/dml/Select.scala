@@ -118,7 +118,8 @@ final case class Select[
     val values = Select.hlistValues(params).iterator
     copy(predicates = predicates.map {
       case hole: BindPredicate[Any, Any] => hole.fill(values.next())
-      case hole: InBindPredicate[_, Any] => hole.fill(values.next().asInstanceOf[Iterable[Any]])
+      case hole: InBindPredicate[_, Any, Iterable[Any]] =>
+        hole.fill(values.next().asInstanceOf[Iterable[Any]])
       case complete => complete
     })
   }

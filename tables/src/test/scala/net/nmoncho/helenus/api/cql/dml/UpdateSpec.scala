@@ -15,6 +15,8 @@ import org.scalatest.matchers.should.Matchers
 
 class UpdateSpec extends AnyFlatSpec with Matchers {
 
+  import net.nmoncho.helenus._
+
   // ---- statement building --------------------------------------------------
 
   "Update" should "generate a basic UPDATE statement" in {

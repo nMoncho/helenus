@@ -105,12 +105,14 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
     /** Never valid on a primary-key restriction: always requires ALLOW FILTERING. */
     def !==(value: T): Predicate[T, T] = Predicate(this, "!=", value)
 
+    // TODO check if we can actually be `V <: Iterable[T]` or we have to go to `Seq[T]`
+    // Not sure if we can have any collection here, if Cassandra will support it
     /** Multi-value equality. Carries the column's field tag: CQL allows IN
       * only on the last component of the primary key (the gates check the
       * position per statement type).
       */
-    def in(values: Seq[T]): InPredicate[Tag, T] =
-      new InPredicate[Tag, T](this, values)
+    def in[V <: Iterable[T]](values: V)(implicit iCodec: TypeCodec[V]): InPredicate[Tag, T, V] =
+      new InPredicate[Tag, T, V](this, values, iCodec)
 
     // TODO contains may need an index, this would make queries require allow filtering if not present
     // TODO handle Iterable being a Map, contains only handles values for Maps, not keys
@@ -139,8 +141,14 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
       new RangeBindPredicate[Tag, T](this, "<=")
     def !==(@unused m: BindMarker): FilterBindPredicate[T] =
       new FilterBindPredicate[T](this, "!=")
-    def in(@unused m: BindMarker): InBindPredicate[Tag, T] =
-      new InBindPredicate[Tag, T](this)
+
+    // FIXME having a different type parameter for the bind value and the column type in the context
+    // of a bind marker poses a interesting problem. Since the actual of `V` is defer to the moment is
+    // filled in
+    def in(@unused m: BindMarker)(
+        implicit iCodec: TypeCodec[Seq[T]]
+    ): InBindPredicate[Tag, T, Seq[T]] =
+      new InBindPredicate[Tag, T, Seq[T]](this, iCodec)
 
     // TODO add evidence that this column is a collection
 //    def contains(@unused m: BindMarker): FilterBindPredicate[T] =

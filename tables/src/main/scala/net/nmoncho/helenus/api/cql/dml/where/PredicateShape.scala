@@ -55,7 +55,8 @@ object PredicateShape {
   implicit def equality[Col, T]: Aux[EqPredicate[Col, T], Col :: HNil, HNil, HNil, HNil] =
     instance(List(_))
 
-  implicit def multiValue[Col, T]: Aux[InPredicate[Col, T], HNil, Col :: HNil, HNil, HNil] =
+  implicit def multiValue[Col, T, V <: Iterable[T]]
+      : Aux[InPredicate[Col, T, V], HNil, Col :: HNil, HNil, HNil] =
     instance(List(_))
 
   implicit def range[Col, T]: Aux[RangePredicate[Col, T], HNil, HNil, Col :: HNil, HNil] =
@@ -70,8 +71,8 @@ object PredicateShape {
       : Aux[EqBindPredicate[Col, T], Col :: HNil, HNil, HNil, T :: HNil] =
     instance(List(_))
 
-  implicit def multiValueBind[Col, T]
-      : Aux[InBindPredicate[Col, T], HNil, Col :: HNil, HNil, Seq[T] :: HNil] =
+  implicit def multiValueBind[Col, T, V <: Iterable[T]]
+      : Aux[InBindPredicate[Col, T, V], HNil, Col :: HNil, HNil, Seq[T] :: HNil] =
     instance(List(_))
 
   implicit def rangeBind[Col, T]

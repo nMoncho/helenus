@@ -163,7 +163,8 @@ final case class Update[
 
       val filledPredicates = predicates.map {
         case hole: BindPredicate[Any, Any] => hole.fill(values.next())
-        case hole: InBindPredicate[_, Any] => hole.fill(values.next().asInstanceOf[Iterable[Any]])
+        case hole: InBindPredicate[_, Any, Iterable[Any]] =>
+          hole.fill(values.next().asInstanceOf[Iterable[Any]])
         case complete => complete
       }
 

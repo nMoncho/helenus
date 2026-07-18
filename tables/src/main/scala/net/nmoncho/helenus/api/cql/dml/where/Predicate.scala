@@ -8,6 +8,8 @@ package net.nmoncho.helenus.api.cql.dml.where
 
 import scala.annotation.unused
 
+import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
+import com.datastax.oss.driver.api.core.cql.BoundStatement
 import net.nmoncho.helenus.api.cql.TableDef
 import shapeless.HList
 import shapeless.ops.hlist.Prepend
@@ -19,22 +21,41 @@ sealed trait Predicate[T, V] extends WhereClause {
   def toCQL: String = s"${column.name} $operator ?"
 
   final def forPreparedStatement: String = s"${column.name} $operator ?"
+
+  def bind(bstmt: BoundStatement, idx: Int): BoundStatement = bstmt
+
 }
 
 /** A WHERE-clause predicate. */
-sealed class ValuePredicate[T, V](
+sealed class SingleValuePredicate[T](
     val column: TableDef#Column[T],
     val operator: String,
-    val value: V
+    val value: T
+) extends Predicate[T, T] {
+  override def toCQL: String =
+    s"${column.name} $operator ${column.codec.format(value)}"
+  override def toString: String = s"Predicate($toCQL)"
+
+  override def bind(bstmt: BoundStatement, idx: Int): BoundStatement =
+    bstmt.set[T](idx, value, column.codec)
+}
+
+// FIXME Maybe we don't need this
+sealed class MultiValuePredicate[T, V <: Iterable[T]](
+    val column: TableDef#Column[T],
+    val operator: String,
+    val values: Iterable[T],
+    val codec: TypeCodec[V]
 ) extends Predicate[T, V] {
   override def toCQL: String =
-    s"${column.name} $operator ${column.codec.format(value.asInstanceOf[T])}"
+    s"${column.name} $operator (${values.map(column.codec.format).mkString(", ")})"
+
   override def toString: String = s"Predicate($toCQL)"
 }
 
 object Predicate {
   def apply[T](column: TableDef#Column[T], operator: String, value: T): Predicate[T, T] =
-    new ValuePredicate(column, operator, value)
+    new SingleValuePredicate(column, operator, value)
 
   /** `and` on a single predicate, combining it with another predicate or an
     * existing [[Conjunction]] inside a `where(...)`. The type-level
@@ -80,28 +101,24 @@ object Predicate {
   * [[Predicate]].
   */
 final class EqPredicate[Col, T](column: TableDef#Column[T], value: T)
-    extends ValuePredicate(column, "=", value)
+    extends SingleValuePredicate(column, "=", value)
 
 /** A range (`<`, `>`, `<=`, `>=`) predicate tagged with the column's field tag
   * `Col`, tracked separately from equality constraints because CQL only
   * allows a range on the clustering column right after the `===` prefix.
   */
 final class RangePredicate[Col, T](column: TableDef#Column[T], operator: String, value: T)
-    extends ValuePredicate(column, operator, value)
+    extends SingleValuePredicate(column, operator, value)
 
 /** An `IN` predicate tagged with the column's field tag `Col`, tracked in its
   * own set because CQL only allows IN on the last component of the primary
   * key, a position each gate checks according to its statement type.
   */
-final class InPredicate[Col, T](column: TableDef#Column[T], values: Iterable[T])
-    extends ValuePredicate[T, Iterable[T]](column, "IN", values) {
-  override val operator = "IN"
-
-  override def toCQL: String =
-    s"${column.name} $operator (${values.map(column.codec.format).mkString(", ")})"
-
-  override def toString: String = s"Predicate($toCQL)"
-}
+final class InPredicate[Col, T, V <: Iterable[T]](
+    column: TableDef#Column[T],
+    values: V,
+    codec: TypeCodec[V]
+) extends MultiValuePredicate[T, V](column, "IN", values, codec)
 
 // ---- bind variants (built with the `?` marker) ---------------------------
 // Each mirrors its literal counterpart for the execute gates (same column-tag
@@ -135,11 +152,13 @@ final class RangeBindPredicate[Col, T](
 }
 
 /** A bound multi-value equality: `col.in(?)`, binding a whole `Seq[T]`. */
-final class InBindPredicate[Col, T](column: TableDef#Column[T])
-    extends BindPredicate[T, Iterable[T]](column, "IN") {
+final class InBindPredicate[Col, T, V <: Iterable[T]](
+    column: TableDef#Column[T],
+    codec: TypeCodec[V]
+) extends BindPredicate[T, V](column, "IN") {
 
-  private[cql] def fill(v: Iterable[T]): Predicate[T, Iterable[T]] =
-    new InPredicate(column, v)
+  private[cql] def fill(v: V): Predicate[T, V] =
+    new InPredicate(column, v, codec)
 
 }
 
