@@ -6,21 +6,15 @@
 
 package net.nmoncho.helenus.api.cql
 
-import scala.annotation.implicitNotFound
-import scala.annotation.unused
-import scala.collection.mutable
-
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
-import net.nmoncho.helenus.api.ColumnNamingScheme
-import net.nmoncho.helenus.api.DefaultColumnNamingScheme
-import net.nmoncho.helenus.api.cql.ddl.CreateTable
-import net.nmoncho.helenus.api.cql.ddl.DropTable
+import net.nmoncho.helenus.api.{ ColumnNamingScheme, DefaultColumnNamingScheme }
+import net.nmoncho.helenus.api.cql.ddl.{ CreateTable, DropTable }
 import net.nmoncho.helenus.api.cql.dml._
 import net.nmoncho.helenus.api.cql.dml.where._
-import shapeless.::
-import shapeless.Generic
-import shapeless.HList
-import shapeless.HNil
+import shapeless.{ ::, Generic, HList, HNil }
+
+import scala.annotation.{ implicitNotFound, unused }
+import scala.collection.mutable
 
 /** Base of every table definition: holds the inner column / assignment
   * classes, the type-level key declarations, and the entry points that do not
@@ -59,8 +53,7 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
     * produced by the table's [[ColumnNamingScheme]].
     */
   class Column[T](val fieldName: String, val name: String, val frozen: Boolean)(
-      implicit
-      val codec: TypeCodec[T] // TODO not sure if making this a `val` is the best approach...
+      implicit val codec: TypeCodec[T]
   ) {
 
     /** Type-level identity of this column: the literal type of the case-class
