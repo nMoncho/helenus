@@ -13,7 +13,7 @@ import org.scalatest.matchers.should.Matchers
 
 /** The compile-time execute() gate on SELECT. */
 class SelectValidSpec extends AnyFlatSpec with Matchers {
-
+  import net.nmoncho.helenus._
   // ---- positive: equality-only shapes ------------------------------------
 
   "Select.execute()" should "be available when there is no WHERE clause at all" in {
@@ -43,7 +43,9 @@ class SelectValidSpec extends AnyFlatSpec with Matchers {
     val cql = SensorsTable
       .select()
       .where(
-        SensorsTable.ts > 100L and SensorsTable.year === 2026 and SensorsTable.deviceId === fixedId
+        SensorsTable.ts > 100L and
+          SensorsTable.year === 2026 and
+          SensorsTable.deviceId === fixedId
       )
       .execute()
 
@@ -64,7 +66,9 @@ class SelectValidSpec extends AnyFlatSpec with Matchers {
     val cql = SensorsTable
       .select()
       .where(
-        SensorsTable.deviceId === fixedId and SensorsTable.year === 2026 and SensorsTable.ts > 100L and SensorsTable.ts <= 200L
+        SensorsTable.deviceId === fixedId and
+          SensorsTable.year === 2026 and
+          SensorsTable.ts > 100L and SensorsTable.ts <= 200L
       )
       .execute()
 

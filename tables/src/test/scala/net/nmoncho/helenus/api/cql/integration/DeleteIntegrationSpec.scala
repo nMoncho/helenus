@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: MIT
  */
 
-package net.nmoncho.helenus.api.cql.integration
+package net.nmoncho.helenus.api.cql
+package integration
 
 import java.time.Duration
 import java.time.temporal.ChronoUnit
@@ -57,27 +58,26 @@ class DeleteIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
   private def userRows() = rows(UsersTable.select().where(UsersTable.id === id).execute())
 
   "Delete.execute()" should "delete a single row" in {
-    execute(
-      UsersTable.delete.where(UsersTable.id === id and UsersTable.username === "alice").execute()
-    )
+    val delete = UsersTable.delete.where(UsersTable.id === id and UsersTable.username === "alice")
+    println(delete.innerToCQL())
+    println(delete.innerToCQL(prepared = true))
+    delete.execute()
 
     userRows().map(_.getString("username")) shouldBe List("bob")
   }
 
   it should "delete a whole partition" in {
-    execute(UsersTable.delete.where(UsersTable.id === id).execute())
+    UsersTable.delete.where(UsersTable.id === id).execute()
 
     userRows() shouldBe empty
   }
 
   it should "perform a range delete on the clustering column after the prefix" in {
-    execute(
-      SensorsTable.delete
-        .where(
-          SensorsTable.deviceId === deviceId and SensorsTable.year === 2026 and SensorsTable.ts > 100L
-        )
-        .execute()
-    )
+    SensorsTable.delete
+      .where(
+        SensorsTable.deviceId === deviceId and SensorsTable.year === 2026 and SensorsTable.ts > 100L
+      )
+      .execute()
 
     val remaining = rows(
       SensorsTable
@@ -89,12 +89,10 @@ class DeleteIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
   }
 
   it should "delete a single column and keep the row" in {
-    execute(
-      UsersTable.delete
-        .column(UsersTable.email)
-        .where(UsersTable.id === id and UsersTable.username === "alice")
-        .execute()
-    )
+    UsersTable.delete
+      .column(UsersTable.email)
+      .where(UsersTable.id === id and UsersTable.username === "alice")
+      .execute()
 
     val alice = rows(
       UsersTable.select().where(UsersTable.id === id and UsersTable.username === "alice").execute()
@@ -104,24 +102,20 @@ class DeleteIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
   }
 
   it should "report unapplied IF EXISTS on a missing row" in {
-    val result = execute(
-      UsersTable.delete
-        .where(UsersTable.id === id and UsersTable.username === "nobody")
-        .ifExists
-        .execute()
-    )
+    val result = UsersTable.delete
+      .where(UsersTable.id === id and UsersTable.username === "nobody")
+      .ifExists
+      .execute()
 
     result.wasApplied() shouldBe false
   }
 
   it should "not delete anything with an older USING TIMESTAMP" in {
     // The seed rows were written at server-now microseconds; timestamp 1000 is older.
-    execute(
-      UsersTable.delete
-        .usingTimestamp(Duration.of(1000, ChronoUnit.MICROS))
-        .where(UsersTable.id === id and UsersTable.username === "alice")
-        .execute()
-    )
+    UsersTable.delete
+      .usingTimestamp(Duration.of(1000, ChronoUnit.MICROS))
+      .where(UsersTable.id === id and UsersTable.username === "alice")
+      .execute()
 
     userRows().map(_.getString("username")).toSet shouldBe Set("alice", "bob")
   }
@@ -131,10 +125,10 @@ class DeleteIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
       .where(UsersTable.id === id and UsersTable.username === ?)
       .toFunction
 
-    execute(deleteUser("alice"))
+    deleteUser("alice")
     userRows().map(_.getString("username")) shouldBe List("bob")
 
-    execute(deleteUser("bob"))
+    deleteUser("bob")
     userRows() shouldBe empty
   }
 
@@ -142,16 +136,16 @@ class DeleteIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
 
   it should "be rejected by Cassandra when a non-key column is constrained" in {
     an[InvalidQueryException] should be thrownBy
-    execute(UsersTable.delete.where(UsersTable.age > 25).toCQL)
+    execute(UsersTable.delete.where(UsersTable.age > 25).innerToCQL())
   }
 
   it should "be rejected by Cassandra when the partition key is partial" in {
     an[InvalidQueryException] should be thrownBy
-    execute(UsersTable.delete.where(UsersTable.username === "alice").toCQL)
+    execute(UsersTable.delete.where(UsersTable.username === "alice").innerToCQL())
   }
 
   it should "be rejected by Cassandra for a column-level delete without the full primary key" in {
     an[InvalidQueryException] should be thrownBy
-    execute(UsersTable.delete.column(UsersTable.email).where(UsersTable.id === id).toCQL)
+    execute(UsersTable.delete.column(UsersTable.email).where(UsersTable.id === id).innerToCQL())
   }
 }

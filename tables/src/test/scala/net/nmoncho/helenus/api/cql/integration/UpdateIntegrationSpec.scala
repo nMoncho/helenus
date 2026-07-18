@@ -20,6 +20,8 @@ import org.scalatest.DoNotDiscover
 @DoNotDiscover
 class UpdateIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfterEach {
 
+  import net.nmoncho.helenus._
+
   private val id       = UUID.fromString("123e4567-e89b-12d3-a456-426614174000")
   private val deviceId = UUID.fromString("323e4567-e89b-12d3-a456-426614174000")
 

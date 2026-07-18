@@ -14,6 +14,8 @@ import org.scalatest.matchers.should.Matchers
 /** SELECT statement building (rendering-level, via toCQL). */
 class SelectSpec extends AnyFlatSpec with Matchers {
 
+  import net.nmoncho.helenus._
+
   "Select" should "generate a SELECT for specific columns" in {
     val query = UsersTable
       .select(UsersTable.id, UsersTable.username, UsersTable.age)

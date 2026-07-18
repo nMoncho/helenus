@@ -12,6 +12,8 @@ import java.time.temporal.ChronoUnit
 
 import scala.annotation.unused
 
+import com.datastax.oss.driver.api.core.CqlSession
+import com.datastax.oss.driver.api.core.cql.ResultSet
 import net.nmoncho.helenus.api.cql.dml.where._
 import shapeless.HList
 import shapeless.HNil
@@ -104,27 +106,20 @@ final case class Delete[
 
   def ifExists: Delete[T, Eq, In, Rng, Params, M] = copy(ifExistsFlag = true)
 
-  def toCQL: String = {
+  def toCQL(
+      implicit @unused ev: CanDelete[M, table.PK, table.CK, Eq, In, Rng],
+      @unused noUnboundParams: Params =:= HNil
+  ): String = innerToCQL(prepared = false)
+
+  private[cql] def innerToCQL(prepared: Boolean = false): String = {
     val colStr   = if (columnsToDrop.isEmpty) "" else columnsToDrop.map(_.name).mkString(", ") + " "
     val usingStr = timestampMicros
       .map(ts => s" USING TIMESTAMP ${ts.dividedBy(Duration.of(1, ChronoUnit.MICROS))}")
       .getOrElse("")
     val whereStr =
       if (predicates.isEmpty) ""
+      else if (prepared) s" WHERE ${predicates.map(_.forPreparedStatement).mkString(" AND ")}"
       else s" WHERE ${predicates.map(_.toCQL).mkString(" AND ")}"
-    val ifExistsStr = if (ifExistsFlag) " IF EXISTS" else ""
-
-    s"DELETE ${colStr}FROM ${table.fullTableName}$usingStr$whereStr$ifExistsStr"
-  }
-
-  private def forPreparedStatement: String = {
-    val colStr   = if (columnsToDrop.isEmpty) "" else columnsToDrop.map(_.name).mkString(", ") + " "
-    val usingStr = timestampMicros
-      .map(ts => s" USING TIMESTAMP ${ts.dividedBy(Duration.of(1, ChronoUnit.MICROS))}")
-      .getOrElse("")
-    val whereStr =
-      if (predicates.isEmpty) ""
-      else s" WHERE ${predicates.map(_.forPreparedStatement).mkString(" AND ")}"
     val ifExistsStr = if (ifExistsFlag) " IF EXISTS" else ""
 
     s"DELETE ${colStr}FROM ${table.fullTableName}$usingStr$whereStr$ifExistsStr"
@@ -137,16 +132,17 @@ final case class Delete[
     * predicates in DELETE.
     */
   def execute()(
-      implicit @unused ev: CanDelete[M, table.PK, table.CK, Eq, In, Rng],
+      implicit session: CqlSession,
+      @unused ev: CanDelete[M, table.PK, table.CK, Eq, In, Rng],
       @unused noUnboundParams: Params =:= HNil
-  ): String =
-//    val pstmt = session.prepare(forPreparedStatement)
-//    val bstmt = predicates.zipWithIndex.foldLeft(pstmt.bind()) { case (bstmt, (p, idx)) =>
-//      bstmt.set()
-//    }
-//
-//    session.execute(pstmt)
-    toCQL
+  ): ResultSet = {
+    val pstmt = session.prepare(innerToCQL(prepared = true))
+    val bstmt = predicates.zipWithIndex.foldLeft(pstmt.bind()) { case (bstmt, (p, idx)) =>
+      p.bind(bstmt, idx)
+    }
+
+    session.execute(bstmt)
+  }
 
   /** Turn a delete containing `?` markers into a `FunctionN` taking one
     * argument per marker (typed as the bound column, in writing order) and
@@ -155,20 +151,30 @@ final case class Delete[
     * ones.
     */
   def toFunction[F](
-      implicit @unused ev: CanDelete[M, table.PK, table.CK, Eq, In, Rng],
-      fp: FnFromProduct.Aux[Params => String, F]
+      implicit session: CqlSession,
+      @unused ev: CanDelete[M, table.PK, table.CK, Eq, In, Rng],
+      fp: FnFromProduct.Aux[Params => ResultSet, F]
   ): F =
     fp { params =>
       val values = Binding.values(params).iterator
 
-      copy(predicates = predicates.map {
-        case hole: BindPredicate[Any, Any] => hole.fill(values.next())
-        case hole: InBindPredicate[_, Any] => hole.fill(values.next().asInstanceOf[Iterable[Any]])
+      // TODO move creation of pstmt to outside the function to prepare it only once, not on every call
+      val delete = copy(predicates = predicates.map {
+        case hole: BindPredicate[_, Any] => hole.fill(values.next())
+        case hole: InBindPredicate[_, Any, Iterable[Any]] =>
+          hole.fill(values.next().asInstanceOf[Iterable[Any]])
         case complete => complete
-      }).toCQL
+      })
+
+      val pstmt = session.prepare(delete.innerToCQL(prepared = true))
+      val bstmt = delete.predicates.zipWithIndex.foldLeft(pstmt.bind()) { case (bstmt, (p, idx)) =>
+        p.bind(bstmt, idx)
+      }
+
+      session.execute(bstmt)
     }
 
-  override def toString: String = toCQL
+  override def toString: String = innerToCQL()
 }
 
 object Delete {
