@@ -6,15 +6,21 @@
 
 package net.nmoncho.helenus.api.cql
 
+import scala.annotation.implicitNotFound
+import scala.annotation.unused
+import scala.collection.mutable
+
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
-import net.nmoncho.helenus.api.{ ColumnNamingScheme, DefaultColumnNamingScheme }
-import net.nmoncho.helenus.api.cql.ddl.{ CreateTable, DropTable }
+import net.nmoncho.helenus.api.ColumnNamingScheme
+import net.nmoncho.helenus.api.DefaultColumnNamingScheme
+import net.nmoncho.helenus.api.cql.ddl.CreateTable
+import net.nmoncho.helenus.api.cql.ddl.DropTable
 import net.nmoncho.helenus.api.cql.dml._
 import net.nmoncho.helenus.api.cql.dml.where._
-import shapeless.{ ::, Generic, HList, HNil }
-
-import scala.annotation.{ implicitNotFound, unused }
-import scala.collection.mutable
+import shapeless.::
+import shapeless.Generic
+import shapeless.HList
+import shapeless.HNil
 
 /** Base of every table definition: holds the inner column / assignment
   * classes, the type-level key declarations, and the entry points that do not
@@ -155,7 +161,7 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
     def :=(value: T): Assignment[T] = new SimpleAssignment[T](this, value)
 
     /** A bound assignment: `col := ?` (value supplied via `toFunction`). */
-    def :=(@unused m: BindMarker): BoundAssignment[T] = new BoundAssignment[T](this)
+    def :=(@unused m: BindMarker): BindAssignment[T] = new BindAssignment[T](this)
 
     override def toString: String =
       s"Column($fieldName -> $name ${codec.getCqlType.asCql(frozen, false)})"
@@ -169,7 +175,6 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
     def toCQL: String
 
     def toUpdateCQL: String
-    def toInsertCQL: (String, String)
   }
 
   /** A SET / VALUES assignment. */
@@ -177,21 +182,19 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
     override def toCQL: String    = s"${column.name} = ${column.codec.format(value)}"
     override def toString: String = s"Assignment($toCQL)"
 
-    def toUpdateCQL: String           = s"${column.name} = ${column.codec.format(value)}"
-    def toInsertCQL: (String, String) = (column.name, column.codec.format(value))
+    def toUpdateCQL: String = s"${column.name} = ${column.codec.format(value)}"
   }
 
   /** An assignment with a bound value (`col := ?`). The value arrives later
     * as an argument of the function produced by `toFunction`, typed as the
     * column's `V`.
     */
-  final class BoundAssignment[T](override val column: Column[T]) extends Assignment[T] {
+  final class BindAssignment[T](override val column: Column[T]) extends Assignment[T] {
     def fill(v: T): TableDef#Assignment[T] = new SimpleAssignment[T](column, v)
 
     override def toCQL: String = s"${column.name} = ?"
 
-    def toUpdateCQL: String           = s"${column.name} = ?"
-    def toInsertCQL: (String, String) = (column.name, "?")
+    def toUpdateCQL: String = s"${column.name} = ?"
   }
 
 }

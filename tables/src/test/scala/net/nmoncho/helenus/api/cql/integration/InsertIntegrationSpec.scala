@@ -127,8 +127,8 @@ class InsertIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
       .value(UsersTable.age := ?)
       .toFunction
 
-    execute(insertUser(id, "alice", 30))
-    execute(insertUser(id, "bob", 25))
+    insertUser(id, "alice", 30)
+    insertUser(id, "bob", 25)
 
     rows(UsersTable.select().where(UsersTable.id === id).execute()) should have size 2
   }

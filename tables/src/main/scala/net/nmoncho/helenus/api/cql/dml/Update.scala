@@ -61,7 +61,7 @@ final case class Update[
 
   /** A bound assignment (`col := ?`), appended to the SET parameter list. */
   def set[V, P2 <: HList](
-      assignment: table.BoundAssignment[V]
+      assignment: table.BindAssignment[V]
   )(implicit @unused pp: Prepend.Aux[SetPm, V :: HNil, P2]): Update[T, Eq, In, Rng, P2, WherePm] =
     new Update[T, Eq, In, Rng, P2, WherePm](
       table,
@@ -157,7 +157,7 @@ final case class Update[
       val values = Binding.values(params).iterator
 
       val filledAssignments = assignments.map {
-        case hole: TableDef#BoundAssignment[Any] => hole.fill(values.next())
+        case hole: TableDef#BindAssignment[Any] => hole.fill(values.next())
         case complete => complete
       }
 
