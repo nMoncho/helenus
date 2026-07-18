@@ -137,9 +137,14 @@ final case class Delete[
       @unused noUnboundParams: Params =:= HNil
   ): ResultSet = {
     val pstmt = session.prepare(innerToCQL(prepared = true))
-    val bstmt = predicates.zipWithIndex.foldLeft(pstmt.bind()) { case (bstmt, (p, idx)) =>
-      p.bind(bstmt, idx)
-    }
+
+    // Safe to case this to `Seq[BoundPredicate[_, _]]` as there are no unbound parameters
+    val bstmt = predicates
+      .asInstanceOf[Seq[BoundPredicate[_, _]]]
+      .zipWithIndex
+      .foldLeft(pstmt.bind()) { case (bstmt, (p: BoundPredicate[Any, Any], idx)) =>
+        p.bind(bstmt, idx, p.value)
+      }
 
     session.execute(bstmt)
   }
@@ -154,25 +159,23 @@ final case class Delete[
       implicit session: CqlSession,
       @unused ev: CanDelete[M, table.PK, table.CK, Eq, In, Rng],
       fp: FnFromProduct.Aux[Params => ResultSet, F]
-  ): F =
+  ): F = {
+    val pstmt = session.prepare(innerToCQL(prepared = true))
+
     fp { params =>
       val values = Binding.values(params).iterator
 
-      // TODO move creation of pstmt to outside the function to prepare it only once, not on every call
-      val delete = copy(predicates = predicates.map {
-        case hole: BindPredicate[_, Any] => hole.fill(values.next())
-        case hole: InBindPredicate[_, Any, Iterable[Any]] =>
-          hole.fill(values.next().asInstanceOf[Iterable[Any]])
-        case complete => complete
-      })
+      val bstmt = predicates.zipWithIndex.foldLeft(pstmt.bind()) {
+        case (bstmt, (p: BoundPredicate[Any, Any], idx)) =>
+          p.bind(bstmt, idx, p.value)
 
-      val pstmt = session.prepare(delete.innerToCQL(prepared = true))
-      val bstmt = delete.predicates.zipWithIndex.foldLeft(pstmt.bind()) { case (bstmt, (p, idx)) =>
-        p.bind(bstmt, idx)
+        case (bstmt, (p: BindPredicate[_, Any], idx)) =>
+          p.bind(bstmt, idx, values.next())
       }
 
       session.execute(bstmt)
     }
+  }
 
   override def toString: String = innerToCQL()
 }

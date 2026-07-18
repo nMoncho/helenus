@@ -139,8 +139,8 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
       new RangeBindPredicate[Tag, T](this, ">=")
     def <=(@unused m: BindMarker): RangeBindPredicate[Tag, T] =
       new RangeBindPredicate[Tag, T](this, "<=")
-    def !==(@unused m: BindMarker): FilterBindPredicate[T] =
-      new FilterBindPredicate[T](this, "!=")
+    def !==(@unused m: BindMarker): BindPredicate[T, T] =
+      new SingleValueBindPredicate[T](this, "!=")
 
     // FIXME having a different type parameter for the bind value and the column type in the context
     // of a bind marker poses a interesting problem. Since the actual of `V` is defer to the moment is

@@ -18,12 +18,18 @@ sealed trait Predicate[T, V] extends WhereClause {
   def column: TableDef#Column[T]
   def operator: String
 
-  def toCQL: String = s"${column.name} $operator ?"
+  def toCQL: String             = s"${column.name} $operator ?"
+  override def toString: String = s"Predicate($toCQL)"
 
   final def forPreparedStatement: String = s"${column.name} $operator ?"
 
-  def bind(bstmt: BoundStatement, idx: Int): BoundStatement = bstmt
+  // DO NOT put a default implementation! We need to know if this is unset
+  def bind(bstmt: BoundStatement, idx: Int, value: V): BoundStatement
+}
 
+// Marker trait for predicates that have a value
+sealed trait BoundPredicate[T, V] extends Predicate[T, V] {
+  def value: V
 }
 
 /** A WHERE-clause predicate. */
@@ -31,26 +37,26 @@ sealed class SingleValuePredicate[T](
     val column: TableDef#Column[T],
     val operator: String,
     val value: T
-) extends Predicate[T, T] {
+) extends BoundPredicate[T, T] {
   override def toCQL: String =
     s"${column.name} $operator ${column.codec.format(value)}"
-  override def toString: String = s"Predicate($toCQL)"
 
-  override def bind(bstmt: BoundStatement, idx: Int): BoundStatement =
+  override def bind(bstmt: BoundStatement, idx: Int, @unused _value: T): BoundStatement =
     bstmt.set[T](idx, value, column.codec)
 }
 
-// FIXME Maybe we don't need this
+// FIXME Maybe we don't need this, and we can just put this implementation on `InPredicate`
 sealed class MultiValuePredicate[T, V <: Iterable[T]](
     val column: TableDef#Column[T],
     val operator: String,
-    val values: Iterable[T],
+    val value: V,
     val codec: TypeCodec[V]
-) extends Predicate[T, V] {
+) extends BoundPredicate[T, V] {
   override def toCQL: String =
-    s"${column.name} $operator (${values.map(column.codec.format).mkString(", ")})"
+    s"${column.name} $operator (${value.map(column.codec.format).mkString(", ")})"
 
-  override def toString: String = s"Predicate($toCQL)"
+  override def bind(bstmt: BoundStatement, idx: Int, @unused _value: V): BoundStatement =
+    bstmt.set[V](idx, this.value, codec)
 }
 
 object Predicate {
@@ -136,20 +142,29 @@ sealed abstract class BindPredicate[T, V](val column: TableDef#Column[T], val op
   private[cql] def fill(v: V): Predicate[T, V]
 }
 
+object BindPredicate {
+  def apply[T](column: TableDef#Column[T], operator: String): BindPredicate[T, T] =
+    new SingleValueBindPredicate(column, operator)
+}
+
+class SingleValueBindPredicate[T](column: TableDef#Column[T], operator: String)
+    extends BindPredicate[T, T](column, operator) {
+
+  override def bind(bstmt: BoundStatement, idx: Int, value: T): BoundStatement =
+    bstmt.set[T](idx, value, column.codec)
+
+  private[cql] def fill(v: T): Predicate[T, T] = Predicate(column, operator, v)
+}
+
 /** A bound equality: `col === ?`. */
 final class EqBindPredicate[Col, T](column: TableDef#Column[T])
-    extends BindPredicate[T, T](column, "=") {
-  private[cql] def fill(v: T): Predicate[T, T] = Predicate(column, "=", v)
-}
+    extends SingleValueBindPredicate[T](column, "=")
 
 /** A bound range: `col > ?`, `col <= ?`, ... */
 final class RangeBindPredicate[Col, T](
     column: TableDef#Column[T],
     operator: String
-) extends BindPredicate[T, T](column, operator) {
-  private[cql] def fill(v: T): Predicate[T, T] =
-    Predicate(column, operator, v)
-}
+) extends SingleValueBindPredicate[T](column, operator)
 
 /** A bound multi-value equality: `col.in(?)`, binding a whole `Seq[T]`. */
 final class InBindPredicate[Col, T, V <: Iterable[T]](
@@ -160,11 +175,6 @@ final class InBindPredicate[Col, T, V <: Iterable[T]](
   private[cql] def fill(v: V): Predicate[T, V] =
     new InPredicate(column, v, codec)
 
-}
-
-/** A bound filtering-only predicate: `col !== ?`, `col.contains(?)`. */
-final class FilterBindPredicate[T](column: TableDef#Column[T], operator: String)
-    extends BindPredicate[T, T](column, operator) {
-  private[cql] def fill(v: T): Predicate[T, T] =
-    Predicate(column, operator, v)
+  override def bind(bstmt: BoundStatement, idx: Int, values: V): BoundStatement =
+    bstmt.set[V](idx, values, codec)
 }

@@ -79,8 +79,8 @@ object PredicateShape {
       : Aux[RangeBindPredicate[Col, T], HNil, HNil, Col :: HNil, T :: HNil] =
     instance(List(_))
 
-  implicit def filteringBind[T]
-      : Aux[FilterBindPredicate[T], HNil, HNil, RequiresFiltering :: HNil, T :: HNil] =
+  implicit def filteringBind[T, V]
+      : Aux[BindPredicate[T, V], HNil, HNil, RequiresFiltering :: HNil, T :: HNil] =
     instance(List(_))
 
   // ---- conjunctions ---------------------------------------------------------
