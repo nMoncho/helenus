@@ -59,8 +59,8 @@ class DeleteIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
 
   "Delete.execute()" should "delete a single row" in {
     val delete = UsersTable.delete.where(UsersTable.id === id and UsersTable.username === "alice")
-    println(delete.innerToCQL())
-    println(delete.innerToCQL(prepared = true))
+    println(delete.render())
+    println(delete.render(prepared = true))
     delete.execute()
 
     userRows().map(_.getString("username")) shouldBe List("bob")
@@ -136,16 +136,16 @@ class DeleteIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
 
   it should "be rejected by Cassandra when a non-key column is constrained" in {
     an[InvalidQueryException] should be thrownBy
-    execute(UsersTable.delete.where(UsersTable.age > 25).innerToCQL())
+    execute(UsersTable.delete.where(UsersTable.age > 25).render())
   }
 
   it should "be rejected by Cassandra when the partition key is partial" in {
     an[InvalidQueryException] should be thrownBy
-    execute(UsersTable.delete.where(UsersTable.username === "alice").innerToCQL())
+    execute(UsersTable.delete.where(UsersTable.username === "alice").render())
   }
 
   it should "be rejected by Cassandra for a column-level delete without the full primary key" in {
     an[InvalidQueryException] should be thrownBy
-    execute(UsersTable.delete.column(UsersTable.email).where(UsersTable.id === id).innerToCQL())
+    execute(UsersTable.delete.column(UsersTable.email).where(UsersTable.id === id).render())
   }
 }
