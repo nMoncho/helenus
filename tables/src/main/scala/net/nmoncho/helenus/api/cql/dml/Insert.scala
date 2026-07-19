@@ -61,7 +61,7 @@ final case class Insert[T <: TableDef, Params <: HList](
   def ifNotExists: Insert[T, Params] =
     copy(ifNotExistsFlag = true)
 
-  private[cql] def innerToCQL(prepared: Boolean = false): String = {
+  private[cql] def render(prepared: Boolean = false): String = {
     // TODO just like Update, add this requirement at type-level
     require(assignments.nonEmpty, "INSERT must have at least one column value")
 
@@ -90,13 +90,13 @@ final case class Insert[T <: TableDef, Params <: HList](
     s"INSERT INTO ${table.fullTableName} (${cols.mkString(", ")}) VALUES (${vals.mkString(", ")})$ifNotExistsStr$usingStr"
   }
 
-  def toCQL: String = innerToCQL(prepared = false)
+  def toCQL: String = render(prepared = false)
 
   def execute()(
       implicit session: CqlSession,
       @unused noUnboundParams: Params =:= HNil
   ): ResultSet = {
-    val pstmt = session.prepare(innerToCQL(prepared = true))
+    val pstmt = session.prepare(render(prepared = true))
 
     // Safe to case this to `Seq[SimpleAssignment[_]]` as there are no unbound parameters
     val bstmt = assignments
@@ -117,7 +117,7 @@ final case class Insert[T <: TableDef, Params <: HList](
       implicit session: CqlSession,
       fp: FnFromProduct.Aux[Params => ResultSet, F]
   ): F = {
-    val pstmt = session.prepare(innerToCQL(prepared = true))
+    val pstmt = session.prepare(render(prepared = true))
 
     fp { params =>
       val values = Binding.values(params).iterator

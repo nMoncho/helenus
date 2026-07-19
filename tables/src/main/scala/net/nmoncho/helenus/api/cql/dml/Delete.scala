@@ -109,9 +109,9 @@ final case class Delete[
   def toCQL(
       implicit @unused ev: CanDelete[M, table.PK, table.CK, Eq, In, Rng],
       @unused noUnboundParams: Params =:= HNil
-  ): String = innerToCQL(prepared = false)
+  ): String = render(prepared = false)
 
-  private[cql] def innerToCQL(prepared: Boolean = false): String = {
+  private[cql] def render(prepared: Boolean = false): String = {
     val colStr   = if (columnsToDrop.isEmpty) "" else columnsToDrop.map(_.name).mkString(", ") + " "
     val usingStr = timestampMicros
       .map(ts => s" USING TIMESTAMP ${ts.dividedBy(Duration.of(1, ChronoUnit.MICROS))}")
@@ -136,7 +136,7 @@ final case class Delete[
       @unused ev: CanDelete[M, table.PK, table.CK, Eq, In, Rng],
       @unused noUnboundParams: Params =:= HNil
   ): ResultSet = {
-    val pstmt = session.prepare(innerToCQL(prepared = true))
+    val pstmt = session.prepare(render(prepared = true))
 
     // Safe to case this to `Seq[BoundPredicate[_, _]]` as there are no unbound parameters
     val bstmt = predicates
@@ -160,7 +160,7 @@ final case class Delete[
       @unused ev: CanDelete[M, table.PK, table.CK, Eq, In, Rng],
       fp: FnFromProduct.Aux[Params => ResultSet, F]
   ): F = {
-    val pstmt = session.prepare(innerToCQL(prepared = true))
+    val pstmt = session.prepare(render(prepared = true))
 
     fp { params =>
       val values = Binding.values(params).iterator
@@ -177,7 +177,7 @@ final case class Delete[
     }
   }
 
-  override def toString: String = innerToCQL()
+  override def toString: String = render()
 }
 
 object Delete {
