@@ -6,7 +6,9 @@
 
 package net.nmoncho.helenus.api.cql
 
+import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.cql.BoundStatement
+import com.datastax.oss.driver.api.core.cql.ResultSet
 import net.nmoncho.helenus.api.cql.dml.where.BindPredicate
 import net.nmoncho.helenus.api.cql.dml.where.BoundPredicate
 import net.nmoncho.helenus.api.cql.dml.where.Predicate
@@ -61,4 +63,33 @@ package object dml {
         case (bstmt, (as: TableDef#BoundAssignment[Any], idx)) =>
           bstmt.set(idx + offset, as.value, as.column.codec)
       }
+
+  def executeStatement(
+      cql: String,
+      assignments: Seq[TableDef#BoundAssignment[_]],
+      predicates: Seq[BoundPredicate[_, _]]
+  )(implicit session: CqlSession): ResultSet = {
+    val pstmt           = session.prepare(cql)
+    val assignmentCount = assignments.length
+
+    val bstmt = if (assignments.isEmpty) {
+      pstmt.bind()
+    } else {
+      bindBoundAssignments(
+        pstmt.bind(),
+        // Safe to case this to `Seq[SimpleAssignment[_]]` as there are no unbound parameters
+        assignments.asInstanceOf[Seq[TableDef#BoundAssignment[Any]]]
+      )
+    }
+
+    val withPredicates = bindBoundPredicates(
+      bstmt,
+      // Safe to case this to `Seq[BoundPredicate[_, _]]` as there are no unbound parameters
+      predicates.asInstanceOf[Seq[BoundPredicate[_, _]]],
+      assignmentCount
+    )
+
+    session.execute(withPredicates)
+  }
+
 }

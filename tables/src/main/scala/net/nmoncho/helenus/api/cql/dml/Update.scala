@@ -158,25 +158,14 @@ final case class Update[
       @unused ev: CanUpdate[table.PK, table.CK, Eq, In, Rng],
       @unused noUnboundSet: SetPm =:= HNil,
       @unused noUnboundWhere: WherePm =:= HNil
-  ): ResultSet = {
-    val pstmt           = session.prepare(render(prepared = true))
-    val assignmentCount = assignments.length
-
-    val bstmt = bindBoundAssignments(
-      pstmt.bind(),
+  ): ResultSet =
+    executeStatement(
+      render(prepared = true),
       // Safe to case this to `Seq[SimpleAssignment[_]]` as there are no unbound parameters
-      assignments.asInstanceOf[Seq[TableDef#BoundAssignment[Any]]]
-    )
-
-    val withPredicates = bindBoundPredicates(
-      bstmt,
+      assignments.asInstanceOf[Seq[TableDef#BoundAssignment[Any]]],
       // Safe to case this to `Seq[BoundPredicate[_, _]]` as there are no unbound parameters
-      predicates.asInstanceOf[Seq[BoundPredicate[_, _]]],
-      assignmentCount
+      predicates.asInstanceOf[Seq[BoundPredicate[_, _]]]
     )
-
-    session.execute(withPredicates)
-  }
 
   /** Turn an update containing `?` markers into a `FunctionN` returning the
     * rendered CQL. Arguments follow the rendered statement order: SET
