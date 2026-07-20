@@ -8,7 +8,6 @@ package net.nmoncho.helenus.api.cql
 package dml
 
 import java.time.Duration
-import java.time.temporal.ChronoUnit
 
 import scala.annotation.unused
 
@@ -117,13 +116,10 @@ final case class Update[
     // TODO just like Insert, add this requirement at type-level
     require(assignments.nonEmpty, "UPDATE must have at least one SET assignment")
 
-    val usingParts = Seq(
-      ttlSeconds.map(t => s"TTL ${t.toSeconds}"),
-      timestampMicros.map(ts => s"TIMESTAMP ${ts.dividedBy(Duration.of(1, ChronoUnit.MICROS))}")
-    ).flatten
-
-    val usingStr = if (usingParts.isEmpty) "" else s" USING ${usingParts.mkString(" AND ")}"
-    val setStr   = assignments
+    val ifExistsStr = if (ifExistsFlag) " IF EXISTS" else ""
+    val whereStr    = renderPredicates(predicates, prepared)
+    val usingStr    = renderUsing(ttlSeconds, timestampMicros)
+    val setStr      = assignments
       .map {
         case simple: TableDef#BoundAssignment[_] if !prepared =>
           s"${simple.column.name} = ${simple.column.codec.format(simple.value)}"
@@ -132,10 +128,6 @@ final case class Update[
           s"${assignment.column.name} = ?"
       }
       .mkString(", ")
-
-    val whereStr = renderPredicates(predicates, prepared)
-
-    val ifExistsStr = if (ifExistsFlag) " IF EXISTS" else ""
 
     s"UPDATE ${table.fullTableName}$usingStr SET $setStr$whereStr$ifExistsStr"
   }

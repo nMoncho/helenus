@@ -6,6 +6,9 @@
 
 package net.nmoncho.helenus.api.cql
 
+import java.time.Duration
+import java.time.temporal.ChronoUnit
+
 import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.cql.BoundStatement
 import com.datastax.oss.driver.api.core.cql.ResultSet
@@ -21,6 +24,15 @@ package object dml {
     if (predicates.isEmpty) ""
     else if (prepared) s" WHERE ${predicates.map(_.forPreparedStatement).mkString(" AND ")}"
     else s" WHERE ${predicates.map(_.toCQL).mkString(" AND ")}"
+
+  def renderUsing(ttlSeconds: Option[Duration], timestampMicros: Option[Duration]): String = {
+    val usingParts = Seq(
+      ttlSeconds.map(t => s"TTL ${t.toSeconds}"),
+      timestampMicros.map(ts => s"TIMESTAMP ${ts.dividedBy(Duration.of(1, ChronoUnit.MICROS))}")
+    ).flatten
+
+    if (usingParts.isEmpty) "" else s" USING ${usingParts.mkString(" AND ")}"
+  }
 
   def bindBoundPredicates(
       bstmt: BoundStatement,

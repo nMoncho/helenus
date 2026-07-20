@@ -8,7 +8,6 @@ package net.nmoncho.helenus.api.cql
 package dml
 
 import java.time.Duration
-import java.time.temporal.ChronoUnit
 
 import scala.annotation.unused
 
@@ -78,14 +77,8 @@ final case class Insert[T <: TableDef, Params <: HList](
         (cols :+ col) -> (vals :+ colVal)
     }
 
+    val usingStr       = renderUsing(ttlSeconds, timestampMicros)
     val ifNotExistsStr = if (ifNotExistsFlag) " IF NOT EXISTS" else ""
-
-    val usingParts = Seq(
-      ttlSeconds.map(t => s"TTL ${t.toSeconds}"),
-      timestampMicros.map(ts => s"TIMESTAMP ${ts.dividedBy(Duration.of(1, ChronoUnit.MICROS))}")
-    ).flatten
-
-    val usingStr = if (usingParts.isEmpty) "" else s" USING ${usingParts.mkString(" AND ")}"
 
     s"INSERT INTO ${table.fullTableName} (${cols.mkString(", ")}) VALUES (${vals.mkString(", ")})$ifNotExistsStr$usingStr"
   }
