@@ -125,7 +125,7 @@ class InsertIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
       .value(UsersTable.id := ?)
       .value(UsersTable.username := ?)
       .value(UsersTable.age := ?)
-      .toFunction
+      .prepare
 
     insertUser(id, "alice", 30)
     insertUser(id, "bob", 25)

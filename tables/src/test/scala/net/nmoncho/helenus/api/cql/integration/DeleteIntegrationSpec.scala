@@ -123,7 +123,7 @@ class DeleteIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
   it should "delete through a function produced from bound key parameters" in {
     val deleteUser = UsersTable.delete
       .where(UsersTable.id === id and UsersTable.username === ?)
-      .toFunction
+      .prepare
 
     deleteUser("alice")
     userRows().map(_.getString("username")) shouldBe List("bob")

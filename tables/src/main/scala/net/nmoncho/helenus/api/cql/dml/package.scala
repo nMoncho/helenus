@@ -111,7 +111,7 @@ package object dml {
     session.execute(withPredicates)
   }
 
-  def toFunctionStatement[Params <: HList, F](
+  def prepareStatement[Params <: HList, F](
       cql: String,
       assignments: Seq[TableDef#Assignment[_]],
       predicates: Seq[Predicate[_, _]]

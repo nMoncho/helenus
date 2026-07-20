@@ -31,15 +31,15 @@ import shapeless.ops.hlist.Prepend
   * @tparam WherePm bound value types from `?` markers in the WHERE clause, in
   *                 writing order
   *
-  * The WHERE clause is built exactly like SELECT's: a single [[where]] taking
-  * one predicate or a conjunction. [[execute]] is gated by [[CanUpdate]],
-  * which enforces the CQL rule that an UPDATE must identify rows by the
-  * entire primary key with `===` (`in` allowed on the last component only).
-  * `toCQL` stays ungated for inspection.
+  *                 The WHERE clause is built exactly like SELECT's: a single [[where]] taking
+  *                 one predicate or a conjunction. [[execute]] is gated by [[CanUpdate]],
+  *                 which enforces the CQL rule that an UPDATE must identify rows by the
+  *                 entire primary key with `===` (`in` allowed on the last component only).
+  *                 `toCQL` stays ungated for inspection.
   *
-  * A statement with `?` markers becomes a function via [[toFunction]]; its
-  * arguments follow the rendered statement order: SET parameters first, then
-  * WHERE parameters.
+  *                 A statement with `?` markers becomes a function via [[prepare]]; its
+  *                 arguments follow the rendered statement order: SET parameters first, then
+  *                 WHERE parameters.
   */
 final case class Update[
     T <: TableDef with Singleton,
@@ -162,12 +162,12 @@ final case class Update[
     * [[execute]]: bound key columns count toward the full-primary-key
     * requirement exactly like literal ones.
     */
-  def toFunction[AllPm <: HList, F](
+  def prepare[AllPm <: HList, F](
       implicit session: CqlSession,
       @unused ev: CanUpdate[table.PK, table.CK, Eq, In, Rng],
       @unused all: Prepend.Aux[SetPm, WherePm, AllPm],
       fp: FnFromProduct.Aux[AllPm => ResultSet, F]
-  ): F = toFunctionStatement[AllPm, F](render(prepared = true), assignments, predicates)
+  ): F = prepareStatement[AllPm, F](render(prepared = true), assignments, predicates)
 
   override def toString: String = render()
 }

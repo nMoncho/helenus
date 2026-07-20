@@ -206,7 +206,7 @@ class SelectExecuteIntegrationSpec extends CassandraIntegrationSpec {
     val fn = UsersTable
       .select(UsersTable.id, UsersTable.username, UsersTable.age)
       .where(UsersTable.id === ?)
-      .toFunction
+      .prepare
 
     rows(fn(userA)) should have size 2
     rows(fn(userB)) should have size 1
@@ -216,7 +216,7 @@ class SelectExecuteIntegrationSpec extends CassandraIntegrationSpec {
     val fn = UsersTable
       .select(UsersTable.id, UsersTable.username, UsersTable.age)
       .where(UsersTable.id === ? and UsersTable.username === ?)
-      .toFunction
+      .prepare
 
     rows(fn(userA, "alice")).head.getInt("age") shouldBe 30
     rows(fn(userA, "bob")).head.getInt("age") shouldBe 25
@@ -227,7 +227,7 @@ class SelectExecuteIntegrationSpec extends CassandraIntegrationSpec {
       .select(UsersTable.id, UsersTable.username, UsersTable.age)
       .where(UsersTable.age >= ? and UsersTable.age <= ?)
       .allowFiltering
-      .toFunction
+      .prepare
 
     rows(fn(26, 50)).map(_.getString("username")).toSet shouldBe Set("alice", "carol")
   }

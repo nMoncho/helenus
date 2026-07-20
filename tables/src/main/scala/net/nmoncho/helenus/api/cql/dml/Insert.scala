@@ -25,8 +25,8 @@ import shapeless.ops.hlist.Prepend
   * @tparam Params type-level `HList` of the bound value types collected from
   *                `?` markers (`value(col := ?)`), in writing order
   *
-  * A statement with `?` markers becomes a function via [[toFunction]], taking
-  * one argument per marker and returning the rendered CQL.
+  *                A statement with `?` markers becomes a function via [[prepare]], taking
+  *                one argument per marker and returning the rendered CQL.
   */
 final case class Insert[T <: TableDef, Params <: HList](
     table: T,
@@ -100,10 +100,10 @@ final case class Insert[T <: TableDef, Params <: HList](
     * argument per marker (typed as the bound column, in writing order) and
     * returning the rendered CQL.
     */
-  def toFunction[F](
+  def prepare[F](
       implicit session: CqlSession,
       fp: FnFromProduct.Aux[Params => ResultSet, F]
-  ): F = toFunctionStatement[Params, F](render(prepared = true), assignments, Nil)
+  ): F = prepareStatement[Params, F](render(prepared = true), assignments, Nil)
 
   override def toString: String = toCQL
 }

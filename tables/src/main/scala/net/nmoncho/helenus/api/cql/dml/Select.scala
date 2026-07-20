@@ -94,7 +94,7 @@ final case class Select[
     * clustering `===` prefix, optionally ranges on the next clustering column,
     * IN only on the last partition-key or clustering column), or when there
     * is no WHERE clause at all, and no `?` marker is unbound. Otherwise this
-    * call does not compile; use `allowFiltering.execute` or [[toFunction]].
+    * call does not compile; use `allowFiltering.execute` or [[prepare]].
     */
   def execute()(
       implicit session: CqlSession,
@@ -114,13 +114,13 @@ final case class Select[
     * bound key columns count toward the primary-key restriction exactly like
     * literal ones.
     */
-  def toFunction[F](
+  def prepare[F](
       implicit session: CqlSession,
       @unused ev: CanSelect[table.PK, table.CK, Eq, In, Rng],
       // TODO change this to `PagingIterable[Out]` when we can define `Out`
       fp: FnFromProduct.Aux[Params => ResultSet, F]
   ): F =
-    toFunctionStatement[Params, F](
+    prepareStatement[Params, F](
       Select.render(this, allowFiltering = false, prepared = true),
       Nil,
       predicates
@@ -177,7 +177,7 @@ object Select {
     new Select[T, HNil, HNil, HNil, HNil](table, columns, keyColumns)
 
   /** A SELECT that has opted into `ALLOW FILTERING`. Its [[execute]] and
-    * [[toFunction]] carry no primary-key requirement.
+    * [[prepare]] carry no primary-key requirement.
     */
   final class Filtering[
       T <: TableDef with Singleton,
@@ -201,8 +201,8 @@ object Select {
       session.execute(bstmt)
     }
 
-    /** Like `Select.toFunction`, without the primary-key requirement. */
-    def toFunction[F](
+    /** Like `Select.prepare`, without the primary-key requirement. */
+    def prepare[F](
         implicit session: CqlSession,
         fp: FnFromProduct.Aux[Params => ResultSet, F]
     ): F = {

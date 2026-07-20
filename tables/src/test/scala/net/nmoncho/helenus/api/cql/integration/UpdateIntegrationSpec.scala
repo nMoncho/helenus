@@ -109,7 +109,7 @@ class UpdateIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
     val setAge = UsersTable.update
       .set(UsersTable.age := ?)
       .where(UsersTable.id === id and UsersTable.username === ?)
-      .toFunction
+      .prepare
 
     setAge(60, "alice")
     setAge(61, "bob")
