@@ -14,7 +14,6 @@ import com.datastax.oss.driver.api.core.cql.BoundStatement
 import com.datastax.oss.driver.api.core.cql.ResultSet
 import net.nmoncho.helenus.api.cql.dml.Select.orderedPredicates
 import net.nmoncho.helenus.api.cql.dml.where._
-import shapeless.::
 import shapeless.HList
 import shapeless.HNil
 import shapeless.ops.function.FnFromProduct
@@ -134,7 +133,7 @@ final case class Select[
       bstmt: BoundStatement,
       params: HList
   ): BoundStatement = {
-    val values = Select.hlistValues(params).iterator
+    val values = Binding.values(params).iterator
 
     orderedPredicates(this).zipWithIndex.foldLeft(bstmt) {
       case (bstmt, (p: BoundPredicate[Any, Any], idx)) =>
@@ -218,12 +217,6 @@ object Select {
         session.execute(bstmt)
       }
     }
-  }
-
-  /** Runtime view of the bound arguments, in writing order. */
-  private def hlistValues(l: HList): List[Any] = l match {
-    case HNil => Nil
-    case head :: tail => head :: hlistValues(tail)
   }
 
   private[cql] def render[
