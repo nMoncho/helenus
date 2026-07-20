@@ -29,17 +29,17 @@ import shapeless.ops.hlist.Prepend
   *                range operator (plus the `RequiresFiltering` marker)
   * @tparam Params type-level `HList` of the bound parameter types collected
   *                from `?` markers, in writing order
-  * @tparam M      [[DeleteMode.Rows]] for whole-row deletes, switched to
-  *                [[DeleteMode.Columns]] by [[column]]
+  * @tparam M [[DeleteMode.Rows]] for whole-row deletes, switched to
+  *           [[DeleteMode.Columns]] by [[column]]
   *
-  * The WHERE clause is built exactly like SELECT's: a single [[where]] taking
-  * one predicate or a conjunction (`where(UsersTable.id === x and UsersTable.username === "y")`).
-  * [[execute]] is gated by [[CanDelete]], which enforces the CQL rules for
-  * the current mode: row deletes need the full partition key plus a valid
-  * clustering prefix (optionally ending in a range), column-level deletes
-  * need the entire primary key with `===` only. `toCQL` stays ungated for
-  * inspection. A statement with `?` markers becomes a function via
-  * [[toFunction]], gated by the same rules.
+  *           The WHERE clause is built exactly like SELECT's: a single [[where]] taking
+  *           one predicate or a conjunction (`where(UsersTable.id === x and UsersTable.username === "y")`).
+  *           [[execute]] is gated by [[CanDelete]], which enforces the CQL rules for
+  *           the current mode: row deletes need the full partition key plus a valid
+  *           clustering prefix (optionally ending in a range), column-level deletes
+  *           need the entire primary key with `===` only. `toCQL` stays ungated for
+  *           inspection. A statement with `?` markers becomes a function via
+  *           [[prepare]], gated by the same rules.
   */
 final case class Delete[
     T <: TableDef with Singleton,
@@ -143,11 +143,11 @@ final case class Delete[
     * bound key columns count toward the restriction exactly like literal
     * ones.
     */
-  def toFunction[F](
+  def prepare[F](
       implicit session: CqlSession,
       @unused ev: CanDelete[M, table.PK, table.CK, Eq, In, Rng],
       fp: FnFromProduct.Aux[Params => ResultSet, F]
-  ): F = toFunctionStatement[Params, F](render(prepared = true), Nil, predicates)
+  ): F = prepareStatement[Params, F](render(prepared = true), Nil, predicates)
 
   override def toString: String = render()
 }
