@@ -100,7 +100,7 @@ final case class Insert[T <: TableDef, Params <: HList](
       render(prepared = true),
       // Safe to case this to `Seq[SimpleAssignment[_]]` as there are no unbound parameters
       assignments.asInstanceOf[Seq[TableDef#BoundAssignment[Any]]],
-      Seq.empty
+      Nil
     )
 
   /** Turn an insert containing `?` markers into a `FunctionN` taking one
@@ -110,15 +110,7 @@ final case class Insert[T <: TableDef, Params <: HList](
   def toFunction[F](
       implicit session: CqlSession,
       fp: FnFromProduct.Aux[Params => ResultSet, F]
-  ): F = {
-    val pstmt = session.prepare(render(prepared = true))
-
-    fp { params =>
-      val values = Binding.values(params).iterator
-
-      session.execute(bindAssignment(pstmt.bind(), assignments, values))
-    }
-  }
+  ): F = toFunctionStatement[Params, F](render(prepared = true), assignments, Nil)
 
   override def toString: String = toCQL
 }

@@ -153,15 +153,7 @@ final case class Delete[
       implicit session: CqlSession,
       @unused ev: CanDelete[M, table.PK, table.CK, Eq, In, Rng],
       fp: FnFromProduct.Aux[Params => ResultSet, F]
-  ): F = {
-    val pstmt = session.prepare(render(prepared = true))
-
-    fp { params =>
-      val values = Binding.values(params).iterator
-
-      session.execute(bindPredicates(pstmt.bind(), predicates, values))
-    }
-  }
+  ): F = toFunctionStatement[Params, F](render(prepared = true), Nil, predicates)
 
   override def toString: String = render()
 }
