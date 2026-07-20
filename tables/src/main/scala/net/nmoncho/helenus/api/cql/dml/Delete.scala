@@ -8,7 +8,6 @@ package net.nmoncho.helenus.api.cql
 package dml
 
 import java.time.Duration
-import java.time.temporal.ChronoUnit
 
 import scala.annotation.unused
 
@@ -113,10 +112,8 @@ final case class Delete[
 
   private[cql] def render(prepared: Boolean = false): String = {
     val colStr   = if (columnsToDrop.isEmpty) "" else columnsToDrop.map(_.name).mkString(", ") + " "
-    val usingStr = timestampMicros
-      .map(ts => s" USING TIMESTAMP ${ts.dividedBy(Duration.of(1, ChronoUnit.MICROS))}")
-      .getOrElse("")
-    val whereStr    = renderPredicates(predicates, prepared)
+    val usingStr = renderUsing(None, timestampMicros)
+    val whereStr = renderPredicates(predicates, prepared)
     val ifExistsStr = if (ifExistsFlag) " IF EXISTS" else ""
 
     s"DELETE ${colStr}FROM ${table.fullTableName}$usingStr$whereStr$ifExistsStr"
