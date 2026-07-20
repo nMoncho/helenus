@@ -37,4 +37,28 @@ package object dml {
         p.bind(bstmt, idx + offset, values.next())
     }
 
+  def bindBoundAssignments(
+      bstmt: BoundStatement,
+      assignments: Seq[TableDef#BoundAssignment[Any]],
+      offset: Int = 0
+  ): BoundStatement =
+    assignments.zipWithIndex
+      .foldLeft(bstmt) { case (bstmt, (as, idx)) =>
+        bstmt.set(idx + offset, as.value, as.column.codec)
+      }
+
+  def bindAssignment(
+      bstmt: BoundStatement,
+      assignments: Seq[TableDef#Assignment[_]],
+      values: Iterator[Any],
+      offset: Int = 0
+  ): BoundStatement =
+    assignments.zipWithIndex
+      .foldLeft(bstmt) {
+        case (bstmt, (as: TableDef#BindAssignment[Any], idx)) =>
+          bstmt.set(idx + offset, values.next(), as.column.codec)
+
+        case (bstmt, (as: TableDef#BoundAssignment[Any], idx)) =>
+          bstmt.set(idx + offset, as.value, as.column.codec)
+      }
 }

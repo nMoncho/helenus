@@ -125,7 +125,7 @@ final case class Update[
     val usingStr = if (usingParts.isEmpty) "" else s" USING ${usingParts.mkString(" AND ")}"
     val setStr   = assignments
       .map {
-        case simple: TableDef#SimpleAssignment[_] if !prepared =>
+        case simple: TableDef#BoundAssignment[_] if !prepared =>
           s"${simple.column.name} = ${simple.column.codec.format(simple.value)}"
 
         case assignment =>
@@ -162,17 +162,15 @@ final case class Update[
     val pstmt           = session.prepare(render(prepared = true))
     val assignmentCount = assignments.length
 
-    // Safe to case this to `Seq[SimpleAssignment[_]]` as there are no unbound parameters
-    val bstmt = assignments
-      .asInstanceOf[Seq[TableDef#SimpleAssignment[Any]]]
-      .zipWithIndex
-      .foldLeft(pstmt.bind()) { case (bstmt, (as, idx)) =>
-        bstmt.set(idx, as.value, as.column.codec)
-      }
+    val bstmt = bindBoundAssignments(
+      pstmt.bind(),
+      // Safe to case this to `Seq[SimpleAssignment[_]]` as there are no unbound parameters
+      assignments.asInstanceOf[Seq[TableDef#BoundAssignment[Any]]]
+    )
 
-    // Safe to case this to `Seq[BoundPredicate[_, _]]` as there are no unbound parameters
     val withPredicates = bindBoundPredicates(
       bstmt,
+      // Safe to case this to `Seq[BoundPredicate[_, _]]` as there are no unbound parameters
       predicates.asInstanceOf[Seq[BoundPredicate[_, _]]],
       assignmentCount
     )
@@ -198,15 +196,7 @@ final case class Update[
       val values          = Binding.values(params).iterator
       val assignmentCount = assignments.length
 
-      val bstmt = assignments.zipWithIndex
-        .foldLeft(pstmt.bind()) {
-          case (bstmt, (as: TableDef#BindAssignment[Any], idx)) =>
-            bstmt.set(idx, values.next(), as.column.codec)
-
-          case (bstmt, (as: TableDef#SimpleAssignment[Any], idx)) =>
-            bstmt.set(idx, as.value, as.column.codec)
-        }
-
+      val bstmt          = bindAssignment(pstmt.bind(), assignments, values)
       val withPredicates = bindPredicates(bstmt, predicates, values, assignmentCount)
 
       session.execute(withPredicates)

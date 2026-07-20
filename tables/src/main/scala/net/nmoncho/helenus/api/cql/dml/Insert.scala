@@ -68,7 +68,7 @@ final case class Insert[T <: TableDef, Params <: HList](
     val (cols, vals) = assignments.foldLeft(Vector.empty[String] -> Vector.empty[String]) {
       case ((cols, vals), as) =>
         val (col, colVal) = as match {
-          case simple: TableDef#SimpleAssignment[_] if !prepared =>
+          case simple: TableDef#BoundAssignment[_] if !prepared =>
             simple.column.name -> simple.column.codec.format(simple.value)
 
           case _ =>
@@ -98,13 +98,11 @@ final case class Insert[T <: TableDef, Params <: HList](
   ): ResultSet = {
     val pstmt = session.prepare(render(prepared = true))
 
-    // Safe to case this to `Seq[SimpleAssignment[_]]` as there are no unbound parameters
-    val bstmt = assignments
-      .asInstanceOf[Seq[TableDef#SimpleAssignment[Any]]]
-      .zipWithIndex
-      .foldLeft(pstmt.bind()) { case (bstmt, (as, idx)) =>
-        bstmt.set(idx, as.value, as.column.codec)
-      }
+    val bstmt = bindBoundAssignments(
+      pstmt.bind(),
+      // Safe to case this to `Seq[SimpleAssignment[_]]` as there are no unbound parameters
+      assignments.asInstanceOf[Seq[TableDef#BoundAssignment[Any]]]
+    )
 
     session.execute(bstmt)
   }
@@ -122,16 +120,7 @@ final case class Insert[T <: TableDef, Params <: HList](
     fp { params =>
       val values = Binding.values(params).iterator
 
-      val bstmt = assignments.zipWithIndex
-        .foldLeft(pstmt.bind()) {
-          case (bstmt, (as: TableDef#BindAssignment[Any], idx)) =>
-            bstmt.set(idx, values.next(), as.column.codec)
-
-          case (bstmt, (as: TableDef#SimpleAssignment[Any], idx)) =>
-            bstmt.set(idx, as.value, as.column.codec)
-        }
-
-      session.execute(bstmt)
+      session.execute(bindAssignment(pstmt.bind(), assignments, values))
     }
   }
 
