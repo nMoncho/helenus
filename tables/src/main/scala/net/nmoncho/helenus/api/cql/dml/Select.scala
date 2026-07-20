@@ -101,19 +101,13 @@ final case class Select[
       implicit session: CqlSession,
       @unused ev: CanSelect[table.PK, table.CK, Eq, In, Rng],
       @unused noUnboundParams: Params =:= HNil
-  ): ResultSet = { // TODO change this to `PagingIterable[Out]` when we can define `Out`
-    val pstmt = session.prepare(Select.render(this, allowFiltering = false, prepared = true))
-
-    // Safe to case this to `Seq[BoundPredicate[_, _]]` as there are no unbound parameters
-    val bstmt = orderedPredicates(this)
-      .asInstanceOf[Seq[BoundPredicate[_, _]]]
-      .zipWithIndex
-      .foldLeft(pstmt.bind()) { case (bstmt, (p: BoundPredicate[Any, Any], idx)) =>
-        p.bind(bstmt, idx, p.value)
-      }
-
-    session.execute(bstmt)
-  }
+  ): ResultSet = // TODO change this to `PagingIterable[Out]` when we can define `Out`
+    executeStatement(
+      Select.render(this, allowFiltering = false, prepared = true),
+      Seq.empty,
+      // Safe to case this to `Seq[BoundPredicate[_, _]]` as there are no unbound parameters
+      orderedPredicates(this).asInstanceOf[Seq[BoundPredicate[_, _]]]
+    )
 
   /** Turn a query containing `?` markers into a `FunctionN` taking one
     * argument per marker (typed as the bound column, in writing order) and
