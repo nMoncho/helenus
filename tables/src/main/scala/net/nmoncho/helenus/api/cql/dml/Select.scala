@@ -186,7 +186,7 @@ object Select {
       Rng <: HList,
       Params <: HList
   ](
-      private val select: Select[T, Eq, In, Rng, Params]
+      private[cql] val select: Select[T, Eq, In, Rng, Params]
   ) {
 
     def toCQL: String = render(select, allowFiltering = true)
