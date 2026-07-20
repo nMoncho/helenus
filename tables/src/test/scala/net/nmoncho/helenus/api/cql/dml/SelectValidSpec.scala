@@ -17,7 +17,7 @@ class SelectValidSpec extends AnyFlatSpec with Matchers {
   // ---- positive: equality-only shapes ------------------------------------
 
   "Select.execute()" should "be available when there is no WHERE clause at all" in {
-    UsersTable.select().execute() shouldBe
+    UsersTable.select().toCQL shouldBe
     "SELECT * FROM my_keyspace.users"
   }
 
@@ -25,7 +25,7 @@ class SelectValidSpec extends AnyFlatSpec with Matchers {
     val cql = UsersTable
       .select()
       .where(UsersTable.id === fixedId)
-      .execute()
+      .toCQL
 
     cql shouldBe s"SELECT * FROM my_keyspace.users WHERE id = $fixedId"
   }
@@ -34,7 +34,7 @@ class SelectValidSpec extends AnyFlatSpec with Matchers {
     val cql = EventsTable
       .select()
       .where(EventsTable.eventType === "click" and EventsTable.tenantId === "acme")
-      .execute()
+      .toCQL
 
     cql should include("WHERE tenant_id = 'acme' AND event_type = 'click'")
   }
@@ -47,7 +47,7 @@ class SelectValidSpec extends AnyFlatSpec with Matchers {
           SensorsTable.year === 2026 and
           SensorsTable.deviceId === fixedId
       )
-      .execute()
+      .toCQL
 
     cql shouldBe
     s"SELECT * FROM iot.sensor_readings WHERE device_id = $fixedId AND year = 2026 AND ts > 100"
@@ -57,7 +57,7 @@ class SelectValidSpec extends AnyFlatSpec with Matchers {
     val cql = UsersTable
       .select()
       .where(UsersTable.username === "alice" and UsersTable.id === fixedId)
-      .execute()
+      .toCQL
 
     cql should include(s"WHERE id = $fixedId AND username = 'alice'")
   }
@@ -70,7 +70,7 @@ class SelectValidSpec extends AnyFlatSpec with Matchers {
           SensorsTable.year === 2026 and
           SensorsTable.ts > 100L and SensorsTable.ts <= 200L
       )
-      .execute()
+      .toCQL
 
     cql should include("AND ts > 100 AND ts <= 200")
   }
@@ -81,7 +81,7 @@ class SelectValidSpec extends AnyFlatSpec with Matchers {
     val cql = UsersTable
       .select()
       .where(UsersTable.id.in(Seq(fixedId)))
-      .execute()
+      .toCQL
 
     cql should include(s"WHERE id IN ($fixedId)")
   }
@@ -90,7 +90,7 @@ class SelectValidSpec extends AnyFlatSpec with Matchers {
     val cql = EventsTable
       .select()
       .where(EventsTable.tenantId === "acme" and EventsTable.eventType.in(Seq("click", "view")))
-      .execute()
+      .toCQL
 
     cql should include("WHERE tenant_id = 'acme' AND event_type IN ('click', 'view')")
   }
@@ -102,7 +102,7 @@ class SelectValidSpec extends AnyFlatSpec with Matchers {
         SensorsTable.deviceId
           .in(Seq(fixedId)) and SensorsTable.year === 2026 and SensorsTable.ts > 100L
       )
-      .execute()
+      .toCQL
 
     cql should include(s"WHERE device_id IN ($fixedId) AND year = 2026 AND ts > 100")
   }
@@ -111,7 +111,7 @@ class SelectValidSpec extends AnyFlatSpec with Matchers {
     val cql = UsersTable
       .select()
       .where(UsersTable.id === fixedId and UsersTable.username.in(Seq("alice", "bob")))
-      .execute()
+      .toCQL
 
     cql should include(s"WHERE id = $fixedId AND username IN ('alice', 'bob')")
   }
@@ -123,7 +123,7 @@ class SelectValidSpec extends AnyFlatSpec with Matchers {
         SensorsTable.deviceId === fixedId and SensorsTable.year === 2026 and SensorsTable.ts
           .in(Seq(100L, 200L))
       )
-      .execute()
+      .toCQL
 
     cql should include("AND ts IN (100, 200)")
   }
@@ -133,7 +133,7 @@ class SelectValidSpec extends AnyFlatSpec with Matchers {
       .select(UsersTable.id)
       .where(UsersTable.email.in(Seq("a@b.c")))
       .allowFiltering
-      .execute()
+      .toCQL
 
     cql should endWith("ALLOW FILTERING")
   }
@@ -142,7 +142,7 @@ class SelectValidSpec extends AnyFlatSpec with Matchers {
 
   it should "NOT compile when a non-key column is constrained" in {
     assertTypeError(
-      """UsersTable.select().where(UsersTable.age > 25).execute()"""
+      """UsersTable.select().where(UsersTable.age > 25).toCQL"""
     )
   }
 
@@ -150,19 +150,19 @@ class SelectValidSpec extends AnyFlatSpec with Matchers {
     assertTypeError(
       """EventsTable.select()
            .where(EventsTable.tenantId === "acme" and EventsTable.eventType === "click" and EventsTable.payload === "x")
-           .execute()"""
+           .toCQL"""
     )
   }
 
   it should "NOT compile when only part of a composite partition key is constrained" in {
     assertTypeError(
-      """EventsTable.select().where(EventsTable.tenantId === "acme").execute()"""
+      """EventsTable.select().where(EventsTable.tenantId === "acme").toCQL"""
     )
   }
 
   it should "NOT compile when only clustering columns are constrained" in {
     assertTypeError(
-      """UsersTable.select().where(UsersTable.username === "alice").execute()"""
+      """UsersTable.select().where(UsersTable.username === "alice").toCQL"""
     )
   }
 
@@ -170,7 +170,7 @@ class SelectValidSpec extends AnyFlatSpec with Matchers {
     assertTypeError(
       """SensorsTable.select()
            .where(SensorsTable.deviceId === fixedId and SensorsTable.ts > 100L)
-           .execute()"""
+           .toCQL"""
     )
   }
 
@@ -178,7 +178,7 @@ class SelectValidSpec extends AnyFlatSpec with Matchers {
     assertTypeError(
       """SensorsTable.select()
            .where(SensorsTable.deviceId === fixedId and SensorsTable.year > 2020 and SensorsTable.ts === 100L)
-           .execute()"""
+           .toCQL"""
     )
   }
 
@@ -186,7 +186,7 @@ class SelectValidSpec extends AnyFlatSpec with Matchers {
     assertTypeError(
       """SensorsTable.select()
            .where(SensorsTable.deviceId === fixedId and SensorsTable.year > 2020 and SensorsTable.ts > 100L)
-           .execute()"""
+           .toCQL"""
     )
   }
 
@@ -196,7 +196,7 @@ class SelectValidSpec extends AnyFlatSpec with Matchers {
     assertTypeError(
       """EventsTable.select()
            .where(EventsTable.tenantId.in(Seq("acme")) and EventsTable.eventType === "click")
-           .execute()"""
+           .toCQL"""
     )
   }
 
@@ -204,7 +204,7 @@ class SelectValidSpec extends AnyFlatSpec with Matchers {
     assertTypeError(
       """SensorsTable.select()
            .where(SensorsTable.deviceId === fixedId and SensorsTable.year.in(Seq(2026)))
-           .execute()"""
+           .toCQL"""
     )
   }
 
@@ -212,13 +212,13 @@ class SelectValidSpec extends AnyFlatSpec with Matchers {
     assertTypeError(
       """SensorsTable.select()
            .where(SensorsTable.deviceId === fixedId and SensorsTable.year > 2020 and SensorsTable.ts.in(Seq(100L)))
-           .execute()"""
+           .toCQL"""
     )
   }
 
   it should "NOT compile with IN on a non-key column" in {
     assertTypeError(
-      """UsersTable.select().where(UsersTable.email.in(Seq("a@b.c"))).execute()"""
+      """UsersTable.select().where(UsersTable.email.in(Seq("a@b.c"))).toCQL"""
     )
   }
 
@@ -226,7 +226,7 @@ class SelectValidSpec extends AnyFlatSpec with Matchers {
     assertTypeError(
       """UsersTable.select()
            .where(UsersTable.id === fixedId and UsersTable.id.in(Seq(fixedId)))
-           .execute()"""
+           .toCQL"""
     )
   }
 }

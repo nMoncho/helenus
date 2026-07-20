@@ -9,12 +9,11 @@ package dml
 
 import scala.annotation.unused
 
-import net.nmoncho.helenus.api.cql.dml.where.BindPredicate
-import net.nmoncho.helenus.api.cql.dml.where.CanSelect
-import net.nmoncho.helenus.api.cql.dml.where.InBindPredicate
-import net.nmoncho.helenus.api.cql.dml.where.Predicate
-import net.nmoncho.helenus.api.cql.dml.where.PredicateShape
-import net.nmoncho.helenus.api.cql.dml.where.WhereClause
+import com.datastax.oss.driver.api.core.CqlSession
+import com.datastax.oss.driver.api.core.cql.BoundStatement
+import com.datastax.oss.driver.api.core.cql.ResultSet
+import net.nmoncho.helenus.api.cql.dml.Select.orderedPredicates
+import net.nmoncho.helenus.api.cql.dml.where._
 import shapeless.::
 import shapeless.HList
 import shapeless.HNil
@@ -90,6 +89,7 @@ final case class Select[
     )
 
   // TODO unify this with `toCQL`, no need to have one that can be used as escape hatch
+
   /** Run the query. Available only when the WHERE clause is a valid
     * primary-key restriction (full partition key by `===`, a contiguous
     * clustering `===` prefix, optionally ranges on the next clustering column,
@@ -98,9 +98,22 @@ final case class Select[
     * call does not compile; use `allowFiltering.execute` or [[toFunction]].
     */
   def execute()(
-      implicit @unused ev: CanSelect[table.PK, table.CK, Eq, In, Rng],
+      implicit session: CqlSession,
+      @unused ev: CanSelect[table.PK, table.CK, Eq, In, Rng],
       @unused noUnboundParams: Params =:= HNil
-  ): String = toCQL
+  ): ResultSet = { // TODO change this to `PagingIterable[Out]` when we can define `Out`
+    val pstmt = session.prepare(Select.render(this, allowFiltering = false, prepared = true))
+
+    // Safe to case this to `Seq[BoundPredicate[_, _]]` as there are no unbound parameters
+    val bstmt = orderedPredicates(this)
+      .asInstanceOf[Seq[BoundPredicate[_, _]]]
+      .zipWithIndex
+      .foldLeft(pstmt.bind()) { case (bstmt, (p: BoundPredicate[Any, Any], idx)) =>
+        p.bind(bstmt, idx, p.value)
+      }
+
+    session.execute(bstmt)
+  }
 
   /** Turn a query containing `?` markers into a `FunctionN` taking one
     * argument per marker (typed as the bound column, in writing order) and
@@ -109,19 +122,33 @@ final case class Select[
     * literal ones.
     */
   def toFunction[F](
-      implicit @unused ev: CanSelect[table.PK, table.CK, Eq, In, Rng],
-      fp: FnFromProduct.Aux[Params => String, F]
-  ): F =
-    fp(params => Select.render(withBoundValues(params), allowFiltering = false))
+      implicit session: CqlSession,
+      @unused ev: CanSelect[table.PK, table.CK, Eq, In, Rng],
+      // TODO change this to `PagingIterable[Out]` when we can define `Out`
+      fp: FnFromProduct.Aux[Params => ResultSet, F]
+  ): F = {
+    val pstmt = session.prepare(Select.render(this, allowFiltering = false, prepared = true))
 
-  private[dml] def withBoundValues(params: HList): Select[T, Eq, In, Rng, Params] = {
+    fp { params =>
+      val bstmt = withBoundValues(pstmt.bind(), params)
+
+      session.execute(bstmt)
+    }
+  }
+
+  private[dml] def withBoundValues(
+      bstmt: BoundStatement,
+      params: HList
+  ): BoundStatement = {
     val values = Select.hlistValues(params).iterator
-    copy(predicates = predicates.map {
-      case hole: BindPredicate[Any, Any] => hole.fill(values.next())
-      case hole: InBindPredicate[_, Any, Iterable[Any]] =>
-        hole.fill(values.next().asInstanceOf[Iterable[Any]])
-      case complete => complete
-    })
+
+    orderedPredicates(this).zipWithIndex.foldLeft(bstmt) {
+      case (bstmt, (p: BoundPredicate[Any, Any], idx)) =>
+        p.bind(bstmt, idx, p.value)
+
+      case (bstmt, (p: BindPredicate[_, Any], idx)) =>
+        p.bind(bstmt, idx, values.next())
+    }
   }
 
   /** Opt out of the primary-key requirement. The returned query can always be
@@ -142,9 +169,12 @@ final case class Select[
   def orderBy(col: table.Column[_]): Select[T, Eq, In, Rng, Params] =
     orderBy(col.asc)
 
-  def toCQL: String = Select.render(this, allowFiltering = false)
+  def toCQL(
+      implicit @unused ev: CanSelect[table.PK, table.CK, Eq, In, Rng],
+      @unused noUnboundParams: Params =:= HNil
+  ): String = Select.render(this, allowFiltering = false)
 
-  override def toString: String = toCQL
+  override def toString: String = Select.render(this, allowFiltering = false)
 }
 
 object Select {
@@ -168,13 +198,32 @@ object Select {
   ](
       private val select: Select[T, Eq, In, Rng, Params]
   ) {
-    def execute(): String = toCQL
 
     def toCQL: String = render(select, allowFiltering = true)
 
+    // TODO change this to `PagingIterable[Out]` when we can define `Out`
+    def execute()(implicit session: CqlSession): ResultSet = {
+      val pstmt = session.prepare(Select.render(select, allowFiltering = true, prepared = true))
+
+      // Safe to case this to `Seq[BoundPredicate[_, _]]` as there are no unbound parameters
+      val bstmt = select.withBoundValues(pstmt.bind(), HNil)
+
+      session.execute(bstmt)
+    }
+
     /** Like `Select.toFunction`, without the primary-key requirement. */
-    def toFunction[F](implicit fp: FnFromProduct.Aux[Params => String, F]): F =
-      fp(params => render(select.withBoundValues(params), allowFiltering = true))
+    def toFunction[F](
+        implicit session: CqlSession,
+        fp: FnFromProduct.Aux[Params => ResultSet, F]
+    ): F = {
+      val pstmt = session.prepare(Select.render(select, allowFiltering = true, prepared = true))
+
+      fp { params =>
+        val bstmt = select.withBoundValues(pstmt.bind(), params)
+
+        session.execute(bstmt)
+      }
+    }
   }
 
   /** Runtime view of the bound arguments, in writing order. */
@@ -183,7 +232,7 @@ object Select {
     case head :: tail => head :: hlistValues(tail)
   }
 
-  private def render[
+  private[cql] def render[
       T <: TableDef with Singleton,
       Eq <: HList,
       In <: HList,
@@ -191,12 +240,15 @@ object Select {
       Params <: HList
   ](
       s: Select[T, Eq, In, Rng, Params],
-      allowFiltering: Boolean
+      allowFiltering: Boolean,
+      prepared: Boolean = false
   ): String = {
     val colStr = if (s.columns.isEmpty) "*" else s.columns.mkString(", ")
 
     val whereStr =
       if (s.predicates.isEmpty) ""
+      else if (prepared)
+        s" WHERE ${orderedPredicates(s).map(_.forPreparedStatement).mkString(" AND ")}"
       else s" WHERE ${orderedPredicates(s).map(_.toCQL).mkString(" AND ")}"
 
     val orderStr =

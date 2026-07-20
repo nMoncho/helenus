@@ -29,7 +29,7 @@ class ComputedColumnSpec extends AnyFlatSpec with Matchers {
       .where(
         MetricsTable.shard === 5 and MetricsTable.id === fixedId and MetricsTable.name === "cpu"
       )
-      .execute()
+      .toCQL
     cql should include("WHERE shard = 5 AND id = " + fixedId + " AND name = 'cpu'")
   }
 

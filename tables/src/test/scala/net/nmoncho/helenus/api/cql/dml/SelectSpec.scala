@@ -104,6 +104,7 @@ class SelectSpec extends AnyFlatSpec with Matchers {
     val cql = UsersTable
       .select(UsersTable.id, UsersTable.username)
       .where(UsersTable.username.in(Seq("alice", "bob")))
+      .allowFiltering
       .toCQL
 
     cql should include("username IN ('alice', 'bob')")
