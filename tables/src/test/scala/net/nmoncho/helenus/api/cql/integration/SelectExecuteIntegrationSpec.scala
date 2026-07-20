@@ -13,6 +13,7 @@ import net.nmoncho.helenus.api.cql.EventsTable
 import net.nmoncho.helenus.api.cql.SensorsTable
 import net.nmoncho.helenus.api.cql.UsersTable
 import net.nmoncho.helenus.api.cql.dml.?
+import net.nmoncho.helenus.api.cql.dml.Select
 import org.scalatest.DoNotDiscover
 
 /** Every statement the SELECT gate admits is executed against the embedded
@@ -237,38 +238,52 @@ class SelectExecuteIntegrationSpec extends CassandraIntegrationSpec {
 
   it should "be rejected by Cassandra for a non-key filter without ALLOW FILTERING" in {
     an[InvalidQueryException] should be thrownBy
-    execute(UsersTable.select().where(UsersTable.age > 25).toCQL)
+    execute(Select.render(UsersTable.select().where(UsersTable.age > 25), allowFiltering = false))
   }
 
   it should "be rejected by Cassandra for a partial partition key" in {
     an[InvalidQueryException] should be thrownBy
-    execute(EventsTable.select().where(EventsTable.tenantId === "acme").toCQL)
+    execute(
+      Select.render(
+        EventsTable.select().where(EventsTable.tenantId === "acme"),
+        allowFiltering = false
+      )
+    )
   }
 
   it should "be rejected by Cassandra for clustering-only restrictions" in {
     an[InvalidQueryException] should be thrownBy
-    execute(UsersTable.select().where(UsersTable.username === "alice").toCQL)
+    execute(
+      Select.render(
+        UsersTable.select().where(UsersTable.username === "alice"),
+        allowFiltering = false
+      )
+    )
   }
 
   it should "be rejected by Cassandra when a clustering column is skipped" in {
     an[InvalidQueryException] should be thrownBy
     execute(
-      SensorsTable
-        .select()
-        .where(SensorsTable.deviceId === deviceId and SensorsTable.ts > 100L)
-        .toCQL
+      Select.render(
+        SensorsTable
+          .select()
+          .where(SensorsTable.deviceId === deviceId and SensorsTable.ts > 100L),
+        allowFiltering = false
+      )
     )
   }
 
   it should "be rejected by Cassandra for ranges on two clustering columns" in {
     an[InvalidQueryException] should be thrownBy
     execute(
-      SensorsTable
-        .select()
-        .where(
-          SensorsTable.deviceId === deviceId and SensorsTable.year > 2020 and SensorsTable.ts > 100L
-        )
-        .toCQL
+      Select.render(
+        SensorsTable
+          .select()
+          .where(
+            SensorsTable.deviceId === deviceId and SensorsTable.year > 2020 and SensorsTable.ts > 100L
+          ),
+        allowFiltering = false
+      )
     )
   }
 }

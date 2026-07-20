@@ -53,4 +53,7 @@ trait CassandraIntegrationSpec extends AnyFlatSpec with Matchers with BeforeAndA
 
   protected def rows(cql: String): List[Row] =
     session.execute(cql).all().asScala.toList
+
+  protected def rows(rs: ResultSet): List[Row] =
+    rs.all().asScala.toList
 }
