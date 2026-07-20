@@ -51,37 +51,31 @@ class UpdateIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
     ).head.getInt("age")
 
   "Update.execute()" should "update exactly the row identified by the primary key" in {
-    execute(
-      UsersTable.update
-        .set(UsersTable.age := 31)
-        .where(UsersTable.id === id and UsersTable.username === "alice")
-        .execute()
-    )
+    UsersTable.update
+      .set(UsersTable.age := 31)
+      .where(UsersTable.id === id and UsersTable.username === "alice")
+      .execute()
 
     ageOf("alice") shouldBe 31
     ageOf("bob") shouldBe 25
   }
 
   it should "update several rows with IN on the last primary-key component" in {
-    execute(
-      UsersTable.update
-        .set(UsersTable.age := 50)
-        .where(UsersTable.id === id and UsersTable.username.in(Seq("alice", "bob")))
-        .execute()
-    )
+    UsersTable.update
+      .set(UsersTable.age := 50)
+      .where(UsersTable.id === id and UsersTable.username.in(Seq("alice", "bob")))
+      .execute()
 
     ageOf("alice") shouldBe 50
     ageOf("bob") shouldBe 50
   }
 
   it should "apply USING TTL" in {
-    execute(
-      UsersTable.update
-        .usingTTL(Duration.ofSeconds(7200))
-        .set(UsersTable.age := 31)
-        .where(UsersTable.id === id and UsersTable.username === "alice")
-        .execute()
-    )
+    UsersTable.update
+      .usingTTL(Duration.ofSeconds(7200))
+      .set(UsersTable.age := 31)
+      .where(UsersTable.id === id and UsersTable.username === "alice")
+      .execute()
 
     val ttl = rows(
       s"SELECT TTL(age) FROM my_keyspace.users WHERE id = $id AND username = 'alice'"
@@ -92,25 +86,21 @@ class UpdateIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
 
   it should "not apply a write with an older USING TIMESTAMP" in {
     // The seed row was written at server-now microseconds; timestamp 1000 is older.
-    execute(
-      UsersTable.update
-        .usingTimestamp(Duration.of(1000, ChronoUnit.MICROS))
-        .set(UsersTable.age := 99)
-        .where(UsersTable.id === id and UsersTable.username === "alice")
-        .execute()
-    )
+    UsersTable.update
+      .usingTimestamp(Duration.of(1000, ChronoUnit.MICROS))
+      .set(UsersTable.age := 99)
+      .where(UsersTable.id === id and UsersTable.username === "alice")
+      .execute()
 
     ageOf("alice") shouldBe 30
   }
 
   it should "report unapplied IF EXISTS on a missing row" in {
-    val result = execute(
-      UsersTable.update
-        .set(UsersTable.age := 31)
-        .where(UsersTable.id === id and UsersTable.username === "nobody")
-        .ifExists
-        .execute()
-    )
+    val result = UsersTable.update
+      .set(UsersTable.age := 31)
+      .where(UsersTable.id === id and UsersTable.username === "nobody")
+      .ifExists
+      .execute()
 
     result.wasApplied() shouldBe false
   }
@@ -121,8 +111,8 @@ class UpdateIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
       .where(UsersTable.id === id and UsersTable.username === ?)
       .toFunction
 
-    execute(setAge(60, "alice"))
-    execute(setAge(61, "bob"))
+    setAge(60, "alice")
+    setAge(61, "bob")
 
     ageOf("alice") shouldBe 60
     ageOf("bob") shouldBe 61
@@ -132,7 +122,7 @@ class UpdateIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
 
   it should "be rejected by Cassandra when clustering columns are missing" in {
     an[InvalidQueryException] should be thrownBy
-    execute(UsersTable.update.set(UsersTable.age := 31).where(UsersTable.id === id).toCQL)
+    execute(UsersTable.update.set(UsersTable.age := 31).where(UsersTable.id === id).render())
   }
 
   it should "be rejected by Cassandra with a range predicate" in {
@@ -143,7 +133,7 @@ class UpdateIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
         .where(
           SensorsTable.deviceId === deviceId and SensorsTable.year === 2026 and SensorsTable.ts > 100L
         )
-        .toCQL
+        .render()
     )
   }
 
@@ -155,7 +145,7 @@ class UpdateIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
         .where(
           UsersTable.id === id and UsersTable.username === "alice" and UsersTable.email === "a@b.c"
         )
-        .toCQL
+        .render()
     )
   }
 }
