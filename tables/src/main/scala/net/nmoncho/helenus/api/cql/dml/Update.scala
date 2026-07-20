@@ -12,6 +12,8 @@ import java.time.temporal.ChronoUnit
 
 import scala.annotation.unused
 
+import com.datastax.oss.driver.api.core.CqlSession
+import com.datastax.oss.driver.api.core.cql.ResultSet
 import net.nmoncho.helenus.api.cql.dml.where._
 import shapeless.::
 import shapeless.HList
@@ -111,7 +113,7 @@ final case class Update[
 
   def ifExists: Update[T, Eq, In, Rng, SetPm, WherePm] = copy(ifExistsFlag = true)
 
-  def toCQL: String = {
+  private[cql] def render(prepared: Boolean = false): String = {
     // TODO just like Insert, add this requirement at type-level
     require(assignments.nonEmpty, "UPDATE must have at least one SET assignment")
 
@@ -121,10 +123,19 @@ final case class Update[
     ).flatten
 
     val usingStr = if (usingParts.isEmpty) "" else s" USING ${usingParts.mkString(" AND ")}"
-    val setStr   = assignments.map(_.toUpdateCQL).mkString(", ")
+    val setStr   = assignments
+      .map {
+        case simple: TableDef#SimpleAssignment[_] if !prepared =>
+          s"${simple.column.name} = ${simple.column.codec.format(simple.value)}"
+
+        case assignment =>
+          s"${assignment.column.name} = ?"
+      }
+      .mkString(", ")
 
     val whereStr =
       if (predicates.isEmpty) ""
+      else if (prepared) s" WHERE ${predicates.map(_.forPreparedStatement).mkString(" AND ")}"
       else s" WHERE ${predicates.map(_.toCQL).mkString(" AND ")}"
 
     val ifExistsStr = if (ifExistsFlag) " IF EXISTS" else ""
@@ -132,15 +143,43 @@ final case class Update[
     s"UPDATE ${table.fullTableName}$usingStr SET $setStr$whereStr$ifExistsStr"
   }
 
+  def toCQL(
+      implicit @unused ev: CanUpdate[table.PK, table.CK, Eq, In, Rng],
+      @unused noUnboundSet: SetPm =:= HNil,
+      @unused noUnboundWhere: WherePm =:= HNil
+  ): String = render()
+
   /** Run the update. Available only when the WHERE clause constrains the
     * entire primary key (see [[CanUpdate]]) and no `?` marker is unbound;
     * otherwise this call does not compile.
     */
   def execute()(
-      implicit @unused ev: CanUpdate[table.PK, table.CK, Eq, In, Rng],
+      implicit session: CqlSession,
+      @unused ev: CanUpdate[table.PK, table.CK, Eq, In, Rng],
       @unused noUnboundSet: SetPm =:= HNil,
       @unused noUnboundWhere: WherePm =:= HNil
-  ): String = toCQL
+  ): ResultSet = {
+    val pstmt           = session.prepare(render(prepared = true))
+    val assignmentCount = assignments.length
+
+    // Safe to case this to `Seq[SimpleAssignment[_]]` as there are no unbound parameters
+    val bstmt = assignments
+      .asInstanceOf[Seq[TableDef#SimpleAssignment[Any]]]
+      .zipWithIndex
+      .foldLeft(pstmt.bind()) { case (bstmt, (as, idx)) =>
+        bstmt.set(idx, as.value, as.column.codec)
+      }
+
+    // Safe to case this to `Seq[BoundPredicate[_, _]]` as there are no unbound parameters
+    val withPredicates = predicates
+      .asInstanceOf[Seq[BoundPredicate[_, _]]]
+      .zipWithIndex
+      .foldLeft(bstmt) { case (bstmt, (p: BoundPredicate[Any, Any], idx)) =>
+        p.bind(bstmt, idx + assignmentCount, p.value)
+      }
+
+    session.execute(withPredicates)
+  }
 
   /** Turn an update containing `?` markers into a `FunctionN` returning the
     * rendered CQL. Arguments follow the rendered statement order: SET
@@ -149,29 +188,39 @@ final case class Update[
     * requirement exactly like literal ones.
     */
   def toFunction[AllPm <: HList, F](
-      implicit @unused ev: CanUpdate[table.PK, table.CK, Eq, In, Rng],
+      implicit session: CqlSession,
+      @unused ev: CanUpdate[table.PK, table.CK, Eq, In, Rng],
       @unused all: Prepend.Aux[SetPm, WherePm, AllPm],
-      fp: FnFromProduct.Aux[AllPm => String, F]
-  ): F =
+      fp: FnFromProduct.Aux[AllPm => ResultSet, F]
+  ): F = {
+    val pstmt = session.prepare(render(prepared = true))
+
     fp { params =>
-      val values = Binding.values(params).iterator
+      val values          = Binding.values(params).iterator
+      val assignmentCount = assignments.length
 
-      val filledAssignments = assignments.map {
-        case hole: TableDef#BindAssignment[Any] => hole.fill(values.next())
-        case complete => complete
+      val bstmt = assignments.zipWithIndex
+        .foldLeft(pstmt.bind()) {
+          case (bstmt, (as: TableDef#BindAssignment[Any], idx)) =>
+            bstmt.set(idx, values.next(), as.column.codec)
+
+          case (bstmt, (as: TableDef#SimpleAssignment[Any], idx)) =>
+            bstmt.set(idx, as.value, as.column.codec)
+        }
+
+      val withPredicates = predicates.zipWithIndex.foldLeft(bstmt) {
+        case (bstmt, (p: BoundPredicate[Any, Any], idx)) =>
+          p.bind(bstmt, idx + assignmentCount, p.value)
+
+        case (bstmt, (p: BindPredicate[_, Any], idx)) =>
+          p.bind(bstmt, idx + assignmentCount, values.next())
       }
 
-      val filledPredicates = predicates.map {
-        case hole: BindPredicate[Any, Any] => hole.fill(values.next())
-        case hole: InBindPredicate[_, Any, Iterable[Any]] =>
-          hole.fill(values.next().asInstanceOf[Iterable[Any]])
-        case complete => complete
-      }
-
-      copy(assignments = filledAssignments, predicates = filledPredicates).toCQL
+      session.execute(withPredicates)
     }
+  }
 
-  override def toString: String = toCQL
+  override def toString: String = render()
 }
 
 object Update {

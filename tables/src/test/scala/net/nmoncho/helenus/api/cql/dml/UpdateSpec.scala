@@ -24,7 +24,7 @@ class UpdateSpec extends AnyFlatSpec with Matchers {
       .set(UsersTable.age := 31)
       .set(UsersTable.email := "alice@example.com")
       .where(UsersTable.id === fixedId and UsersTable.username === "alice")
-      .toCQL
+      .render()
 
     cql shouldBe
     "UPDATE my_keyspace.users SET age = 31, email = 'alice@example.com' " +
@@ -36,7 +36,7 @@ class UpdateSpec extends AnyFlatSpec with Matchers {
       .usingTTL(Duration.ofSeconds(7200))
       .set(UsersTable.age := 31)
       .where(UsersTable.id === fixedId)
-      .toCQL
+      .render()
 
     cql should include("USING TTL 7200")
   }
@@ -46,14 +46,14 @@ class UpdateSpec extends AnyFlatSpec with Matchers {
       .set(UsersTable.age := 31)
       .where(UsersTable.id === fixedId)
       .ifExists
-      .toCQL
+      .render()
 
     cql should endWith("IF EXISTS")
   }
 
   it should "require at least one SET assignment" in {
     an[IllegalArgumentException] should be thrownBy
-    UsersTable.update.where(UsersTable.id === fixedId).toCQL
+    UsersTable.update.where(UsersTable.id === fixedId).render()
   }
 
   it should "NOT provide an and method on Update" in {
@@ -74,7 +74,7 @@ class UpdateSpec extends AnyFlatSpec with Matchers {
     val cql = UsersTable.update
       .set(UsersTable.age := 31)
       .where(UsersTable.id === fixedId and UsersTable.username === "alice")
-      .execute()
+      .toCQL
 
     cql shouldBe s"UPDATE my_keyspace.users SET age = 31 WHERE id = $fixedId AND username = 'alice'"
   }
@@ -85,7 +85,7 @@ class UpdateSpec extends AnyFlatSpec with Matchers {
       .where(
         EventsTable.eventId === fixedId and EventsTable.eventType === "click" and EventsTable.tenantId === "acme"
       )
-      .execute()
+      .toCQL
 
     cql should include("WHERE event_id = ")
   }
@@ -94,7 +94,7 @@ class UpdateSpec extends AnyFlatSpec with Matchers {
     val cql = UsersTable.update
       .set(UsersTable.age := 31)
       .where(UsersTable.id === fixedId and UsersTable.username.in(Seq("alice", "bob")))
-      .execute()
+      .toCQL
 
     cql shouldBe
     "UPDATE my_keyspace.users SET age = 31 " +
@@ -108,7 +108,7 @@ class UpdateSpec extends AnyFlatSpec with Matchers {
         EventsTable.tenantId === "acme" and EventsTable.eventType === "click" and EventsTable.eventId
           .in(Seq(fixedId))
       )
-      .execute()
+      .toCQL
 
     cql should include(s"event_id IN ($fixedId)")
   }
@@ -116,12 +116,12 @@ class UpdateSpec extends AnyFlatSpec with Matchers {
   // ---- execute gate: negative ------------------------------------------------
 
   it should "NOT compile without a WHERE clause" in {
-    assertTypeError("""UsersTable.update.set(UsersTable.age := 31).execute()""")
+    assertTypeError("""UsersTable.update.set(UsersTable.age := 31).toCQL""")
   }
 
   it should "NOT compile when clustering columns are missing" in {
     assertTypeError(
-      """UsersTable.update.set(UsersTable.age := 31).where(UsersTable.id === fixedId).execute()"""
+      """UsersTable.update.set(UsersTable.age := 31).where(UsersTable.id === fixedId).toCQL"""
     )
   }
 
@@ -130,7 +130,7 @@ class UpdateSpec extends AnyFlatSpec with Matchers {
       """SensorsTable.update
            .set(SensorsTable.reading := 1.0)
            .where(SensorsTable.deviceId === fixedId and SensorsTable.year === 2026 and SensorsTable.ts > 100L)
-           .execute()"""
+           .toCQL"""
     )
   }
 
@@ -139,7 +139,7 @@ class UpdateSpec extends AnyFlatSpec with Matchers {
       """UsersTable.update
            .set(UsersTable.age := 31)
            .where(UsersTable.id === fixedId and UsersTable.username === "alice" and UsersTable.email === "a@b.c")
-           .execute()"""
+           .toCQL"""
     )
   }
 
@@ -148,7 +148,7 @@ class UpdateSpec extends AnyFlatSpec with Matchers {
       """UsersTable.update
            .set(UsersTable.age := 31)
            .where(UsersTable.id.in(Seq(fixedId)) and UsersTable.username === "alice")
-           .execute()"""
+           .toCQL"""
     )
   }
 
@@ -157,7 +157,7 @@ class UpdateSpec extends AnyFlatSpec with Matchers {
       """UsersTable.update
            .set(UsersTable.age := 31)
            .where(UsersTable.username.in(Seq("alice")))
-           .execute()"""
+           .toCQL"""
     )
   }
 
@@ -166,7 +166,7 @@ class UpdateSpec extends AnyFlatSpec with Matchers {
       """UsersTable.update
            .set(UsersTable.age := 31)
            .where(UsersTable.id === fixedId and UsersTable.username === "alice" and UsersTable.username.in(Seq("bob")))
-           .execute()"""
+           .toCQL"""
     )
   }
 
@@ -175,7 +175,7 @@ class UpdateSpec extends AnyFlatSpec with Matchers {
       """UsersTable.update
            .set(UsersTable.age := 31)
            .where(UsersTable.id === fixedId and UsersTable.username === "alice" and UsersTable.email.in(Seq("a@b.c")))
-           .execute()"""
+           .toCQL"""
     )
   }
 }
