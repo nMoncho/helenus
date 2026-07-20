@@ -116,10 +116,7 @@ final case class Delete[
     val usingStr = timestampMicros
       .map(ts => s" USING TIMESTAMP ${ts.dividedBy(Duration.of(1, ChronoUnit.MICROS))}")
       .getOrElse("")
-    val whereStr =
-      if (predicates.isEmpty) ""
-      else if (prepared) s" WHERE ${predicates.map(_.forPreparedStatement).mkString(" AND ")}"
-      else s" WHERE ${predicates.map(_.toCQL).mkString(" AND ")}"
+    val whereStr    = renderPredicates(predicates, prepared)
     val ifExistsStr = if (ifExistsFlag) " IF EXISTS" else ""
 
     s"DELETE ${colStr}FROM ${table.fullTableName}$usingStr$whereStr$ifExistsStr"

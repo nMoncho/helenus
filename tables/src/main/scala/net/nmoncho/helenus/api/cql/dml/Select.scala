@@ -227,13 +227,8 @@ object Select {
       allowFiltering: Boolean,
       prepared: Boolean = false
   ): String = {
-    val colStr = if (s.columns.isEmpty) "*" else s.columns.mkString(", ")
-
-    val whereStr =
-      if (s.predicates.isEmpty) ""
-      else if (prepared)
-        s" WHERE ${orderedPredicates(s).map(_.forPreparedStatement).mkString(" AND ")}"
-      else s" WHERE ${orderedPredicates(s).map(_.toCQL).mkString(" AND ")}"
+    val colStr   = if (s.columns.isEmpty) "*" else s.columns.mkString(", ")
+    val whereStr = renderPredicates(orderedPredicates(s), prepared)
 
     val orderStr =
       if (s.orderByClauses.isEmpty) ""

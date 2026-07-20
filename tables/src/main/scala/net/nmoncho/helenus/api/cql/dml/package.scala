@@ -17,6 +17,11 @@ import shapeless.ops.function.FnFromProduct
 
 package object dml {
 
+  def renderPredicates(predicates: Seq[Predicate[_, _]], prepared: Boolean): String =
+    if (predicates.isEmpty) ""
+    else if (prepared) s" WHERE ${predicates.map(_.forPreparedStatement).mkString(" AND ")}"
+    else s" WHERE ${predicates.map(_.toCQL).mkString(" AND ")}"
+
   def bindBoundPredicates(
       bstmt: BoundStatement,
       predicates: Seq[BoundPredicate[_, _]],

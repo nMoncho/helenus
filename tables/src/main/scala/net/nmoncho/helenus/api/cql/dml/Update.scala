@@ -133,10 +133,7 @@ final case class Update[
       }
       .mkString(", ")
 
-    val whereStr =
-      if (predicates.isEmpty) ""
-      else if (prepared) s" WHERE ${predicates.map(_.forPreparedStatement).mkString(" AND ")}"
-      else s" WHERE ${predicates.map(_.toCQL).mkString(" AND ")}"
+    val whereStr = renderPredicates(predicates, prepared)
 
     val ifExistsStr = if (ifExistsFlag) " IF EXISTS" else ""
 
