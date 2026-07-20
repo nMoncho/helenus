@@ -123,9 +123,9 @@ final case class Select[
     val pstmt = session.prepare(Select.render(this, allowFiltering = false, prepared = true))
 
     fp { params =>
-      val bstmt = withBoundValues(pstmt.bind(), params)
+      val values = Binding.values(params).iterator
 
-      session.execute(bstmt)
+      session.execute(bindPredicates(pstmt.bind(), orderedPredicates(this), values))
     }
   }
 
