@@ -158,7 +158,7 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
 
     // ---- assignment (used in INSERT / UPDATE) -----------------------------
 
-    def :=(value: T): Assignment[T] = new SimpleAssignment[T](this, value)
+    def :=(value: T): Assignment[T] = new BoundAssignment[T](this, value)
 
     /** A bound assignment: `col := ?` (value supplied via `toFunction`). */
     def :=(@unused m: BindMarker): BindAssignment[T] = new BindAssignment[T](this)
@@ -172,30 +172,22 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
   sealed trait Assignment[T] {
     def column: Column[T]
 
-    def toCQL: String
+    final def toCQL: String = this match {
+      case bound: BoundAssignment[_] => s"${column.name} = ${column.codec.format(bound.value)}"
+      case _: BindAssignment[_] => s"${column.name} = ?"
+    }
 
-    def toUpdateCQL: String
+    override def toString: String = s"Assignment($toCQL)"
   }
 
   /** A SET / VALUES assignment. */
-  class SimpleAssignment[T](override val column: Column[T], val value: T) extends Assignment[T] {
-    override def toCQL: String    = s"${column.name} = ${column.codec.format(value)}"
-    override def toString: String = s"Assignment($toCQL)"
-
-    def toUpdateCQL: String = s"${column.name} = ${column.codec.format(value)}"
-  }
+  class BoundAssignment[T](override val column: Column[T], val value: T) extends Assignment[T]
 
   /** An assignment with a bound value (`col := ?`). The value arrives later
     * as an argument of the function produced by `toFunction`, typed as the
     * column's `V`.
     */
-  final class BindAssignment[T](override val column: Column[T]) extends Assignment[T] {
-    def fill(v: T): TableDef#Assignment[T] = new SimpleAssignment[T](column, v)
-
-    override def toCQL: String = s"${column.name} = ?"
-
-    def toUpdateCQL: String = s"${column.name} = ?"
-  }
+  final class BindAssignment[T](override val column: Column[T]) extends Assignment[T]
 
 }
 
@@ -246,7 +238,7 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
   class ComputedColumn[T: TypeCodec](name: String, frozen: Boolean, val render: A => T)
       extends Column[T](name, name, frozen) {
 
-    def fill(a: A): Assignment[T] = new SimpleAssignment[T](this, render(a))
+    def fill(a: A): Assignment[T] = new BoundAssignment[T](this, render(a))
   }
 
   /** How case-class field names map to CQL column names. */
