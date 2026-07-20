@@ -138,15 +138,13 @@ final case class Delete[
   ): ResultSet = {
     val pstmt = session.prepare(render(prepared = true))
 
-    // Safe to case this to `Seq[BoundPredicate[_, _]]` as there are no unbound parameters
-    val bstmt = predicates
-      .asInstanceOf[Seq[BoundPredicate[_, _]]]
-      .zipWithIndex
-      .foldLeft(pstmt.bind()) { case (bstmt, (p: BoundPredicate[Any, Any], idx)) =>
-        p.bind(bstmt, idx, p.value)
-      }
-
-    session.execute(bstmt)
+    session.execute(
+      bindBoundPredicates(
+        pstmt.bind(),
+        // Safe to case this to `Seq[BoundPredicate[_, _]]` as there are no unbound parameters
+        predicates.asInstanceOf[Seq[BoundPredicate[_, _]]]
+      )
+    )
   }
 
   /** Turn a delete containing `?` markers into a `FunctionN` taking one
@@ -165,15 +163,7 @@ final case class Delete[
     fp { params =>
       val values = Binding.values(params).iterator
 
-      val bstmt = predicates.zipWithIndex.foldLeft(pstmt.bind()) {
-        case (bstmt, (p: BoundPredicate[Any, Any], idx)) =>
-          p.bind(bstmt, idx, p.value)
-
-        case (bstmt, (p: BindPredicate[_, Any], idx)) =>
-          p.bind(bstmt, idx, values.next())
-      }
-
-      session.execute(bstmt)
+      session.execute(bindPredicates(pstmt.bind(), predicates, values))
     }
   }
 

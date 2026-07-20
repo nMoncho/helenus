@@ -171,12 +171,11 @@ final case class Update[
       }
 
     // Safe to case this to `Seq[BoundPredicate[_, _]]` as there are no unbound parameters
-    val withPredicates = predicates
-      .asInstanceOf[Seq[BoundPredicate[_, _]]]
-      .zipWithIndex
-      .foldLeft(bstmt) { case (bstmt, (p: BoundPredicate[Any, Any], idx)) =>
-        p.bind(bstmt, idx + assignmentCount, p.value)
-      }
+    val withPredicates = bindBoundPredicates(
+      bstmt,
+      predicates.asInstanceOf[Seq[BoundPredicate[_, _]]],
+      assignmentCount
+    )
 
     session.execute(withPredicates)
   }
@@ -208,13 +207,7 @@ final case class Update[
             bstmt.set(idx, as.value, as.column.codec)
         }
 
-      val withPredicates = predicates.zipWithIndex.foldLeft(bstmt) {
-        case (bstmt, (p: BoundPredicate[Any, Any], idx)) =>
-          p.bind(bstmt, idx + assignmentCount, p.value)
-
-        case (bstmt, (p: BindPredicate[_, Any], idx)) =>
-          p.bind(bstmt, idx + assignmentCount, values.next())
-      }
+      val withPredicates = bindPredicates(bstmt, predicates, values, assignmentCount)
 
       session.execute(withPredicates)
     }
