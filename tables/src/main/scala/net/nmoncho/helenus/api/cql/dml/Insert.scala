@@ -95,17 +95,13 @@ final case class Insert[T <: TableDef, Params <: HList](
   def execute()(
       implicit session: CqlSession,
       @unused noUnboundParams: Params =:= HNil
-  ): ResultSet = {
-    val pstmt = session.prepare(render(prepared = true))
-
-    val bstmt = bindBoundAssignments(
-      pstmt.bind(),
+  ): ResultSet =
+    executeStatement(
+      render(prepared = true),
       // Safe to case this to `Seq[SimpleAssignment[_]]` as there are no unbound parameters
-      assignments.asInstanceOf[Seq[TableDef#BoundAssignment[Any]]]
+      assignments.asInstanceOf[Seq[TableDef#BoundAssignment[Any]]],
+      Seq.empty
     )
-
-    session.execute(bstmt)
-  }
 
   /** Turn an insert containing `?` markers into a `FunctionN` taking one
     * argument per marker (typed as the bound column, in writing order) and

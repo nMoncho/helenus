@@ -135,17 +135,13 @@ final case class Delete[
       implicit session: CqlSession,
       @unused ev: CanDelete[M, table.PK, table.CK, Eq, In, Rng],
       @unused noUnboundParams: Params =:= HNil
-  ): ResultSet = {
-    val pstmt = session.prepare(render(prepared = true))
-
-    session.execute(
-      bindBoundPredicates(
-        pstmt.bind(),
-        // Safe to case this to `Seq[BoundPredicate[_, _]]` as there are no unbound parameters
-        predicates.asInstanceOf[Seq[BoundPredicate[_, _]]]
-      )
+  ): ResultSet =
+    executeStatement(
+      render(prepared = true),
+      Seq.empty,
+      // Safe to case this to `Seq[BoundPredicate[_, _]]` as there are no unbound parameters
+      predicates.asInstanceOf[Seq[BoundPredicate[_, _]]]
     )
-  }
 
   /** Turn a delete containing `?` markers into a `FunctionN` taking one
     * argument per marker (typed as the bound column, in writing order) and
