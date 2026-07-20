@@ -178,19 +178,7 @@ final case class Update[
       @unused ev: CanUpdate[table.PK, table.CK, Eq, In, Rng],
       @unused all: Prepend.Aux[SetPm, WherePm, AllPm],
       fp: FnFromProduct.Aux[AllPm => ResultSet, F]
-  ): F = {
-    val pstmt = session.prepare(render(prepared = true))
-
-    fp { params =>
-      val values          = Binding.values(params).iterator
-      val assignmentCount = assignments.length
-
-      val bstmt          = bindAssignment(pstmt.bind(), assignments, values)
-      val withPredicates = bindPredicates(bstmt, predicates, values, assignmentCount)
-
-      session.execute(withPredicates)
-    }
-  }
+  ): F = toFunctionStatement[AllPm, F](render(prepared = true), assignments, predicates)
 
   override def toString: String = render()
 }

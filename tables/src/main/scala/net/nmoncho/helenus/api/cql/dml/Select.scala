@@ -119,15 +119,12 @@ final case class Select[
       @unused ev: CanSelect[table.PK, table.CK, Eq, In, Rng],
       // TODO change this to `PagingIterable[Out]` when we can define `Out`
       fp: FnFromProduct.Aux[Params => ResultSet, F]
-  ): F = {
-    val pstmt = session.prepare(Select.render(this, allowFiltering = false, prepared = true))
-
-    fp { params =>
-      val values = Binding.values(params).iterator
-
-      session.execute(bindPredicates(pstmt.bind(), orderedPredicates(this), values))
-    }
-  }
+  ): F =
+    toFunctionStatement[Params, F](
+      Select.render(this, allowFiltering = false, prepared = true),
+      Nil,
+      predicates
+    )
 
   private[dml] def withBoundValues(
       bstmt: BoundStatement,

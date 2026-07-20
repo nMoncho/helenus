@@ -12,6 +12,8 @@ import com.datastax.oss.driver.api.core.cql.ResultSet
 import net.nmoncho.helenus.api.cql.dml.where.BindPredicate
 import net.nmoncho.helenus.api.cql.dml.where.BoundPredicate
 import net.nmoncho.helenus.api.cql.dml.where.Predicate
+import shapeless.HList
+import shapeless.ops.function.FnFromProduct
 
 package object dml {
 
@@ -90,6 +92,24 @@ package object dml {
     )
 
     session.execute(withPredicates)
+  }
+
+  def toFunctionStatement[Params <: HList, F](
+      cql: String,
+      assignments: Seq[TableDef#Assignment[_]],
+      predicates: Seq[Predicate[_, _]]
+  )(implicit session: CqlSession, fp: FnFromProduct.Aux[Params => ResultSet, F]): F = {
+    val pstmt = session.prepare(cql)
+
+    fp { params =>
+      val values          = Binding.values(params).iterator
+      val assignmentCount = assignments.length
+
+      val bstmt          = bindAssignment(pstmt.bind(), assignments, values)
+      val withPredicates = bindPredicates(bstmt, predicates, values, assignmentCount)
+
+      session.execute(withPredicates)
+    }
   }
 
 }
