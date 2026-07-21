@@ -14,10 +14,23 @@ import shapeless.HNil
   * type `P`:
   *
   *   - an [[EqPredicate]] contributes its column tag to the equality set,
+  *     EXCEPT an [[IndexEqPredicate]] (`===` on a column declared with
+  *     `Table.index`), which contributes nothing: CQL can satisfy an indexed
+  *     equality directly through the index, on any column type, so it is
+  *     never required to be part of the primary key,
   *   - an [[InPredicate]] contributes its column tag to the IN set,
   *   - a [[RangePredicate]] contributes its column tag to the range set,
-  *   - any other [[Predicate]] (`!==`, `contains`) contributes the
-  *     [[RequiresFiltering]] marker, making the ungated `execute` unavailable,
+  *   - any other [[Predicate]] (`!==`, `contains` / `containsKey` on a
+  *     non-indexed column) contributes the [[RequiresFiltering]] marker,
+  *     making the ungated `execute` unavailable, except an [[IndexPredicate]]
+  *     (`contains` / `containsKey` on a column declared with `Table.index`),
+  *     which contributes nothing: CQL can satisfy it directly through the
+  *     index,
+  *   - the bind variants (built with the `?` marker) contribute exactly like
+  *     their literal counterparts, plus their bound value type in `Params`
+  *     (which drives `Select.toFunction`),
+  *   - a [[Conjunction]] (built with `and`) contributes everything its
+  *     members contribute.
   *
   * `where` and the `and` combinator merge these contributions with shapeless
   * `Prepend`, so predicates can be combined freely while the compile-time key
@@ -55,6 +68,14 @@ object PredicateShape {
   implicit def equality[Col, T]: Aux[EqPredicate[Col, T], Col :: HNil, HNil, HNil, HNil] =
     instance(List(_))
 
+  /** A `CONTAINS` predicate on a column with a declared secondary index (see
+    * `Table.index`): CQL can satisfy it directly through the index, so unlike
+    * the general `filtering` case above it contributes nothing and does not
+    * force `allowFiltering`.
+    */
+  implicit def indexedContains[Col, T, V]: Aux[IndexPredicate[Col, T, V], HNil, HNil, HNil, HNil] =
+    instance(List(_))
+
   implicit def multiValue[Col, T, V <: Iterable[T]]
       : Aux[InPredicate[Col, T, V], HNil, Col :: HNil, HNil, HNil] =
     instance(List(_))
@@ -62,7 +83,7 @@ object PredicateShape {
   implicit def range[Col, T]: Aux[RangePredicate[Col, T], HNil, HNil, Col :: HNil, HNil] =
     instance(List(_))
 
-  implicit val filtering: Aux[Predicate[_, _], HNil, HNil, RequiresFiltering :: HNil, HNil] =
+  implicit def filtering[T, V]: Aux[Predicate[T, V], HNil, HNil, RequiresFiltering :: HNil, HNil] =
     instance(List(_))
 
   // ---- bind predicates (`?` marker): same gate contribution + a parameter --
