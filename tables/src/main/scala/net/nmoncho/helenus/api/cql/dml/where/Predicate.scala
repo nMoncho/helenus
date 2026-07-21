@@ -59,6 +59,19 @@ sealed class MultiValuePredicate[T, V <: Iterable[T]](
     bstmt.set[V](idx, this.value, codec)
 }
 
+sealed class SingleValueOnCollectionPredicate[T, V](
+    val column: TableDef#Column[T],
+    val operator: String,
+    val value: V,
+    val codec: TypeCodec[V]
+) extends BoundPredicate[T, V] {
+  override def toCQL: String =
+    s"${column.name} $operator ${codec.format(value)}"
+
+  override def bind(bstmt: BoundStatement, idx: Int, @unused _value: V): BoundStatement =
+    bstmt.set[V](idx, this.value, codec)
+}
+
 object Predicate {
   def apply[T](column: TableDef#Column[T], operator: String, value: T): Predicate[T, T] =
     new SingleValuePredicate(column, operator, value)
@@ -125,6 +138,25 @@ final class InPredicate[Col, T, V <: Iterable[T]](
     values: V,
     codec: TypeCodec[V]
 ) extends MultiValuePredicate[T, V](column, "IN", values, codec)
+
+/** A `CONTAINS` / `CONTAINS KEY` predicate on a column with a declared
+  * secondary index (see `Table.index` / [[TableDef.Indexed]]). Unlike the
+  * plain [[Predicate]] produced by `contains` / `containsKey` on a
+  * non-indexed column, CQL can satisfy this directly through the index, so it
+  * does not require `ALLOW FILTERING` (see [[PredicateShape]]).
+  */
+final class IndexPredicate[Col, T, V](
+    val column: TableDef#Column[T],
+    val operator: String,
+    val value: V,
+    val codec: TypeCodec[V]
+) extends BoundPredicate[T, V] {
+  override def toCQL: String =
+    s"${column.name} $operator ${codec.format(value)}"
+
+  override def bind(bstmt: BoundStatement, idx: Int, @unused _value: V): BoundStatement =
+    bstmt.set[V](idx, this.value, codec)
+}
 
 // ---- bind variants (built with the `?` marker) ---------------------------
 // Each mirrors its literal counterpart for the execute gates (same column-tag

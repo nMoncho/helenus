@@ -98,3 +98,21 @@ object MetricsTable extends Table[Metric]("monitoring", "metrics") {
 object TestValues {
   val fixedId: UUID = UUID.fromString("123e4567-e89b-12d3-a456-426614174000")
 }
+
+// A table with an indexed collection column (`tags`) alongside a plain,
+// non-indexed one (`categories`), used to test the index-aware `contains`
+// gate: `tags.contains(...)` needs no `allowFiltering`, `categories.contains`
+// still does.
+case class Article(id: UUID, title: String, tags: Set[String], categories: Set[String])
+
+object ArticlesTable extends Table[Article]("blog", "articles") {
+  val id         = column[UUID]("id")
+  val title      = column[String]("title")
+  val tags       = index(column[Set[String]]("tags"))
+  val categories = column[Set[String]]("categories")
+
+  protected val columns = registerAllColumns(id :: title :: tags :: categories :: HNil)
+
+  type PK = id.Tag :: HNil
+  type CK = HNil
+}

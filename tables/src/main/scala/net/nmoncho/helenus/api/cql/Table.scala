@@ -13,8 +13,7 @@ import scala.collection.mutable
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import net.nmoncho.helenus.api.ColumnNamingScheme
 import net.nmoncho.helenus.api.DefaultColumnNamingScheme
-import net.nmoncho.helenus.api.cql.ddl.CreateTable
-import net.nmoncho.helenus.api.cql.ddl.DropTable
+import net.nmoncho.helenus.api.cql.ddl._
 import net.nmoncho.helenus.api.cql.dml._
 import net.nmoncho.helenus.api.cql.dml.where._
 import shapeless.::
@@ -112,6 +111,12 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
       */
     def in[V <: Iterable[T]](values: V)(implicit iCodec: TypeCodec[V]): InPredicate[Tag, T, V] =
       new InPredicate[Tag, T, V](this, values, iCodec)
+
+    def contains[V](value: V)(
+        implicit @unused ev: T <:< Iterable[V],
+        innerType: TypeCodec[V]
+    ): Predicate[T, V] =
+      new SingleValueOnCollectionPredicate(this, "CONTAINS", value, innerType)
 
     // TODO contains may need an index, this would make queries require allow filtering if not present
     // TODO handle Iterable being a Map, contains only handles values for Maps, not keys
@@ -241,6 +246,8 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
     def fill(a: A): Assignment[T] = new BoundAssignment[T](this, render(a))
   }
 
+  class IndexDef(val name: String, val target: String, val kind: IndexKind = IndexKind.Secondary)
+
   /** How case-class field names map to CQL column names. */
   protected def naming: ColumnNamingScheme = DefaultColumnNamingScheme
 
@@ -250,6 +257,9 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
 
   /** Computed columns declared on this table, in declaration order. */
   private val computedColumns = scala.collection.mutable.ListBuffer.empty[ComputedColumn[_]]
+
+  /** Secondary indexes declared on this table (via [[index]]), in declaration order. */
+  private val indexes = scala.collection.mutable.ListBuffer.empty[IndexDef]
 
   /** Every table must register its columns; implement as
     * `protected val columns = registerAllColumns(id :: ... :: HNil)`.
@@ -329,6 +339,25 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
     col
   }
 
+  /** Declare a secondary index on `col`, giving evidence that `col.contains`
+    * can be satisfied by CQL directly through the index: `execute` no longer
+    * requires `allowFiltering` for it (see [[TableDef.Indexed]]). Also
+    * registers the index so it can be created with [[createIndexes]].
+    *
+    * {{{
+    * val tags = index(column[Set[String]]("tags"))
+    * }}}
+    */
+  protected def index[V: TypeCodec](col: Column[V]): (Column[V] with Indexed[V]) {
+    type Tag = col.Tag
+  } = {
+    indexes += new IndexDef(s"${tableName}_${col.name}_idx", col.name)
+
+    new Column[V](col.fieldName, col.name, col.frozen) with Indexed[V] {
+      type Tag = col.Tag
+    }
+  }
+
   // ---- entry points that derive from the case class -----------------------
 
   def create(implicit pk: ColumnNames[PK], ck: ClusteringOf[CK]): CreateTable =
@@ -338,6 +367,10 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
       pk.names.map(naming.apply),
       ck.columns.map(c => c.copy(name = naming.apply(c.name)))
     )
+
+  /** CREATE INDEX statements for every index declared with [[index]]. */
+  def createIndexes: Seq[CreateIndex] =
+    indexes.toList.map(i => CreateIndex(this, i.name, i.target))
 
   /** Select specific columns (all fields of `A` when none given). Nothing is constrained yet. */
   def select(
