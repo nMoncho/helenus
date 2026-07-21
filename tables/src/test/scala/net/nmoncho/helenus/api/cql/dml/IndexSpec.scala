@@ -83,4 +83,54 @@ class IndexSpec extends AnyFlatSpec with Matchers {
 
     cql should include("(id, tags) VALUES")
   }
+
+  // ---- containsKey (maps) --------------------------------------------------
+
+  "Table.index" should "register a CREATE INDEX statement for an indexed map column" in {
+    ProfilesTable.createIndexes.map(_.toCQL) shouldBe
+    Seq("CREATE INDEX profiles_attributes_idx ON blog.profiles (attributes)")
+  }
+
+  "containsKey on an indexed column" should "execute without allowFiltering" in {
+    val cql = ProfilesTable
+      .select()
+      .where(ProfilesTable.attributes.containsKey("color"))
+      .toCQL
+
+    cql shouldBe "SELECT * FROM blog.profiles WHERE attributes CONTAINS KEY 'color'"
+  }
+
+  it should "combine with a full primary-key restriction and still execute" in {
+    val cql = ProfilesTable
+      .select()
+      .where(ProfilesTable.id === fixedId and ProfilesTable.attributes.containsKey("color"))
+      .toCQL
+
+    cql should include(s"WHERE id = $fixedId AND attributes CONTAINS KEY 'color'")
+  }
+
+  "containsKey on a non-indexed column" should "NOT compile without allowFiltering" in {
+    assertTypeError(
+      """ProfilesTable.select().where(ProfilesTable.settings.containsKey("color")).toCQL"""
+    )
+  }
+
+  it should "execute once allowFiltering is used" in {
+    val cql = ProfilesTable
+      .select()
+      .where(ProfilesTable.settings.containsKey("color"))
+      .allowFiltering
+      .toCQL
+
+    cql shouldBe "SELECT * FROM blog.profiles WHERE settings CONTAINS KEY 'color' ALLOW FILTERING"
+  }
+
+  "An indexed map column" should "still work as an ordinary column (assignment, equality, key)" in {
+    val cql = ProfilesTable.insert
+      .value(ProfilesTable.id := fixedId)
+      .value(ProfilesTable.attributes := Map("color" -> "red"))
+      .toCQL
+
+    cql should include("(id, attributes) VALUES")
+  }
 }
