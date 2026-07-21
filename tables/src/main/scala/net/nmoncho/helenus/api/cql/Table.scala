@@ -118,6 +118,12 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
     ): Predicate[T, V] =
       new SingleValueOnCollectionPredicate(this, "CONTAINS", value, innerType)
 
+    def containsKey[K, V](value: K)(
+        implicit @unused ev: T <:< scala.collection.Map[K, V],
+        innerType: TypeCodec[K]
+    ): Predicate[T, K] =
+      new SingleValueOnCollectionPredicate(this, "CONTAINS KEY", value, innerType)
+
     // TODO contains may need an index, this would make queries require allow filtering if not present
     // TODO handle Iterable being a Map, contains only handles values for Maps, not keys
 //    def contains[V](value: V)(implicit @unused ev: T <:< Iterable[V]): Predicate[T] =

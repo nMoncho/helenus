@@ -72,6 +72,10 @@ object PredicateShape {
     * `Table.index`): CQL can satisfy it directly through the index, so unlike
     * the general `filtering` case above it contributes nothing and does not
     * force `allowFiltering`.
+    * A `CONTAINS` / `CONTAINS KEY` predicate on a column with a declared
+    * secondary index (see `Table.index`): CQL can satisfy it directly through
+    * the index, so unlike the general `filtering` case above it contributes
+    * nothing and does not force `allowFiltering`.
     */
   implicit def indexedContains[Col, T, V]: Aux[IndexPredicate[Col, T, V], HNil, HNil, HNil, HNil] =
     instance(List(_))

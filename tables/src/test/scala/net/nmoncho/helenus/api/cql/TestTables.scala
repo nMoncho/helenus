@@ -116,3 +116,20 @@ object ArticlesTable extends Table[Article]("blog", "articles") {
   type PK = id.Tag :: HNil
   type CK = HNil
 }
+
+// A table with an indexed map column (`attributes`) alongside a plain,
+// non-indexed one (`settings`), used to test the index-aware `containsKey`
+// gate: `attributes.containsKey(...)` needs no `allowFiltering`,
+// `settings.containsKey` still does.
+case class Profile(id: UUID, attributes: Map[String, String], settings: Map[String, String])
+
+object ProfilesTable extends Table[Profile]("blog", "profiles") {
+  val id         = column[UUID]("id")
+  val attributes = index(column[Map[String, String]]("attributes"))
+  val settings   = column[Map[String, String]]("settings")
+
+  protected val columns = registerAllColumns(id :: attributes :: settings :: HNil)
+
+  type PK = id.Tag :: HNil
+  type CK = HNil
+}
