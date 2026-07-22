@@ -237,4 +237,28 @@ class IndexSpec extends AnyFlatSpec with Matchers {
 
     cql should include("(id, email) VALUES")
   }
+
+  // ---- Table.index's optional custom name ------------------------------
+
+  "Table.index" should "use a custom name verbatim for a single-target column" in {
+    OrdersTable.createIndexes.map(_.toCQL) should contain(
+      "CREATE INDEX orders_status_lookup ON blog.orders (status)"
+    )
+  }
+
+  it should "still suffix a custom name for a multi-target column, to keep both indexes distinct" in {
+    OrdersTable.createIndexes.map(_.toCQL) should contain allOf (
+      "CREATE INDEX orders_labels_lookup_idx ON blog.orders (labels)",
+      "CREATE INDEX orders_labels_lookup_keys_idx ON blog.orders (KEYS(labels))"
+    )
+  }
+
+  it should "default to tableName_columnName when no name is given" in {
+    ArticlesTable.createIndexes.map(_.indexName) shouldBe Seq("articles_tags_idx")
+  }
+
+  "=== on a custom-named indexed column" should "execute without allowFiltering, same as an auto-named one" in {
+    val cql = OrdersTable.select().where(OrdersTable.status === "shipped").toCQL
+    cql shouldBe "SELECT * FROM blog.orders WHERE status = 'shipped'"
+  }
 }
