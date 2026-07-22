@@ -81,7 +81,8 @@ sealed class EntryPredicate[Col, T, K, V](
 
   override val operator: String = "="
 
-  override def toCQL: String                = s"${column.name}[${keyCodec.format(key)}] $operator ?"
+  override def toCQL: String =
+    s"${column.name}[${keyCodec.format(key)}] $operator ${valueCodec.format(value)}"
   override def forPreparedStatement: String = s"${column.name}[${keyCodec.format(key)}] $operator ?"
 
   override def bind(bstmt: BoundStatement, idx: Int, @unused _value: V): BoundStatement =

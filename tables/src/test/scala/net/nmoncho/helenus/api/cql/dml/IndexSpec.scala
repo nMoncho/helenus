@@ -309,7 +309,7 @@ class IndexSpec extends AnyFlatSpec with Matchers {
       .where(ProfilesTable.attributes.entry("color", "red"))
       .toCQL
 
-    cql shouldBe "SELECT * FROM blog.profiles WHERE attributes['color'] = ?"
+    cql shouldBe "SELECT * FROM blog.profiles WHERE attributes['color'] = 'red'"
   }
 
   it should "combine with a full primary-key restriction and still execute" in {
@@ -318,7 +318,7 @@ class IndexSpec extends AnyFlatSpec with Matchers {
       .where(ProfilesTable.id === fixedId and ProfilesTable.attributes.entry("color", "red"))
       .toCQL
 
-    cql should include(s"WHERE id = $fixedId AND attributes['color'] = ?")
+    cql should include(s"WHERE id = $fixedId AND attributes['color'] = 'red'")
   }
 
   "entry on a non-indexed column" should "NOT compile without allowFiltering" in {
@@ -334,7 +334,7 @@ class IndexSpec extends AnyFlatSpec with Matchers {
       .allowFiltering
       .toCQL
 
-    cql shouldBe "SELECT * FROM blog.profiles WHERE settings['locale'] = ? ALLOW FILTERING"
+    cql shouldBe "SELECT * FROM blog.profiles WHERE settings['locale'] = 'en' ALLOW FILTERING"
   }
 
   // ---- compound: contains + containsKey + entry all indexed on ONE column --
@@ -345,7 +345,7 @@ class IndexSpec extends AnyFlatSpec with Matchers {
     ProfilesTable.select().where(ProfilesTable.attributes.containsKey("color")).toCQL should
     include("attributes CONTAINS KEY 'color'")
     ProfilesTable.select().where(ProfilesTable.attributes.entry("color", "red")).toCQL should
-    include("attributes['color'] = ?")
+    include("attributes['color'] = 'red'")
   }
   it should "let all 3 predicates be combined in one WHERE and still execute without allowFiltering" in {
     // Verifies the type-level contributions compound correctly: each is
@@ -367,6 +367,86 @@ class IndexSpec extends AnyFlatSpec with Matchers {
 
     cql shouldBe
     s"SELECT * FROM blog.profiles WHERE id = $fixedId " +
-    "AND attributes CONTAINS 'red' AND attributes CONTAINS KEY 'color' AND attributes['color'] = ?"
+    "AND attributes CONTAINS 'red' AND attributes CONTAINS KEY 'color' AND attributes['color'] = 'red'"
+  }
+
+  // ---- Table.indexKeys / indexValuesAndKeys / etc.: pick which of a map's
+  // ---- aspects are actually indexed --------------------------------------
+
+  "Table.indexKeys" should "register only a KEYS index" in {
+    DocumentsTable.createIndexes.filter(_.target.contains("tags")).map(_.toCQL) shouldBe
+    Seq("CREATE INDEX documents_tags_keys_idx ON blog.documents (KEYS(tags))")
+  }
+
+  "Table.indexValuesAndKeys" should "register both a values and a KEYS index, but no ENTRIES index" in {
+    DocumentsTable.createIndexes.filter(_.target.contains("metadata")).map(_.toCQL) shouldBe
+    Seq(
+      "CREATE INDEX documents_metadata_idx ON blog.documents (metadata)",
+      "CREATE INDEX documents_metadata_keys_idx ON blog.documents (KEYS(metadata))"
+    )
+  }
+
+  "containsKey on a Keys-only indexed column" should "execute without allowFiltering" in {
+    val cql = DocumentsTable.select().where(DocumentsTable.tags.containsKey("color")).toCQL
+    cql shouldBe "SELECT * FROM blog.documents WHERE tags CONTAINS KEY 'color'"
+  }
+
+  "contains on a Keys-only indexed column" should "NOT compile without allowFiltering (no values index exists)" in {
+    assertTypeError(
+      """DocumentsTable.select().where(DocumentsTable.tags.contains("red")).toCQL"""
+    )
+  }
+
+  it should "execute once allowFiltering is used" in {
+    val cql =
+      DocumentsTable.select().where(DocumentsTable.tags.contains("red")).allowFiltering.toCQL
+    cql shouldBe "SELECT * FROM blog.documents WHERE tags CONTAINS 'red' ALLOW FILTERING"
+  }
+
+  "entry on a Keys-only indexed column" should "NOT compile without allowFiltering (no entries index exists)" in {
+    assertTypeError(
+      """DocumentsTable.select().where(DocumentsTable.tags.entry("color", "red")).toCQL"""
+    )
+  }
+
+  it should "execute once allowFiltering is used" in {
+    val cql = DocumentsTable
+      .select()
+      .where(DocumentsTable.tags.entry("color", "red"))
+      .allowFiltering
+      .toCQL
+    cql shouldBe "SELECT * FROM blog.documents WHERE tags['color'] = 'red' ALLOW FILTERING"
+  }
+
+  "contains and containsKey on a ValuesAndKeys indexed column" should "both execute without allowFiltering" in {
+    DocumentsTable.select().where(DocumentsTable.metadata.contains("red")).toCQL should
+    include("metadata CONTAINS 'red'")
+    DocumentsTable.select().where(DocumentsTable.metadata.containsKey("color")).toCQL should
+    include("metadata CONTAINS KEY 'color'")
+  }
+
+  "entry on a ValuesAndKeys indexed column" should "NOT compile without allowFiltering (no entries index exists)" in {
+    assertTypeError(
+      """DocumentsTable.select().where(DocumentsTable.metadata.entry("color", "red")).toCQL"""
+    )
+  }
+
+  it should "execute once allowFiltering is used" in {
+    val cql = DocumentsTable
+      .select()
+      .where(DocumentsTable.metadata.entry("color", "red"))
+      .allowFiltering
+      .toCQL
+
+    cql shouldBe "SELECT * FROM blog.documents WHERE metadata['color'] = 'red' ALLOW FILTERING"
+  }
+
+  "A partially-indexed map column" should "still work as an ordinary column (assignment, key)" in {
+    val cql = DocumentsTable.insert
+      .value(DocumentsTable.id := fixedId)
+      .value(DocumentsTable.tags := Map("color" -> "red"))
+      .toCQL
+
+    cql should include("(id, tags) VALUES")
   }
 }

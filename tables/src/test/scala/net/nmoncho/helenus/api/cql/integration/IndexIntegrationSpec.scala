@@ -40,6 +40,7 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
   private val snapshot2 = UUID.fromString("523e4567-e89b-12d3-a456-426614174000")
   private val customer1 = UUID.fromString("623e4567-e89b-12d3-a456-426614174000")
   private val customer2 = UUID.fromString("723e4567-e89b-12d3-a456-426614174000")
+  private val document1 = UUID.fromString("823e4567-e89b-12d3-a456-426614174000")
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -59,6 +60,10 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
     CustomersTable.drop.ifExists.execute()
     CustomersTable.create.execute()
     CustomersTable.createIndexes.foreach(idx => execute(idx.toCQL))
+
+    DocumentsTable.drop.ifExists.execute()
+    DocumentsTable.create.execute()
+    DocumentsTable.createIndexes.foreach(idx => execute(idx.toCQL))
 
     ArticlesTable
       .insertFrom(Article(article1, "Scala at scale", Set("scala", "cql"), Set("backend")))
@@ -81,6 +86,10 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
 
     CustomersTable.insertFrom(Customer(customer1, "alice@example.com", 30)).execute()
     CustomersTable.insertFrom(Customer(customer2, "bob@example.com", 40)).execute()
+
+    DocumentsTable
+      .insertFrom(Document(document1, Map("color" -> "red"), Map("color" -> "red")))
+      .execute()
   }
 
   // ---- contains: indexed column, no ALLOW FILTERING ------------------------
@@ -329,5 +338,88 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
         .execute()
     )
     result should have size 1
+  }
+
+  // ---- Table.indexKeys: only the KEYS index physically exists ---------------
+  // `tags` was declared with indexKeys (keys-only): only containsKey should
+  // work without ALLOW FILTERING against the real server; contains and entry
+  // must be rejected, since no values / entries index was ever created for it.
+
+  "containsKey on a keys-only indexed column" should "run without allowFiltering and find the matching row" in {
+    val result =
+      rows(DocumentsTable.select().where(DocumentsTable.tags.containsKey("color")).execute())
+    result.map(_.get("id", classOf[UUID])) shouldBe List(document1)
+  }
+
+  "contains on a keys-only indexed column" should "be rejected by Cassandra without allowFiltering" in {
+    an[InvalidQueryException] should be thrownBy
+    Select.render(
+      DocumentsTable.select().where(DocumentsTable.tags.contains("red")),
+      allowFiltering = false,
+      prepared       = false
+    )
+  }
+
+  it should "run once allowFiltering is used" in {
+    val result = rows(
+      DocumentsTable.select().where(DocumentsTable.tags.contains("red")).allowFiltering.execute()
+    )
+    result.map(_.get("id", classOf[UUID])) shouldBe List(document1)
+  }
+
+  "entry on a keys-only indexed column" should "be rejected by Cassandra without allowFiltering" in {
+    an[InvalidQueryException] should be thrownBy
+    Select.render(
+      DocumentsTable.select().where(DocumentsTable.tags.entry("color", "red")),
+      allowFiltering = false,
+      prepared       = false
+    )
+  }
+
+  it should "run once allowFiltering is used" in {
+    val result = rows(
+      DocumentsTable
+        .select()
+        .where(DocumentsTable.tags.entry("color", "red"))
+        .allowFiltering
+        .execute()
+    )
+    result.map(_.get("id", classOf[UUID])) shouldBe List(document1)
+  }
+
+  // ---- Table.indexValuesAndKeys: only VALUES + KEYS indexes exist ----------
+  // `metadata` was declared with indexValuesAndKeys: contains and containsKey
+  // both run without allowFiltering; entry (no entries index) is rejected.
+
+  "contains on a values+keys indexed column" should "run without allowFiltering and find the matching row" in {
+    val result =
+      rows(DocumentsTable.select().where(DocumentsTable.metadata.contains("red")).execute())
+    result.map(_.get("id", classOf[UUID])) shouldBe List(document1)
+  }
+
+  "containsKey on a values+keys indexed column" should "run without allowFiltering and find the matching row" in {
+    val result =
+      rows(DocumentsTable.select().where(DocumentsTable.metadata.containsKey("color")).execute())
+    result.map(_.get("id", classOf[UUID])) shouldBe List(document1)
+  }
+
+  "entry on a values+keys indexed column" should "be rejected by Cassandra without allowFiltering" in {
+    an[InvalidQueryException] should be thrownBy
+    Select.render(
+      DocumentsTable.select().where(DocumentsTable.metadata.entry("color", "red")),
+      allowFiltering = false,
+      prepared       = false
+    )
+  }
+
+  it should "run once allowFiltering is used" in {
+    val result = rows(
+      DocumentsTable
+        .select()
+        .where(DocumentsTable.metadata.entry("color", "red"))
+        .allowFiltering
+        .execute()
+    )
+    result.map(_.get("id", classOf[UUID])) shouldBe List(document1)
   }
 }
