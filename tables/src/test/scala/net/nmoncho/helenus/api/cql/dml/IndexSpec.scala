@@ -8,7 +8,9 @@ package net.nmoncho.helenus.api.cql
 package dml
 
 import net.nmoncho.helenus.api.cql.TestValues.fixedId
-import net.nmoncho.helenus.api.cql.ddl.{ CreateIndex, IndexKind, SAI }
+import net.nmoncho.helenus.api.cql.ddl.CreateIndex
+import net.nmoncho.helenus.api.cql.ddl.IndexKind
+import net.nmoncho.helenus.api.cql.ddl.SAI
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -297,5 +299,74 @@ class IndexSpec extends AnyFlatSpec with Matchers {
   "=== on a custom (SAI) indexed column" should "execute without allowFiltering, same as a secondary one" in {
     val cql = AuthorsTable.select().where(AuthorsTable.bio === "Scala enthusiast").toCQL
     cql shouldBe "SELECT * FROM blog.authors WHERE bio = 'Scala enthusiast'"
+  }
+
+  // ---- entry (ENTRIES index) ------------------------------------------------
+
+  "entry on an indexed column" should "execute without allowFiltering" in {
+    val cql = ProfilesTable
+      .select()
+      .where(ProfilesTable.attributes.entry("color", "red"))
+      .toCQL
+
+    cql shouldBe "SELECT * FROM blog.profiles WHERE attributes['color'] = ?"
+  }
+
+  it should "combine with a full primary-key restriction and still execute" in {
+    val cql = ProfilesTable
+      .select()
+      .where(ProfilesTable.id === fixedId and ProfilesTable.attributes.entry("color", "red"))
+      .toCQL
+
+    cql should include(s"WHERE id = $fixedId AND attributes['color'] = ?")
+  }
+
+  "entry on a non-indexed column" should "NOT compile without allowFiltering" in {
+    assertTypeError(
+      """ProfilesTable.select().where(ProfilesTable.settings.entry("locale", "en")).toCQL"""
+    )
+  }
+
+  it should "execute once allowFiltering is used" in {
+    val cql = ProfilesTable
+      .select()
+      .where(ProfilesTable.settings.entry("locale", "en"))
+      .allowFiltering
+      .toCQL
+
+    cql shouldBe "SELECT * FROM blog.profiles WHERE settings['locale'] = ? ALLOW FILTERING"
+  }
+
+  // ---- compound: contains + containsKey + entry all indexed on ONE column --
+
+  "A map column with all 3 indices" should "let contains, containsKey and entry each execute without allowFiltering" in {
+    ProfilesTable.select().where(ProfilesTable.attributes.contains("red")).toCQL should
+    include("attributes CONTAINS 'red'")
+    ProfilesTable.select().where(ProfilesTable.attributes.containsKey("color")).toCQL should
+    include("attributes CONTAINS KEY 'color'")
+    ProfilesTable.select().where(ProfilesTable.attributes.entry("color", "red")).toCQL should
+    include("attributes['color'] = ?")
+  }
+  it should "let all 3 predicates be combined in one WHERE and still execute without allowFiltering" in {
+    // Verifies the type-level contributions compound correctly: each is
+    // "free" (Eq = In = Rng = HNil), so `and`-ing three of them, plus a real
+    // primary-key ===, still satisfies the ungated execute gate. NOTE: real
+    // Cassandra is stricter than this — it only allows ONE index-driven
+    // restriction without ALLOW FILTERING, so this exact shape is rejected
+    // by the server (see IndexIntegrationSpec); this test is purely about
+    // the compile-time HList merging, not a claim the query is efficient.
+    val cql = ProfilesTable
+      .select()
+      .where(
+        ProfilesTable.id === fixedId and
+          ProfilesTable.attributes.contains("red") and
+          ProfilesTable.attributes.containsKey("color") and
+          ProfilesTable.attributes.entry("color", "red")
+      )
+      .toCQL
+
+    cql shouldBe
+    s"SELECT * FROM blog.profiles WHERE id = $fixedId " +
+    "AND attributes CONTAINS 'red' AND attributes CONTAINS KEY 'color' AND attributes['color'] = ?"
   }
 }

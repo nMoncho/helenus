@@ -59,7 +59,7 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
     */
   class Column[T](val fieldName: String, val name: String, val frozen: Boolean)(
       implicit val codec: TypeCodec[T]
-  ) {
+  ) { self =>
 
     /** Type-level identity of this column: the literal type of the case-class
       * field name (e.g. `Tag = "id"`). Used in `PK` / `CK` declarations and
@@ -103,6 +103,8 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
     /** Never valid on a primary-key restriction: always requires ALLOW FILTERING. */
     def !==(value: T): Predicate[T, T] = Predicate(this, "!=", value)
 
+    // FIXME Split DSL on predicates based on the column type
+
     // TODO check if we can actually be `V <: Iterable[T]` or we have to go to `Seq[T]`
     // Not sure if we can have any collection here, if Cassandra will support it
     /** Multi-value equality. Carries the column's field tag: CQL allows IN
@@ -112,8 +114,9 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
     def in[V <: Iterable[T]](values: V)(implicit iCodec: TypeCodec[V]): InPredicate[Tag, T, V] =
       new InPredicate[Tag, T, V](this, values, iCodec)
 
+    /** `col CONTAINS value`: an element of a collection, or a value of a map (see [[ContainsValue]]). */
     def contains[V](value: V)(
-        implicit @unused ev: T <:< Iterable[V],
+        implicit @unused containsEv: ContainsValue[T, V],
         innerType: TypeCodec[V]
     ): Predicate[T, V] =
       new SingleValueOnCollectionPredicate(this, "CONTAINS", value, innerType)
@@ -124,15 +127,14 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
     ): Predicate[T, K] =
       new SingleValueOnCollectionPredicate(this, "CONTAINS KEY", value, innerType)
 
-    // TODO contains may need an index, this would make queries require allow filtering if not present
-    // TODO handle Iterable being a Map, contains only handles values for Maps, not keys
-//    def contains[V](value: V)(implicit @unused ev: T <:< Iterable[V]): Predicate[T] =
-//      Predicate(this, "CONTAINS", value)
-//
-//    def containsKey[K](
-//        value: K
-//    )(implicit @unused ev: T <:< scala.collection.Map[K, _], tc: TypeCodec[K]): Predicate[T] =
-//      Predicate(this, "CONTAINS KEY", value)
+    /** Map-entry equality: `col[key] = value`. Distinct from `containsKey`
+      * (which only checks key presence): this pins the value at that key too.
+      */
+    def entry[K, V](key: K, value: V)(
+        implicit ev: T <:< scala.collection.Map[K, V],
+        keyCodec: TypeCodec[K],
+        valueCodec: TypeCodec[V]
+    ): Predicate[T, V] = new EntryPredicate[Tag, T, K, V](this, key, value)
 
     // ---- bind-marker variants (used with toFunction) ----------------------
     // Passing `?` instead of a value leaves a hole; the value arrives later

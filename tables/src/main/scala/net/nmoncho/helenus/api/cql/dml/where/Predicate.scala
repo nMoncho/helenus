@@ -18,13 +18,13 @@ sealed trait Predicate[T, V] extends WhereClause {
   def column: TableDef#Column[T]
   def operator: String
 
-  def toCQL: String             = s"${column.name} $operator ?"
-  override def toString: String = s"Predicate($toCQL)"
-
-  final def forPreparedStatement: String = s"${column.name} $operator ?"
+  def toCQL: String                = s"${column.name} $operator ?"
+  def forPreparedStatement: String = s"${column.name} $operator ?"
 
   // DO NOT put a default implementation! We need to know if this is unset
   def bind(bstmt: BoundStatement, idx: Int, value: V): BoundStatement
+
+  override def toString: String = s"Predicate($toCQL)"
 }
 
 // Marker trait for predicates that have a value
@@ -59,7 +59,7 @@ sealed class MultiValuePredicate[T, V <: Iterable[T]](
     bstmt.set[V](idx, this.value, codec)
 }
 
-sealed class SingleValueOnCollectionPredicate[T, V](
+final class SingleValueOnCollectionPredicate[T, V](
     val column: TableDef#Column[T],
     val operator: String,
     val value: V,
@@ -70,6 +70,22 @@ sealed class SingleValueOnCollectionPredicate[T, V](
 
   override def bind(bstmt: BoundStatement, idx: Int, @unused _value: V): BoundStatement =
     bstmt.set[V](idx, this.value, codec)
+}
+
+sealed class EntryPredicate[Col, T, K, V](
+    val column: TableDef#Column[T],
+    val key: K,
+    val value: V
+)(implicit keyCodec: TypeCodec[K], valueCodec: TypeCodec[V])
+    extends BoundPredicate[T, V] {
+
+  override val operator: String = "="
+
+  override def toCQL: String                = s"${column.name}[${keyCodec.format(key)}] $operator ?"
+  override def forPreparedStatement: String = s"${column.name}[${keyCodec.format(key)}] $operator ?"
+
+  override def bind(bstmt: BoundStatement, idx: Int, @unused _value: V): BoundStatement =
+    bstmt.set[V](idx, this.value, valueCodec)
 }
 
 object Predicate {
@@ -171,6 +187,13 @@ final class IndexPredicate[Col, T, V](
   */
 final class IndexEqPredicate[Col, T](column: TableDef#Column[T], value: T)
     extends EqPredicate[Col, T](column, value)
+
+final class IndexEntryPredicate[Col, T, K, V](
+    column: TableDef#Column[T],
+    key: K,
+    value: V
+)(implicit keyCodec: TypeCodec[K], valueCodec: TypeCodec[V])
+    extends EntryPredicate[Col, T, K, V](column, key, value)
 
 // ---- bind variants (built with the `?` marker) ---------------------------
 // Each mirrors its literal counterpart for the execute gates (same column-tag

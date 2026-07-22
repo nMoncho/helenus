@@ -15,9 +15,19 @@ import org.scalatest.DoNotDiscover
 
 /** `Table.index` end to end: the CREATE INDEX statements it registers are
   * executed against the embedded Cassandra, then `contains` / `containsKey` /
-  * `===` on the indexed columns are run for real without `allowFiltering`,
-  * while the same predicates on non-indexed columns are confirmed rejected by
-  * the server without it, matching the compile-time gate.
+  * `entry` / `===` on the indexed columns are run for real without
+  * `allowFiltering`, while the same predicates on non-indexed columns are
+  * confirmed rejected by the server without it, matching the compile-time
+  * gate.
+  *
+  * Known gate limitation (found here, like the clustering-IN + collection
+  * projection case in SelectExecuteIntegrationSpec): Cassandra allows AT MOST
+  * ONE index-driven restriction without ALLOW FILTERING, even alongside a
+  * full primary key. The gate does not model that cap — every such predicate
+  * is treated as unconditionally "free" — so combining two or more of them
+  * compiles and passes the gate, but the server still rejects it; see the
+  * dedicated test below. Confirmed on both Cassandra 3.11.19 and 5.0.6 (the
+  * embedded version used here) — not a version-specific quirk.
   */
 @DoNotDiscover
 class IndexIntegrationSpec extends CassandraIntegrationSpec {
@@ -231,5 +241,93 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
     val result =
       rows(CustomersTable.select().where(CustomersTable.age === 30).allowFiltering.execute())
     result.map(_.get("id", classOf[UUID])) shouldBe List(customer1)
+  }
+
+  // ---- entry: indexed map column (ENTRIES index), no ALLOW FILTERING -------
+
+  "entry on an indexed column" should "run without allowFiltering and find the matching row" in {
+    val result =
+      rows(ProfilesTable.select().where(ProfilesTable.attributes.entry("color", "red")).execute())
+    result.map(_.get("id", classOf[UUID])) shouldBe List(profile1)
+  }
+
+  it should "find nothing when the key exists but the value doesn't match, without needing allowFiltering" in {
+    rows(
+      ProfilesTable.select().where(ProfilesTable.attributes.entry("color", "blue")).execute()
+    ) shouldBe empty
+  }
+
+  // ---- entry: non-indexed map column, rejected without ALLOW FILTERING -----
+
+  "entry on a non-indexed column" should "be rejected by Cassandra without allowFiltering" in {
+    an[InvalidQueryException] should be thrownBy
+    Select.render(
+      ProfilesTable.select().where(ProfilesTable.settings.entry("locale", "en")),
+      allowFiltering = false,
+      prepared       = false
+    )
+  }
+
+  it should "run once allowFiltering is used" in {
+    val result = rows(
+      ProfilesTable
+        .select()
+        .where(ProfilesTable.settings.entry("locale", "en"))
+        .allowFiltering
+        .execute()
+    )
+    result.map(_.get("id", classOf[UUID])) shouldBe List(profile1)
+  }
+
+  // ---- compound: contains + containsKey + entry, all indexed on ONE column -
+
+  "a map column with all 3 indices" should "let contains, containsKey and entry each run without allowFiltering" in {
+    rows(ProfilesTable.select().where(ProfilesTable.attributes.contains("red")).execute())
+      .map(_.get("id", classOf[UUID])) shouldBe List(profile1)
+    rows(ProfilesTable.select().where(ProfilesTable.attributes.containsKey("color")).execute())
+      .map(_.get("id", classOf[UUID])) shouldBe List(profile1)
+    rows(ProfilesTable.select().where(ProfilesTable.attributes.entry("color", "red")).execute())
+      .map(_.get("id", classOf[UUID])) shouldBe List(profile1)
+  }
+
+  // Cassandra restriction the type gate does not model (confirmed on both
+  // 3.11.19 and 5.0.6, so not version-specific): it allows AT MOST ONE
+  // index-driven restriction (CONTAINS / CONTAINS KEY / entry / indexed ===)
+  // without ALLOW FILTERING, even alongside a full primary key; combining
+  // two or more of them (on the same column or different ones) needs ALLOW
+  // FILTERING regardless. Our gate treats every such predicate as
+  // unconditionally "free", so it admits `.execute` here where the server
+  // does not — confirmed via raw toCQL below (see the analogous note in
+  // SelectExecuteIntegrationSpec for the clustering-IN + collection-
+  // projection limitation).
+  it should "actually need ALLOW FILTERING once combined, even though the gate admits .execute" in {
+    an[InvalidQueryException] should be thrownBy
+    execute(
+      ProfilesTable
+        .select()
+        .where(
+          ProfilesTable.id === profile1 and
+            ProfilesTable.attributes.contains("red") and
+            ProfilesTable.attributes.containsKey("color") and
+            ProfilesTable.attributes.entry("color", "red")
+        )
+        .toCQL
+    )
+  }
+
+  it should "run once allowFiltering is used" in {
+    val result = rows(
+      ProfilesTable
+        .select()
+        .where(
+          ProfilesTable.id === profile1 and
+            ProfilesTable.attributes.contains("red") and
+            ProfilesTable.attributes.containsKey("color") and
+            ProfilesTable.attributes.entry("color", "red")
+        )
+        .allowFiltering
+        .execute()
+    )
+    result should have size 1
   }
 }

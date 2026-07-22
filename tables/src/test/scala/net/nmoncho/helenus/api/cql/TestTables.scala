@@ -8,9 +8,11 @@ package net.nmoncho.helenus
 package api.cql
 
 import java.util.UUID
+
 import net.nmoncho.helenus.api.ColumnNamingScheme
 import net.nmoncho.helenus.api.SnakeCase
-import net.nmoncho.helenus.api.cql.ddl.{ IndexKind, SAI }
+import net.nmoncho.helenus.api.cql.ddl.IndexKind
+import net.nmoncho.helenus.api.cql.ddl.SAI
 import shapeless._
 
 case class User(
