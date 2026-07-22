@@ -7,7 +7,11 @@
 package net.nmoncho.helenus.api.cql
 package ddl
 
+import scala.annotation.unused
+
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
+import net.nmoncho.helenus.api.cql.dml.ContainsValue
+import net.nmoncho.helenus.api.cql.dml.where.IndexEntryPredicate
 import net.nmoncho.helenus.api.cql.dml.where.IndexEqPredicate
 import net.nmoncho.helenus.api.cql.dml.where.IndexPredicate
 
@@ -24,14 +28,24 @@ trait Indexed[T] { self: TableDef#Column[T] =>
 
   override def contains[V](
       value: V
-  )(implicit ev: T <:< Iterable[V], innerType: TypeCodec[V]): IndexPredicate[Tag, T, V] =
-    new IndexPredicate[Tag, T, V](self, "CONTAINS", value, innerType)
+  )(
+      implicit @unused containsEv: ContainsValue[T, V],
+      innerCodec: TypeCodec[V]
+  ): IndexPredicate[Tag, T, V] =
+    new IndexPredicate[Tag, T, V](self, "CONTAINS", value, innerCodec)
 
   override def containsKey[K, V](value: K)(
       implicit ev: T <:< scala.collection.Map[K, V],
-      innerType: TypeCodec[K]
+      innerCodec: TypeCodec[K]
   ): IndexPredicate[Tag, T, K] =
-    new IndexPredicate[Tag, T, K](self, "CONTAINS KEY", value, innerType)
+    new IndexPredicate[Tag, T, K](self, "CONTAINS KEY", value, innerCodec)
+
+  override def entry[K, V](key: K, value: V)(
+      implicit ev: T <:< scala.collection.Map[K, V],
+      keyCodec: TypeCodec[K],
+      valueCodec: TypeCodec[V]
+  ): IndexEntryPredicate[Tag, T, K, V] =
+    new IndexEntryPredicate[Tag, T, K, V](self, key, value)
 
   override def ===(value: T): IndexEqPredicate[Tag, T] =
     new IndexEqPredicate[Tag, T](self, value)
