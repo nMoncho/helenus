@@ -349,22 +349,31 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
   }
 
   /** Declare a secondary index on `col`, giving evidence that `col.contains`
-    * (and, for a map column, `col.containsKey`) can be satisfied by CQL
-    * directly through the index: `execute` no longer requires
-    * `allowFiltering` for it (see [[TableDef.Indexed]]). Also registers the
-    * index(es) so they can be created with [[createIndexes]] — a map column
-    * registers both a values index (for `contains`) and a `KEYS(...)` index
-    * (for `containsKey`); a [[Frozen]] column registers a single `FULL(...)`
+    * (and, for a map column, `col.containsKey` / `col.entry`) can be
+    * satisfied by CQL directly through the index: `execute` no longer
+    * requires `allowFiltering` for it (see [[TableDef.Indexed]]). Also
+    * registers the index(es) so they can be created with [[createIndexes]] —
+    * a map column registers a values index (for `contains`), a `KEYS(...)`
+    * index (for `containsKey`), AND an `ENTRIES(...)` index (for `entry`),
+    * all three at once; a [[Frozen]] column registers a single `FULL(...)`
     * index instead, since a frozen collection has no per-element indexing
-    * (and no `contains` / `containsKey` either — see [[IndexTargets]]).
+    * (and none of `contains` / `containsKey` / `entry` either — see
+    * [[IndexTargets]]).
     *
     * The index name defaults to `tableName_columnName` (suffixed per target,
     * see below); pass `name` to override that base, e.g. because two indexes
     * would otherwise collide, or to match a name already used in production.
     *
+    * `kind` picks the index implementation: [[IndexKind.Secondary]] (the
+    * default, the database's built-in index) or [[IndexKind.Custom]] (e.g.
+    * Storage-Attached Indexing — see [[SAI]] for common `USING` classes).
+    * It only affects the DDL [[createIndexes]] generates; the `contains` /
+    * `containsKey` / `entry` / `===` exemption from `allowFiltering` applies
+    * the same way regardless of kind.
+    *
     * {{{
     * val tags   = index(column[Set[String]]("tags"))
-    * val labels = index(column[Frozen[Set[String]]]("labels"))
+    * val labels = index(frozenColumn[Set[String]]("labels"))
     * val email  = index(column[String]("email"), name = Some("users_email_lookup"))
     * val bio    = index(column[String]("bio"), kind = IndexKind.Custom(SAI.openSource))
     * }}}
@@ -373,31 +382,139 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
     * values and a `KEYS(...)` index) always keeps a distinguishing suffix on
     * `name`, since one name can't cover two indexes; a single-target column
     * uses `name` verbatim when given.
-    *
-    * `kind` picks the index implementation: [[IndexKind.Secondary]] (the
-    * default, the database's built-in index) or [[IndexKind.Custom]] (e.g.
-    * Storage-Attached Indexing — see [[SAI]] for common `USING` classes).
-    * It only affects the DDL [[createIndexes]] generates; the `contains` /
-    * `containsKey` / `===` exemption from `allowFiltering` applies the same
-    * way regardless of kind.
     */
   protected def index[V: TypeCodec](
       col: Column[V],
       name: Option[String] = None,
       kind: IndexKind      = IndexKind.Secondary
-  )(implicit targets: IndexTargets[V]): (Column[V] with Indexed[V]) {
-    type Tag = col.Tag
-  } = {
-    // TODO check if I'm happy with this code and the naming when I introduce overloaded to avoid having Some(name)
-    val idxTargets = targets.targets(col.name)
-    val baseName   = name.getOrElse(s"${tableName}_${col.name}")
+  )(implicit targets: IndexTargets[V]): (Column[V] with Indexed[V]) { type Tag = col.Tag } = {
+    registerIndexTargets(col.name, targets.targets(col.name), name, kind)
+    new Column[V](col.fieldName, col.name, false) with Indexed[V] {
+      type Tag = col.Tag
+    }
+  }
+
+  /** Registers the CREATE INDEX statement(s) for the given targets, applying
+    * the same naming rule `index` documents above: a single target uses
+    * `name` verbatim when given, several targets always keep a
+    * distinguishing suffix (since one name can't cover more than one index).
+    */
+  private def registerIndexTargets(
+      colName: String,
+      idxTargets: List[(String, String)],
+      name: Option[String],
+      kind: IndexKind
+  ): Unit = {
+    val baseName = name.getOrElse(s"${tableName}_$colName")
     idxTargets.foreach { case (suffix, target) =>
       val indexName =
         if (name.isDefined && idxTargets.size == 1) baseName else s"${baseName}_$suffix"
       indexes += new IndexDef(indexName, target, kind)
     }
+  }
 
-    new Column[V](col.fieldName, col.name, col.frozen) with Indexed[V] {
+  private def valuesTarget(colName: String): List[(String, String)] = List("idx" -> colName)
+  private def keysTarget(colName: String): List[(String, String)]   = List(
+    "keys_idx" -> s"KEYS($colName)"
+  )
+  private def entriesTarget(colName: String): List[(String, String)] = List(
+    "entries_idx" -> s"ENTRIES($colName)"
+  )
+
+  /** Declare a secondary index covering only SOME of a map column's
+    * independently indexable aspects, instead of the no-choice `index(col)`
+    * (which grants everything at once — `contains`, `containsKey`, AND
+    * `entry`). Pick the method matching what physical index(es) you actually
+    * have (or will have): [[indexValues]] alone backs `contains`,
+    * [[indexKeys]] alone backs `containsKey`, [[indexEntries]] alone backs
+    * `entry`, and [[indexValuesAndKeys]] / [[indexValuesAndEntries]] /
+    * [[indexKeysAndEntries]] grant two at once. Only the predicate method(s)
+    * backed by a chosen aspect are exempted from `allowFiltering`; the
+    * others keep requiring it, exactly as if `col` had never been indexed
+    * for them:
+    *
+    * {{{
+    * val labels = indexKeys(column[Map[String, String]]("labels"))
+    * // labels.containsKey(...) is now allowFiltering-free; labels.contains(...)
+    * // and labels.entry(...) still require it, same as an unindexed column.
+    * }}}
+    */
+  protected def indexValues[K, V](
+      col: Column[Map[K, V]],
+      name: Option[String] = None,
+      kind: IndexKind      = IndexKind.Secondary
+  ): (Column[Map[K, V]] with ValuesIndexed[Map[K, V]]) { type Tag = col.Tag } = {
+    registerIndexTargets(col.name, valuesTarget(col.name), name, kind)
+    new Column[Map[K, V]](col.fieldName, col.name, false)(col.codec) with ValuesIndexed[Map[K, V]] {
+      type Tag = col.Tag
+    }
+  }
+
+  protected def indexKeys[K, V](
+      col: Column[Map[K, V]],
+      name: Option[String] = None,
+      kind: IndexKind      = IndexKind.Secondary
+  ): (Column[Map[K, V]] with KeysIndexed[Map[K, V]]) { type Tag = col.Tag } = {
+    registerIndexTargets(col.name, keysTarget(col.name), name, kind)
+    new Column[Map[K, V]](col.fieldName, col.name, false)(col.codec) with KeysIndexed[Map[K, V]] {
+      type Tag = col.Tag
+    }
+  }
+
+  protected def indexEntries[K, V](
+      col: Column[Map[K, V]],
+      name: Option[String] = None,
+      kind: IndexKind      = IndexKind.Secondary
+  ): (Column[Map[K, V]] with EntriesIndexed[Map[K, V]]) { type Tag = col.Tag } = {
+    registerIndexTargets(col.name, entriesTarget(col.name), name, kind)
+    new Column[Map[K, V]](col.fieldName, col.name, false)(col.codec)
+      with EntriesIndexed[Map[K, V]] {
+      type Tag = col.Tag
+    }
+  }
+
+  protected def indexValuesAndKeys[K, V](
+      col: Column[Map[K, V]],
+      name: Option[String] = None,
+      kind: IndexKind      = IndexKind.Secondary
+  ): (Column[Map[K, V]] with ValuesIndexed[Map[K, V]] with KeysIndexed[Map[K, V]]) {
+    type Tag = col.Tag
+  } = {
+    registerIndexTargets(col.name, valuesTarget(col.name) ++ keysTarget(col.name), name, kind)
+    new Column[Map[K, V]](col.fieldName, col.name, false)(col.codec)
+      with ValuesIndexed[Map[K, V]]
+      with KeysIndexed[Map[K, V]] {
+      type Tag = col.Tag
+    }
+  }
+
+  protected def indexValuesAndEntries[K, V](
+      col: Column[Map[K, V]],
+      name: Option[String] = None,
+      kind: IndexKind      = IndexKind.Secondary
+  ): (Column[Map[K, V]] with ValuesIndexed[Map[K, V]] with EntriesIndexed[Map[K, V]]) {
+    type Tag = col.Tag
+  } = {
+    registerIndexTargets(col.name, valuesTarget(col.name) ++ entriesTarget(col.name), name, kind)
+    new Column[Map[K, V]](col.fieldName, col.name, false)(col.codec)
+      with ValuesIndexed[Map[K, V]]
+      with EntriesIndexed[Map[K, V]] {
+      type Tag = col.Tag
+    }
+  }
+
+  protected def indexKeysAndEntries[K, V](
+      col: Column[Map[K, V]],
+      name: Option[String] = None,
+      kind: IndexKind      = IndexKind.Secondary
+  ): (Column[Map[K, V]] with KeysIndexed[Map[K, V]] with EntriesIndexed[Map[K, V]]) {
+    type Tag = col.Tag
+  } = {
+    registerIndexTargets(col.name, keysTarget(col.name) ++ entriesTarget(col.name), name, kind)
+
+    new Column[Map[K, V]](col.fieldName, col.name, false)(col.codec)
+      with KeysIndexed[Map[K, V]]
+      with EntriesIndexed[Map[K, V]] {
       type Tag = col.Tag
     }
   }
