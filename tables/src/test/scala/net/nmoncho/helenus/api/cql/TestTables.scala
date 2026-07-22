@@ -169,3 +169,20 @@ object CustomersTable extends Table[Customer]("blog", "customers") {
   type PK = id.Tag :: HNil
   type CK = HNil
 }
+
+// A table exercising Table.index's optional `name`: a single-target column
+// (status) gets the custom name verbatim, a multi-target one (labels, a map)
+// keeps a distinguishing suffix on it since one name can't cover both of its
+// physical indexes.
+case class Order(id: UUID, status: String, labels: Map[String, String])
+
+object OrdersTable extends Table[Order]("blog", "orders") {
+  val id     = column[UUID]("id")
+  val status = index(column[String]("status"), name = Some("orders_status_lookup"))
+  val labels = index(column[Map[String, String]]("labels"), name = Some("orders_labels_lookup"))
+
+  protected val columns = registerAllColumns(id :: status :: labels :: HNil)
+
+  type PK = id.Tag :: HNil
+  type CK = HNil
+}
