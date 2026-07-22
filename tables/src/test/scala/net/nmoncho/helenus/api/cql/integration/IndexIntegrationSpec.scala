@@ -41,6 +41,7 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
   private val customer1 = UUID.fromString("623e4567-e89b-12d3-a456-426614174000")
   private val customer2 = UUID.fromString("723e4567-e89b-12d3-a456-426614174000")
   private val document1 = UUID.fromString("823e4567-e89b-12d3-a456-426614174000")
+  private val catalog1  = UUID.fromString("923e4567-e89b-12d3-a456-426614174000")
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -64,6 +65,10 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
     DocumentsTable.drop.ifExists.execute()
     DocumentsTable.create.execute()
     DocumentsTable.createIndexes.foreach(idx => execute(idx.toCQL))
+
+    CatalogsTable.drop.ifExists.execute()
+    CatalogsTable.create.execute()
+    CatalogsTable.createIndexes.foreach(idx => execute(idx.toCQL))
 
     ArticlesTable
       .insertFrom(Article(article1, "Scala at scale", Set("scala", "cql"), Set("backend")))
@@ -89,6 +94,10 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
 
     DocumentsTable
       .insertFrom(Document(document1, Map("color" -> "red"), Map("color" -> "red")))
+      .execute()
+
+    CatalogsTable
+      .insertFrom(Catalog(catalog1, Frozen(Map("color" -> "red")), Frozen(Map("color" -> "red"))))
       .execute()
   }
 
@@ -421,5 +430,46 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
         .execute()
     )
     result.map(_.get("id", classOf[UUID])) shouldBe List(document1)
+  }
+
+  // ---- Frozen maps: only whole-value equality works, via a FULL index -----
+  // contains / containsKey / entry aren't even expressible on a Frozen map
+  // (compile-time rejection, see IndexSpec) — nothing to check against the
+  // server for those. Only === is left, exactly like a frozen Set/List.
+
+  "equality on a FULL-indexed Frozen map column" should "run without ALLOW FILTERING and find the matching row" in {
+    val result = rows(
+      CatalogsTable.select().where(CatalogsTable.labels === Frozen(Map("color" -> "red"))).execute()
+    )
+    result.map(_.get("id", classOf[UUID])) shouldBe List(catalog1)
+  }
+
+  it should "find nothing for a value no row has, without needing ALLOW FILTERING" in {
+    rows(
+      CatalogsTable
+        .select()
+        .where(CatalogsTable.labels === Frozen(Map("color" -> "blue")))
+        .execute()
+    ) shouldBe empty
+  }
+
+  "equality on a non-indexed Frozen map column" should "be rejected by Cassandra without ALLOW FILTERING" in {
+    an[InvalidQueryException] should be thrownBy
+    Select.render(
+      CatalogsTable.select().where(CatalogsTable.tags === Frozen(Map("color" -> "red"))),
+      allowFiltering = false,
+      prepared       = false
+    )
+  }
+
+  it should "run once allowFiltering is used" in {
+    val result = rows(
+      CatalogsTable
+        .select()
+        .where(CatalogsTable.tags === Frozen(Map("color" -> "red")))
+        .allowFiltering
+        .execute()
+    )
+    result.map(_.get("id", classOf[UUID])) shouldBe List(catalog1)
   }
 }

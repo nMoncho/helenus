@@ -225,3 +225,22 @@ object DocumentsTable extends Table[Document]("blog", "documents") {
   type PK = id.Tag :: HNil
   type CK = HNil
 }
+
+// A table with a frozen MAP column (`labels`), indexed (only FULL is
+// possible for a frozen collection), alongside a plain non-indexed frozen
+// map (`tags`) — used to test that freezing a map removes ALL of its
+// per-element operations (contains, containsKey, entry), not just
+// containsKey, and that only whole-value equality remains, exactly like a
+// frozen Set/List.
+case class Catalog(id: UUID, labels: Frozen[Map[String, String]], tags: Frozen[Map[String, String]])
+
+object CatalogsTable extends Table[Catalog]("blog", "catalogs") {
+  val id     = column[UUID]("id")
+  val labels = index(column[Frozen[Map[String, String]]]("labels"))
+  val tags   = column[Frozen[Map[String, String]]]("tags")
+
+  protected val columns = registerAllColumns(id :: labels :: tags :: HNil)
+
+  type PK = id.Tag :: HNil
+  type CK = HNil
+}

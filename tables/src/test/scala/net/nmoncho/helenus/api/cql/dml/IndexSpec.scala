@@ -449,4 +449,76 @@ class IndexSpec extends AnyFlatSpec with Matchers {
 
     cql should include("(id, tags) VALUES")
   }
+
+  // ---- frozen maps: no contains / containsKey / entry at all, only === ----
+
+  "Table.index" should "register a single FULL index for an indexed frozen map column" in {
+    CatalogsTable.createIndexes.map(_.toCQL) shouldBe
+    Seq("CREATE INDEX catalogs_labels_full_idx ON blog.catalogs (FULL(labels))")
+  }
+
+  it should "not register an index for a frozen map column that was not wrapped in index(...)" in {
+    CatalogsTable.createIndexes.map(_.target) should not contain "tags"
+  }
+
+  "contains" should "NOT compile on a frozen map column, indexed or not" in {
+    assertTypeError(
+      """CatalogsTable.select().where(CatalogsTable.labels.contains("red")).allowFiltering.toCQL"""
+    )
+    assertTypeError(
+      """CatalogsTable.select().where(CatalogsTable.tags.contains("red")).allowFiltering.toCQL"""
+    )
+  }
+
+  "containsKey" should "NOT compile on a frozen map column either, indexed or not" in {
+    assertTypeError(
+      """CatalogsTable.select().where(CatalogsTable.labels.containsKey("color")).allowFiltering.toCQL"""
+    )
+    assertTypeError(
+      """CatalogsTable.select().where(CatalogsTable.tags.containsKey("color")).allowFiltering.toCQL"""
+    )
+  }
+
+  "entry" should "NOT compile on a frozen map column either, indexed or not" in {
+    assertTypeError(
+      """CatalogsTable.select().where(CatalogsTable.labels.entry("color", "red")).allowFiltering.toCQL"""
+    )
+    assertTypeError(
+      """CatalogsTable.select().where(CatalogsTable.tags.entry("color", "red")).allowFiltering.toCQL"""
+    )
+  }
+
+  "=== on an indexed frozen map column" should "execute without allowFiltering" in {
+    val cql = CatalogsTable
+      .select()
+      .where(CatalogsTable.labels === Frozen(Map("color" -> "red")))
+      .toCQL
+
+    cql shouldBe "SELECT * FROM blog.catalogs WHERE labels = {'color':'red'}"
+  }
+
+  "=== on a non-indexed frozen map column" should "NOT compile without allowFiltering" in {
+    assertTypeError(
+      """CatalogsTable.select().where(CatalogsTable.tags === Frozen(Map("color" -> "red"))).toCQL"""
+    )
+  }
+
+  it should "execute once allowFiltering is used" in {
+    val cql = CatalogsTable
+      .select()
+      .where(CatalogsTable.tags === Frozen(Map("color" -> "red")))
+      .allowFiltering
+      .toCQL
+
+    cql shouldBe "SELECT * FROM blog.catalogs WHERE tags = {'color':'red'} ALLOW FILTERING"
+  }
+
+  "A frozen map column" should "still work as an ordinary column (assignment, key)" in {
+    val cql = CatalogsTable.insert
+      .value(CatalogsTable.id := fixedId)
+      .value(CatalogsTable.labels := Frozen(Map("color" -> "red")))
+      .toCQL
+
+    cql should include("(id, labels) VALUES")
+  }
 }
