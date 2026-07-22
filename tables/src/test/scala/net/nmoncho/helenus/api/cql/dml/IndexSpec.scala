@@ -136,4 +136,58 @@ class IndexSpec extends AnyFlatSpec with Matchers {
 
     cql should include("(id, attributes) VALUES")
   }
+
+  // ---- frozen collections: FULL index instead of KEYS / VALUES -------------
+
+  "Table.index" should "register a single FULL index for an indexed frozen column" in {
+    SnapshotsTable.createIndexes.map(_.toCQL) shouldBe
+    Seq("CREATE INDEX snapshots_labels_full_idx ON blog.snapshots (FULL(labels))")
+  }
+
+  it should "not register an index for a frozen column that was not wrapped in index(...)" in {
+    SnapshotsTable.createIndexes.map(_.target) should not contain "tags"
+  }
+
+  "contains" should "NOT compile on a Frozen column, indexed or not" in {
+    assertTypeError(
+      """SnapshotsTable.select().where(SnapshotsTable.labels.contains("scala")).allowFiltering.toCQL"""
+    )
+    assertTypeError(
+      """SnapshotsTable.select().where(SnapshotsTable.tags.contains("scala")).allowFiltering.toCQL"""
+    )
+  }
+
+  "containsKey" should "NOT compile on a Frozen column either (it isn't a Map)" in {
+    assertTypeError(
+      """SnapshotsTable.select().where(SnapshotsTable.labels.containsKey("scala")).allowFiltering.toCQL"""
+    )
+  }
+
+  "=== on a Frozen column" should "still NOT compile without allowFiltering, even when indexed" in {
+    // Table.index only exempts contains / containsKey from the gate; a FULL
+    // index makes plain equality valid CQL too (see IndexIntegrationSpec),
+    // but that isn't modeled at the type level, so this stays conservative.
+    assertTypeError(
+      """SnapshotsTable.select().where(SnapshotsTable.labels === Frozen(Set("scala"))).toCQL"""
+    )
+  }
+
+  it should "execute once allowFiltering is used" in {
+    val cql = SnapshotsTable
+      .select()
+      .where(SnapshotsTable.labels === Frozen(Set("scala")))
+      .allowFiltering
+      .toCQL
+
+    cql shouldBe "SELECT * FROM blog.snapshots WHERE labels = {'scala'} ALLOW FILTERING"
+  }
+
+  "A Frozen column" should "still work as an ordinary column (assignment, key)" in {
+    val cql = SnapshotsTable.insert
+      .value(SnapshotsTable.id := fixedId)
+      .value(SnapshotsTable.labels := Frozen(Set("scala", "cql")))
+      .toCQL
+
+    cql should include("(id, labels) VALUES")
+  }
 }

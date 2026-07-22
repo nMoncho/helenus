@@ -36,5 +36,12 @@ class CreateTableSpec extends AnyWordSpec with Matchers {
     "omit WITH CLUSTERING ORDER BY when every clustering column is ascending" in {
       (UsersTable.create.toCQL should not).include("CLUSTERING ORDER BY")
     }
+
+    "render a Frozen field as frozen<...>" in {
+      SnapshotsTable.create.toCQL shouldBe
+      "CREATE TABLE blog.snapshots " +
+      "(id uuid, labels frozen<set<text>>, tags frozen<set<text>>, " +
+      "PRIMARY KEY (id))"
+    }
   }
 }

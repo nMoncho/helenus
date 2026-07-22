@@ -133,3 +133,22 @@ object ProfilesTable extends Table[Profile]("blog", "profiles") {
   type PK = id.Tag :: HNil
   type CK = HNil
 }
+
+// A table with a frozen, indexed collection column (`labels`) alongside a
+// plain, non-indexed frozen one (`tags`), used to test that a frozen
+// collection is rendered as `frozen<...>` in DDL, that its secondary index
+// must be a FULL index (KEYS / VALUES don't apply once frozen), and that
+// `contains` / `containsKey` do not type-check on it (a frozen collection is
+// a single serialized value, not element-addressable).
+case class Snapshot(id: UUID, labels: Frozen[Set[String]], tags: Frozen[Set[String]])
+
+object SnapshotsTable extends Table[Snapshot]("blog", "snapshots") {
+  val id     = column[UUID]("id")
+  val labels = index(column[Frozen[Set[String]]]("labels", frozen = true))
+  val tags   = column[Frozen[Set[String]]]("tags", frozen = true)
+
+  protected val columns = registerAllColumns(id :: labels :: tags :: HNil)
+
+  type PK = id.Tag :: HNil
+  type CK = HNil
+}
