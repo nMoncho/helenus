@@ -6,15 +6,20 @@
 
 package net.nmoncho.helenus.api.cql
 
+import scala.annotation.implicitNotFound
+import scala.annotation.unused
+import scala.collection.mutable
+
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
-import net.nmoncho.helenus.api.{ ColumnNamingScheme, DefaultColumnNamingScheme }
+import net.nmoncho.helenus.api.ColumnNamingScheme
+import net.nmoncho.helenus.api.DefaultColumnNamingScheme
 import net.nmoncho.helenus.api.cql.ddl._
 import net.nmoncho.helenus.api.cql.dml._
 import net.nmoncho.helenus.api.cql.dml.where._
-import shapeless.{ ::, Generic, HList, HNil }
-
-import scala.annotation.{ implicitNotFound, unused }
-import scala.collection.mutable
+import shapeless.::
+import shapeless.Generic
+import shapeless.HList
+import shapeless.HNil
 
 /** Base of every table definition: holds the inner column / assignment
   * classes, the type-level key declarations, and the entry points that do not
@@ -359,16 +364,25 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
     * val tags   = index(column[Set[String]]("tags"))
     * val labels = index(column[Frozen[Set[String]]]("labels"))
     * val email  = index(column[String]("email"), name = Some("users_email_lookup"))
+    * val bio    = index(column[String]("bio"), kind = IndexKind.Custom(SAI.openSource))
     * }}}
     *
     * A column needing more than one physical index (a map registers both a
     * values and a `KEYS(...)` index) always keeps a distinguishing suffix on
     * `name`, since one name can't cover two indexes; a single-target column
     * uses `name` verbatim when given.
+    *
+    * `kind` picks the index implementation: [[IndexKind.Secondary]] (the
+    * default, the database's built-in index) or [[IndexKind.Custom]] (e.g.
+    * Storage-Attached Indexing — see [[SAI]] for common `USING` classes).
+    * It only affects the DDL [[createIndexes]] generates; the `contains` /
+    * `containsKey` / `===` exemption from `allowFiltering` applies the same
+    * way regardless of kind.
     */
   protected def index[V: TypeCodec](
       col: Column[V],
-      name: Option[String] = None
+      name: Option[String] = None,
+      kind: IndexKind      = IndexKind.Secondary
   )(implicit targets: IndexTargets[V]): (Column[V] with Indexed[V]) {
     type Tag = col.Tag
   } = {
@@ -378,7 +392,7 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
     idxTargets.foreach { case (suffix, target) =>
       val indexName =
         if (name.isDefined && idxTargets.size == 1) baseName else s"${baseName}_$suffix"
-      indexes += new IndexDef(indexName, target)
+      indexes += new IndexDef(indexName, target, kind)
     }
 
     new Column[V](col.fieldName, col.name, col.frozen) with Indexed[V] {
@@ -398,7 +412,7 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
 
   /** CREATE INDEX statements for every index declared with [[index]]. */
   def createIndexes: Seq[CreateIndex] =
-    indexes.toList.map(i => CreateIndex(this, i.name, i.target))
+    indexes.toList.map(i => CreateIndex(this, i.name, i.target, i.kind))
 
   /** Select specific columns (all fields of `A` when none given). Nothing is constrained yet. */
   def select(

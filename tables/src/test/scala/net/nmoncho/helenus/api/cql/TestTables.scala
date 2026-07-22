@@ -8,9 +8,9 @@ package net.nmoncho.helenus
 package api.cql
 
 import java.util.UUID
-
 import net.nmoncho.helenus.api.ColumnNamingScheme
 import net.nmoncho.helenus.api.SnakeCase
+import net.nmoncho.helenus.api.cql.ddl.{ IndexKind, SAI }
 import shapeless._
 
 case class User(
@@ -182,6 +182,24 @@ object OrdersTable extends Table[Order]("blog", "orders") {
   val labels = index(column[Map[String, String]]("labels"), name = Some("orders_labels_lookup"))
 
   protected val columns = registerAllColumns(id :: status :: labels :: HNil)
+
+  type PK = id.Tag :: HNil
+  type CK = HNil
+}
+
+// A table exercising Table.index's `kind`: a custom (SAI) index on `bio`,
+// with WITH OPTIONS, alongside a plain built-in secondary index on `handle`.
+case class Author(id: UUID, handle: String, bio: String)
+
+object AuthorsTable extends Table[Author]("blog", "authors") {
+  val id     = column[UUID]("id")
+  val handle = index(column[String]("handle"))
+  val bio    = index(
+    column[String]("bio"),
+    kind = IndexKind.Custom(SAI.openSource, Map("case_sensitive" -> "false"))
+  )
+
+  protected val columns = registerAllColumns(id :: handle :: bio :: HNil)
 
   type PK = id.Tag :: HNil
   type CK = HNil
