@@ -7,10 +7,9 @@
 package net.nmoncho.helenus.api.cql
 package dml
 
+import net.nmoncho.helenus.api.cql.TestValues.fixedId
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-
-import TestValues.fixedId
 
 /** Secondary indexes: `Table.index`, `createIndexes` DDL, and the
   * index-aware `contains` execute gate.
@@ -24,7 +23,7 @@ class IndexSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "not register an index for a column that was not wrapped in index(...)" in {
-    ArticlesTable.createIndexes.map(_.columnName) should not contain "categories"
+    ArticlesTable.createIndexes.map(_.target) should not contain "categories"
   }
 
   it should "support IF NOT EXISTS" in {
@@ -86,9 +85,13 @@ class IndexSpec extends AnyFlatSpec with Matchers {
 
   // ---- containsKey (maps) --------------------------------------------------
 
-  "Table.index" should "register a CREATE INDEX statement for an indexed map column" in {
+  "Table.index" should "register both a values and a KEYS index for an indexed map column" in {
     ProfilesTable.createIndexes.map(_.toCQL) shouldBe
-    Seq("CREATE INDEX profiles_attributes_idx ON blog.profiles (attributes)")
+    Seq(
+      "CREATE INDEX profiles_attributes_idx ON blog.profiles (attributes)",
+      "CREATE INDEX profiles_attributes_keys_idx ON blog.profiles (KEYS(attributes))",
+      "CREATE INDEX profiles_attributes_entries_idx ON blog.profiles (ENTRIES(attributes))"
+    )
   }
 
   "containsKey on an indexed column" should "execute without allowFiltering" in {

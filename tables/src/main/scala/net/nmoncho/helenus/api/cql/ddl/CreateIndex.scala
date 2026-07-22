@@ -16,7 +16,7 @@ package ddl
 final case class CreateIndex(
     table: TableDef,
     indexName: String,
-    columnName: String,
+    target: String,
     ifNotExistsFlag: Boolean = false
 ) {
 
@@ -24,7 +24,7 @@ final case class CreateIndex(
 
   def toCQL: String = {
     val ifNotExistsStr = if (ifNotExistsFlag) " IF NOT EXISTS" else ""
-    s"CREATE INDEX$ifNotExistsStr $indexName ON ${table.fullTableName} ($columnName)"
+    s"CREATE INDEX$ifNotExistsStr $indexName ON ${table.fullTableName} ($target)"
   }
 
   override def toString: String = toCQL

@@ -252,6 +252,7 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
     def fill(a: A): Assignment[T] = new BoundAssignment[T](this, render(a))
   }
 
+  /** Registry entry for a secondary index: index name and its CQL target (see [[IndexTargets]]). */
   class IndexDef(val name: String, val target: String, val kind: IndexKind = IndexKind.Secondary)
 
   /** How case-class field names map to CQL column names. */
@@ -346,18 +347,25 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
   }
 
   /** Declare a secondary index on `col`, giving evidence that `col.contains`
-    * can be satisfied by CQL directly through the index: `execute` no longer
-    * requires `allowFiltering` for it (see [[TableDef.Indexed]]). Also
-    * registers the index so it can be created with [[createIndexes]].
+    * (and, for a map column, `col.containsKey`) can be satisfied by CQL
+    * directly through the index: `execute` no longer requires
+    * `allowFiltering` for it (see [[TableDef.Indexed]]). Also registers the
+    * index(es) so they can be created with [[createIndexes]] — a map column
+    * registers both a values index (for `contains`) and a `KEYS(...)` index
+    * (for `containsKey`), see [[IndexTargets]].
     *
     * {{{
     * val tags = index(column[Set[String]]("tags"))
     * }}}
     */
-  protected def index[V: TypeCodec](col: Column[V]): (Column[V] with Indexed[V]) {
+  protected def index[V: TypeCodec](
+      col: Column[V]
+  )(implicit targets: IndexTargets[V]): (Column[V] with Indexed[V]) {
     type Tag = col.Tag
   } = {
-    indexes += new IndexDef(s"${tableName}_${col.name}_idx", col.name)
+    targets.targets(col.name).foreach { case (suffix, target) =>
+      indexes += new IndexDef(s"${tableName}_${col.name}_$suffix", target)
+    }
 
     new Column[V](col.fieldName, col.name, col.frozen) with Indexed[V] {
       type Tag = col.Tag

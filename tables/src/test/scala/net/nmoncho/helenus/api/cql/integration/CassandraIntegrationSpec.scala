@@ -39,7 +39,7 @@ trait CassandraIntegrationSpec extends AnyFlatSpec with Matchers with BeforeAndA
       .build()
 
     // create keyspaces for all tests
-    Seq("my_keyspace", "analytics", "iot", "monitoring").foreach { ks =>
+    Seq("my_keyspace", "analytics", "iot", "monitoring", "blog").foreach { ks =>
       s.execute(
         s"CREATE KEYSPACE IF NOT EXISTS $ks WITH replication = " +
           "{'class': 'SimpleStrategy', 'replication_factor': 1}"
