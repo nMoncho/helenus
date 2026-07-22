@@ -17,15 +17,21 @@ import org.scalatest.DoNotDiscover
   * executed against the embedded Cassandra, then `contains` / `containsKey`
   * on the indexed columns are run for real without `allowFiltering`, while
   * the same predicates on non-indexed columns are confirmed rejected by the
-  * server without it, matching the compile-time gate.
+  * server without it, matching the compile-time gate. The `Frozen` FULL-index
+  * case is checked the same way, but via raw `toCQL`: the compile-time gate
+  * doesn't exempt equality on an indexed `Frozen` column (see IndexSpec), so
+  * this is the only way to confirm the FULL index genuinely lets Cassandra
+  * run it without ALLOW FILTERING.
   */
 @DoNotDiscover
 class IndexIntegrationSpec extends CassandraIntegrationSpec {
   import net.nmoncho.helenus._
 
-  private val article1 = UUID.fromString("123e4567-e89b-12d3-a456-426614174000")
-  private val article2 = UUID.fromString("223e4567-e89b-12d3-a456-426614174000")
-  private val profile1 = UUID.fromString("323e4567-e89b-12d3-a456-426614174000")
+  private val article1  = UUID.fromString("123e4567-e89b-12d3-a456-426614174000")
+  private val article2  = UUID.fromString("223e4567-e89b-12d3-a456-426614174000")
+  private val profile1  = UUID.fromString("323e4567-e89b-12d3-a456-426614174000")
+  private val snapshot1 = UUID.fromString("423e4567-e89b-12d3-a456-426614174000")
+  private val snapshot2 = UUID.fromString("523e4567-e89b-12d3-a456-426614174000")
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -38,6 +44,10 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
     ProfilesTable.create.execute()
     ProfilesTable.createIndexes.foreach(idx => execute(idx.toCQL))
 
+    SnapshotsTable.drop.ifExists.execute()
+    SnapshotsTable.create.execute()
+    SnapshotsTable.createIndexes.foreach(idx => execute(idx.toCQL))
+
     ArticlesTable
       .insertFrom(Article(article1, "Scala at scale", Set("scala", "cql"), Set("backend")))
       .execute()
@@ -48,6 +58,13 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
 
     ProfilesTable
       .insertFrom(Profile(profile1, Map("color" -> "red"), Map("locale" -> "en")))
+      .execute()
+
+    SnapshotsTable
+      .insertFrom(Snapshot(snapshot1, Frozen(Set("scala", "cql")), Frozen(Set("backend"))))
+      .execute()
+    SnapshotsTable
+      .insertFrom(Snapshot(snapshot2, Frozen(Set("gardening")), Frozen(Set("lifestyle"))))
       .execute()
   }
 
@@ -140,5 +157,51 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
     )
 
     result.map(_.get("id", classOf[UUID])) shouldBe List(profile1)
+  }
+
+  // ---- Frozen: FULL index lets equality run without ALLOW FILTERING --------
+  // The compile-time gate stays conservative for Frozen columns (IndexSpec),
+  // so these run the raw toCQL directly to prove the FULL index is real.
+
+  "equality on a FULL-indexed Frozen column" should "run without ALLOW FILTERING and find the matching row" in {
+    val result = rows(
+      Select.render(
+        SnapshotsTable.select().where(SnapshotsTable.labels === Frozen(Set("scala", "cql"))),
+        allowFiltering = false,
+        prepared       = false
+      )
+    )
+
+    result.map(_.get("id", classOf[UUID])) shouldBe List(snapshot1)
+  }
+
+  it should "find nothing for a value no row has, without needing ALLOW FILTERING" in {
+    rows(
+      Select.render(
+        SnapshotsTable.select().where(SnapshotsTable.labels === Frozen(Set("cooking"))),
+        allowFiltering = false,
+        prepared       = false
+      )
+    ) shouldBe empty
+  }
+
+  "equality on a non-indexed Frozen column" should "be rejected by Cassandra without ALLOW FILTERING" in {
+    an[InvalidQueryException] should be thrownBy
+    Select.render(
+      SnapshotsTable.select().where(SnapshotsTable.tags === Frozen(Set("backend"))),
+      allowFiltering = false,
+      prepared       = false
+    )
+  }
+
+  it should "run once allowFiltering is used" in {
+    val result = rows(
+      SnapshotsTable
+        .select()
+        .where(SnapshotsTable.tags === Frozen(Set("backend")))
+        .allowFiltering
+        .execute
+    )
+    result.map(_.get("id", classOf[UUID])) shouldBe List(snapshot1)
   }
 }

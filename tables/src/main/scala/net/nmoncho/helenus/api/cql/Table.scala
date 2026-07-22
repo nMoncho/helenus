@@ -352,10 +352,13 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
     * `allowFiltering` for it (see [[TableDef.Indexed]]). Also registers the
     * index(es) so they can be created with [[createIndexes]] — a map column
     * registers both a values index (for `contains`) and a `KEYS(...)` index
-    * (for `containsKey`), see [[IndexTargets]].
+    * (for `containsKey`); a [[Frozen]] column registers a single `FULL(...)`
+    * index instead, since a frozen collection has no per-element indexing
+    * (and no `contains` / `containsKey` either — see [[IndexTargets]]).
     *
     * {{{
-    * val tags = index(column[Set[String]]("tags"))
+    * val tags   = index(column[Set[String]]("tags"))
+    * val labels = index(column[Frozen[Set[String]]]("labels"))
     * }}}
     */
   protected def index[V: TypeCodec](
