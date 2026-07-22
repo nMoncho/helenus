@@ -8,6 +8,7 @@ package net.nmoncho.helenus.api.cql
 package dml
 
 import net.nmoncho.helenus.api.cql.TestValues.fixedId
+import net.nmoncho.helenus.api.cql.ddl.{ CreateIndex, IndexKind, SAI }
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -260,5 +261,41 @@ class IndexSpec extends AnyFlatSpec with Matchers {
   "=== on a custom-named indexed column" should "execute without allowFiltering, same as an auto-named one" in {
     val cql = OrdersTable.select().where(OrdersTable.status === "shipped").toCQL
     cql shouldBe "SELECT * FROM blog.orders WHERE status = 'shipped'"
+  }
+
+  // ---- Table.index's optional kind: Secondary (default) vs Custom (SAI) ----
+
+  "Table.index" should "default to a plain secondary index (kind = Secondary)" in {
+    AuthorsTable.createIndexes.map(_.toCQL) should contain(
+      "CREATE INDEX authors_handle_idx ON blog.authors (handle)"
+    )
+  }
+
+  it should "render a CUSTOM index with USING and WITH OPTIONS for kind = Custom" in {
+    AuthorsTable.createIndexes.map(_.toCQL) should contain(
+      "CREATE CUSTOM INDEX authors_bio_idx ON blog.authors (bio) " +
+        "USING 'org.apache.cassandra.index.sai.StorageAttachedIndex' WITH OPTIONS = {'case_sensitive': 'false'}"
+    )
+  }
+
+  it should "omit WITH OPTIONS when kind = Custom has none" in {
+    CreateIndex(AuthorsTable, "authors_bio_idx", "bio", IndexKind.Custom(SAI.dse)).toCQL shouldBe
+    "CREATE CUSTOM INDEX authors_bio_idx ON blog.authors (bio) USING 'StorageAttachedIndex'"
+  }
+
+  it should "support IF NOT EXISTS combined with a custom index" in {
+    CreateIndex(
+      AuthorsTable,
+      "authors_bio_idx",
+      "bio",
+      IndexKind.Custom(SAI.openSource)
+    ).ifNotExists.toCQL shouldBe
+    "CREATE CUSTOM INDEX IF NOT EXISTS authors_bio_idx ON blog.authors (bio) " +
+    "USING 'org.apache.cassandra.index.sai.StorageAttachedIndex'"
+  }
+
+  "=== on a custom (SAI) indexed column" should "execute without allowFiltering, same as a secondary one" in {
+    val cql = AuthorsTable.select().where(AuthorsTable.bio === "Scala enthusiast").toCQL
+    cql shouldBe "SELECT * FROM blog.authors WHERE bio = 'Scala enthusiast'"
   }
 }

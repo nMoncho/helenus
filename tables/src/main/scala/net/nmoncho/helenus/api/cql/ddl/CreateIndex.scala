@@ -17,14 +17,24 @@ final case class CreateIndex(
     table: TableDef,
     indexName: String,
     target: String,
+    kind: IndexKind          = IndexKind.Secondary,
     ifNotExistsFlag: Boolean = false
 ) {
 
   def ifNotExists: CreateIndex = copy(ifNotExistsFlag = true)
 
   def toCQL: String = {
-    val ifNotExistsStr = if (ifNotExistsFlag) " IF NOT EXISTS" else ""
-    s"CREATE INDEX$ifNotExistsStr $indexName ON ${table.fullTableName} ($target)"
+    val ifNotExistsStr        = if (ifNotExistsFlag) " IF NOT EXISTS" else ""
+    val (customStr, usingStr) = kind match {
+      case IndexKind.Secondary => ("", "")
+      case IndexKind.Custom(usingClass, options) =>
+        val optionsStr =
+          if (options.isEmpty) ""
+          else
+            s" WITH OPTIONS = {${options.toSeq.sortBy(_._1).map { case (k, v) => s"'$k': '$v'" }.mkString(", ")}}"
+        (" CUSTOM", s" USING '$usingClass'$optionsStr")
+    }
+    s"CREATE$customStr INDEX$ifNotExistsStr $indexName ON ${table.fullTableName} ($target)$usingStr"
   }
 
   override def toString: String = toCQL
