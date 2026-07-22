@@ -8,6 +8,7 @@ package net.nmoncho.helenus.api.cql
 package ddl
 
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
+import net.nmoncho.helenus.api.cql.dml.where.IndexEqPredicate
 import net.nmoncho.helenus.api.cql.dml.where.IndexPredicate
 
 /** Mixed into a [[Column]] by `Table.index` to record that a secondary
@@ -31,4 +32,8 @@ trait Indexed[T] { self: TableDef#Column[T] =>
       innerType: TypeCodec[K]
   ): IndexPredicate[Tag, T, K] =
     new IndexPredicate[Tag, T, K](self, "CONTAINS KEY", value, innerType)
+
+  override def ===(value: T): IndexEqPredicate[Tag, T] =
+    new IndexEqPredicate[Tag, T](self, value)
+
 }

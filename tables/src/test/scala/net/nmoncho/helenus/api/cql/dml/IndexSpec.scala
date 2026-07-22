@@ -163,23 +163,29 @@ class IndexSpec extends AnyFlatSpec with Matchers {
     )
   }
 
-  "=== on a Frozen column" should "still NOT compile without allowFiltering, even when indexed" in {
-    // Table.index only exempts contains / containsKey from the gate; a FULL
-    // index makes plain equality valid CQL too (see IndexIntegrationSpec),
-    // but that isn't modeled at the type level, so this stays conservative.
+  "=== on an indexed Frozen column" should "execute without allowFiltering" in {
+    val cql = SnapshotsTable
+      .select()
+      .where(SnapshotsTable.labels === Frozen(Set("scala")))
+      .toCQL
+
+    cql shouldBe "SELECT * FROM blog.snapshots WHERE labels = {'scala'}"
+  }
+
+  "=== on a non-indexed Frozen column" should "NOT compile without allowFiltering" in {
     assertTypeError(
-      """SnapshotsTable.select().where(SnapshotsTable.labels === Frozen(Set("scala"))).toCQL"""
+      """SnapshotsTable.select().where(SnapshotsTable.tags === Frozen(Set("backend"))).toCQL"""
     )
   }
 
   it should "execute once allowFiltering is used" in {
     val cql = SnapshotsTable
       .select()
-      .where(SnapshotsTable.labels === Frozen(Set("scala")))
+      .where(SnapshotsTable.tags === Frozen(Set("backend")))
       .allowFiltering
       .toCQL
 
-    cql shouldBe "SELECT * FROM blog.snapshots WHERE labels = {'scala'} ALLOW FILTERING"
+    cql shouldBe "SELECT * FROM blog.snapshots WHERE tags = {'backend'} ALLOW FILTERING"
   }
 
   "A Frozen column" should "still work as an ordinary column (assignment, key)" in {
@@ -189,5 +195,46 @@ class IndexSpec extends AnyFlatSpec with Matchers {
       .toCQL
 
     cql should include("(id, labels) VALUES")
+  }
+
+  // ---- === on any indexed column, not just collections ----------------------
+
+  "Table.index" should "work on a plain scalar column, not just collections" in {
+    CustomersTable.createIndexes.map(_.toCQL) shouldBe
+    Seq("CREATE INDEX customers_email_idx ON blog.customers (email)")
+  }
+
+  "=== on an indexed scalar column" should "execute without allowFiltering" in {
+    val cql = CustomersTable.select().where(CustomersTable.email === "alice@example.com").toCQL
+    cql shouldBe "SELECT * FROM blog.customers WHERE email = 'alice@example.com'"
+  }
+
+  it should "combine with a full primary-key restriction and still execute" in {
+    val cql = CustomersTable
+      .select()
+      .where(CustomersTable.id === fixedId and CustomersTable.email === "alice@example.com")
+      .toCQL
+
+    cql should include(s"WHERE id = $fixedId AND email = 'alice@example.com'")
+  }
+
+  "=== on a non-indexed scalar column" should "NOT compile without allowFiltering" in {
+    assertTypeError(
+      """CustomersTable.select().where(CustomersTable.age === 30).toCQL"""
+    )
+  }
+
+  it should "execute once allowFiltering is used" in {
+    val cql = CustomersTable.select().where(CustomersTable.age === 30).allowFiltering.toCQL
+    cql shouldBe "SELECT * FROM blog.customers WHERE age = 30 ALLOW FILTERING"
+  }
+
+  "An indexed scalar column" should "still work as an ordinary column (assignment, key)" in {
+    val cql = CustomersTable.insert
+      .value(CustomersTable.id := fixedId)
+      .value(CustomersTable.email := "alice@example.com")
+      .toCQL
+
+    cql should include("(id, email) VALUES")
   }
 }

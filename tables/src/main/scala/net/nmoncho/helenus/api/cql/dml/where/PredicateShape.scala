@@ -80,6 +80,14 @@ object PredicateShape {
   implicit def indexedContains[Col, T, V]: Aux[IndexPredicate[Col, T, V], HNil, HNil, HNil, HNil] =
     instance(List(_))
 
+  /** An equality predicate on a column with a declared secondary index (see
+    * `Table.index`): CQL can satisfy it directly through the index, on any
+    * column type, so unlike the general `equality` case above it contributes
+    * nothing and is never required to be part of the primary key.
+    */
+  implicit def indexedEquality[Col, T]: Aux[IndexEqPredicate[Col, T], HNil, HNil, HNil, HNil] =
+    instance(List(_))
+
   implicit def multiValue[Col, T, V <: Iterable[T]]
       : Aux[InPredicate[Col, T, V], HNil, Col :: HNil, HNil, HNil] =
     instance(List(_))

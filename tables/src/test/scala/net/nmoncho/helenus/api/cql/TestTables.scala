@@ -152,3 +152,20 @@ object SnapshotsTable extends Table[Snapshot]("blog", "snapshots") {
   type PK = id.Tag :: HNil
   type CK = HNil
 }
+
+// A table with an indexed scalar column (`email`) alongside a plain,
+// non-indexed one (`age`), used to test that ANY column type — not just
+// collections — becomes queryable by === without allowFiltering once
+// indexed.
+case class Customer(id: UUID, email: String, age: Int)
+
+object CustomersTable extends Table[Customer]("blog", "customers") {
+  val id    = column[UUID]("id")
+  val email = index(column[String]("email"))
+  val age   = column[Int]("age")
+
+  protected val columns = registerAllColumns(id :: email :: age :: HNil)
+
+  type PK = id.Tag :: HNil
+  type CK = HNil
+}
