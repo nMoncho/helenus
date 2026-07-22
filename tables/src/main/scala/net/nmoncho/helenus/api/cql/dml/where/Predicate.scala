@@ -118,8 +118,12 @@ object Predicate {
   * The phantom `Col` lets [[net.nmoncho.helenus.api.cql.dml.Select]] accumulate the set of
   * `===`-constrained columns at the type level. It is otherwise an ordinary
   * [[Predicate]].
+  *
+  * Not `final`: [[IndexEqPredicate]] extends it so `Column.===`'s declared
+  * return type (needed to keep ordinary primary-key tracking working) can
+  * still be overridden, covariantly, for an indexed column.
   */
-final class EqPredicate[Col, T](column: TableDef#Column[T], value: T)
+sealed class EqPredicate[Col, T](column: TableDef#Column[T], value: T)
     extends SingleValuePredicate(column, "=", value)
 
 /** A range (`<`, `>`, `<=`, `>=`) predicate tagged with the column's field tag
@@ -157,6 +161,16 @@ final class IndexPredicate[Col, T, V](
   override def bind(bstmt: BoundStatement, idx: Int, @unused _value: V): BoundStatement =
     bstmt.set[V](idx, this.value, codec)
 }
+
+/** An equality (`=`) predicate on a column with a declared secondary index
+  * (see `Table.index` / [[TableDef.Indexed]]). Unlike the plain
+  * [[EqPredicate]] produced by `===` on a non-indexed column (which needs
+  * either full primary-key membership or `ALLOW FILTERING` to be
+  * gate-admitted), CQL can satisfy this directly through the index, on any
+  * column type, so it does not require `ALLOW FILTERING` (see [[PredicateShape]]).
+  */
+final class IndexEqPredicate[Col, T](column: TableDef#Column[T], value: T)
+    extends EqPredicate[Col, T](column, value)
 
 // ---- bind variants (built with the `?` marker) ---------------------------
 // Each mirrors its literal counterpart for the execute gates (same column-tag

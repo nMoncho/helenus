@@ -14,14 +14,10 @@ import net.nmoncho.helenus.api.cql.dml.Select
 import org.scalatest.DoNotDiscover
 
 /** `Table.index` end to end: the CREATE INDEX statements it registers are
-  * executed against the embedded Cassandra, then `contains` / `containsKey`
-  * on the indexed columns are run for real without `allowFiltering`, while
-  * the same predicates on non-indexed columns are confirmed rejected by the
-  * server without it, matching the compile-time gate. The `Frozen` FULL-index
-  * case is checked the same way, but via raw `toCQL`: the compile-time gate
-  * doesn't exempt equality on an indexed `Frozen` column (see IndexSpec), so
-  * this is the only way to confirm the FULL index genuinely lets Cassandra
-  * run it without ALLOW FILTERING.
+  * executed against the embedded Cassandra, then `contains` / `containsKey` /
+  * `===` on the indexed columns are run for real without `allowFiltering`,
+  * while the same predicates on non-indexed columns are confirmed rejected by
+  * the server without it, matching the compile-time gate.
   */
 @DoNotDiscover
 class IndexIntegrationSpec extends CassandraIntegrationSpec {
@@ -32,6 +28,8 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
   private val profile1  = UUID.fromString("323e4567-e89b-12d3-a456-426614174000")
   private val snapshot1 = UUID.fromString("423e4567-e89b-12d3-a456-426614174000")
   private val snapshot2 = UUID.fromString("523e4567-e89b-12d3-a456-426614174000")
+  private val customer1 = UUID.fromString("623e4567-e89b-12d3-a456-426614174000")
+  private val customer2 = UUID.fromString("723e4567-e89b-12d3-a456-426614174000")
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -47,6 +45,10 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
     SnapshotsTable.drop.ifExists.execute()
     SnapshotsTable.create.execute()
     SnapshotsTable.createIndexes.foreach(idx => execute(idx.toCQL))
+
+    CustomersTable.drop.ifExists.execute()
+    CustomersTable.create.execute()
+    CustomersTable.createIndexes.foreach(idx => execute(idx.toCQL))
 
     ArticlesTable
       .insertFrom(Article(article1, "Scala at scale", Set("scala", "cql"), Set("backend")))
@@ -66,6 +68,9 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
     SnapshotsTable
       .insertFrom(Snapshot(snapshot2, Frozen(Set("gardening")), Frozen(Set("lifestyle"))))
       .execute()
+
+    CustomersTable.insertFrom(Customer(customer1, "alice@example.com", 30)).execute()
+    CustomersTable.insertFrom(Customer(customer2, "bob@example.com", 40)).execute()
   }
 
   // ---- contains: indexed column, no ALLOW FILTERING ------------------------
@@ -160,16 +165,10 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
   }
 
   // ---- Frozen: FULL index lets equality run without ALLOW FILTERING --------
-  // The compile-time gate stays conservative for Frozen columns (IndexSpec),
-  // so these run the raw toCQL directly to prove the FULL index is real.
 
   "equality on a FULL-indexed Frozen column" should "run without ALLOW FILTERING and find the matching row" in {
     val result = rows(
-      Select.render(
-        SnapshotsTable.select().where(SnapshotsTable.labels === Frozen(Set("scala", "cql"))),
-        allowFiltering = false,
-        prepared       = false
-      )
+      SnapshotsTable.select().where(SnapshotsTable.labels === Frozen(Set("scala", "cql"))).execute()
     )
 
     result.map(_.get("id", classOf[UUID])) shouldBe List(snapshot1)
@@ -177,11 +176,7 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
 
   it should "find nothing for a value no row has, without needing ALLOW FILTERING" in {
     rows(
-      Select.render(
-        SnapshotsTable.select().where(SnapshotsTable.labels === Frozen(Set("cooking"))),
-        allowFiltering = false,
-        prepared       = false
-      )
+      SnapshotsTable.select().where(SnapshotsTable.labels === Frozen(Set("cooking"))).execute()
     ) shouldBe empty
   }
 
@@ -200,8 +195,41 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
         .select()
         .where(SnapshotsTable.tags === Frozen(Set("backend")))
         .allowFiltering
-        .execute
+        .execute()
     )
     result.map(_.get("id", classOf[UUID])) shouldBe List(snapshot1)
+  }
+
+  // ---- equality on ANY indexed column, not just collections -----------------
+
+  "equality on an indexed scalar column" should "run without ALLOW FILTERING and find the matching row" in {
+    val result =
+      rows(CustomersTable.select().where(CustomersTable.email === "alice@example.com").execute())
+    result.map(_.get("id", classOf[UUID])) shouldBe List(customer1)
+  }
+
+  it should "combine with the primary key and still run without allowFiltering" in {
+    val result = rows(
+      CustomersTable
+        .select()
+        .where(CustomersTable.id === customer1 and CustomersTable.email === "alice@example.com")
+        .execute()
+    )
+    result should have size 1
+  }
+
+  "equality on a non-indexed scalar column" should "be rejected by Cassandra without ALLOW FILTERING" in {
+    an[InvalidQueryException] should be thrownBy
+    Select.render(
+      CustomersTable.select().where(CustomersTable.age === 30),
+      allowFiltering = false,
+      prepared       = false
+    )
+  }
+
+  it should "run once allowFiltering is used" in {
+    val result =
+      rows(CustomersTable.select().where(CustomersTable.age === 30).allowFiltering.execute())
+    result.map(_.get("id", classOf[UUID])) shouldBe List(customer1)
   }
 }
