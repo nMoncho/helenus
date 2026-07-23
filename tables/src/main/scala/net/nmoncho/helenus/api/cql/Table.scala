@@ -321,8 +321,9 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
     * ascription widens away the `Tag` refinement and genuinely breaks
     * `PK` / `CK` derivation.
     */
-  protected def column[V: TypeCodec](name0: String with Singleton, frozen: Boolean = false)(
-      implicit @unused field: FieldOfType[A, name0.type, V]
+  protected def column[V](name0: String with Singleton, frozen: Boolean = false)(
+      implicit @unused field: FieldOfType[A, name0.type, V],
+      codec: TypeCodec[V]
   ): Column[V] { type Tag = name0.type } = {
     val col = new Column[V](name0, naming.apply(name0), frozen) { type Tag = name0.type }
 
@@ -331,6 +332,19 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
 
     col
   }
+
+  /** Reference a [[Frozen]] field of `A` as a column, stating only the
+    * WRAPPED type: `frozenColumn[Set[String]]("tags")` for a field declared
+    * as `tags: Frozen[Set[String]]`. Exactly `column[Frozen[V]](name0)`
+    * (same checks, same DDL, same `frozen<...>` rendering) but without
+    * having to spell `Frozen[...]` out again at the call site — the field
+    * itself must still be declared `Frozen[V]`, since that's what makes the
+    * case class the source of truth for the `frozen<...>` DDL type.
+    */
+  protected def frozenColumn[V: TypeCodec](name0: String with Singleton)(
+      implicit field: FieldOfType[A, name0.type, Frozen[V]]
+  ): Column[Frozen[V]] { type Tag = name0.type } =
+    column[Frozen[V]](name0, false)
 
   /** Declare a computed column: a stored column whose value is derived from an
     * `A` via `compute`. Unlike [[column]] it is not a field of `A`, so it is
