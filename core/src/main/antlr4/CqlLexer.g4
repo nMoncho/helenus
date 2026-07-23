@@ -53,6 +53,7 @@ K_BATCH          : 'BATCH';
 K_BEGIN          : 'BEGIN';
 K_BY             : 'BY';
 K_CALLED         : 'CALLED';
+K_CAST           : 'CAST';
 K_CLUSTERING     : 'CLUSTERING';
 K_COLUMNFAMILY   : 'COLUMNFAMILY';
 K_COMPACT        : 'COMPACT';
