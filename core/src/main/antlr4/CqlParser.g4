@@ -697,7 +697,11 @@ expression
     ;
 
 select_
-    : kwSelect distinctSpec? kwJson? selectElements fromSpec whereSpec? orderSpec? limitSpec? allowFilteringSpec?
+    : kwSelect distinctSpec? kwJson? selectElements fromSpec whereSpec? groupBySpec? orderSpec? limitSpec? allowFilteringSpec?
+    ;
+
+groupBySpec
+    : kwGroup kwBy columnList
     ;
 
 allowFilteringSpec
@@ -858,7 +862,7 @@ nonReservedKeyword
     | K_KEY | K_KEYS | K_TTL | K_TYPE | K_STATIC
     | K_WRITETIME | K_TOKEN | K_COMPACT | K_STORAGE
     | K_CLUSTERING | K_FILTERING | K_ENTRIES | K_FULL
-    | K_LEVEL | K_ANY | K_CUSTOM | K_SCHEMA
+    | K_LEVEL | K_ANY | K_CUSTOM | K_SCHEMA | K_GROUP
     ;
 
 dataType
@@ -1096,6 +1100,10 @@ kwFunctions
 
 kwGrant
     : K_GRANT
+    ;
+
+kwGroup
+    : K_GROUP
     ;
 
 kwIf
