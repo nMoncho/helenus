@@ -697,11 +697,16 @@ expression
     ;
 
 select_
-    : kwSelect distinctSpec? kwJson? selectElements fromSpec whereSpec? groupBySpec? orderSpec? limitSpec? allowFilteringSpec?
+    : kwSelect distinctSpec? kwJson? selectElements fromSpec whereSpec? groupBySpec? orderSpec? perPartitionLimitSpec? limitSpec?
+        allowFilteringSpec?
     ;
 
 groupBySpec
     : kwGroup kwBy columnList
+    ;
+
+perPartitionLimitSpec
+    : kwPer kwPartition kwLimit decimalLiteral
     ;
 
 allowFilteringSpec
@@ -863,6 +868,7 @@ nonReservedKeyword
     | K_WRITETIME | K_TOKEN | K_COMPACT | K_STORAGE
     | K_CLUSTERING | K_FILTERING | K_ENTRIES | K_FULL
     | K_LEVEL | K_ANY | K_CUSTOM | K_SCHEMA | K_GROUP
+    | K_PARTITION | K_PER
     ;
 
 dataType
@@ -1222,8 +1228,16 @@ kwOrder
     : K_ORDER
     ;
 
+kwPartition
+    : K_PARTITION
+    ;
+
 kwPassword
     : K_PASSWORD
+    ;
+
+kwPer
+    : K_PER
     ;
 
 kwPrimary
