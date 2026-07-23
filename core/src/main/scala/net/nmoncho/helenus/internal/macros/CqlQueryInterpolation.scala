@@ -52,6 +52,40 @@ object CqlQueryInterpolation {
     }
   }
 
+  def toCQLAsync(c: blackbox.Context)(
+      futSession: c.Expr[Future[CqlSession]],
+      ec: c.Expr[ExecutionContext]
+  ): c.Expr[Future[CQLQuery]] = {
+    import c.universe._
+
+    // c.prefix is Apply(CqlStringOps, List(innerExpr)); innerExpr may be a literal or
+    // a chain of constant-folding calls (.stripMargin, .trim, …) wrapping a literal.
+    c.prefix.tree match {
+      case Apply(_, List(inner)) =>
+        evalString(c)(inner) match {
+          case None =>
+            c.abort(c.enclosingPosition, "toCQLAsync requires a compile-time constant string")
+
+          case Some(cql) =>
+            CqlValidator.validate(cql) match {
+              case Right(_) =>
+                c.Expr[Future[CQLQuery]](
+                  q"$futSession.map(session => new _root_.net.nmoncho.helenus.api.cql.ScalaPreparedStatement.CQLQuery($cql, session))"
+                )
+
+              case Left((error, pos)) =>
+                val site = literalPos(c)(inner)
+                  .map(p => p.withPoint(p.point + pos))
+                  .getOrElse(c.enclosingPosition)
+
+                c.abort(site, s"Invalid CQL: $error")
+            }
+        }
+      case _ =>
+        c.abort(c.enclosingPosition, "toCQLAsync requires a string literal")
+    }
+  }
+
   def cql(
       c: blackbox.Context
   )(params: c.Expr[Any]*)(session: c.Expr[CqlSession]): c.Expr[WrappedBoundStatement[Row]] = {

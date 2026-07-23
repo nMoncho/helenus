@@ -6,8 +6,20 @@
 
 package net.nmoncho
 
+import scala.annotation.nowarn
+import scala.concurrent.Await
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
+import scala.concurrent.duration.FiniteDuration
+import scala.language.experimental.macros
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
+
 import com.datastax.dse.driver.api.core.cql.reactive.ReactiveResultSet
-import com.datastax.oss.driver.api.core.{ CqlSession, MappedAsyncPagingIterable, PagingIterable }
+import com.datastax.oss.driver.api.core.CqlSession
+import com.datastax.oss.driver.api.core.MappedAsyncPagingIterable
+import com.datastax.oss.driver.api.core.PagingIterable
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.`type`.codec.registry.MutableCodecRegistry
 import com.datastax.oss.driver.api.core.config.DriverExecutionProfile
@@ -23,12 +35,6 @@ import net.nmoncho.helenus.internal.macros.CqlQueryInterpolation
 import net.nmoncho.helenus.internal.reactive.MapOperator
 import org.reactivestreams.Publisher
 import org.slf4j.LoggerFactory
-
-import scala.annotation.nowarn
-import scala.concurrent.{ Await, ExecutionContext, Future }
-import scala.concurrent.duration.FiniteDuration
-import scala.language.experimental.macros
-import scala.util.{ Failure, Success, Try }
 
 package object helenus extends CodecDerivation {
 
@@ -300,10 +306,16 @@ package object helenus extends CodecDerivation {
         implicit futSession: Future[CqlSession],
         ec: ExecutionContext
     ): Future[CQLQuery] =
-      futSession.map(CQLQuery(query, _))
+      macro internal.macros.CqlQueryInterpolation.toCQLAsync
 
     def toUnsafeCQL(implicit session: CqlSession): CQLQuery =
       CQLQuery(query, session)
+
+    def toUnsafeCQLAsync(
+        implicit futSession: Future[CqlSession],
+        ec: ExecutionContext
+    ): Future[CQLQuery] =
+      futSession.map(CQLQuery(query, _))
   }
 
   implicit class RowOps(private val row: Row) extends AnyVal {
