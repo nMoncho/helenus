@@ -48,7 +48,7 @@ package object helenus extends CodecDerivation {
 
   implicit val defaultIdentityRowMapper: RowMapper[Row] = RowMapper.identity
 
-  implicit class ClqSessionOps(private val session: CqlSession) extends AnyVal {
+  implicit class CqlSessionOps(private val session: CqlSession) extends AnyVal {
 
     def sessionKeyspace: Option[KeyspaceMetadata] = {
       val opt: java.util.Optional[String] = session.getKeyspace.map(_.asInternal())
