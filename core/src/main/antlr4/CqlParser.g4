@@ -780,6 +780,7 @@ relationElement
     ) (assignmentTuple (syntaxComma assignmentTuple)*)
     | relalationContainsKey
     | relalationContains
+    | relalationLike
     ;
 
 relalationContains
@@ -788,6 +789,10 @@ relalationContains
 
 relalationContainsKey
     : identifier (kwContains kwKey) constant
+    ;
+
+relalationLike
+    : identifier kwLike constant
     ;
 
 functionCall
@@ -868,7 +873,7 @@ nonReservedKeyword
     | K_WRITETIME | K_TOKEN | K_COMPACT | K_STORAGE
     | K_CLUSTERING | K_FILTERING | K_ENTRIES | K_FULL
     | K_LEVEL | K_ANY | K_CUSTOM | K_SCHEMA | K_GROUP
-    | K_PARTITION | K_PER
+    | K_PARTITION | K_PER | K_LIKE
     ;
 
 dataType
@@ -1166,6 +1171,10 @@ kwKeyspaces
 
 kwLanguage
     : K_LANGUAGE
+    ;
+
+kwLike
+    : K_LIKE
     ;
 
 kwLimit
