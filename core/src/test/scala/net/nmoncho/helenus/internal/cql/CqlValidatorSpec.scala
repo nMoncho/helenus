@@ -110,6 +110,15 @@ class CqlValidatorSpec extends AnyFlatSpec with Matchers {
   it should "accept SELECT with ORDER BY DESC and LIMIT" in
     valid("SELECT id FROM users WHERE id = ? ORDER BY id DESC LIMIT 100")
 
+  it should "accept SELECT with PER PARTITION LIMIT" in
+    valid("SELECT id FROM users WHERE id = ? PER PARTITION LIMIT 10")
+
+  it should "accept SELECT with PER PARTITION LIMIT and LIMIT" in
+    valid("SELECT id FROM users WHERE id = ? PER PARTITION LIMIT 10 LIMIT 100")
+
+  it should "accept SELECT with GROUP BY, ORDER BY, PER PARTITION LIMIT and LIMIT" in
+    valid("SELECT id, count(*) FROM users WHERE id = ? GROUP BY id ORDER BY id ASC PER PARTITION LIMIT 10 LIMIT 100")
+
   it should "accept SELECT with ALLOW FILTERING" in
     valid("SELECT * FROM users WHERE id = ? AND name = ? ALLOW FILTERING")
 
