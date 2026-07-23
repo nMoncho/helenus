@@ -174,6 +174,9 @@ class CqlValidatorSpec extends AnyFlatSpec with Matchers {
   it should "accept INSERT with keyword column names" in
     valid("INSERT INTO t (id, date, text) VALUES (?, ?, ?)")
 
+  it should "accept INSERT with UNSET value" in
+    valid("INSERT INTO users (id, name) VALUES (1, UNSET)")
+
   // ---------------------------------------------------------------------------
   // UPDATE
   // ---------------------------------------------------------------------------
@@ -195,6 +198,9 @@ class CqlValidatorSpec extends AnyFlatSpec with Matchers {
 
   it should "accept UPDATE with counter increment" in
     valid("UPDATE t SET counter_col = counter_col + 1 WHERE id = ?")
+
+  it should "accept UPDATE with UNSET value" in
+    valid("UPDATE users SET name = UNSET WHERE id = ?")
 
   // ---------------------------------------------------------------------------
   // DELETE

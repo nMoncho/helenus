@@ -825,6 +825,7 @@ constant
     | booleanLiteral
     | codeBlock
     | kwNull
+    | kwUnset
     | BIND_MARKER
     | NAMED_BIND_MARKER
     ;
@@ -1346,6 +1347,10 @@ kwType
 
 kwUnlogged
     : K_UNLOGGED
+    ;
+
+kwUnset
+    : K_UNSET
     ;
 
 kwUpdate
