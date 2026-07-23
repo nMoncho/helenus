@@ -13,6 +13,7 @@ import com.datastax.oss.driver.api.core.ConsistencyLevel
 import com.datastax.oss.driver.api.core.CqlIdentifier
 import com.datastax.oss.driver.api.core.config.DriverExecutionProfile
 import com.datastax.oss.driver.api.core.cql.BoundStatement
+import com.datastax.oss.driver.api.core.cql.BoundStatementBuilder
 import net.nmoncho.helenus.api.cql.StatementOptions.BoundStatementOptions
 import net.nmoncho.helenus.api.cql.StatementOptions.PreparedStatementOptions
 
@@ -29,18 +30,19 @@ case class StatementOptions(
   def apply(bs: BoundStatement): BoundStatement =
     if (bstmtOptions == StatementOptions.default.bstmtOptions) bs
     else {
-      // TODO maybe we can avoid so many allocations with a simple `new`, although it would be less flexible
-      val bs1 = bs
+      val builder = new BoundStatementBuilder(bs)
         .setTracing(bstmtOptions.tracing)
         .setPageSize(bstmtOptions.pageSize)
-        .setIdempotent(bstmtOptions.idempotent)
-      val bs2 = bstmtOptions.profile.map(bs1.setExecutionProfile).getOrElse(bs1)
-      val bs3 = bstmtOptions.routingKeyspace.map(bs2.setRoutingKeyspace).getOrElse(bs2)
-      val bs4 = bstmtOptions.routingKey.map(bs3.setRoutingKey).getOrElse(bs3)
-      val bs5 = bstmtOptions.timeout.map(bs4.setTimeout).getOrElse(bs4)
-      val bs6 = bstmtOptions.pagingState.map(bs5.setPagingState).getOrElse(bs5)
+        .setIdempotence(bstmtOptions.idempotent)
 
-      bstmtOptions.consistencyLevel.map(bs6.setConsistencyLevel).getOrElse(bs6)
+      bstmtOptions.profile.foreach(p => builder.setExecutionProfile(p))
+      bstmtOptions.routingKeyspace.foreach(ks => builder.setRoutingKeyspace(ks))
+      bstmtOptions.routingKey.foreach(rk => builder.setRoutingKey(rk))
+      bstmtOptions.timeout.foreach(t => builder.setTimeout(t))
+      bstmtOptions.pagingState.foreach(ps => builder.setPagingState(ps))
+      bstmtOptions.consistencyLevel.foreach(cl => builder.setConsistencyLevel(cl))
+
+      builder.build()
     }
 
   // $COVERAGE-OFF$
