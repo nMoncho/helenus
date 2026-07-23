@@ -151,6 +151,7 @@ K_TTL            : 'TTL';
 K_TWO            : 'TWO';
 K_TYPE           : 'TYPE';
 K_UNLOGGED       : 'UNLOGGED';
+K_UNSET          : 'UNSET';
 K_UPDATE         : 'UPDATE';
 K_USE            : 'USE';
 K_USER           : 'USER';
