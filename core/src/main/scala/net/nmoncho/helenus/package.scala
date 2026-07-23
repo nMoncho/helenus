@@ -6,20 +6,8 @@
 
 package net.nmoncho
 
-import scala.annotation.nowarn
-import scala.concurrent.Await
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
-import scala.concurrent.duration.FiniteDuration
-import scala.language.experimental.macros
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
-
 import com.datastax.dse.driver.api.core.cql.reactive.ReactiveResultSet
-import com.datastax.oss.driver.api.core.CqlSession
-import com.datastax.oss.driver.api.core.MappedAsyncPagingIterable
-import com.datastax.oss.driver.api.core.PagingIterable
+import com.datastax.oss.driver.api.core.{ CqlSession, MappedAsyncPagingIterable, PagingIterable }
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.`type`.codec.registry.MutableCodecRegistry
 import com.datastax.oss.driver.api.core.config.DriverExecutionProfile
@@ -35,6 +23,12 @@ import net.nmoncho.helenus.internal.macros.CqlQueryInterpolation
 import net.nmoncho.helenus.internal.reactive.MapOperator
 import org.reactivestreams.Publisher
 import org.slf4j.LoggerFactory
+
+import scala.annotation.nowarn
+import scala.concurrent.{ Await, ExecutionContext, Future }
+import scala.concurrent.duration.FiniteDuration
+import scala.language.experimental.macros
+import scala.util.{ Failure, Success, Try }
 
 package object helenus extends CodecDerivation {
 
@@ -307,6 +301,9 @@ package object helenus extends CodecDerivation {
         ec: ExecutionContext
     ): Future[CQLQuery] =
       futSession.map(CQLQuery(query, _))
+
+    def toUnsafeCQL(implicit session: CqlSession): CQLQuery =
+      CQLQuery(query, session)
   }
 
   implicit class RowOps(private val row: Row) extends AnyVal {
@@ -486,8 +483,7 @@ package object helenus extends CodecDerivation {
       */
     @nowarn("cat=unused-imports")
     def iter(timeout: FiniteDuration)(implicit ec: ExecutionContext): Iterator[T] = {
-      // Don't remove me 'import scala.collection.compat._'
-      import scala.collection.compat._ // scalafix:ok
+      // Don't remove me 'import scala.collection.compat._' // scalafix:ok
       // FIXME Using `TraversableOnce` Scala 2.12, also it doesn't lazily concat iterators
       // since `compat` implementation is different
       def concat(current: MappedAsyncPagingIterable[T]): TraversableOnce[T] =
