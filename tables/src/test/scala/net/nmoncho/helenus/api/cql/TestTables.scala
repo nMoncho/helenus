@@ -236,10 +236,26 @@ case class Catalog(id: UUID, labels: Frozen[Map[String, String]], tags: Frozen[M
 
 object CatalogsTable extends Table[Catalog]("blog", "catalogs") {
   val id     = column[UUID]("id")
-  val labels = index(column[Frozen[Map[String, String]]]("labels"))
-  val tags   = column[Frozen[Map[String, String]]]("tags")
+  val labels = index(frozenColumn[Map[String, String]]("labels"))
+  val tags   = frozenColumn[Map[String, String]]("tags")
 
   protected val columns = registerAllColumns(id :: labels :: tags :: HNil)
+
+  type PK = id.Tag :: HNil
+  type CK = HNil
+}
+
+case class Account(id: UUID, owner: String, balance: Long)
+
+object AccountsTable extends Table[Account]("bank", "accounts") {
+  // NOTE: state the type as a type ARGUMENT, never as a val ascription
+  // (`val id: Column[UUID] = ...` widens away the `Tag` refinement and
+  // breaks PK/ColumnNames derivation).
+  val id      = column[UUID]("id")
+  val owner   = column[String]("owner")
+  val balance = column[Long]("balance")
+
+  protected val columns = registerAllColumns(id :: owner :: balance :: HNil)
 
   type PK = id.Tag :: HNil
   type CK = HNil
