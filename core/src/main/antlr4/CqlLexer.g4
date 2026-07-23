@@ -96,6 +96,7 @@ K_KEYSPACE       : 'KEYSPACE';
 K_KEYSPACES      : 'KEYSPACES';
 K_LANGUAGE       : 'LANGUAGE';
 K_LEVEL          : 'LEVEL';
+K_LIKE           : 'LIKE';
 K_LIMIT          : 'LIMIT';
 K_LOCAL_ONE      : 'LOCAL_ONE';
 K_LOCAL_QUORUM   : 'LOCAL_QUORUM';

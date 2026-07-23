@@ -6,11 +6,12 @@
 
 package net.nmoncho.helenus.internal.cql
 
+import scala.reflect.runtime.universe
+import scala.tools.reflect.ToolBox
+import scala.tools.reflect.ToolBoxError
+
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-
-import scala.reflect.runtime.universe
-import scala.tools.reflect.{ ToolBox, ToolBoxError }
 
 class CqlValidatorSpec extends AnyFlatSpec with Matchers {
 
@@ -117,7 +118,18 @@ class CqlValidatorSpec extends AnyFlatSpec with Matchers {
     valid("SELECT id FROM users WHERE id = ? PER PARTITION LIMIT 10 LIMIT 100")
 
   it should "accept SELECT with GROUP BY, ORDER BY, PER PARTITION LIMIT and LIMIT" in
-    valid("SELECT id, count(*) FROM users WHERE id = ? GROUP BY id ORDER BY id ASC PER PARTITION LIMIT 10 LIMIT 100")
+    valid(
+      "SELECT id, count(*) FROM users WHERE id = ? GROUP BY id ORDER BY id ASC PER PARTITION LIMIT 10 LIMIT 100"
+    )
+
+  it should "accept SELECT with LIKE" in
+    valid("SELECT id FROM users WHERE name LIKE 'jo%'")
+
+  it should "accept SELECT with LIKE and bind marker" in
+    valid("SELECT id FROM users WHERE name LIKE ?")
+
+  it should "accept SELECT with LIKE combined with AND" in
+    valid("SELECT id FROM users WHERE id = ? AND name LIKE 'jo%'")
 
   it should "accept SELECT with ALLOW FILTERING" in
     valid("SELECT * FROM users WHERE id = ? AND name = ? ALLOW FILTERING")
