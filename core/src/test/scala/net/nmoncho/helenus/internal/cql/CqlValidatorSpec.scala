@@ -131,6 +131,15 @@ class CqlValidatorSpec extends AnyFlatSpec with Matchers {
   it should "accept SELECT with LIKE combined with AND" in
     valid("SELECT id FROM users WHERE id = ? AND name LIKE 'jo%'")
 
+  it should "accept SELECT with CAST" in
+    valid("SELECT CAST(count AS DOUBLE) FROM users WHERE id = ?")
+
+  it should "accept SELECT with CAST nested inside a function call" in
+    valid("SELECT avg(CAST(count AS DOUBLE)) FROM users WHERE id = ?")
+
+  it should "accept SELECT with CAST in a WHERE relation" in
+    valid("SELECT id FROM users WHERE CAST(count AS INT) = 1")
+
   it should "accept SELECT with ALLOW FILTERING" in
     valid("SELECT * FROM users WHERE id = ? AND name = ? ALLOW FILTERING")
 

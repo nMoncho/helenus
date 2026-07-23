@@ -799,6 +799,17 @@ functionCall
     : OBJECT_NAME '(' STAR ')'
     | OBJECT_NAME '(' functionArgs? ')'
     | K_UUID '(' ')'
+    | castFunction
+    ;
+
+castFunction
+    : kwCast '(' castTarget kwAs dataTypeName ')'
+    ;
+
+castTarget
+    : constant
+    | OBJECT_NAME
+    | functionCall
     ;
 
 functionArgs
@@ -873,7 +884,7 @@ nonReservedKeyword
     | K_WRITETIME | K_TOKEN | K_COMPACT | K_STORAGE
     | K_CLUSTERING | K_FILTERING | K_ENTRIES | K_FULL
     | K_LEVEL | K_ANY | K_CUSTOM | K_SCHEMA | K_GROUP
-    | K_PARTITION | K_PER | K_LIKE
+    | K_PARTITION | K_PER | K_LIKE | K_CAST
     ;
 
 dataType
@@ -1031,6 +1042,10 @@ kwBy
 
 kwCalled
     : K_CALLED
+    ;
+
+kwCast
+    : K_CAST
     ;
 
 kwClustering
