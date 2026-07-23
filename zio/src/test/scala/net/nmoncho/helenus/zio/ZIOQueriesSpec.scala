@@ -450,7 +450,7 @@ object ZIOQueriesSpec extends ZCassandraSpec {
   case class IceCream(name: String, numCherries: Int, cone: Boolean)
 
   object IceCream {
-    implicit val rowMapper: RowMapper[IceCream]                        = RowMapper[IceCream]
+    implicit val rowMapper: RowMapper[IceCream]                        = RowMapper[IceCream]()
     implicit val rowAdapter: Adapter[IceCream, (String, Int, Boolean)] =
       Adapter.builder[IceCream].build
   }
@@ -458,7 +458,7 @@ object ZIOQueriesSpec extends ZCassandraSpec {
   case class IceCreamError(name: String, numOfCherries: Int, cone: Boolean)
 
   object IceCreamError {
-    implicit val rowMapper: RowMapper[IceCreamError] = RowMapper[IceCreamError]
+    implicit val rowMapper: RowMapper[IceCreamError] = RowMapper[IceCreamError]()
   }
 
   private val vanilla   = IceCream("vanilla", numCherries = 2, cone = true)

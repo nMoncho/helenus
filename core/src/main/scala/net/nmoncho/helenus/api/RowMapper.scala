@@ -90,15 +90,14 @@ object RowMapper {
     }
   }
 
-  def apply[T](implicit mapper: DerivedRowMapper[T]): RowMapper[T] = mapper
+  def of[T](implicit mapper: DerivedRowMapper[T]): RowMapper[T] = mapper
 
   /** Derives a [[RowMapper]] considering the specified name mapping.
     *
-    * @param first first mapping from field to column
-    * @param rest  rest mapping from field to column
+    * @param renamedFields renamed fields
     * @tparam T target type
     */
-  def renamed[T](first: T => (Any, ColumnName), rest: T => (Any, ColumnName)*): RowMapper[T] =
+  def apply[T](renamedFields: T => (Any, ColumnName)*): RowMapper[T] =
     macro RowMapperMacros.renamedMapper[DerivedRowMapper.Builder, T]
 
   /** Derives a [[RowMapper]] for tuples

@@ -28,7 +28,7 @@ class RowMapperDerivationSpec extends AnyWordSpec with Matchers {
     }
 
     "produce instances for tuples" in {
-      RowMapper[(String, Int)] should not be null
+      RowMapper.of[(String, Int)] should not be null
 
       withClue("and should be implicitly available") {
         implicitly[RowMapper[(String, Int)]] should not be null
@@ -36,7 +36,7 @@ class RowMapperDerivationSpec extends AnyWordSpec with Matchers {
     }
 
     "produce instances for simple types" in {
-      RowMapper[String] should not be null
+      RowMapper.of[String] should not be null
 
       withClue("and should be implicitly available") {
         implicitly[RowMapper[String]] should not be null
@@ -78,7 +78,7 @@ object RowMapperDerivationSpec {
   case class IceCream(name: String, numCherries: Int, cone: Boolean)
 
   object IceCream {
-    implicit val rowMapper: RowMapper[IceCream] = RowMapper[IceCream]
+    implicit val rowMapper: RowMapper[IceCream] = RowMapper[IceCream]()
   }
 
   case class SpecialProps(numCherries: Int, cone: Boolean)
@@ -92,19 +92,19 @@ object RowMapperDerivationSpec {
   case class IceCreamWithSpecialProps(name: String, props: SpecialProps)
   object IceCreamWithSpecialProps {
     implicit val rowMapper: RowMapper[IceCreamWithSpecialProps] =
-      RowMapper[IceCreamWithSpecialProps]
+      RowMapper[IceCreamWithSpecialProps]()
   }
 
   case class IceCreamWithSpecialPropsAsTuple(name: String, props: (Int, Boolean))
   object IceCreamWithSpecialPropsAsTuple {
     implicit val rowMapper: RowMapper[IceCreamWithSpecialPropsAsTuple] =
-      RowMapper[IceCreamWithSpecialPropsAsTuple]
+      RowMapper[IceCreamWithSpecialPropsAsTuple]()
   }
 
   case class RenamedIceCream(naam: String, kers: Int, hoorn: Boolean)
 
   object RenamedIceCream {
-    implicit val rowMapper: RowMapper[RenamedIceCream] = RowMapper
-      .renamed[RenamedIceCream](_.naam -> "name", _.kers -> "numCherries", _.hoorn -> "cone")
+    implicit val rowMapper: RowMapper[RenamedIceCream] =
+      RowMapper[RenamedIceCream](_.naam -> "name", _.kers -> "numCherries", _.hoorn -> "cone")
   }
 }

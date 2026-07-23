@@ -14,7 +14,7 @@ object RowMapper {
 
   final def renamedMapper[D[x] <: DerivedRowMapper.Builder[x], A](
       c: blackbox.Context
-  )(first: c.Expr[A => (Any, String)], rest: c.Expr[A => (Any, String)]*)(
+  )(renamedFields: c.Expr[A => (Any, String)]*)(
       implicit D: c.WeakTypeTag[D[_]],
       A: c.WeakTypeTag[A]
   ): c.Expr[net.nmoncho.helenus.api.RowMapper[A]] = {
@@ -74,7 +74,7 @@ object RowMapper {
         )
       case t =>
         c.Expr[DerivedRowMapper[A]](
-          q"$t.apply(Map[String, String](${extract(first)}, ..${rest.map(r => extract(r))})): _root_.net.nmoncho.helenus.api.RowMapper[$A]"
+          q"$t.apply(Map[String, String](..${renamedFields.map(r => extract(r))})): _root_.net.nmoncho.helenus.api.RowMapper[$A]"
         )
     }
   }

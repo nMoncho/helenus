@@ -115,7 +115,7 @@ object MapOperatorSpec {
   case class IceCream(name: String, numCherries: Int, cone: Boolean)
   object IceCream {
     import net.nmoncho.helenus._
-    implicit val rowMapper: RowMapper[IceCream] = RowMapper[IceCream]
+    implicit val rowMapper: RowMapper[IceCream] = RowMapper[IceCream]()
   }
 
   class EndSubscriber[T]() extends Flow.Subscriber[T] {

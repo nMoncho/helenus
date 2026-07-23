@@ -85,7 +85,7 @@ class RowMapperSpec
 
         implicit val phoneOrAddressColMapper: ColumnMapper[Either[String, Address]] =
           ColumnMapper.either[String, Address]("phone", "address")
-        implicit val mapper: RowMapper[Hotel2] = RowMapper[Hotel2]
+        implicit val mapper: RowMapper[Hotel2] = RowMapper[Hotel2]()
 
         val query = "SELECT * FROM hotels WHERE id = ?".toCQL
           .prepare[String]

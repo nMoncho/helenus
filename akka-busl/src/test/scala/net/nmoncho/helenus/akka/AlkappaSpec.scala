@@ -366,7 +366,7 @@ object AlkappaSpec {
   case class IceCream(name: String, numCherries: Int, cone: Boolean)
   object IceCream {
     import net.nmoncho.helenus._
-    implicit val rowMapper: RowMapper[IceCream]                        = RowMapper[IceCream]
+    implicit val rowMapper: RowMapper[IceCream]                        = RowMapper[IceCream]()
     implicit val rowAdapter: Adapter[IceCream, (String, Int, Boolean)] =
       Adapter.builder[IceCream].build
   }
