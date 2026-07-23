@@ -79,6 +79,7 @@ K_FULL           : 'FULL';
 K_FUNCTION       : 'FUNCTION';
 K_FUNCTIONS      : 'FUNCTIONS';
 K_GRANT          : 'GRANT';
+K_GROUP          : 'GROUP';
 K_IF             : 'IF';
 K_IN             : 'IN';
 K_INDEX          : 'INDEX';

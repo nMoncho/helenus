@@ -6,12 +6,11 @@
 
 package net.nmoncho.helenus.internal.cql
 
-import scala.reflect.runtime.universe
-import scala.tools.reflect.ToolBox
-import scala.tools.reflect.ToolBoxError
-
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import scala.reflect.runtime.universe
+import scala.tools.reflect.{ ToolBox, ToolBoxError }
 
 class CqlValidatorSpec extends AnyFlatSpec with Matchers {
 
@@ -95,6 +94,15 @@ class CqlValidatorSpec extends AnyFlatSpec with Matchers {
 
   it should "accept SELECT with column alias" in
     valid("SELECT id AS user_id FROM users")
+
+  it should "accept SELECT with GROUP BY" in
+    valid("SELECT id, count(*) FROM users WHERE id = ? GROUP BY id")
+
+  it should "accept SELECT with GROUP BY multiple columns" in
+    valid("SELECT id, name, count(*) FROM users WHERE id = ? GROUP BY id, name")
+
+  it should "accept SELECT with GROUP BY and ORDER BY" in
+    valid("SELECT id, count(*) FROM users WHERE id = ? GROUP BY id ORDER BY id ASC")
 
   it should "accept SELECT with ORDER BY ASC" in
     valid("SELECT id FROM users WHERE id = ? ORDER BY id ASC")
