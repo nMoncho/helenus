@@ -49,14 +49,14 @@ object RowMapper {
     * @tparam A target type
     */
   trait ColumnMapper[A] extends Serializable {
-    def apply(columnName: String, row: Row): A
+    def apply(columnName: ColumnName, row: Row): A
   }
 
   object ColumnMapper {
     private val log = LoggerFactory.getLogger(classOf[ColumnMapper[_]])
 
     def default[A](implicit codec: TypeCodec[A]): ColumnMapper[A] = new ColumnMapper[A] {
-      override def apply(columnName: String, row: Row): A =
+      override def apply(columnName: ColumnName, row: Row): A =
         row.get(columnName, codec)
     }
 
@@ -88,6 +88,19 @@ object RowMapper {
           Right(row.get[B](rightColumnName, rightCodec))
         }
     }
+
+    /** Creates a [[ColumnMapper]] that explodes each field of the case class
+      * into a column. This is in contrast of having an UDT where the case class
+      * is mapped to a single column.
+      *
+      * @param prefix column name prefix to apply to every non-renamed field
+      * @param renamedFields field renamed to columns. Doesn't use `prefix`
+      * @tparam T case class type
+      * @return column mapper
+      */
+    def of[T](prefix: String, renamedFields: T => (Any, ColumnName)*): ColumnMapper[T] =
+      macro RowMapperMacros.derivedColumnMapper[DerivedRowMapper.Builder, T]
+
   }
 
   def of[T](implicit mapper: DerivedRowMapper[T]): RowMapper[T] = mapper

@@ -36,12 +36,12 @@ trait CaseClassRowMapperDerivation {
   implicit def lastCCElement[K <: Symbol, H](
       implicit colDecoder: ColumnMapper[H],
       witness: Witness.Aux[K],
-      columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme
+      naming: ColumnNamingScheme = DefaultColumnNamingScheme
   ): DerivedRowMapper.Builder[FieldType[K, H] :: HNil] =
     (mapping: DerivedRowMapper.FieldToColumn) =>
       new DerivedNameRowMapper[FieldType[K, H] :: HNil] {
         override val column: String =
-          mapping.getOrElse(witness.value.name, columnMapper.apply(witness.value.name))
+          mapping.getOrElse(witness.value.name, naming(witness.value.name))
 
         override def apply(row: Row): FieldType[K, H] :: HNil =
           (witness.value ->> colDecoder(column, row)).asInstanceOf[FieldType[K, H]] :: HNil
@@ -51,11 +51,11 @@ trait CaseClassRowMapperDerivation {
       implicit colDecoder: ColumnMapper[H],
       witness: Witness.Aux[K],
       tailRowBuilder: DerivedRowMapper.Builder[T],
-      columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme
+      naming: ColumnNamingScheme = DefaultColumnNamingScheme
   ): DerivedRowMapper.Builder[FieldType[K, H] :: T] = (mapping: DerivedRowMapper.FieldToColumn) =>
     new DerivedNameRowMapper[FieldType[K, H] :: T] {
       override val column: String =
-        mapping.getOrElse(witness.value.name, columnMapper.apply(witness.value.name))
+        mapping.getOrElse(witness.value.name, naming(witness.value.name))
 
       private val tailRowMapper = tailRowBuilder(mapping)
 
@@ -72,7 +72,7 @@ trait CaseClassRowMapperDerivation {
   implicit def genericCCRowMapperBuilder[T, R](
       implicit gen: LabelledGeneric.Aux[T, R],
       builder: DerivedRowMapper.Builder[R],
-      columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme
+      naming: ColumnNamingScheme = DefaultColumnNamingScheme
   ): DerivedRowMapper.Builder[T] = (mappings: DerivedRowMapper.FieldToColumn) => {
     val reprRowMapper = builder(mappings)
 
