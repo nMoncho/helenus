@@ -36,7 +36,7 @@ object UsersTable extends Table[User]("my_keyspace", "users") {
   type PK = id.Tag :: HNil
   type CK = username.Tag :: HNil
 
-  protected val columns: Table.AllColumns = registerAllColumns(
+  protected val columns = registerAllColumns(
     id :: username :: age :: email :: tags :: metadata :: HNil
   )
 }

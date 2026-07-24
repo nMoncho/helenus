@@ -11,8 +11,11 @@ import scala.annotation.unused
 import scala.collection.mutable
 
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
+import com.datastax.oss.driver.api.core.cql.Row
 import net.nmoncho.helenus.api.ColumnNamingScheme
 import net.nmoncho.helenus.api.DefaultColumnNamingScheme
+import net.nmoncho.helenus.api.RowMapper
+import net.nmoncho.helenus.api.RowMapper.ColumnMapper
 import net.nmoncho.helenus.api.cql.ddl._
 import net.nmoncho.helenus.api.cql.dml._
 import net.nmoncho.helenus.api.cql.dml.where._
@@ -276,9 +279,18 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
     * This is the completeness half of the case-class contract: adding a field
     * to `A` without declaring (and registering) a column val for it fails to
     * compile here, because the registered list no longer matches `A`'s
-    * fields. The reference half is checked per val by [[column]].
+    * fields. The reference half is checked per val by [[column]]. It also
+    * carries [[rowMapper]], built from these exact columns (see
+    * [[registerAllColumns]]).
     */
-  protected def columns: Table.AllColumns
+  protected def columns: Table.AllColumns[A]
+
+  /** Reads a full row of `A` back, in the order [[registerAllColumns]] was
+    * given its columns. Skips computed columns entirely, same as
+    * [[computedColumn]] documents: they are not fields of `A`, so there is
+    * nothing on `A` to fill them into.
+    */
+  def rowMapper: RowMapper[A] = columns.rowMapper
 
   /** Checks that `cols` lists a column for EVERY field of `A`, in field
     * declaration order, with matching value types. Computed columns are not
@@ -286,8 +298,11 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
     */
   protected def registerAllColumns[L <: HList, R <: HList](
       @unused cols: L
-  )(implicit @unused gen: Generic.Aux[A, R], @unused covers: CoversFields[L, R]): Table.AllColumns =
-    new Table.AllColumns
+  )(
+      implicit @unused gen: Generic.Aux[A, R],
+      @unused covers: CoversFields[L, R]
+  ): Table.AllColumns[A] =
+    new Table.AllColumns[A]((row: Row) => gen.from(covers.readRow(cols, row)))
 
   /** Witnesses that `L` is a list of this table's columns whose value types
     * are exactly `R` (the field types of `A`), in order.
@@ -297,15 +312,23 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
       "(expected value types ${R}, in field declaration order). " +
       "Declare a column val for every field and list them all in registerAllColumns."
   )
-  protected sealed trait CoversFields[L <: HList, R <: HList]
+  protected sealed trait CoversFields[L <: HList, R <: HList] {
+    def readRow(cols: L, row: Row): R
+  }
 
   protected object CoversFields {
 
-    implicit val nil: CoversFields[HNil, HNil] = new CoversFields[HNil, HNil] {}
+    implicit val nil: CoversFields[HNil, HNil] = new CoversFields[HNil, HNil] {
+      def readRow(cols: HNil, row: Row): HNil = HNil
+    }
 
     implicit def cons[H, C <: Column[H], LT <: HList, RT <: HList](
-        implicit rest: CoversFields[LT, RT]
-    ): CoversFields[C :: LT, H :: RT] = new CoversFields[C :: LT, H :: RT] {}
+        implicit columnMapper: ColumnMapper[H],
+        rest: CoversFields[LT, RT]
+    ): CoversFields[C :: LT, H :: RT] = new CoversFields[C :: LT, H :: RT] {
+      def readRow(cols: C :: LT, row: Row): H :: RT =
+        columnMapper(cols.head.name, row) :: rest.readRow(cols.tail, row)
+    }
   }
 
   /** Reference a field of `A` as a column, stating its type explicitly:
@@ -581,7 +604,8 @@ object Table {
 
   /** Proof token returned by `Table.registerAllColumns`: its only constructor
     * is there, so implementing the abstract `columns` member forces the
-    * all-fields-registered check.
+    * all-fields-registered check. Also carries the [[RowMapper]] built from
+    * that same call, exposed by `Table.rowMapper`.
     */
-  final class AllColumns private[cql] ()
+  final class AllColumns[A] private[cql] (private[cql] val rowMapper: RowMapper[A])
 }
