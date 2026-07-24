@@ -36,9 +36,18 @@ abstract class AbstractMapCodec[K, V, M[K, V] <: scala.collection.Map[K, V]](
   override def encode(value: M[K, V], protocolVersion: ProtocolVersion): ByteBuffer =
     if (value == null) null
     else {
-      var size    = 4
-      val buffers = mutablecoll.ListBuffer[ByteBuffer]()
-      for ((k, v) <- value) {
+      // Two buffers per entry (key + value). Pre-size a flat array instead of a
+      // ListBuffer so there is no per-buffer cons-cell allocation.
+      val elements   = new Array[ByteBuffer](value.size * 2)
+      var toAllocate = 4 // 4 bytes for the entry count prefix
+      var idx        = 0 // write position into `elements`
+      var count      = 0 // number of entries actually iterated
+
+      // Iterate via the iterator + while loop to avoid the closure that a
+      // `for ((k, v) <- value)` (i.e. foreach) allocates.
+      val it = value.iterator
+      while (it.hasNext) {
+        val (k, v) = it.next()
         if (k == null) {
           throw new IllegalArgumentException("Map keys cannot be null")
         }
@@ -55,16 +64,22 @@ abstract class AbstractMapCodec[K, V, M[K, V] <: scala.collection.Map[K, V]](
           throw new NullPointerException("Map values cannot encode to CQL NULL")
         }
 
-        size += (4 + encodedKey.remaining()) + (4 + encodedValue.remaining())
-        buffers.append(encodedKey)
-        buffers.append(encodedValue)
+        toAllocate += (4 + encodedKey.remaining()) + (4 + encodedValue.remaining())
+        elements(idx)     = encodedKey
+        elements(idx + 1) = encodedValue
+        idx += 2
+        count += 1
       }
 
-      val result = ByteBuffer.allocate(size)
-      result.putInt(value.size)
-      for (element <- buffers) {
+      val result = ByteBuffer.allocate(toAllocate)
+      result.putInt(count)
+
+      var j = 0
+      while (j < idx) {
+        val element = elements(j)
         result.putInt(element.remaining())
         result.put(element)
+        j += 1
       }
       result.flip()
 
@@ -78,7 +93,10 @@ abstract class AbstractMapCodec[K, V, M[K, V] <: scala.collection.Map[K, V]](
     else {
       val input = bytes.duplicate()
       val size  = input.getInt()
-      for (_ <- 0 until size) {
+      builder.sizeHint(size) // avoid the builder growing/recopying its backing store
+
+      var i = 0
+      while (i < size) {
         // Allow null elements on the decode path, because Cassandra might return such collections
         // for some computed values in the future -- e.g. SELECT ttl(some_collection)
 
@@ -106,6 +124,7 @@ abstract class AbstractMapCodec[K, V, M[K, V] <: scala.collection.Map[K, V]](
           }
 
         builder += key -> value
+        i += 1
       }
 
       builder.result()
@@ -118,7 +137,9 @@ abstract class AbstractMapCodec[K, V, M[K, V] <: scala.collection.Map[K, V]](
     } else {
       val sb   = new mutablecoll.StringBuilder().append(openingChar)
       var tail = false
-      for ((key, value) <- map) {
+      val it   = map.iterator
+      while (it.hasNext) {
+        val (key, value) = it.next()
         if (tail) sb.append(entrySeparator)
         else tail = true
 
@@ -166,7 +187,9 @@ abstract class AbstractMapCodec[K, V, M[K, V] <: scala.collection.Map[K, V]](
 
   override def accepts(value: Any): Boolean = value match {
     case m: scala.collection.Map[_, _] =>
-      m.headOption.exists { case (key, value) =>
+      if (m.isEmpty) false
+      else {
+        val (key, value) = m.head
         keyInner.accepts(key) && valueInner.accepts(value)
       }
 

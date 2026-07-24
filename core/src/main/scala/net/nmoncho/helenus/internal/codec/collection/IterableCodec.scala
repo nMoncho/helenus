@@ -50,11 +50,17 @@ abstract class IterableCodec[T, M[T] <: Iterable[T]](
   override def encode(value: M[T], protocolVersion: ProtocolVersion): ByteBuffer =
     if (value == null) null
     else {
-      // using mutable local state yield performance closer to DSE Java Driver
-      var count   = 0
-      var size    = 0
-      val buffers = mutablecoll.ListBuffer[ByteBuffer]()
-      for (item <- value) {
+      // Pre-size a plain array (matches the Java driver) instead of a ListBuffer,
+      // so there is no per-element cons-cell allocation.
+      val elements   = new Array[ByteBuffer](value.size)
+      var toAllocate = 4 // 4 bytes for the element count prefix
+      var count      = 0
+
+      // Iterate via the iterator + while loop to avoid the closure that a
+      // `for (item <- value)` (i.e. foreach) allocates.
+      val it = value.iterator
+      while (it.hasNext) {
+        val item = it.next()
         if (item == null) {
           throw new IllegalArgumentException("Collection elements cannot be null")
         }
@@ -64,24 +70,26 @@ abstract class IterableCodec[T, M[T] <: Iterable[T]](
           throw new NullPointerException("Collection elements cannot encode to CQL NULL")
         }
 
-        buffers.append(element)
-        size += (if (element == null) 4 else 4 + element.remaining())
+        elements(count) = element
+        toAllocate += 4 + element.remaining()
         count += 1
       }
 
-      val result = ByteBuffer.allocate(4 + size)
+      val result = ByteBuffer.allocate(toAllocate)
       result.putInt(count)
 
-      for (value <- buffers) {
-        if (value == null) {
-          result.putInt(-1)
-        } else {
-          result.putInt(value.remaining().toShort)
-          result.put(value.duplicate())
-        }
+      var j = 0
+      while (j < count) {
+        val element = elements(j)
+        // Full 32-bit length prefix: the previous `.toShort` truncated any
+        // element larger than 32767 bytes and corrupted the payload.
+        result.putInt(element.remaining())
+        result.put(element.duplicate())
+        j += 1
       }
 
       result.flip()
+      result // return the buffer explicitly; safe across JDK 8 (flip returns Buffer) and 9+
     }
 
   override def decode(bytes: ByteBuffer, protocolVersion: ProtocolVersion): M[T] = {
@@ -91,20 +99,24 @@ abstract class IterableCodec[T, M[T] <: Iterable[T]](
     else {
       val input = bytes.duplicate()
       val size  = input.getInt()
-      for (_ <- 0 until size) {
-        val size = input.getInt()
+      builder.sizeHint(size) // avoid the builder growing/recopying its backing store
 
-        val value =
-          if (size < 0) null
+      var i = 0
+      while (i < size) {
+        val elementSize = input.getInt()
+
+        val element =
+          if (elementSize < 0) null
           else {
             val copy = input.duplicate()
-            copy.limit(copy.position() + size)
-            input.position(input.position() + size)
+            copy.limit(copy.position() + elementSize)
+            input.position(input.position() + elementSize)
 
             copy
           }
 
-        builder += inner.decode(value, protocolVersion)
+        builder += inner.decode(element, protocolVersion)
+        i += 1
       }
 
       builder.result()
@@ -117,11 +129,12 @@ abstract class IterableCodec[T, M[T] <: Iterable[T]](
     } else {
       val sb   = new mutablecoll.StringBuilder().append(openingChar)
       var tail = false
-      for (item <- value) {
+      val it   = value.iterator
+      while (it.hasNext) {
         if (tail) sb.append(separator)
         else tail = true
 
-        sb.append(inner.format(item))
+        sb.append(inner.format(it.next()))
       }
       sb.append(closingChar).toString()
     }
@@ -157,7 +170,7 @@ abstract class IterableCodec[T, M[T] <: Iterable[T]](
     }
 
   override def accepts(value: Any): Boolean = value match {
-    case l: M[_] @unchecked => l.headOption.fold(true)(inner.accepts)
+    case l: M[_] @unchecked => if (l.isEmpty) true else inner.accepts(l.head)
     case _ => false
   }
 }
