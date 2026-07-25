@@ -570,15 +570,128 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
   def createIndexes: Seq[CreateIndex] =
     indexes.toList.map(i => CreateIndex(this, i.name, i.target, i.kind))
 
-  /** Select specific columns (all fields of `A` when none given). Nothing is constrained yet. */
-  def select(
-      cols: Column[_]*
-  )(implicit pk: ColumnNames[PK], ck: ClusteringOf[CK]): Select[this.type, HNil, HNil, HNil, HNil] =
-    Select[this.type, HNil, HNil, HNil, HNil](
+  // format: off
+
+  def select[T1](col1: Column[T1])(
+    implicit pk: ColumnNames[PK], ck: ClusteringOf[CK], rowMapper: RowMapper[T1]
+  ): Select[this.type, HNil, HNil, HNil, HNil, T1] =
+    Select[this.type, T1](this, Seq(col1), keyColumnNames(pk, ck))
+
+  def select[T1, T2](col1: Column[T1], col2: Column[T2])(
+    implicit pk: ColumnNames[PK], ck: ClusteringOf[CK], rowMapper: RowMapper[(T1, T2)]
+  ): Select[this.type, HNil, HNil, HNil, HNil, (T1, T2)] =
+    Select[this.type, (T1, T2)](this, Seq(col1, col2), keyColumnNames(pk, ck))
+
+  def select[T1, T2, T3](col1: Column[T1], col2: Column[T2], col3: Column[T3])(
+    implicit pk: ColumnNames[PK], ck: ClusteringOf[CK], rowMapper: RowMapper[(T1, T2, T3)]
+  ): Select[this.type, HNil, HNil, HNil, HNil, (T1, T2, T3)] =
+    Select[this.type, (T1, T2, T3)](this, Seq(col1, col2, col3), keyColumnNames(pk, ck))
+
+  def select[T1, T2, T3, T4](col1: Column[T1], col2: Column[T2], col3: Column[T3], col4: Column[T4])(
+    implicit pk: ColumnNames[PK], ck: ClusteringOf[CK], rowMapper: RowMapper[(T1, T2, T3, T4)]
+  ): Select[this.type, HNil, HNil, HNil, HNil, (T1, T2, T3, T4)] =
+    Select[this.type, (T1, T2, T3, T4)](this, Seq(col1, col2, col3, col4), keyColumnNames(pk, ck))
+
+  def select[T1, T2, T3, T4, T5](col1: Column[T1], col2: Column[T2], col3: Column[T3], col4: Column[T4], col5: Column[T5])(
+    implicit pk: ColumnNames[PK], ck: ClusteringOf[CK], rowMapper: RowMapper[(T1, T2, T3, T4, T5)]
+  ): Select[this.type, HNil, HNil, HNil, HNil, (T1, T2, T3, T4, T5)] =
+    Select[this.type, (T1, T2, T3, T4, T5)](this, Seq(col1, col2, col3, col4, col5), keyColumnNames(pk, ck))
+
+  def select[T1, T2, T3, T4, T5, T6](col1: Column[T1], col2: Column[T2], col3: Column[T3], col4: Column[T4], col5: Column[T5], col6: Column[T6])(
+    implicit pk: ColumnNames[PK], ck: ClusteringOf[CK], rowMapper: RowMapper[(T1, T2, T3, T4, T5, T6)]
+  ): Select[this.type, HNil, HNil, HNil, HNil, (T1, T2, T3, T4, T5, T6)] =
+    Select[this.type, (T1, T2, T3, T4, T5, T6)](this, Seq(col1, col2, col3, col4, col5, col6), keyColumnNames(pk, ck))
+
+  def select[T1, T2, T3, T4, T5, T6, T7](col1: Column[T1], col2: Column[T2], col3: Column[T3], col4: Column[T4], col5: Column[T5], col6: Column[T6], col7: Column[T7])(
+    implicit pk: ColumnNames[PK], ck: ClusteringOf[CK], rowMapper: RowMapper[(T1, T2, T3, T4, T5, T6, T7)]
+  ): Select[this.type, HNil, HNil, HNil, HNil, (T1, T2, T3, T4, T5, T6, T7)] =
+    Select[this.type, (T1, T2, T3, T4, T5, T6, T7)](this, Seq(col1, col2, col3, col4, col5, col6, col7), keyColumnNames(pk, ck))
+
+  def select[T1, T2, T3, T4, T5, T6, T7, T8](col1: Column[T1], col2: Column[T2], col3: Column[T3], col4: Column[T4], col5: Column[T5], col6: Column[T6], col7: Column[T7], col8: Column[T8])(
+    implicit pk: ColumnNames[PK], ck: ClusteringOf[CK], rowMapper: RowMapper[(T1, T2, T3, T4, T5, T6, T7, T8)]
+  ): Select[this.type, HNil, HNil, HNil, HNil, (T1, T2, T3, T4, T5, T6, T7, T8)] =
+    Select[this.type, (T1, T2, T3, T4, T5, T6, T7, T8)](this, Seq(col1, col2, col3, col4, col5, col6, col7, col8), keyColumnNames(pk, ck))
+
+  def select[T1, T2, T3, T4, T5, T6, T7, T8, T9](col1: Column[T1], col2: Column[T2], col3: Column[T3], col4: Column[T4], col5: Column[T5], col6: Column[T6], col7: Column[T7], col8: Column[T8], col9: Column[T9])(
+    implicit pk: ColumnNames[PK], ck: ClusteringOf[CK], rowMapper: RowMapper[(T1, T2, T3, T4, T5, T6, T7, T8, T9)]
+  ): Select[this.type, HNil, HNil, HNil, HNil, (T1, T2, T3, T4, T5, T6, T7, T8, T9)] =
+    Select[this.type, (T1, T2, T3, T4, T5, T6, T7, T8, T9)](this, Seq(col1, col2, col3, col4, col5, col6, col7, col8, col9), keyColumnNames(pk, ck))
+
+  def select[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10](col1: Column[T1], col2: Column[T2], col3: Column[T3], col4: Column[T4], col5: Column[T5], col6: Column[T6], col7: Column[T7], col8: Column[T8], col9: Column[T9], col10: Column[T10])(
+    implicit pk: ColumnNames[PK], ck: ClusteringOf[CK], rowMapper: RowMapper[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10)]
+  ): Select[this.type, HNil, HNil, HNil, HNil, (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10)] =
+    Select[this.type, (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10)](this, Seq(col1, col2, col3, col4, col5, col6, col7, col8, col9, col10), keyColumnNames(pk, ck))
+
+  def select[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11](col1: Column[T1], col2: Column[T2], col3: Column[T3], col4: Column[T4], col5: Column[T5], col6: Column[T6], col7: Column[T7], col8: Column[T8], col9: Column[T9], col10: Column[T10], col11: Column[T11])(
+    implicit pk: ColumnNames[PK], ck: ClusteringOf[CK], rowMapper: RowMapper[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11)]
+  ): Select[this.type, HNil, HNil, HNil, HNil, (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11)] =
+    Select[this.type, (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11)](this, Seq(col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11), keyColumnNames(pk, ck))
+
+  def select[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12](col1: Column[T1], col2: Column[T2], col3: Column[T3], col4: Column[T4], col5: Column[T5], col6: Column[T6], col7: Column[T7], col8: Column[T8], col9: Column[T9], col10: Column[T10], col11: Column[T11], col12: Column[T12])(
+    implicit pk: ColumnNames[PK], ck: ClusteringOf[CK], rowMapper: RowMapper[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12)]
+  ): Select[this.type, HNil, HNil, HNil, HNil, (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12)] =
+    Select[this.type, (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12)](this, Seq(col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11, col12), keyColumnNames(pk, ck))
+
+  def select[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13](col1: Column[T1], col2: Column[T2], col3: Column[T3], col4: Column[T4], col5: Column[T5], col6: Column[T6], col7: Column[T7], col8: Column[T8], col9: Column[T9], col10: Column[T10], col11: Column[T11], col12: Column[T12], col13: Column[T13])(
+    implicit pk: ColumnNames[PK], ck: ClusteringOf[CK], rowMapper: RowMapper[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13)]
+  ): Select[this.type, HNil, HNil, HNil, HNil, (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13)] =
+    Select[this.type, (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13)](this, Seq(col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11, col12, col13), keyColumnNames(pk, ck))
+
+  def select[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14](col1: Column[T1], col2: Column[T2], col3: Column[T3], col4: Column[T4], col5: Column[T5], col6: Column[T6], col7: Column[T7], col8: Column[T8], col9: Column[T9], col10: Column[T10], col11: Column[T11], col12: Column[T12], col13: Column[T13], col14: Column[T14])(
+    implicit pk: ColumnNames[PK], ck: ClusteringOf[CK], rowMapper: RowMapper[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14)]
+  ): Select[this.type, HNil, HNil, HNil, HNil, (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14)] =
+    Select[this.type, (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14)](this, Seq(col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11, col12, col13, col14), keyColumnNames(pk, ck))
+
+  def select[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15](col1: Column[T1], col2: Column[T2], col3: Column[T3], col4: Column[T4], col5: Column[T5], col6: Column[T6], col7: Column[T7], col8: Column[T8], col9: Column[T9], col10: Column[T10], col11: Column[T11], col12: Column[T12], col13: Column[T13], col14: Column[T14], col15: Column[T15])(
+    implicit pk: ColumnNames[PK], ck: ClusteringOf[CK], rowMapper: RowMapper[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15)]
+  ): Select[this.type, HNil, HNil, HNil, HNil, (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15)] =
+    Select[this.type, (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15)](this, Seq(col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11, col12, col13, col14, col15), keyColumnNames(pk, ck))
+
+  def select[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16](col1: Column[T1], col2: Column[T2], col3: Column[T3], col4: Column[T4], col5: Column[T5], col6: Column[T6], col7: Column[T7], col8: Column[T8], col9: Column[T9], col10: Column[T10], col11: Column[T11], col12: Column[T12], col13: Column[T13], col14: Column[T14], col15: Column[T15], col16: Column[T16])(
+    implicit pk: ColumnNames[PK], ck: ClusteringOf[CK], rowMapper: RowMapper[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16)]
+  ): Select[this.type, HNil, HNil, HNil, HNil, (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16)] =
+    Select[this.type, (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16)](this, Seq(col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11, col12, col13, col14, col15, col16), keyColumnNames(pk, ck))
+
+  def select[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17](col1: Column[T1], col2: Column[T2], col3: Column[T3], col4: Column[T4], col5: Column[T5], col6: Column[T6], col7: Column[T7], col8: Column[T8], col9: Column[T9], col10: Column[T10], col11: Column[T11], col12: Column[T12], col13: Column[T13], col14: Column[T14], col15: Column[T15], col16: Column[T16], col17: Column[T17])(
+    implicit pk: ColumnNames[PK], ck: ClusteringOf[CK], rowMapper: RowMapper[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17)]
+  ): Select[this.type, HNil, HNil, HNil, HNil, (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17)] =
+    Select[this.type, (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17)](this, Seq(col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11, col12, col13, col14, col15, col16, col17), keyColumnNames(pk, ck))
+
+  def select[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18](col1: Column[T1], col2: Column[T2], col3: Column[T3], col4: Column[T4], col5: Column[T5], col6: Column[T6], col7: Column[T7], col8: Column[T8], col9: Column[T9], col10: Column[T10], col11: Column[T11], col12: Column[T12], col13: Column[T13], col14: Column[T14], col15: Column[T15], col16: Column[T16], col17: Column[T17], col18: Column[T18])(
+    implicit pk: ColumnNames[PK], ck: ClusteringOf[CK], rowMapper: RowMapper[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18)]
+  ): Select[this.type, HNil, HNil, HNil, HNil, (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18)] =
+    Select[this.type, (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18)](this, Seq(col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11, col12, col13, col14, col15, col16, col17, col18), keyColumnNames(pk, ck))
+
+  def select[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19](col1: Column[T1], col2: Column[T2], col3: Column[T3], col4: Column[T4], col5: Column[T5], col6: Column[T6], col7: Column[T7], col8: Column[T8], col9: Column[T9], col10: Column[T10], col11: Column[T11], col12: Column[T12], col13: Column[T13], col14: Column[T14], col15: Column[T15], col16: Column[T16], col17: Column[T17], col18: Column[T18], col19: Column[T19])(
+    implicit pk: ColumnNames[PK], ck: ClusteringOf[CK], rowMapper: RowMapper[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19)]
+  ): Select[this.type, HNil, HNil, HNil, HNil, (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19)] =
+    Select[this.type, (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19)](this, Seq(col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11, col12, col13, col14, col15, col16, col17, col18, col19), keyColumnNames(pk, ck))
+
+  def select[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20](col1: Column[T1], col2: Column[T2], col3: Column[T3], col4: Column[T4], col5: Column[T5], col6: Column[T6], col7: Column[T7], col8: Column[T8], col9: Column[T9], col10: Column[T10], col11: Column[T11], col12: Column[T12], col13: Column[T13], col14: Column[T14], col15: Column[T15], col16: Column[T16], col17: Column[T17], col18: Column[T18], col19: Column[T19], col20: Column[T20])(
+    implicit pk: ColumnNames[PK], ck: ClusteringOf[CK], rowMapper: RowMapper[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20)]
+  ): Select[this.type, HNil, HNil, HNil, HNil, (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20)] =
+    Select[this.type, (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20)](this, Seq(col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11, col12, col13, col14, col15, col16, col17, col18, col19, col20), keyColumnNames(pk, ck))
+
+  def select[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21](col1: Column[T1], col2: Column[T2], col3: Column[T3], col4: Column[T4], col5: Column[T5], col6: Column[T6], col7: Column[T7], col8: Column[T8], col9: Column[T9], col10: Column[T10], col11: Column[T11], col12: Column[T12], col13: Column[T13], col14: Column[T14], col15: Column[T15], col16: Column[T16], col17: Column[T17], col18: Column[T18], col19: Column[T19], col20: Column[T20], col21: Column[T21])(
+    implicit pk: ColumnNames[PK], ck: ClusteringOf[CK], rowMapper: RowMapper[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21)]
+  ): Select[this.type, HNil, HNil, HNil, HNil, (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21)] =
+    Select[this.type, (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21)](this, Seq(col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11, col12, col13, col14, col15, col16, col17, col18, col19, col20, col21), keyColumnNames(pk, ck))
+
+  def select[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22](col1: Column[T1], col2: Column[T2], col3: Column[T3], col4: Column[T4], col5: Column[T5], col6: Column[T6], col7: Column[T7], col8: Column[T8], col9: Column[T9], col10: Column[T10], col11: Column[T11], col12: Column[T12], col13: Column[T13], col14: Column[T14], col15: Column[T15], col16: Column[T16], col17: Column[T17], col18: Column[T18], col19: Column[T19], col20: Column[T20], col21: Column[T21], col22: Column[T22])(
+      implicit pk: ColumnNames[PK], ck: ClusteringOf[CK], rowMapper: RowMapper[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22)]
+  ): Select[this.type, HNil, HNil, HNil, HNil, (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22)] =
+    Select[this.type, (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22)](this, Seq(col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11, col12, col13, col14, col15, col16, col17, col18, col19, col20, col21, col22), keyColumnNames(pk, ck))
+  // format: on
+
+  def select()(
+      implicit pk: ColumnNames[PK],
+      ck: ClusteringOf[CK]
+  ): Select[this.type, HNil, HNil, HNil, HNil, A] =
+    Select[this.type, A](
       this,
-      cols.map(_.name),
+      Nil,
       keyColumnNames(pk, ck)
-    )
+    )(rowMapper)
 
   /** Insert a whole entity: writes every field of `A` plus every computed
     * column (filled by its `compute` function). The returned builder can be

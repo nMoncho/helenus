@@ -7,17 +7,16 @@
 package net.nmoncho.helenus.api.cql
 package dml
 
-import scala.annotation.unused
-
 import com.datastax.oss.driver.api.core.CqlSession
-import com.datastax.oss.driver.api.core.cql.BoundStatement
-import com.datastax.oss.driver.api.core.cql.ResultSet
+import com.datastax.oss.driver.api.core.cql.{ BoundStatement, ResultSet }
+import net.nmoncho.helenus.api.RowMapper
 import net.nmoncho.helenus.api.cql.dml.Select.orderedPredicates
 import net.nmoncho.helenus.api.cql.dml.where._
-import shapeless.HList
-import shapeless.HNil
+import shapeless.{ HList, HNil }
 import shapeless.ops.function.FnFromProduct
 import shapeless.ops.hlist.Prepend
+
+import scala.annotation.unused
 
 /** A typed SELECT builder.
   *
@@ -45,11 +44,13 @@ final case class Select[
     Eq <: HList,
     In <: HList,
     Rng <: HList,
-    Params <: HList
+    Params <: HList,
+    Out
 ](
     table: T,
     columns: Seq[String],
     keyColumns: Seq[String],
+    rowMapper: RowMapper[Out],
     predicates: Seq[Predicate[_, _]] = Seq.empty,
     limitValue: Option[Int]          = None,
     orderByClauses: Seq[ColumnOrder] = Seq.empty
@@ -77,11 +78,12 @@ final case class Select[
       @unused pi: Prepend.Aux[I, In, I2],
       @unused pr: Prepend.Aux[R, Rng, R2],
       @unused pp: Prepend.Aux[Params, Pm, P2]
-  ): Select[T, E2, I2, R2, P2] =
-    new Select[T, E2, I2, R2, P2](
+  ): Select[T, E2, I2, R2, P2, Out] =
+    new Select[T, E2, I2, R2, P2, Out](
       table,
       columns,
       keyColumns,
+      rowMapper,
       predicates ++ ps.predicates(pred),
       limitValue,
       orderByClauses
@@ -117,14 +119,14 @@ final case class Select[
   def prepare[F](
       implicit session: CqlSession,
       @unused ev: CanSelect[table.PK, table.CK, Eq, In, Rng],
-      // TODO change this to `PagingIterable[Out]` when we can define `Out`
-      fp: FnFromProduct.Aux[Params => ResultSet, F]
-  ): F =
-    prepareStatement[Params, F](
-      Select.render(this, allowFiltering = false, prepared = true),
-      Nil,
-      predicates
-    )
+      fp: FnFromProduct.Aux[Params => WrappedBoundStatement[Out], F]
+  ): F = {
+    val pstmt = session.prepare(Select.render(this, allowFiltering = false, prepared = true))
+
+    fp { params =>
+      new WrappedBoundStatement(withBoundValues(pstmt.bind(), params))(rowMapper)
+    }
+  }
 
   private[dml] def withBoundValues(
       bstmt: BoundStatement,
@@ -144,19 +146,19 @@ final case class Select[
   /** Opt out of the primary-key requirement. The returned query can always be
     * executed, at the cost of a server-side `ALLOW FILTERING` scan.
     */
-  def allowFiltering: Select.Filtering[T, Eq, In, Rng, Params] = new Select.Filtering(this)
+  def allowFiltering: Select.Filtering[T, Eq, In, Rng, Params, Out] = new Select.Filtering(this)
 
-  def limit(n: Int): Select[T, Eq, In, Rng, Params] = copy(limitValue = Some(n))
+  def limit(n: Int): Select[T, Eq, In, Rng, Params, Out] = copy(limitValue = Some(n))
 
   /** Add ORDER BY clauses, built from a column's `asc` / `desc` methods, e.g.
     * `orderBy(username.desc)` or `orderBy(year.asc, ts.desc)`. A bare column
     * defaults to ascending via the other overload.
     */
-  def orderBy(orders: ColumnOrder*): Select[T, Eq, In, Rng, Params] =
+  def orderBy(orders: ColumnOrder*): Select[T, Eq, In, Rng, Params, Out] =
     copy(orderByClauses = orderByClauses ++ orders)
 
   /** Order ascending by the given column (the CQL default direction). */
-  def orderBy(col: table.Column[_]): Select[T, Eq, In, Rng, Params] =
+  def orderBy(col: table.Column[_]): Select[T, Eq, In, Rng, Params, Out] =
     orderBy(col.asc)
 
   def toCQL(
@@ -169,12 +171,12 @@ final case class Select[
 
 object Select {
 
-  def apply[T <: TableDef with Singleton](
+  def apply[T <: TableDef with Singleton, Out](
       table: T,
-      columns: Seq[String],
+      columns: Seq[TableDef#Column[_]],
       keyColumns: Seq[String]
-  ): Select[T, HNil, HNil, HNil, HNil] =
-    new Select[T, HNil, HNil, HNil, HNil](table, columns, keyColumns)
+  )(implicit rowMapper: RowMapper[Out]): Select[T, HNil, HNil, HNil, HNil, Out] =
+    new Select[T, HNil, HNil, HNil, HNil, Out](table, columns.map(_.name), keyColumns, rowMapper)
 
   /** A SELECT that has opted into `ALLOW FILTERING`. Its [[execute]] and
     * [[prepare]] carry no primary-key requirement.
@@ -184,9 +186,10 @@ object Select {
       Eq <: HList,
       In <: HList,
       Rng <: HList,
-      Params <: HList
+      Params <: HList,
+      Out
   ](
-      private[cql] val select: Select[T, Eq, In, Rng, Params]
+      private[cql] val select: Select[T, Eq, In, Rng, Params, Out]
   ) {
 
     def toCQL: String = render(select, allowFiltering = true)
@@ -204,14 +207,12 @@ object Select {
     /** Like `Select.prepare`, without the primary-key requirement. */
     def prepare[F](
         implicit session: CqlSession,
-        fp: FnFromProduct.Aux[Params => ResultSet, F]
+        fp: FnFromProduct.Aux[Params => WrappedBoundStatement[Out], F]
     ): F = {
       val pstmt = session.prepare(Select.render(select, allowFiltering = true, prepared = true))
 
       fp { params =>
-        val bstmt = select.withBoundValues(pstmt.bind(), params)
-
-        session.execute(bstmt)
+        new WrappedBoundStatement(select.withBoundValues(pstmt.bind(), params))(select.rowMapper)
       }
     }
   }
@@ -221,9 +222,10 @@ object Select {
       Eq <: HList,
       In <: HList,
       Rng <: HList,
-      Params <: HList
+      Params <: HList,
+      Out
   ](
-      s: Select[T, Eq, In, Rng, Params],
+      s: Select[T, Eq, In, Rng, Params, Out],
       allowFiltering: Boolean,
       prepared: Boolean = false
   ): String = {
@@ -252,9 +254,10 @@ object Select {
       Eq <: HList,
       In <: HList,
       Rng <: HList,
-      Params <: HList
+      Params <: HList,
+      Out
   ](
-      s: Select[T, Eq, In, Rng, Params]
+      s: Select[T, Eq, In, Rng, Params, Out]
   ): Seq[Predicate[_, _]] = {
     val keyIndex: Map[String, Int] = s.keyColumns.zipWithIndex.toMap
     s.predicates.sortBy(p => keyIndex.getOrElse(p.column.name, Int.MaxValue))

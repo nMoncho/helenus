@@ -15,6 +15,8 @@ import org.scalatest.matchers.should.Matchers
 
 class ComputedColumnSpec extends AnyFlatSpec with Matchers {
 
+  import net.nmoncho.helenus._
+
   "A computed column" should "appear in CREATE TABLE after the case-class columns" in {
     val c = MetricsTable.create.toCQL
 

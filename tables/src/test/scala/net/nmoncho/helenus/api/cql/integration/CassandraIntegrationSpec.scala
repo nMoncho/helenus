@@ -11,6 +11,7 @@ import java.net.InetSocketAddress
 import scala.jdk.CollectionConverters._
 
 import com.datastax.oss.driver.api.core.CqlSession
+import com.datastax.oss.driver.api.core.cql.BoundStatement
 import com.datastax.oss.driver.api.core.cql.ResultSet
 import com.datastax.oss.driver.api.core.cql.Row
 import org.scalatest.BeforeAndAfterAll
@@ -56,4 +57,7 @@ trait CassandraIntegrationSpec extends AnyFlatSpec with Matchers with BeforeAndA
 
   protected def rows(rs: ResultSet): List[Row] =
     rs.all().asScala.toList
+
+  protected def rows(bstmt: BoundStatement): List[Row] =
+    session.execute(bstmt).all().asScala.toList
 }
