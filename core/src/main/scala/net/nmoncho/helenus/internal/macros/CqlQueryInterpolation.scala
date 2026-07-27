@@ -29,10 +29,10 @@ object CqlQueryInterpolation {
     c.prefix.tree match {
       case Apply(_, List(inner)) =>
         evalString(c)(inner) match {
-          case None =>
-            c.abort(c.enclosingPosition, "toCQL requires a compile-time constant string")
+          case Left((reason, pos)) =>
+            c.abort(pos, s"toCQL requires a compile-time constant string: $reason")
 
-          case Some(cql) =>
+          case Right(cql) =>
             CqlValidator.validate(cql) match {
               case Right(_) =>
                 c.Expr[CQLQuery](
@@ -63,10 +63,10 @@ object CqlQueryInterpolation {
     c.prefix.tree match {
       case Apply(_, List(inner)) =>
         evalString(c)(inner) match {
-          case None =>
-            c.abort(c.enclosingPosition, "toCQLAsync requires a compile-time constant string")
+          case Left((reason, pos)) =>
+            c.abort(pos, s"toCQLAsync requires a compile-time constant string: $reason")
 
-          case Some(cql) =>
+          case Right(cql) =>
             CqlValidator.validate(cql) match {
               case Right(_) =>
                 c.Expr[Future[CQLQuery]](
@@ -254,11 +254,18 @@ object CqlQueryInterpolation {
   // We handle this by (a) recognising the method names as Select nodes and
   // (b) treating any single-arg Apply as a transparent wrapper and recursing
   // into its argument — this covers augmentString and similar identity lifts.
-  private def evalString(c: blackbox.Context)(tree: c.universe.Tree): Option[String] = {
+  //
+  // Returns Left((reason, pos)) pointing at the *specific* sub-expression that
+  // isn't foldable, rather than just failing the whole tree, so the abort
+  // message can explain exactly what's wrong and where.
+  private def evalString(
+      c: blackbox.Context
+  )(tree: c.universe.Tree): Either[(String, c.universe.Position), String] = {
     import c.universe._
+
     tree match {
       case Literal(Constant(s: String)) =>
-        Some(s)
+        Right(s)
 
       // Zero-arg methods represented as Select (no () in source, typed tree omits Apply)
       case Select(receiver, TermName("stripMargin")) =>
@@ -278,13 +285,69 @@ object CqlQueryInterpolation {
       case Apply(Select(receiver, TermName("stripMargin")), List(Literal(Constant(ch: Char)))) =>
         evalString(c)(receiver).map(_.stripMargin(ch))
 
+      // String concatenation: `s"...$a..."` is typed as nested `"...".+(a).+("...")` calls
+      // rather than a single StringContext(...).s(...) call. Must be handled before the
+      // generic single-arg Apply case below, which would otherwise match `+` too and
+      // silently discard the receiver (everything concatenated so far).
+      // Note: the `+` method name is stored in its encoded form `$plus`, not `+`.
+      case Apply(Select(receiver, TermName("$plus")), List(arg)) =>
+        for {
+          r <- evalString(c)(receiver)
+          a <- evalString(c)(arg)
+        } yield r + a
+
       // Single-arg application: transparent wrapper (e.g. Predef.augmentString).
       // Recurse into the wrapped value — if it's not a constant we return None.
       case Apply(_, List(inner)) =>
         evalString(c)(inner)
 
-      case _ =>
-        None
+      case other =>
+        Left(diagnoseNonConstant(c)(other))
+    }
+  }
+
+  // Builds a specific, actionable explanation for why a sub-expression isn't a
+  // compile-time constant, to replace the generic (and, pre-fix, sometimes
+  // misleading) "requires a compile-time constant string" abort.
+  private def diagnoseNonConstant(
+      c: blackbox.Context
+  )(tree: c.universe.Tree): (String, c.universe.Position) = {
+    import c.universe._
+
+    tree match {
+      case ref @ (Select(_, _) | Ident(_)) if ref.symbol != null && ref.symbol.isTerm =>
+        val sym      = ref.symbol.asTerm
+        val name     = sym.name.decodedName.toString
+        val fullName = sym.fullName
+
+        val reason =
+          // A stable (val-like), static (object/singleton member) reference whose type
+          // isn't a compile-time constant. This is the "explicit type annotation widens
+          // the singleton type away" pitfall (or, less commonly, its initializer isn't
+          // itself a literal).
+          if (sym.isStable && sym.isStatic)
+            s"`$fullName` is a `val`, but its type (`${sym.info}`) isn't a compile-time " +
+            "constant. This usually happens when the declaration has an explicit type " +
+            s"annotation, e.g. `val $name: ${sym.info} = ...`, which widens it away from " +
+            s"its literal singleton type. Remove the annotation, e.g. `final val $name = " +
+            s"...`, so scalac can fold it into this string at compile time. If `$name`'s " +
+            "value isn't itself a literal (e.g. it's computed), it can never be a " +
+            "compile-time constant, regardless of the annotation."
+          else if (!sym.isStable)
+            s"`$fullName` is a `var`, or the result of a method call (e.g. a `def`), so its " +
+            "value is only known at runtime; it can't be a compile-time constant."
+          else
+            s"`$name` is a runtime value (e.g. a method parameter or local variable), so " +
+            "its value can't be known at compile time; it can't be a compile-time constant."
+
+        (reason, ref.pos)
+
+      case other =>
+        (
+          s"`${showCode(other)}` is not a compile-time constant expression; only string " +
+            "literals combined with `+`, `.stripMargin`, or `.trim` are supported.",
+          other.pos
+        )
     }
   }
 

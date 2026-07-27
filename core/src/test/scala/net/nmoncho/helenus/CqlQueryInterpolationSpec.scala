@@ -10,7 +10,7 @@ import java.util.UUID
 
 import com.datastax.oss.driver.api.core.CqlSession
 import net.nmoncho.helenus.utils.CassandraSpec
-import org.scalatest.OptionValues._
+import org.scalatest.OptionValues.convertOptionToValuable
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.Seconds
