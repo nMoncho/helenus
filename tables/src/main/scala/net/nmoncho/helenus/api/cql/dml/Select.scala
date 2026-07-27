@@ -7,16 +7,22 @@
 package net.nmoncho.helenus.api.cql
 package dml
 
+import scala.annotation.unused
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
+
 import com.datastax.oss.driver.api.core.CqlSession
-import com.datastax.oss.driver.api.core.cql.{ BoundStatement, ResultSet }
+import com.datastax.oss.driver.api.core.cql.BoundStatement
+import com.datastax.oss.driver.api.core.cql.ResultSet
 import net.nmoncho.helenus.api.RowMapper
+import net.nmoncho.helenus.api.cql.ScalaPreparedStatement.CQLQuery
 import net.nmoncho.helenus.api.cql.dml.Select.orderedPredicates
 import net.nmoncho.helenus.api.cql.dml.where._
-import shapeless.{ HList, HNil }
+import net.nmoncho.helenus.internal.compat.FutureConverters.CompletionStageOps
+import shapeless.HList
+import shapeless.HNil
 import shapeless.ops.function.FnFromProduct
 import shapeless.ops.hlist.Prepend
-
-import scala.annotation.unused
 
 /** A typed SELECT builder.
   *
@@ -110,23 +116,23 @@ final case class Select[
       orderedPredicates(this).asInstanceOf[Seq[BoundPredicate[_, _]]]
     )
 
-  /** Turn a query containing `?` markers into a `FunctionN` taking one
-    * argument per marker (typed as the bound column, in writing order) and
-    * returning the rendered CQL. Gated by the same rules as [[execute]]:
-    * bound key columns count toward the primary-key restriction exactly like
-    * literal ones.
-    */
-  def prepare[F](
-      implicit session: CqlSession,
-      @unused ev: CanSelect[table.PK, table.CK, Eq, In, Rng],
-      fp: FnFromProduct.Aux[Params => WrappedBoundStatement[Out], F]
-  ): F = {
-    val pstmt = session.prepare(Select.render(this, allowFiltering = false, prepared = true))
+  def prepare(
+      implicit @unused ev: CanSelect[table.PK, table.CK, Eq, In, Rng],
+      session: CqlSession,
+      to: ToPrepared[Params]
+  ): to.Out#AsOut[Out] =
+    to(CQLQuery(Select.render(this, allowFiltering = false, prepared = true), session))
+      .as(rowMapper)
 
-    fp { params =>
-      new WrappedBoundStatement(withBoundValues(pstmt.bind(), params))(rowMapper)
-    }
-  }
+  def prepareAsync(
+      implicit @unused ev: CanSelect[table.PK, table.CK, Eq, In, Rng],
+      session: Future[CqlSession],
+      ec: ExecutionContext,
+      to: ToPrepared[Params]
+  ): Future[to.Out#AsOut[Out]] =
+    session.map(s =>
+      to(CQLQuery(Select.render(this, allowFiltering = false, prepared = true), s)).as(rowMapper)
+    )
 
   private[dml] def withBoundValues(
       bstmt: BoundStatement,
@@ -213,6 +219,24 @@ object Select {
 
       fp { params =>
         new WrappedBoundStatement(select.withBoundValues(pstmt.bind(), params))(select.rowMapper)
+      }
+    }
+
+    def prepareAsync[F](
+        implicit session: Future[CqlSession],
+        ec: ExecutionContext,
+        fp: FnFromProduct.Aux[Params => Future[WrappedBoundStatement[Out]], F]
+    ): F = {
+      val pstmt = session.flatMap(
+        _.prepareAsync(Select.render(select, allowFiltering = true, prepared = true)).asScala
+      )
+
+      fp { params =>
+        pstmt.map(p =>
+          new WrappedBoundStatement(select.withBoundValues(p.bind(), params))(
+            select.rowMapper
+          )
+        )
       }
     }
   }

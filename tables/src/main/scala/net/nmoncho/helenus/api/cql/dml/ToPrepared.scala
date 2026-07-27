@@ -8,6 +8,7 @@ package net.nmoncho.helenus.api.cql.dml
 
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.cql.Row
+import net.nmoncho.helenus.api.cql.ScalaPreparedStatement
 import net.nmoncho.helenus.api.cql.ScalaPreparedStatement.CQLQuery
 import net.nmoncho.helenus.internal.cql._
 import shapeless.::
@@ -26,7 +27,7 @@ import shapeless.HNil
   * parameter (`helenus` binds by position, not by our [[com.example.cql.CQLType]]).
   */
 sealed trait ToPrepared[Params <: HList] {
-  type Out
+  type Out <: ScalaPreparedStatement[_, Row]
   def apply(query: CQLQuery): Out
 }
 
