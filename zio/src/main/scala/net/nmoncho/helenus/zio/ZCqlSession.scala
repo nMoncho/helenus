@@ -15,8 +15,8 @@ import com.datastax.oss.driver.api.core.cql._
 import com.datastax.oss.driver.api.core.servererrors.SyntaxError
 import com.datastax.oss.driver.internal.core.config.typesafe.DefaultDriverConfigLoader
 import com.typesafe.config.ConfigFactory
-import net.nmoncho.helenus.ScalaBoundStatement
 import net.nmoncho.helenus.api.RowMapper
+import net.nmoncho.helenus.api.cql.ScalaBoundStatement
 import zio._
 
 object ZCqlSession {

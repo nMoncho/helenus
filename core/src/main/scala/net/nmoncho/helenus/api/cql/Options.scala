@@ -12,7 +12,6 @@ import java.time.Duration
 import com.datastax.oss.driver.api.core.ConsistencyLevel
 import com.datastax.oss.driver.api.core.CqlIdentifier
 import com.datastax.oss.driver.api.core.config.DriverExecutionProfile
-import com.datastax.oss.driver.api.core.cql.BoundStatement
 import com.datastax.oss.driver.api.core.cql.PagingState
 
 /** Adds [[StatementOptions]] to a [[ScalaPreparedStatement]].
@@ -39,7 +38,7 @@ trait Options[In, Out] {
     * @param bs bound statement
     * @return new [[BoundStatement]] instance with options applied
     */
-  def applyOptions(bs: BoundStatement): BoundStatement =
+  def applyOptions(bs: ScalaBoundStatement[Out]): ScalaBoundStatement[Out] =
     options(bs)
 
   /** Sets whether the [[BoundStatement]] will ignore `null` bind parameters or not.

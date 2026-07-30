@@ -24,7 +24,7 @@ class StatementOptionsSpec extends AnyWordSpec with Matchers {
   "StatementOptions" should {
 
     "not apply options if it's 'default'" in {
-      val bs      = mock(classOf[BoundStatement])
+      val bs      = mock(classOf[ScalaBoundStatement[_]])
       val options = StatementOptions.default
 
       withMockedBuilder(bs) { mocked =>
@@ -45,7 +45,7 @@ class StatementOptionsSpec extends AnyWordSpec with Matchers {
         )
       )
 
-      val bs = mock(classOf[BoundStatement])
+      val bs = mock(classOf[ScalaBoundStatement[_]])
 
       withMockedBuilder(bs) { mocked =>
         options(bs)

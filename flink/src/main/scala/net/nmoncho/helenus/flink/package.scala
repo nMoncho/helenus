@@ -12,6 +12,7 @@ import java.math.BigInteger
 
 import com.datastax.oss.driver.api.core.CqlSession
 import net.nmoncho.helenus.api.RowMapper
+import net.nmoncho.helenus.api.cql.ScalaBoundStatement
 import net.nmoncho.helenus.api.cql.ScalaPreparedStatement
 import net.nmoncho.helenus.flink.sink._
 import net.nmoncho.helenus.flink.source._

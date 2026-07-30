@@ -18,8 +18,8 @@ import com.datastax.oss.driver.api.core.cql.ExecutionInfo
 import com.datastax.oss.driver.api.core.cql.ResultSet
 import com.datastax.oss.driver.api.core.cql.Row
 import com.datastax.oss.driver.api.core.metadata.token.Token
-import net.nmoncho.helenus.ScalaBoundStatement
 import net.nmoncho.helenus.api.RowMapper
+import net.nmoncho.helenus.api.cql.ScalaBoundStatement
 import net.nmoncho.helenus.flink.source.CassandraSourceReader._
 import net.nmoncho.helenus.flink.source.CassandraSplit.CassandraPartitioner
 import org.apache.flink.api.connector.source.SourceOutput

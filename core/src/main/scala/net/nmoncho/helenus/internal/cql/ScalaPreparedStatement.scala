@@ -20,6 +20,7 @@ import net.nmoncho.helenus.api.RowMapper
 import net.nmoncho.helenus.api.cql.Adapter
 import net.nmoncho.helenus.api.cql.Mapping
 import net.nmoncho.helenus.api.cql.PagerSerializer
+import net.nmoncho.helenus.api.cql.ScalaBoundStatement
 import net.nmoncho.helenus.api.cql.ScalaPreparedStatement
 import net.nmoncho.helenus.api.cql.StatementOptions
 import net.nmoncho.helenus.api.cql.{ Pager => ApiPager }
@@ -41,16 +42,14 @@ import org.reactivestreams.Publisher
 class AdaptedScalaPreparedStatement[In2, In, Out](pstmt: ScalaPreparedStatement[In, _], mapper: RowMapper[Out], adapter: Adapter[In2, In], val options: StatementOptions)
     extends ScalaPreparedStatement[In2, Out](pstmt, mapper) {
 
-  import net.nmoncho.helenus._
-
   override type Self     = AdaptedScalaPreparedStatement[In2, In, Out]
   override type AsOut[T] = AdaptedScalaPreparedStatement[In2, In, T]
 
-  override val tupled: In2 => BoundStatement = apply
+  override val tupled: In2 => ScalaBoundStatement[Out] = apply
 
   /** Bounds an input [[In]] value and returns a [[BoundStatement]] */
   def apply(t1: In2): ScalaBoundStatement[Out] =
-    tag(pstmt.tupled(adapter(t1)))
+    pstmt.tupled(adapter(t1)).asInstanceOf[ScalaBoundStatement[Out]]
 
   /** Executes this [[PreparedStatement]] with the provided value.
    *
@@ -100,17 +99,15 @@ class AdaptedScalaPreparedStatement[In2, In, Out](pstmt: ScalaPreparedStatement[
 class ScalaPreparedStatementUnit[Out](pstmt: PreparedStatement, mapper: RowMapper[Out], val options: StatementOptions)
     extends ScalaPreparedStatement[Unit, Out](pstmt, mapper) {
 
-  import net.nmoncho.helenus._
-
   override type Self     = ScalaPreparedStatementUnit[Out]
   override type AsOut[T] = ScalaPreparedStatementUnit[T]
 
-  override val tupled: Unit => BoundStatement = _ => apply
+  override val tupled: Unit => ScalaBoundStatement[Out] = _ => apply
 
   verifyArity()
 
   /** Returns a [[BoundStatement]] */
-  def apply(): ScalaBoundStatement[Out] = tag(applyOptions(pstmt.bind()))
+  def apply(): ScalaBoundStatement[Out] = applyOptions(ScalaBoundStatement[Out](this, pstmt.bind()))
 
   /** Executes this [[PreparedStatement]]
    *
@@ -163,18 +160,16 @@ class ScalaPreparedStatementUnit[Out](pstmt: PreparedStatement, mapper: RowMappe
 class ScalaPreparedStatementMapped[T1, Out](pstmt: PreparedStatement, mapper: RowMapper[Out], val options: StatementOptions, mapping: Mapping[T1])
   extends ScalaPreparedStatement[T1, Out](pstmt, mapper) {
 
-  import net.nmoncho.helenus._
-
   override type Self     = ScalaPreparedStatementMapped[T1, Out]
   override type AsOut[T] = ScalaPreparedStatementMapped[T1, T]
 
-  override val tupled: T1 => BoundStatement = apply
+  override val tupled: T1 => ScalaBoundStatement[Out] = apply
 
-  private val bstmt: T1 => BoundStatement = mapping(this)
+  private val bstmt: T1 => ScalaBoundStatement[Out] = mapping(this)
 
   /** Bounds an input [[T1]] value and returns a [[BoundStatement]] */
   def apply(t1: T1): ScalaBoundStatement[Out] =
-    tag[Out](applyOptions(bstmt(t1)))
+    applyOptions(bstmt(t1))
 
   /** Executes this [[PreparedStatement]] with the provided value.
    *
@@ -230,19 +225,19 @@ class ScalaPreparedStatement1[T1, Out](pstmt: PreparedStatement, mapper: RowMapp
   override type Self     = ScalaPreparedStatement1[T1, Out]
   override type AsOut[T] = ScalaPreparedStatement1[T1, T]
 
-  override val tupled: T1 => BoundStatement = apply
+  override val tupled: T1 => ScalaBoundStatement[Out] = apply
 
   verifyArity(t1Codec)
 
   /** Bounds an input [[T1]] value and returns a [[BoundStatement]] */
   def apply(t1: T1): ScalaBoundStatement[Out] = {
     val bstmt = if (options.ignoreNullFields) {
-      pstmt.bind().setIfDefined(0, t1, t1Codec)
+      pstmt.boundStatementBuilder().setIdxIfDefined(0, t1, t1Codec)
     } else {
-      pstmt.bind().set(0, t1, t1Codec)
+      pstmt.boundStatementBuilder().set(0, t1, t1Codec)
     }
 
-    tag[Out](applyOptions(bstmt))
+    applyOptions(ScalaBoundStatement(this, bstmt.build())(mapper))
   }
 
   /** Executes this [[PreparedStatement]] with the provided value.
@@ -361,19 +356,19 @@ class ScalaPreparedStatement2[T1, T2, Out](pstmt: PreparedStatement, mapper: Row
   override type Self     = ScalaPreparedStatement2[T1, T2, Out]
   override type AsOut[T] = ScalaPreparedStatement2[T1, T2, T]
 
-  override val tupled: ((T1, T2)) => BoundStatement = (apply _).tupled
+  override val tupled: ((T1, T2)) => ScalaBoundStatement[Out] = (apply _).tupled
 
   verifyArity(t1Codec, t2Codec)
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2): ScalaBoundStatement[Out] = {
     val bstmt = if (options.ignoreNullFields) {
-      pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec)
+      pstmt.boundStatementBuilder().setIdxIfDefined(0, t1, t1Codec).setIdxIfDefined(1, t2, t2Codec)
     } else {
-      pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec)
+      pstmt.boundStatementBuilder().set(0, t1, t1Codec).set(1, t2, t2Codec)
     }
 
-    tag[Out](applyOptions(bstmt))
+    applyOptions(ScalaBoundStatement(this, bstmt.build())(mapper))
   }
 
   /** Executes this [[PreparedStatement]] with the provided values
@@ -423,19 +418,19 @@ class ScalaPreparedStatement3[T1, T2, T3, Out](pstmt: PreparedStatement, mapper:
   override type Self     = ScalaPreparedStatement3[T1, T2, T3, Out]
   override type AsOut[T] = ScalaPreparedStatement3[T1, T2, T3, T]
 
-  override val tupled: ((T1, T2, T3)) => BoundStatement = (apply _).tupled
+  override val tupled: ((T1, T2, T3)) => ScalaBoundStatement[Out] = (apply _).tupled
 
   verifyArity(t1Codec, t2Codec, t3Codec)
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3): ScalaBoundStatement[Out] = {
     val bstmt = if (options.ignoreNullFields) {
-      pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec)
+      pstmt.boundStatementBuilder().setIdxIfDefined(0, t1, t1Codec).setIdxIfDefined(1, t2, t2Codec).setIdxIfDefined(2, t3, t3Codec)
     } else {
-      pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec)
+      pstmt.boundStatementBuilder().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec)
     }
 
-    tag[Out](applyOptions(bstmt))
+    applyOptions(ScalaBoundStatement(this, bstmt.build())(mapper))
   }
 
   /** Executes this [[PreparedStatement]] with the provided values
@@ -485,19 +480,19 @@ class ScalaPreparedStatement4[T1, T2, T3, T4, Out](pstmt: PreparedStatement, map
   override type Self     = ScalaPreparedStatement4[T1, T2, T3, T4, Out]
   override type AsOut[T] = ScalaPreparedStatement4[T1, T2, T3, T4, T]
 
-  override val tupled: ((T1, T2, T3, T4)) => BoundStatement = (apply _).tupled
+  override val tupled: ((T1, T2, T3, T4)) => ScalaBoundStatement[Out] = (apply _).tupled
 
   verifyArity(t1Codec, t2Codec, t3Codec, t4Codec)
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4): ScalaBoundStatement[Out] = {
     val bstmt = if (options.ignoreNullFields) {
-      pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec)
+      pstmt.boundStatementBuilder().setIdxIfDefined(0, t1, t1Codec).setIdxIfDefined(1, t2, t2Codec).setIdxIfDefined(2, t3, t3Codec).setIdxIfDefined(3, t4, t4Codec)
     } else {
-      pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec)
+      pstmt.boundStatementBuilder().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec)
     }
 
-    tag[Out](applyOptions(bstmt))
+    applyOptions(ScalaBoundStatement(this, bstmt.build())(mapper))
   }
 
   /** Executes this [[PreparedStatement]] with the provided values
@@ -547,19 +542,19 @@ class ScalaPreparedStatement5[T1, T2, T3, T4, T5, Out](pstmt: PreparedStatement,
   override type Self     = ScalaPreparedStatement5[T1, T2, T3, T4, T5, Out]
   override type AsOut[T] = ScalaPreparedStatement5[T1, T2, T3, T4, T5, T]
 
-  override val tupled: ((T1, T2, T3, T4, T5)) => BoundStatement = (apply _).tupled
+  override val tupled: ((T1, T2, T3, T4, T5)) => ScalaBoundStatement[Out] = (apply _).tupled
 
   verifyArity(t1Codec, t2Codec, t3Codec, t4Codec, t5Codec)
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5): ScalaBoundStatement[Out] = {
     val bstmt = if (options.ignoreNullFields) {
-      pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec)
+      pstmt.boundStatementBuilder().setIdxIfDefined(0, t1, t1Codec).setIdxIfDefined(1, t2, t2Codec).setIdxIfDefined(2, t3, t3Codec).setIdxIfDefined(3, t4, t4Codec).setIdxIfDefined(4, t5, t5Codec)
     } else {
-      pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec)
+      pstmt.boundStatementBuilder().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec)
     }
 
-    tag[Out](applyOptions(bstmt))
+    applyOptions(ScalaBoundStatement(this, bstmt.build())(mapper))
   }
 
   /** Executes this [[PreparedStatement]] with the provided values
@@ -609,19 +604,19 @@ class ScalaPreparedStatement6[T1, T2, T3, T4, T5, T6, Out](pstmt: PreparedStatem
   override type Self     = ScalaPreparedStatement6[T1, T2, T3, T4, T5, T6, Out]
   override type AsOut[T] = ScalaPreparedStatement6[T1, T2, T3, T4, T5, T6, T]
 
-  override val tupled: ((T1, T2, T3, T4, T5, T6)) => BoundStatement = (apply _).tupled
+  override val tupled: ((T1, T2, T3, T4, T5, T6)) => ScalaBoundStatement[Out] = (apply _).tupled
 
   verifyArity(t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec)
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6): ScalaBoundStatement[Out] = {
     val bstmt = if (options.ignoreNullFields) {
-      pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec)
+      pstmt.boundStatementBuilder().setIdxIfDefined(0, t1, t1Codec).setIdxIfDefined(1, t2, t2Codec).setIdxIfDefined(2, t3, t3Codec).setIdxIfDefined(3, t4, t4Codec).setIdxIfDefined(4, t5, t5Codec).setIdxIfDefined(5, t6, t6Codec)
     } else {
-      pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec)
+      pstmt.boundStatementBuilder().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec)
     }
 
-    tag[Out](applyOptions(bstmt))
+    applyOptions(ScalaBoundStatement(this, bstmt.build())(mapper))
   }
 
   /** Executes this [[PreparedStatement]] with the provided values
@@ -671,19 +666,19 @@ class ScalaPreparedStatement7[T1, T2, T3, T4, T5, T6, T7, Out](pstmt: PreparedSt
   override type Self     = ScalaPreparedStatement7[T1, T2, T3, T4, T5, T6, T7, Out]
   override type AsOut[T] = ScalaPreparedStatement7[T1, T2, T3, T4, T5, T6, T7, T]
 
-  override val tupled: ((T1, T2, T3, T4, T5, T6, T7)) => BoundStatement = (apply _).tupled
+  override val tupled: ((T1, T2, T3, T4, T5, T6, T7)) => ScalaBoundStatement[Out] = (apply _).tupled
 
   verifyArity(t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec)
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7): ScalaBoundStatement[Out] = {
     val bstmt = if (options.ignoreNullFields) {
-      pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec)
+      pstmt.boundStatementBuilder().setIdxIfDefined(0, t1, t1Codec).setIdxIfDefined(1, t2, t2Codec).setIdxIfDefined(2, t3, t3Codec).setIdxIfDefined(3, t4, t4Codec).setIdxIfDefined(4, t5, t5Codec).setIdxIfDefined(5, t6, t6Codec).setIdxIfDefined(6, t7, t7Codec)
     } else {
-      pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec)
+      pstmt.boundStatementBuilder().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec)
     }
 
-    tag[Out](applyOptions(bstmt))
+    applyOptions(ScalaBoundStatement(this, bstmt.build())(mapper))
   }
 
   /** Executes this [[PreparedStatement]] with the provided values
@@ -733,19 +728,19 @@ class ScalaPreparedStatement8[T1, T2, T3, T4, T5, T6, T7, T8, Out](pstmt: Prepar
   override type Self     = ScalaPreparedStatement8[T1, T2, T3, T4, T5, T6, T7, T8, Out]
   override type AsOut[T] = ScalaPreparedStatement8[T1, T2, T3, T4, T5, T6, T7, T8, T]
 
-  override val tupled: ((T1, T2, T3, T4, T5, T6, T7, T8)) => BoundStatement = (apply _).tupled
+  override val tupled: ((T1, T2, T3, T4, T5, T6, T7, T8)) => ScalaBoundStatement[Out] = (apply _).tupled
 
   verifyArity(t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec)
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8): ScalaBoundStatement[Out] = {
     val bstmt = if (options.ignoreNullFields) {
-      pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec)
+      pstmt.boundStatementBuilder().setIdxIfDefined(0, t1, t1Codec).setIdxIfDefined(1, t2, t2Codec).setIdxIfDefined(2, t3, t3Codec).setIdxIfDefined(3, t4, t4Codec).setIdxIfDefined(4, t5, t5Codec).setIdxIfDefined(5, t6, t6Codec).setIdxIfDefined(6, t7, t7Codec).setIdxIfDefined(7, t8, t8Codec)
     } else {
-      pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec)
+      pstmt.boundStatementBuilder().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec)
     }
 
-    tag[Out](applyOptions(bstmt))
+    applyOptions(ScalaBoundStatement(this, bstmt.build())(mapper))
   }
 
   /** Executes this [[PreparedStatement]] with the provided values
@@ -795,19 +790,19 @@ class ScalaPreparedStatement9[T1, T2, T3, T4, T5, T6, T7, T8, T9, Out](pstmt: Pr
   override type Self     = ScalaPreparedStatement9[T1, T2, T3, T4, T5, T6, T7, T8, T9, Out]
   override type AsOut[T] = ScalaPreparedStatement9[T1, T2, T3, T4, T5, T6, T7, T8, T9, T]
 
-  override val tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9)) => BoundStatement = (apply _).tupled
+  override val tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9)) => ScalaBoundStatement[Out] = (apply _).tupled
 
   verifyArity(t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec)
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9): ScalaBoundStatement[Out] = {
     val bstmt = if (options.ignoreNullFields) {
-      pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec)
+      pstmt.boundStatementBuilder().setIdxIfDefined(0, t1, t1Codec).setIdxIfDefined(1, t2, t2Codec).setIdxIfDefined(2, t3, t3Codec).setIdxIfDefined(3, t4, t4Codec).setIdxIfDefined(4, t5, t5Codec).setIdxIfDefined(5, t6, t6Codec).setIdxIfDefined(6, t7, t7Codec).setIdxIfDefined(7, t8, t8Codec).setIdxIfDefined(8, t9, t9Codec)
     } else {
-      pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec)
+      pstmt.boundStatementBuilder().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec)
     }
 
-    tag[Out](applyOptions(bstmt))
+    applyOptions(ScalaBoundStatement(this, bstmt.build())(mapper))
   }
 
   /** Executes this [[PreparedStatement]] with the provided values
@@ -857,19 +852,19 @@ class ScalaPreparedStatement10[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, Out](pst
   override type Self     = ScalaPreparedStatement10[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, Out]
   override type AsOut[T] = ScalaPreparedStatement10[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T]
 
-  override val tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10)) => BoundStatement = (apply _).tupled
+  override val tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10)) => ScalaBoundStatement[Out] = (apply _).tupled
 
   verifyArity(t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec)
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10): ScalaBoundStatement[Out] = {
     val bstmt = if (options.ignoreNullFields) {
-      pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec)
+      pstmt.boundStatementBuilder().setIdxIfDefined(0, t1, t1Codec).setIdxIfDefined(1, t2, t2Codec).setIdxIfDefined(2, t3, t3Codec).setIdxIfDefined(3, t4, t4Codec).setIdxIfDefined(4, t5, t5Codec).setIdxIfDefined(5, t6, t6Codec).setIdxIfDefined(6, t7, t7Codec).setIdxIfDefined(7, t8, t8Codec).setIdxIfDefined(8, t9, t9Codec).setIdxIfDefined(9, t10, t10Codec)
     } else {
-      pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec)
+      pstmt.boundStatementBuilder().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec)
     }
 
-    tag[Out](applyOptions(bstmt))
+    applyOptions(ScalaBoundStatement(this, bstmt.build())(mapper))
   }
 
   /** Executes this [[PreparedStatement]] with the provided values
@@ -919,19 +914,19 @@ class ScalaPreparedStatement11[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, Out
   override type Self     = ScalaPreparedStatement11[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, Out]
   override type AsOut[T] = ScalaPreparedStatement11[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T]
 
-  override val tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11)) => BoundStatement = (apply _).tupled
+  override val tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11)) => ScalaBoundStatement[Out] = (apply _).tupled
 
   verifyArity(t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec)
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11): ScalaBoundStatement[Out] = {
     val bstmt = if (options.ignoreNullFields) {
-      pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec)
+      pstmt.boundStatementBuilder().setIdxIfDefined(0, t1, t1Codec).setIdxIfDefined(1, t2, t2Codec).setIdxIfDefined(2, t3, t3Codec).setIdxIfDefined(3, t4, t4Codec).setIdxIfDefined(4, t5, t5Codec).setIdxIfDefined(5, t6, t6Codec).setIdxIfDefined(6, t7, t7Codec).setIdxIfDefined(7, t8, t8Codec).setIdxIfDefined(8, t9, t9Codec).setIdxIfDefined(9, t10, t10Codec).setIdxIfDefined(10, t11, t11Codec)
     } else {
-      pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec)
+      pstmt.boundStatementBuilder().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec)
     }
 
-    tag[Out](applyOptions(bstmt))
+    applyOptions(ScalaBoundStatement(this, bstmt.build())(mapper))
   }
 
   /** Executes this [[PreparedStatement]] with the provided values
@@ -981,19 +976,19 @@ class ScalaPreparedStatement12[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   override type Self     = ScalaPreparedStatement12[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, Out]
   override type AsOut[T] = ScalaPreparedStatement12[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T]
 
-  override val tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12)) => BoundStatement = (apply _).tupled
+  override val tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12)) => ScalaBoundStatement[Out] = (apply _).tupled
 
   verifyArity(t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec)
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12): ScalaBoundStatement[Out] = {
     val bstmt = if (options.ignoreNullFields) {
-      pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec)
+      pstmt.boundStatementBuilder().setIdxIfDefined(0, t1, t1Codec).setIdxIfDefined(1, t2, t2Codec).setIdxIfDefined(2, t3, t3Codec).setIdxIfDefined(3, t4, t4Codec).setIdxIfDefined(4, t5, t5Codec).setIdxIfDefined(5, t6, t6Codec).setIdxIfDefined(6, t7, t7Codec).setIdxIfDefined(7, t8, t8Codec).setIdxIfDefined(8, t9, t9Codec).setIdxIfDefined(9, t10, t10Codec).setIdxIfDefined(10, t11, t11Codec).setIdxIfDefined(11, t12, t12Codec)
     } else {
-      pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec).set(11, t12, t12Codec)
+      pstmt.boundStatementBuilder().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec).set(11, t12, t12Codec)
     }
 
-    tag[Out](applyOptions(bstmt))
+    applyOptions(ScalaBoundStatement(this, bstmt.build())(mapper))
   }
 
   /** Executes this [[PreparedStatement]] with the provided values
@@ -1043,19 +1038,19 @@ class ScalaPreparedStatement13[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   override type Self     = ScalaPreparedStatement13[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, Out]
   override type AsOut[T] = ScalaPreparedStatement13[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T]
 
-  override val tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13)) => BoundStatement = (apply _).tupled
+  override val tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13)) => ScalaBoundStatement[Out] = (apply _).tupled
 
   verifyArity(t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec)
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13): ScalaBoundStatement[Out] = {
     val bstmt = if (options.ignoreNullFields) {
-      pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec)
+      pstmt.boundStatementBuilder().setIdxIfDefined(0, t1, t1Codec).setIdxIfDefined(1, t2, t2Codec).setIdxIfDefined(2, t3, t3Codec).setIdxIfDefined(3, t4, t4Codec).setIdxIfDefined(4, t5, t5Codec).setIdxIfDefined(5, t6, t6Codec).setIdxIfDefined(6, t7, t7Codec).setIdxIfDefined(7, t8, t8Codec).setIdxIfDefined(8, t9, t9Codec).setIdxIfDefined(9, t10, t10Codec).setIdxIfDefined(10, t11, t11Codec).setIdxIfDefined(11, t12, t12Codec).setIdxIfDefined(12, t13, t13Codec)
     } else {
-      pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec).set(11, t12, t12Codec).set(12, t13, t13Codec)
+      pstmt.boundStatementBuilder().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec).set(11, t12, t12Codec).set(12, t13, t13Codec)
     }
 
-    tag[Out](applyOptions(bstmt))
+    applyOptions(ScalaBoundStatement(this, bstmt.build())(mapper))
   }
 
   /** Executes this [[PreparedStatement]] with the provided values
@@ -1105,19 +1100,19 @@ class ScalaPreparedStatement14[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   override type Self     = ScalaPreparedStatement14[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, Out]
   override type AsOut[T] = ScalaPreparedStatement14[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T]
 
-  override val tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14)) => BoundStatement = (apply _).tupled
+  override val tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14)) => ScalaBoundStatement[Out] = (apply _).tupled
 
   verifyArity(t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec, t14Codec)
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14): ScalaBoundStatement[Out] = {
     val bstmt = if (options.ignoreNullFields) {
-      pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec)
+      pstmt.boundStatementBuilder().setIdxIfDefined(0, t1, t1Codec).setIdxIfDefined(1, t2, t2Codec).setIdxIfDefined(2, t3, t3Codec).setIdxIfDefined(3, t4, t4Codec).setIdxIfDefined(4, t5, t5Codec).setIdxIfDefined(5, t6, t6Codec).setIdxIfDefined(6, t7, t7Codec).setIdxIfDefined(7, t8, t8Codec).setIdxIfDefined(8, t9, t9Codec).setIdxIfDefined(9, t10, t10Codec).setIdxIfDefined(10, t11, t11Codec).setIdxIfDefined(11, t12, t12Codec).setIdxIfDefined(12, t13, t13Codec).setIdxIfDefined(13, t14, t14Codec)
     } else {
-      pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec).set(11, t12, t12Codec).set(12, t13, t13Codec).set(13, t14, t14Codec)
+      pstmt.boundStatementBuilder().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec).set(11, t12, t12Codec).set(12, t13, t13Codec).set(13, t14, t14Codec)
     }
 
-    tag[Out](applyOptions(bstmt))
+    applyOptions(ScalaBoundStatement(this, bstmt.build())(mapper))
   }
 
   /** Executes this [[PreparedStatement]] with the provided values
@@ -1167,19 +1162,19 @@ class ScalaPreparedStatement15[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   override type Self     = ScalaPreparedStatement15[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, Out]
   override type AsOut[T] = ScalaPreparedStatement15[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T]
 
-  override val tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15)) => BoundStatement = (apply _).tupled
+  override val tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15)) => ScalaBoundStatement[Out] = (apply _).tupled
 
   verifyArity(t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec, t14Codec, t15Codec)
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15): ScalaBoundStatement[Out] = {
     val bstmt = if (options.ignoreNullFields) {
-      pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec)
+      pstmt.boundStatementBuilder().setIdxIfDefined(0, t1, t1Codec).setIdxIfDefined(1, t2, t2Codec).setIdxIfDefined(2, t3, t3Codec).setIdxIfDefined(3, t4, t4Codec).setIdxIfDefined(4, t5, t5Codec).setIdxIfDefined(5, t6, t6Codec).setIdxIfDefined(6, t7, t7Codec).setIdxIfDefined(7, t8, t8Codec).setIdxIfDefined(8, t9, t9Codec).setIdxIfDefined(9, t10, t10Codec).setIdxIfDefined(10, t11, t11Codec).setIdxIfDefined(11, t12, t12Codec).setIdxIfDefined(12, t13, t13Codec).setIdxIfDefined(13, t14, t14Codec).setIdxIfDefined(14, t15, t15Codec)
     } else {
-      pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec).set(11, t12, t12Codec).set(12, t13, t13Codec).set(13, t14, t14Codec).set(14, t15, t15Codec)
+      pstmt.boundStatementBuilder().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec).set(11, t12, t12Codec).set(12, t13, t13Codec).set(13, t14, t14Codec).set(14, t15, t15Codec)
     }
 
-    tag[Out](applyOptions(bstmt))
+    applyOptions(ScalaBoundStatement(this, bstmt.build())(mapper))
   }
 
   /** Executes this [[PreparedStatement]] with the provided values
@@ -1229,19 +1224,19 @@ class ScalaPreparedStatement16[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   override type Self     = ScalaPreparedStatement16[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, Out]
   override type AsOut[T] = ScalaPreparedStatement16[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T]
 
-  override val tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16)) => BoundStatement = (apply _).tupled
+  override val tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16)) => ScalaBoundStatement[Out] = (apply _).tupled
 
   verifyArity(t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec, t14Codec, t15Codec, t16Codec)
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16): ScalaBoundStatement[Out] = {
     val bstmt = if (options.ignoreNullFields) {
-      pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec).setIfDefined(15, t16, t16Codec)
+      pstmt.boundStatementBuilder().setIdxIfDefined(0, t1, t1Codec).setIdxIfDefined(1, t2, t2Codec).setIdxIfDefined(2, t3, t3Codec).setIdxIfDefined(3, t4, t4Codec).setIdxIfDefined(4, t5, t5Codec).setIdxIfDefined(5, t6, t6Codec).setIdxIfDefined(6, t7, t7Codec).setIdxIfDefined(7, t8, t8Codec).setIdxIfDefined(8, t9, t9Codec).setIdxIfDefined(9, t10, t10Codec).setIdxIfDefined(10, t11, t11Codec).setIdxIfDefined(11, t12, t12Codec).setIdxIfDefined(12, t13, t13Codec).setIdxIfDefined(13, t14, t14Codec).setIdxIfDefined(14, t15, t15Codec).setIdxIfDefined(15, t16, t16Codec)
     } else {
-      pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec).set(11, t12, t12Codec).set(12, t13, t13Codec).set(13, t14, t14Codec).set(14, t15, t15Codec).set(15, t16, t16Codec)
+      pstmt.boundStatementBuilder().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec).set(11, t12, t12Codec).set(12, t13, t13Codec).set(13, t14, t14Codec).set(14, t15, t15Codec).set(15, t16, t16Codec)
     }
 
-    tag[Out](applyOptions(bstmt))
+    applyOptions(ScalaBoundStatement(this, bstmt.build())(mapper))
   }
 
   /** Executes this [[PreparedStatement]] with the provided values
@@ -1291,19 +1286,19 @@ class ScalaPreparedStatement17[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   override type Self     = ScalaPreparedStatement17[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, Out]
   override type AsOut[T] = ScalaPreparedStatement17[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T]
 
-  override val tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17)) => BoundStatement = (apply _).tupled
+  override val tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17)) => ScalaBoundStatement[Out] = (apply _).tupled
 
   verifyArity(t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec, t14Codec, t15Codec, t16Codec, t17Codec)
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17): ScalaBoundStatement[Out] = {
     val bstmt = if (options.ignoreNullFields) {
-      pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec).setIfDefined(15, t16, t16Codec).setIfDefined(16, t17, t17Codec)
+      pstmt.boundStatementBuilder().setIdxIfDefined(0, t1, t1Codec).setIdxIfDefined(1, t2, t2Codec).setIdxIfDefined(2, t3, t3Codec).setIdxIfDefined(3, t4, t4Codec).setIdxIfDefined(4, t5, t5Codec).setIdxIfDefined(5, t6, t6Codec).setIdxIfDefined(6, t7, t7Codec).setIdxIfDefined(7, t8, t8Codec).setIdxIfDefined(8, t9, t9Codec).setIdxIfDefined(9, t10, t10Codec).setIdxIfDefined(10, t11, t11Codec).setIdxIfDefined(11, t12, t12Codec).setIdxIfDefined(12, t13, t13Codec).setIdxIfDefined(13, t14, t14Codec).setIdxIfDefined(14, t15, t15Codec).setIdxIfDefined(15, t16, t16Codec).setIdxIfDefined(16, t17, t17Codec)
     } else {
-      pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec).set(11, t12, t12Codec).set(12, t13, t13Codec).set(13, t14, t14Codec).set(14, t15, t15Codec).set(15, t16, t16Codec).set(16, t17, t17Codec)
+      pstmt.boundStatementBuilder().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec).set(11, t12, t12Codec).set(12, t13, t13Codec).set(13, t14, t14Codec).set(14, t15, t15Codec).set(15, t16, t16Codec).set(16, t17, t17Codec)
     }
 
-    tag[Out](applyOptions(bstmt))
+    applyOptions(ScalaBoundStatement(this, bstmt.build())(mapper))
   }
 
   /** Executes this [[PreparedStatement]] with the provided values
@@ -1353,19 +1348,19 @@ class ScalaPreparedStatement18[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   override type Self     = ScalaPreparedStatement18[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, Out]
   override type AsOut[T] = ScalaPreparedStatement18[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T]
 
-  override val tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18)) => BoundStatement = (apply _).tupled
+  override val tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18)) => ScalaBoundStatement[Out] = (apply _).tupled
 
   verifyArity(t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec, t14Codec, t15Codec, t16Codec, t17Codec, t18Codec)
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18): ScalaBoundStatement[Out] = {
     val bstmt = if (options.ignoreNullFields) {
-      pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec).setIfDefined(15, t16, t16Codec).setIfDefined(16, t17, t17Codec).setIfDefined(17, t18, t18Codec)
+      pstmt.boundStatementBuilder().setIdxIfDefined(0, t1, t1Codec).setIdxIfDefined(1, t2, t2Codec).setIdxIfDefined(2, t3, t3Codec).setIdxIfDefined(3, t4, t4Codec).setIdxIfDefined(4, t5, t5Codec).setIdxIfDefined(5, t6, t6Codec).setIdxIfDefined(6, t7, t7Codec).setIdxIfDefined(7, t8, t8Codec).setIdxIfDefined(8, t9, t9Codec).setIdxIfDefined(9, t10, t10Codec).setIdxIfDefined(10, t11, t11Codec).setIdxIfDefined(11, t12, t12Codec).setIdxIfDefined(12, t13, t13Codec).setIdxIfDefined(13, t14, t14Codec).setIdxIfDefined(14, t15, t15Codec).setIdxIfDefined(15, t16, t16Codec).setIdxIfDefined(16, t17, t17Codec).setIdxIfDefined(17, t18, t18Codec)
     } else {
-      pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec).set(11, t12, t12Codec).set(12, t13, t13Codec).set(13, t14, t14Codec).set(14, t15, t15Codec).set(15, t16, t16Codec).set(16, t17, t17Codec).set(17, t18, t18Codec)
+      pstmt.boundStatementBuilder().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec).set(11, t12, t12Codec).set(12, t13, t13Codec).set(13, t14, t14Codec).set(14, t15, t15Codec).set(15, t16, t16Codec).set(16, t17, t17Codec).set(17, t18, t18Codec)
     }
 
-    tag[Out](applyOptions(bstmt))
+    applyOptions(ScalaBoundStatement(this, bstmt.build())(mapper))
   }
 
   /** Executes this [[PreparedStatement]] with the provided values
@@ -1415,19 +1410,19 @@ class ScalaPreparedStatement19[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   override type Self     = ScalaPreparedStatement19[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, Out]
   override type AsOut[T] = ScalaPreparedStatement19[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T]
 
-  override val tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19)) => BoundStatement = (apply _).tupled
+  override val tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19)) => ScalaBoundStatement[Out] = (apply _).tupled
 
   verifyArity(t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec, t14Codec, t15Codec, t16Codec, t17Codec, t18Codec, t19Codec)
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19): ScalaBoundStatement[Out] = {
     val bstmt = if (options.ignoreNullFields) {
-      pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec).setIfDefined(15, t16, t16Codec).setIfDefined(16, t17, t17Codec).setIfDefined(17, t18, t18Codec).setIfDefined(18, t19, t19Codec)
+      pstmt.boundStatementBuilder().setIdxIfDefined(0, t1, t1Codec).setIdxIfDefined(1, t2, t2Codec).setIdxIfDefined(2, t3, t3Codec).setIdxIfDefined(3, t4, t4Codec).setIdxIfDefined(4, t5, t5Codec).setIdxIfDefined(5, t6, t6Codec).setIdxIfDefined(6, t7, t7Codec).setIdxIfDefined(7, t8, t8Codec).setIdxIfDefined(8, t9, t9Codec).setIdxIfDefined(9, t10, t10Codec).setIdxIfDefined(10, t11, t11Codec).setIdxIfDefined(11, t12, t12Codec).setIdxIfDefined(12, t13, t13Codec).setIdxIfDefined(13, t14, t14Codec).setIdxIfDefined(14, t15, t15Codec).setIdxIfDefined(15, t16, t16Codec).setIdxIfDefined(16, t17, t17Codec).setIdxIfDefined(17, t18, t18Codec).setIdxIfDefined(18, t19, t19Codec)
     } else {
-      pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec).set(11, t12, t12Codec).set(12, t13, t13Codec).set(13, t14, t14Codec).set(14, t15, t15Codec).set(15, t16, t16Codec).set(16, t17, t17Codec).set(17, t18, t18Codec).set(18, t19, t19Codec)
+      pstmt.boundStatementBuilder().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec).set(11, t12, t12Codec).set(12, t13, t13Codec).set(13, t14, t14Codec).set(14, t15, t15Codec).set(15, t16, t16Codec).set(16, t17, t17Codec).set(17, t18, t18Codec).set(18, t19, t19Codec)
     }
 
-    tag[Out](applyOptions(bstmt))
+    applyOptions(ScalaBoundStatement(this, bstmt.build())(mapper))
   }
 
   /** Executes this [[PreparedStatement]] with the provided values
@@ -1477,19 +1472,19 @@ class ScalaPreparedStatement20[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   override type Self     = ScalaPreparedStatement20[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, Out]
   override type AsOut[T] = ScalaPreparedStatement20[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T]
 
-  override val tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20)) => BoundStatement = (apply _).tupled
+  override val tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20)) => ScalaBoundStatement[Out] = (apply _).tupled
 
   verifyArity(t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec, t14Codec, t15Codec, t16Codec, t17Codec, t18Codec, t19Codec, t20Codec)
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20): ScalaBoundStatement[Out] = {
     val bstmt = if (options.ignoreNullFields) {
-      pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec).setIfDefined(15, t16, t16Codec).setIfDefined(16, t17, t17Codec).setIfDefined(17, t18, t18Codec).setIfDefined(18, t19, t19Codec).setIfDefined(19, t20, t20Codec)
+      pstmt.boundStatementBuilder().setIdxIfDefined(0, t1, t1Codec).setIdxIfDefined(1, t2, t2Codec).setIdxIfDefined(2, t3, t3Codec).setIdxIfDefined(3, t4, t4Codec).setIdxIfDefined(4, t5, t5Codec).setIdxIfDefined(5, t6, t6Codec).setIdxIfDefined(6, t7, t7Codec).setIdxIfDefined(7, t8, t8Codec).setIdxIfDefined(8, t9, t9Codec).setIdxIfDefined(9, t10, t10Codec).setIdxIfDefined(10, t11, t11Codec).setIdxIfDefined(11, t12, t12Codec).setIdxIfDefined(12, t13, t13Codec).setIdxIfDefined(13, t14, t14Codec).setIdxIfDefined(14, t15, t15Codec).setIdxIfDefined(15, t16, t16Codec).setIdxIfDefined(16, t17, t17Codec).setIdxIfDefined(17, t18, t18Codec).setIdxIfDefined(18, t19, t19Codec).setIdxIfDefined(19, t20, t20Codec)
     } else {
-      pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec).set(11, t12, t12Codec).set(12, t13, t13Codec).set(13, t14, t14Codec).set(14, t15, t15Codec).set(15, t16, t16Codec).set(16, t17, t17Codec).set(17, t18, t18Codec).set(18, t19, t19Codec).set(19, t20, t20Codec)
+      pstmt.boundStatementBuilder().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec).set(11, t12, t12Codec).set(12, t13, t13Codec).set(13, t14, t14Codec).set(14, t15, t15Codec).set(15, t16, t16Codec).set(16, t17, t17Codec).set(17, t18, t18Codec).set(18, t19, t19Codec).set(19, t20, t20Codec)
     }
 
-    tag[Out](applyOptions(bstmt))
+    applyOptions(ScalaBoundStatement(this, bstmt.build())(mapper))
   }
 
   /** Executes this [[PreparedStatement]] with the provided values
@@ -1539,19 +1534,19 @@ class ScalaPreparedStatement21[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   override type Self     = ScalaPreparedStatement21[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, Out]
   override type AsOut[T] = ScalaPreparedStatement21[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T]
 
-  override val tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21)) => BoundStatement = (apply _).tupled
+  override val tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21)) => ScalaBoundStatement[Out] = (apply _).tupled
 
   verifyArity(t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec, t14Codec, t15Codec, t16Codec, t17Codec, t18Codec, t19Codec, t20Codec, t21Codec)
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21): ScalaBoundStatement[Out] = {
     val bstmt = if (options.ignoreNullFields) {
-      pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec).setIfDefined(15, t16, t16Codec).setIfDefined(16, t17, t17Codec).setIfDefined(17, t18, t18Codec).setIfDefined(18, t19, t19Codec).setIfDefined(19, t20, t20Codec).setIfDefined(20, t21, t21Codec)
+      pstmt.boundStatementBuilder().setIdxIfDefined(0, t1, t1Codec).setIdxIfDefined(1, t2, t2Codec).setIdxIfDefined(2, t3, t3Codec).setIdxIfDefined(3, t4, t4Codec).setIdxIfDefined(4, t5, t5Codec).setIdxIfDefined(5, t6, t6Codec).setIdxIfDefined(6, t7, t7Codec).setIdxIfDefined(7, t8, t8Codec).setIdxIfDefined(8, t9, t9Codec).setIdxIfDefined(9, t10, t10Codec).setIdxIfDefined(10, t11, t11Codec).setIdxIfDefined(11, t12, t12Codec).setIdxIfDefined(12, t13, t13Codec).setIdxIfDefined(13, t14, t14Codec).setIdxIfDefined(14, t15, t15Codec).setIdxIfDefined(15, t16, t16Codec).setIdxIfDefined(16, t17, t17Codec).setIdxIfDefined(17, t18, t18Codec).setIdxIfDefined(18, t19, t19Codec).setIdxIfDefined(19, t20, t20Codec).setIdxIfDefined(20, t21, t21Codec)
     } else {
-      pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec).set(11, t12, t12Codec).set(12, t13, t13Codec).set(13, t14, t14Codec).set(14, t15, t15Codec).set(15, t16, t16Codec).set(16, t17, t17Codec).set(17, t18, t18Codec).set(18, t19, t19Codec).set(19, t20, t20Codec).set(20, t21, t21Codec)
+      pstmt.boundStatementBuilder().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec).set(11, t12, t12Codec).set(12, t13, t13Codec).set(13, t14, t14Codec).set(14, t15, t15Codec).set(15, t16, t16Codec).set(16, t17, t17Codec).set(17, t18, t18Codec).set(18, t19, t19Codec).set(19, t20, t20Codec).set(20, t21, t21Codec)
     }
 
-    tag[Out](applyOptions(bstmt))
+    applyOptions(ScalaBoundStatement(this, bstmt.build())(mapper))
   }
 
   /** Executes this [[PreparedStatement]] with the provided values
@@ -1601,19 +1596,19 @@ class ScalaPreparedStatement22[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   override type Self     = ScalaPreparedStatement22[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, Out]
   override type AsOut[T] = ScalaPreparedStatement22[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T]
 
-  override val tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22)) => BoundStatement = (apply _).tupled
+  override val tupled: ((T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22)) => ScalaBoundStatement[Out] = (apply _).tupled
 
   verifyArity(t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec, t14Codec, t15Codec, t16Codec, t17Codec, t18Codec, t19Codec, t20Codec, t21Codec, t22Codec)
 
   /** Returns a [[BoundStatement]] with the provided values*/
   def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21, t22: T22): ScalaBoundStatement[Out] = {
     val bstmt = if (options.ignoreNullFields) {
-      pstmt.bind().setIfDefined(0, t1, t1Codec).setIfDefined(1, t2, t2Codec).setIfDefined(2, t3, t3Codec).setIfDefined(3, t4, t4Codec).setIfDefined(4, t5, t5Codec).setIfDefined(5, t6, t6Codec).setIfDefined(6, t7, t7Codec).setIfDefined(7, t8, t8Codec).setIfDefined(8, t9, t9Codec).setIfDefined(9, t10, t10Codec).setIfDefined(10, t11, t11Codec).setIfDefined(11, t12, t12Codec).setIfDefined(12, t13, t13Codec).setIfDefined(13, t14, t14Codec).setIfDefined(14, t15, t15Codec).setIfDefined(15, t16, t16Codec).setIfDefined(16, t17, t17Codec).setIfDefined(17, t18, t18Codec).setIfDefined(18, t19, t19Codec).setIfDefined(19, t20, t20Codec).setIfDefined(20, t21, t21Codec).setIfDefined(21, t22, t22Codec)
+      pstmt.boundStatementBuilder().setIdxIfDefined(0, t1, t1Codec).setIdxIfDefined(1, t2, t2Codec).setIdxIfDefined(2, t3, t3Codec).setIdxIfDefined(3, t4, t4Codec).setIdxIfDefined(4, t5, t5Codec).setIdxIfDefined(5, t6, t6Codec).setIdxIfDefined(6, t7, t7Codec).setIdxIfDefined(7, t8, t8Codec).setIdxIfDefined(8, t9, t9Codec).setIdxIfDefined(9, t10, t10Codec).setIdxIfDefined(10, t11, t11Codec).setIdxIfDefined(11, t12, t12Codec).setIdxIfDefined(12, t13, t13Codec).setIdxIfDefined(13, t14, t14Codec).setIdxIfDefined(14, t15, t15Codec).setIdxIfDefined(15, t16, t16Codec).setIdxIfDefined(16, t17, t17Codec).setIdxIfDefined(17, t18, t18Codec).setIdxIfDefined(18, t19, t19Codec).setIdxIfDefined(19, t20, t20Codec).setIdxIfDefined(20, t21, t21Codec).setIdxIfDefined(21, t22, t22Codec)
     } else {
-      pstmt.bind().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec).set(11, t12, t12Codec).set(12, t13, t13Codec).set(13, t14, t14Codec).set(14, t15, t15Codec).set(15, t16, t16Codec).set(16, t17, t17Codec).set(17, t18, t18Codec).set(18, t19, t19Codec).set(19, t20, t20Codec).set(20, t21, t21Codec).set(21, t22, t22Codec)
+      pstmt.boundStatementBuilder().set(0, t1, t1Codec).set(1, t2, t2Codec).set(2, t3, t3Codec).set(3, t4, t4Codec).set(4, t5, t5Codec).set(5, t6, t6Codec).set(6, t7, t7Codec).set(7, t8, t8Codec).set(8, t9, t9Codec).set(9, t10, t10Codec).set(10, t11, t11Codec).set(11, t12, t12Codec).set(12, t13, t13Codec).set(13, t14, t14Codec).set(14, t15, t15Codec).set(15, t16, t16Codec).set(16, t17, t17Codec).set(17, t18, t18Codec).set(18, t19, t19Codec).set(19, t20, t20Codec).set(20, t21, t21Codec).set(21, t22, t22Codec)
     }
 
-    tag[Out](applyOptions(bstmt))
+    applyOptions(ScalaBoundStatement(this, bstmt.build())(mapper))
   }
 
   /** Executes this [[PreparedStatement]] with the provided values

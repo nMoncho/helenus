@@ -11,6 +11,7 @@ import scala.util.matching.Regex
 
 import com.datastax.oss.driver.api.core.CqlSession
 import net.nmoncho.helenus.api.RowMapper
+import net.nmoncho.helenus.api.cql.ScalaBoundStatement
 import org.apache.flink.api.common.io._
 import org.apache.flink.api.common.io.statistics.BaseStatistics
 import org.apache.flink.api.common.typeinfo.TypeInformation
@@ -73,7 +74,7 @@ package object source {
 
       override def configure(parameters: Configuration): Unit = {
         session  = config.session()
-        iterator = bstmtBuilder(session).execute()(session, mapper).iter
+        iterator = bstmtBuilder(session).execute()(session).iter
       }
 
       override def open(split: InputSplit): Unit = ()

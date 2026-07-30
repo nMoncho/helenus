@@ -10,13 +10,13 @@ import scala.jdk.CollectionConverters._
 import scala.reflect.ClassTag
 
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
-import com.datastax.oss.driver.api.core.cql.BoundStatement
-import com.datastax.oss.driver.api.core.cql.PreparedStatement
-import com.datastax.oss.driver.api.core.cql.Row
-import net.nmoncho.helenus.ScalaBoundStatement
+import com.datastax.oss.driver.api.core.cql._
+import net.nmoncho.helenus.SettableByNameOps
 import net.nmoncho.helenus.api.ColumnNamingScheme
 import net.nmoncho.helenus.api.DefaultColumnNamingScheme
+import net.nmoncho.helenus.api.RowMapper
 import net.nmoncho.helenus.api.cql.Mapping
+import net.nmoncho.helenus.api.cql.ScalaBoundStatement
 import net.nmoncho.helenus.api.cql.ScalaPreparedStatement
 import org.slf4j.LoggerFactory
 import shapeless.::
@@ -35,8 +35,8 @@ object DerivedMapping {
 
   private val log = LoggerFactory.getLogger(classOf[DerivedMapping[_]])
 
-  type Binder[T, Out] = (ScalaBoundStatement[Out], T) => ScalaBoundStatement[Out]
-  type FieldToColumn  = Map[String, String]
+  type Binder[T]     = (BoundStatementBuilder, T) => BoundStatementBuilder
+  type FieldToColumn = Map[String, String]
 
   trait Builder[T] extends (FieldToColumn => FieldCollector[T])
 
@@ -54,9 +54,6 @@ object DerivedMapping {
 
     override def apply(row: Row): T = collector(row)
 
-    override def apply(pstmt: PreparedStatement): T => BoundStatement =
-      apply(pstmt.asInstanceOf[ScalaPreparedStatement[Unit, Row]])
-
     override def apply[Out](
         pstmt: ScalaPreparedStatement[T, Out]
     ): T => ScalaBoundStatement[Out] = {
@@ -67,12 +64,17 @@ object DerivedMapping {
         case (_, computed) if computed.contains(pstmt) => computed(pstmt)
       }
 
-      (t: T) =>
-        requiredComputed.foldLeft(
-          collected(pstmt.bind().asInstanceOf[ScalaBoundStatement[Out]], t)
-        ) { (bstmt, compute) =>
-          compute(bstmt, t)
-        }
+      (t: T) => {
+        val bstmt = requiredComputed
+          .foldLeft(
+            collected(pstmt.boundStatementBuilder(), t)
+          ) { (bstmt, compute) =>
+            compute(bstmt, t)
+          }
+          .build()
+
+        ScalaBoundStatement[Out](pstmt, bstmt)(pstmt.mapper)
+      }
     }
 
     override def withComputedColumn[Col](column: String, compute: T => Col)(
@@ -131,7 +133,7 @@ object DerivedMapping {
       * @param pstmt to bind
       * @return binder function
       */
-    def apply[Out](pstmt: ScalaPreparedStatement[T, Out]): Binder[T, Out]
+    def apply[Out](pstmt: ScalaPreparedStatement[T, Out]): Binder[T]
 
     /** Checks if the [[PreparedStatement]] uses the [[column]] defined by this [[BindParameterCollector]], and
       * accumulates the results in an accumulator
@@ -198,11 +200,11 @@ object DerivedMapping {
         accumulated
       }
 
-    override def apply[Out](pstmt: ScalaPreparedStatement[T, Out]): Binder[T, Out] =
+    override def apply[Out](pstmt: ScalaPreparedStatement[T, Out]): Binder[T] =
       if (contains(pstmt) && pstmt.options.ignoreNullFields) { (bstmt, t) =>
-        setIfDefined(bstmt, column, compute(t), codec)
+        bstmt.setNameIfDefined(column, compute(t), codec)
       } else if (contains(pstmt)) { (bstmt, t) =>
-        bstmt.set(column, compute(t), codec).asInstanceOf[ScalaBoundStatement[Out]]
+        bstmt.set(column, compute(t), codec)
       } else { (bstmt, _) =>
         log.debug("Ignoring missing column [{}] from query [{}]", column, pstmt.getQuery: Any)
         bstmt
@@ -238,11 +240,11 @@ object DerivedMapping {
 
       override def apply[Out](
           pstmt: ScalaPreparedStatement[FieldType[K, H] :: HNil, Out]
-      ): Binder[FieldType[K, H] :: HNil, Out] =
+      ): Binder[FieldType[K, H] :: HNil] =
         if (contains(pstmt) && pstmt.options.ignoreNullFields) { (bstmt, t) =>
-          setIfDefined(bstmt, column, t.head, codec)
+          bstmt.setNameIfDefined(column, t.head, codec)
         } else if (contains(pstmt)) { (bstmt, t) =>
-          bstmt.set(column, t.head, codec).asInstanceOf[ScalaBoundStatement[Out]]
+          bstmt.set(column, t.head, codec)
         } else { (bstmt, _) =>
           log.debug("Ignoring missing column [{}] from query [{}]", column, pstmt.getQuery: Any)
           bstmt
@@ -284,16 +286,16 @@ object DerivedMapping {
 
       override def apply[Out](
           pstmt: ScalaPreparedStatement[FieldType[K, H] :: T, Out]
-      ): Binder[FieldType[K, H] :: T, Out] = {
+      ): Binder[FieldType[K, H] :: T] = {
         val tail = tailCollector(pstmt.asInstanceOf[ScalaPreparedStatement[T, Out]])
 
         // TODO investigate if we can do a short-circuit to avoid processing fields after all have been bound
         if (contains(pstmt) && pstmt.options.ignoreNullFields) { (bstmt, t) =>
-          val bs = setIfDefined(bstmt, column, t.head, codec)
+          val bs = bstmt.setNameIfDefined(column, t.head, codec)
 
           tail(bs, t.tail)
         } else if (contains(pstmt)) { (bstmt, t) =>
-          val bs = bstmt.set(column, t.head, codec).asInstanceOf[ScalaBoundStatement[Out]]
+          val bs = bstmt.set(column, t.head, codec)
 
           tail(bs, t.tail)
         } else { (bstmt, t) =>
@@ -325,7 +327,7 @@ object DerivedMapping {
 
       override def apply(row: Row): A = gen.from(collector(row))
 
-      override def apply[Out](pstmt: ScalaPreparedStatement[A, Out]): Binder[A, Out] = {
+      override def apply[Out](pstmt: ScalaPreparedStatement[A, Out]): Binder[A] = {
         val binder = collector[Out](pstmt.asInstanceOf[ScalaPreparedStatement[R, Out]])
 
         (bstmt, a) => binder(bstmt, gen.to(a))
@@ -336,17 +338,6 @@ object DerivedMapping {
 
     }
   }
-
-  /** Sets the value to the [[BoundStatement]] only if not-null to avoid tombstones
-    */
-  private def setIfDefined[T, Out](
-      bstmt: ScalaBoundStatement[Out],
-      column: String,
-      value: T,
-      codec: TypeCodec[T]
-  ): ScalaBoundStatement[Out] =
-    if (value == null || value == None) bstmt
-    else bstmt.set(column, value, codec).asInstanceOf[ScalaBoundStatement[Out]]
 
   /** Verifies if a [[TypeCodec]] can <em>accept</em> (or handle) a column defined in a [[PreparedStatement]]
     *

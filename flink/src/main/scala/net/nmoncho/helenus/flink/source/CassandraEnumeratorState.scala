@@ -18,7 +18,7 @@ import scala.jdk.CollectionConverters._
 import scala.util.Using
 
 import com.datastax.oss.driver.api.core.CqlSession
-import net.nmoncho.helenus.ScalaBoundStatement
+import net.nmoncho.helenus.api.cql.ScalaBoundStatement
 import net.nmoncho.helenus.flink.source.CassandraSplit.CassandraPartitioner
 import net.nmoncho.helenus.flink.source.CassandraSplit.Generator
 import net.nmoncho.helenus.flink.writeBigInt

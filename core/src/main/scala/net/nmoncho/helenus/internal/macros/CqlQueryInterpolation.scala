@@ -115,7 +115,7 @@ object CqlQueryInterpolation {
     }
 
     c.Expr[WrappedBoundStatement[Row]](
-      q"new _root_.net.nmoncho.helenus.api.cql.WrappedBoundStatement($expr)(_root_.net.nmoncho.helenus.api.RowMapper.identity)"
+      q"_root_.net.nmoncho.helenus.api.cql.WrappedBoundStatement.apply($expr)"
     )
   }
 
@@ -151,7 +151,7 @@ object CqlQueryInterpolation {
     }
 
     val expr = c.Expr[Future[WrappedBoundStatement[Row]]](
-      q"$pstmt.map { stmt => var bstmt = stmt.bind(); ..$bounders; new _root_.net.nmoncho.helenus.api.cql.WrappedBoundStatement(bstmt)(_root_.net.nmoncho.helenus.api.RowMapper.identity)}($ec)"
+      q"$pstmt.map { stmt => var bstmt = stmt.bind(); ..$bounders; _root_.net.nmoncho.helenus.api.cql.WrappedBoundStatement.apply(bstmt)}($ec)"
     )
 
     expr

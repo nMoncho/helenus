@@ -32,14 +32,15 @@ import org.slf4j.LoggerFactory
  * @tparam In statement input value
  * @tparam Out statement output value
  */
-abstract class ScalaPreparedStatement[In, Out](pstmt: PreparedStatement, mapper: RowMapper[Out]) extends PreparedStatement with Options[In, Out] {
+abstract class ScalaPreparedStatement[In, Out](pstmt: PreparedStatement, val mapper: RowMapper[Out]) extends PreparedStatement with Options[In, Out] {
 
   type AsOut[T] <: ScalaPreparedStatement[_, T]
 
+  // TODO can we remove this?
   protected implicit val rowMapper: RowMapper[Out] = mapper
 
   // Since this is no longer exposed to users, we can use the tupled `apply` function
-  def tupled: In => BoundStatement
+  def tupled: In => ScalaBoundStatement[Out]
 
   /** Adapts this [[ScalaPreparedStatement]] converting [[In2]] values with the provided adapter
    * into a [[In]] value (ie. the original type of this statement)
@@ -122,9 +123,10 @@ abstract class ScalaPreparedStatement[In, Out](pstmt: PreparedStatement, mapper:
   override def setResultMetadata(id: ByteBuffer, definitions: ColumnDefinitions): Unit =
     pstmt.setResultMetadata(id, definitions)
 
-  override def bind(values: AnyRef*): BoundStatement =
-    pstmt.bind(values: _*)
+  override def bind(values: AnyRef*): ScalaBoundStatement[Out] =
+    ScalaBoundStatement[Out](this, pstmt.bind(values: _*))
 
+  // TODO
   override def boundStatementBuilder(values: AnyRef*): BoundStatementBuilder =
     pstmt.boundStatementBuilder(values: _*)
 }

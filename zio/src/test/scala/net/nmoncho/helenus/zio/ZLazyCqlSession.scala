@@ -12,8 +12,8 @@ import scala.util.Try
 
 import com.datastax.oss.driver.api.core._
 import com.datastax.oss.driver.api.core.cql._
-import net.nmoncho.helenus.ScalaBoundStatement
 import net.nmoncho.helenus.api.RowMapper
+import net.nmoncho.helenus.api.cql.ScalaBoundStatement
 import zio.IO
 
 class ZLazyCqlSession(hostname: String, port: Int) extends ZCqlSession {

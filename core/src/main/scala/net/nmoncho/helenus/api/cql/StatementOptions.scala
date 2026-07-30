@@ -12,7 +12,6 @@ import java.time.Duration
 import com.datastax.oss.driver.api.core.ConsistencyLevel
 import com.datastax.oss.driver.api.core.CqlIdentifier
 import com.datastax.oss.driver.api.core.config.DriverExecutionProfile
-import com.datastax.oss.driver.api.core.cql.BoundStatement
 import com.datastax.oss.driver.api.core.cql.BoundStatementBuilder
 import net.nmoncho.helenus.api.cql.StatementOptions.BoundStatementOptions
 import net.nmoncho.helenus.api.cql.StatementOptions.PreparedStatementOptions
@@ -27,9 +26,10 @@ case class StatementOptions(
   /** Applies the specified options to the provided [[BoundStatement]]
     * @return [[BoundStatement]] with the applied options
     */
-  def apply(bs: BoundStatement): BoundStatement =
+  def apply[Out](bs: ScalaBoundStatement[Out]): ScalaBoundStatement[Out] =
     if (bstmtOptions == StatementOptions.default.bstmtOptions) bs
     else {
+      // FIXME
       val builder = new BoundStatementBuilder(bs)
         .setTracing(bstmtOptions.tracing)
         .setPageSize(bstmtOptions.pageSize)
@@ -42,7 +42,10 @@ case class StatementOptions(
       bstmtOptions.pagingState.foreach(ps => builder.setPagingState(ps))
       bstmtOptions.consistencyLevel.foreach(cl => builder.setConsistencyLevel(cl))
 
-      builder.build()
+      ScalaBoundStatement[Out](
+        bs.getPreparedStatement,
+        builder.build()
+      )(bs.mapper)
     }
 
   // $COVERAGE-OFF$

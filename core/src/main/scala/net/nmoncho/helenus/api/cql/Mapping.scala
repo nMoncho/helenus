@@ -6,27 +6,17 @@
 
 package net.nmoncho.helenus.api.cql
 
-import scala.reflect.ClassTag
-
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
-import com.datastax.oss.driver.api.core.cql.BoundStatement
-import com.datastax.oss.driver.api.core.cql.PreparedStatement
-import net.nmoncho.helenus.ScalaBoundStatement
 import net.nmoncho.helenus.api.RowMapper
 import net.nmoncho.helenus.internal.cql.DerivedMapping.Builder
+
+import scala.reflect.ClassTag
 
 /** Defines the contract of how Helenus can map a type [[T]] into and from the database
   *
   * @tparam T type to get from and to a row
   */
 trait Mapping[T] extends RowMapper[T] {
-
-  /** Creates a function that will take a [[T]] and will produce a [[BoundStatement]]
-    *
-    * @param pstmt [[PreparedStatement]] that produces the [[BoundStatement]]
-    * @return binder function
-    */
-  def apply(pstmt: PreparedStatement): T => BoundStatement
 
   /** Creates a function that will take a [[T]] and will produce a [[ScalaBoundStatement]]
     *

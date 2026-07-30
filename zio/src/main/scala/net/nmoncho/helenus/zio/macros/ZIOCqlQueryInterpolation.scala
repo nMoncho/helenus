@@ -28,7 +28,7 @@ object ZIOCqlQueryInterpolation {
 
     c.Expr[ZIO[ZCqlSession, CassandraException, WrappedBoundStatement[Row]]](
       q"""_root_.zio.ZIO.serviceWithZIO[_root_.net.nmoncho.helenus.zio.ZCqlSession](
-         _.prepare($stmt).map { pstmt => var bstmt = pstmt.bind(); ..$bounders; new _root_.net.nmoncho.helenus.api.cql.WrappedBoundStatement(bstmt)(_root_.net.nmoncho.helenus.api.RowMapper.identity) }
+         _.prepare($stmt).map { pstmt => var bstmt = pstmt.bind(); ..$bounders; _root_.net.nmoncho.helenus.api.cql.WrappedBoundStatement.apply(bstmt) }
        ).mapError(new _root_.net.nmoncho.helenus.zio.StatementExecutionException("Something went wrong while trying to execute an interpolated statement", _))
        """
     )
@@ -45,7 +45,7 @@ object ZIOCqlQueryInterpolation {
 
     c.Expr[ZIO[ZCqlSession, CassandraException, WrappedBoundStatement[Row]]](
       q"""_root_.zio.ZIO.serviceWithZIO[_root_.net.nmoncho.helenus.zio.ZCqlSession](
-         _.prepareAsync($stmt).map { pstmt => var bstmt = pstmt.bind(); ..$bounders; new _root_.net.nmoncho.helenus.api.cql.WrappedBoundStatement(bstmt)(_root_.net.nmoncho.helenus.api.RowMapper.identity) }
+         _.prepareAsync($stmt).map { pstmt => var bstmt = pstmt.bind(); ..$bounders; _root_.net.nmoncho.helenus.api.cql.WrappedBoundStatement.apply(bstmt) }
        ).mapError(new _root_.net.nmoncho.helenus.zio.StatementExecutionException("Something went wrong while trying to execute async an interpolated statement", _))
        """
     )
