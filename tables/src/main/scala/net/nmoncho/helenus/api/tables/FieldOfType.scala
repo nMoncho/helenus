@@ -6,11 +6,13 @@
 
 package net.nmoncho.helenus.api.tables
 
-import shapeless.{ HList, LabelledGeneric }
+import scala.annotation.implicitNotFound
+import scala.annotation.unused
+
+import shapeless.HList
+import shapeless.LabelledGeneric
 import shapeless.ops.record.Selector
 import shapeless.tag.@@
-
-import scala.annotation.{ implicitNotFound, unused }
 
 /** Evidence that the case class `A` has a field named `Name` whose type is
   * exactly `V`.

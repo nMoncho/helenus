@@ -108,6 +108,23 @@ object PredicateShape {
       : Aux[EqBindPredicate[Col, T], Col :: HNil, HNil, HNil, T :: HNil] =
     instance(List(_))
 
+  /** A `CONTAINS` predicate on a column with a declared secondary index (see
+    * `Table.index`): CQL can satisfy it directly through the index, so unlike
+    * the general `filtering` case above it contributes nothing and does not
+    * force `allowFiltering`.
+    * A `CONTAINS` / `CONTAINS KEY` predicate on a column with a declared
+    * secondary index (see `Table.index`): CQL can satisfy it directly through
+    * the index, so unlike the general `filtering` case above it contributes
+    * nothing and does not force `allowFiltering`.
+    */
+  implicit def indexedBindContains[Col, T, V]
+      : Aux[IndexBindPredicate[Col, T, V], HNil, HNil, HNil, V :: HNil] =
+    instance(List(_))
+
+  implicit def indexedEntryBind[Col, T, K, V]
+      : Aux[IndexEntryBindPredicate[Col, T, K, V], HNil, HNil, HNil, (K, V) :: HNil] =
+    instance(List(_))
+
   implicit def multiValueBind[Col, T, V <: Iterable[T]]
       : Aux[InBindPredicate[Col, T, V], HNil, Col :: HNil, HNil, Seq[T] :: HNil] =
     instance(List(_))
@@ -117,7 +134,7 @@ object PredicateShape {
     instance(List(_))
 
   implicit def filteringBind[T, V]
-      : Aux[BindPredicate[T, V], HNil, HNil, RequiresFiltering :: HNil, T :: HNil] =
+      : Aux[BindPredicate[T, V], HNil, HNil, RequiresFiltering :: HNil, V :: HNil] =
     instance(List(_))
 
   // ---- conjunctions ---------------------------------------------------------

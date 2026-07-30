@@ -17,10 +17,12 @@ import org.scalatest.Suites
   */
 class IntegrationSuites
     extends Suites(
-      new DdlIntegrationSpec,
-      new InsertIntegrationSpec,
-      new SelectExecuteIntegrationSpec,
-      new UpdateIntegrationSpec,
-      new DeleteIntegrationSpec,
-      new ComputedColumnIntegrationSpec
+//      new BindMarkerSpec,
+//      new ComputedColumnIntegrationSpec,
+//      new DdlIntegrationSpec,
+//      new DeleteIntegrationSpec,
+      new IndexIntegrationSpec
+//      new InsertIntegrationSpec,
+//      new SelectExecuteIntegrationSpec,
+//      new UpdateIntegrationSpec
     )

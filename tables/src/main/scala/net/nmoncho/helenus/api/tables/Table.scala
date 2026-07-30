@@ -6,17 +6,23 @@
 
 package net.nmoncho.helenus.api.tables
 
+import scala.annotation.implicitNotFound
+import scala.annotation.unused
+import scala.collection.mutable
+
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.cql.Row
-import net.nmoncho.helenus.api.{ColumnNamingScheme, DefaultColumnNamingScheme, RowMapper}
+import net.nmoncho.helenus.api.ColumnNamingScheme
+import net.nmoncho.helenus.api.DefaultColumnNamingScheme
+import net.nmoncho.helenus.api.RowMapper
 import net.nmoncho.helenus.api.RowMapper.ColumnMapper
 import net.nmoncho.helenus.api.tables.ddl._
 import net.nmoncho.helenus.api.tables.dml._
 import net.nmoncho.helenus.api.tables.dml.where._
-import shapeless.{::, Generic, HList, HNil}
-
-import scala.annotation.{implicitNotFound, unused}
-import scala.collection.mutable
+import shapeless.::
+import shapeless.Generic
+import shapeless.HList
+import shapeless.HNil
 
 /** Base of every table definition: holds the inner column / assignment
   * classes, the type-level key declarations, and the entry points that do not
@@ -135,8 +141,8 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
 
     // ---- bind-marker variants (used with toFunction) ----------------------
     // Passing `?` instead of a value leaves a hole; the value arrives later
-    // as an argument of the function produced by `toFunction`, typed as this
-    // column's `T` (`in(?)` binds a whole `Seq[T]`).
+    // as an argument of the function produced by `prepare` and `prepareAsync`,
+    // typed as this column's `T` (`in(?)` binds a whole `Seq[T]`).
 
     def ===(@unused m: BindMarker): EqBindPredicate[Tag, T] =
       new EqBindPredicate[Tag, T](this)
@@ -151,20 +157,30 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
     def !==(@unused m: BindMarker): BindPredicate[T, T] =
       new SingleValueBindPredicate[T](this, "!=")
 
-    // FIXME having a different type parameter for the bind value and the column type in the context
-    // of a bind marker poses a interesting problem. Since the actual of `V` is defer to the moment is
-    // filled in
     def in(@unused m: BindMarker)(
         implicit iCodec: TypeCodec[Seq[T]]
     ): InBindPredicate[Tag, T, Seq[T]] =
       new InBindPredicate[Tag, T, Seq[T]](this, iCodec)
 
-    // TODO add evidence that this column is a collection
-//    def contains(@unused m: BindMarker): FilterBindPredicate[T] =
-//      new FilterBindPredicate[T](this, "CONTAINS")
-    // TODO add evidence that this column is a collection
-//    def containsKey(@unused m: BindMarker): FilterBindPredicate[T] =
-//      new FilterBindPredicate(this, "CONTAINS KEY")
+    def contains[V](@unused m: BindMarker)(
+        implicit @unused containsEv: ContainsValue[T, V],
+        innerCodec: TypeCodec[V]
+    ): BindPredicate[T, V] = new BindPredicate[T, V](this, "CONTAINS", innerCodec)
+
+    def containsKey[K, V](@unused m: BindMarker)(
+        implicit @unused ev: T <:< scala.collection.Map[K, V],
+        innerCodec: TypeCodec[K]
+    ): BindPredicate[T, K] = new BindPredicate[T, K](this, "CONTAINS KEY", innerCodec)
+
+    /** Map-entry equality: `col[key] = value`. Distinct from `containsKey`
+      * (which only checks key presence): this pins the value at that key too.
+      */
+    def entry[K, V](@unused k: BindMarker, @unused v: BindMarker)(
+        implicit ev: T <:< scala.collection.Map[K, V],
+        keyCodec: TypeCodec[K],
+        valueCodec: TypeCodec[V],
+        tupleCodec: TypeCodec[(K, V)]
+    ): BindPredicate[T, (K, V)] = new EntryBindPredicate[T, K, V](this)
 
     // ---- assignment (used in INSERT / UPDATE) -----------------------------
 
@@ -361,7 +377,7 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
   protected def frozenColumn[V: TypeCodec](name0: String with Singleton)(
       implicit field: FieldOfType[A, name0.type, Frozen[V]]
   ): Column[Frozen[V]] { type Tag = name0.type } =
-    column[Frozen[V]](name0, false)
+    column[Frozen[V]](name0, true)
 
   /** Declare a computed column: a stored column whose value is derived from an
     * `A` via `compute`. Unlike [[column]] it is not a field of `A`, so it is

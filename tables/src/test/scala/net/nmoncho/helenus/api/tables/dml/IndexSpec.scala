@@ -8,7 +8,9 @@ package net.nmoncho.helenus.api.tables
 package dml
 
 import net.nmoncho.helenus.api.tables.TestValues.fixedId
-import net.nmoncho.helenus.api.tables.ddl.{CreateIndex, IndexKind, SAI}
+import net.nmoncho.helenus.api.tables.ddl.CreateIndex
+import net.nmoncho.helenus.api.tables.ddl.IndexKind
+import net.nmoncho.helenus.api.tables.ddl.SAI
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 

@@ -6,11 +6,19 @@
 
 package net.nmoncho.helenus.api.tables.dml.where
 
-import net.nmoncho.helenus.api.tables.{ Asc, Desc }
-import shapeless.{ ::, BasisConstraint, HList, HNil, NotContainsConstraint }
-import shapeless.ops.hlist.{ Last, Prepend, Selector }
+import scala.annotation.implicitNotFound
+import scala.annotation.unused
 
-import scala.annotation.{ implicitNotFound, unused }
+import net.nmoncho.helenus.api.tables.Asc
+import net.nmoncho.helenus.api.tables.Desc
+import shapeless.::
+import shapeless.BasisConstraint
+import shapeless.HList
+import shapeless.HNil
+import shapeless.NotContainsConstraint
+import shapeless.ops.hlist.Last
+import shapeless.ops.hlist.Prepend
+import shapeless.ops.hlist.Selector
 
 /** Evidence that a SELECT with the given constraints is executable without
   * ALLOW FILTERING under CQL rules. The qualifying shapes:

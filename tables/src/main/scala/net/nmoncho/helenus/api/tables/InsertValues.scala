@@ -6,12 +6,16 @@
 
 package net.nmoncho.helenus.api.tables
 
-import net.nmoncho.helenus.api.ColumnNamingScheme
-import shapeless.{ ::, HList, HNil, LabelledGeneric, Witness }
-import shapeless.labelled.FieldType
-
 import scala.annotation.implicitNotFound
 import scala.collection.mutable
+
+import net.nmoncho.helenus.api.ColumnNamingScheme
+import shapeless.::
+import shapeless.HList
+import shapeless.HNil
+import shapeless.LabelledGeneric
+import shapeless.Witness
+import shapeless.labelled.FieldType
 
 /** Renders every field of a case-class instance `A` as a `(cqlName, cqlLiteral)`
   * pair, in field order. Used by `Table.insertFrom` to write a whole entity.

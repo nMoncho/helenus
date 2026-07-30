@@ -10,7 +10,8 @@ package integration
 import java.util.UUID
 
 import com.datastax.oss.driver.api.core.servererrors.InvalidQueryException
-import net.nmoncho.helenus.api.tables.dml.{?, Select}
+import net.nmoncho.helenus.api.tables.dml.?
+import net.nmoncho.helenus.api.tables.dml.Select
 import org.scalatest.DoNotDiscover
 
 /** Every statement the SELECT gate admits is executed against the embedded

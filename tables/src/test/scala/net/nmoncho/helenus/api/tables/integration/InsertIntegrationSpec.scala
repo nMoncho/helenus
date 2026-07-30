@@ -7,12 +7,13 @@
 package net.nmoncho.helenus.api.tables
 package integration
 
-import net.nmoncho.helenus.api.tables.dml.?
 import java.time.Duration
 import java.time.temporal.ChronoUnit
 import java.util.UUID
 
 import scala.jdk.CollectionConverters._
+
+import net.nmoncho.helenus.api.tables.dml.?
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.DoNotDiscover
 

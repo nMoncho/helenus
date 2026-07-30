@@ -10,8 +10,9 @@ package ddl
 import scala.annotation.unused
 
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
+import net.nmoncho.helenus.api.tables.dml.BindMarker
 import net.nmoncho.helenus.api.tables.dml.ContainsValue
-import net.nmoncho.helenus.api.tables.dml.where.{IndexEntryPredicate, IndexEqPredicate, IndexPredicate}
+import net.nmoncho.helenus.api.tables.dml.where._
 
 /** Mixed into a [[Column]] by `Table.index` to record that a secondary
   * index covering `col.===` has been declared on it (a scalar column with
@@ -24,6 +25,9 @@ import net.nmoncho.helenus.api.tables.dml.where.{IndexEntryPredicate, IndexEqPre
 trait EqIndexed[T] { self: TableDef#Column[T] =>
   override def ===(value: T): IndexEqPredicate[Tag, T] =
     new IndexEqPredicate[Tag, T](self, value)
+
+  override def ===(@unused m: BindMarker): IndexEqBindPredicate[Tag, T] =
+    new IndexEqBindPredicate[Tag, T](this)
 }
 
 /** Mixed into a [[Column]] by `Table.index` to record that a VALUES index
@@ -40,6 +44,12 @@ trait ValuesIndexed[T] { self: TableDef#Column[T] =>
       innerCodec: TypeCodec[V]
   ): IndexPredicate[Tag, T, V] =
     new IndexPredicate[Tag, T, V](self, "CONTAINS", value, innerCodec)
+
+  override def contains[V](m: BindMarker)(
+      implicit containsEv: ContainsValue[T, V],
+      innerCodec: TypeCodec[V]
+  ): IndexBindPredicate[Tag, T, V] =
+    new IndexBindPredicate[Tag, T, V](self, "CONTAINS", innerCodec)
 }
 
 /** Mixed into a [[Column]] by `Table.index` to record that a KEYS index
@@ -54,6 +64,12 @@ trait KeysIndexed[T] { self: TableDef#Column[T] =>
       innerCodec: TypeCodec[K]
   ): IndexPredicate[Tag, T, K] =
     new IndexPredicate[Tag, T, K](self, "CONTAINS KEY", value, innerCodec)
+
+  override def containsKey[K, V](@unused m: BindMarker)(
+      implicit @unused ev: T <:< scala.collection.Map[K, V],
+      innerCodec: TypeCodec[K]
+  ): IndexBindPredicate[Tag, T, K] =
+    new IndexBindPredicate[Tag, T, K](self, "CONTAINS KEY", innerCodec)
 }
 
 /** Mixed into a [[Column]] by `Table.index` to record that an ENTRIES
@@ -69,6 +85,14 @@ trait EntriesIndexed[T] { self: TableDef#Column[T] =>
       valueCodec: TypeCodec[V]
   ): IndexEntryPredicate[Tag, T, K, V] =
     new IndexEntryPredicate[Tag, T, K, V](self, key, value)
+
+  override def entry[K, V](@unused k: BindMarker, @unused v: BindMarker)(
+      implicit ev: T <:< scala.collection.Map[K, V],
+      keyCodec: TypeCodec[K],
+      valueCodec: TypeCodec[V],
+      tupleCodec: TypeCodec[(K, V)]
+  ): IndexEntryBindPredicate[Tag, T, K, V] =
+    new IndexEntryBindPredicate[Tag, T, K, V](self)
 }
 
 /** Every index-backed exemption combined: `===`, `contains`, `containsKey`,

@@ -38,6 +38,7 @@ import org.slf4j.LoggerFactory
 
 package object helenus extends CodecDerivation {
 
+  // FIXME maybe we can introduce our own ScalaBoundStatement, and simplify when RowMapper is required.
   type TaggedBoundStatement[Out] = { type Tag = Out }
   type ScalaBoundStatement[Out]  = BoundStatement with TaggedBoundStatement[Out]
 

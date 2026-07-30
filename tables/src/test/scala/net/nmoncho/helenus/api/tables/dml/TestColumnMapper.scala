@@ -8,7 +8,6 @@ package net.nmoncho.helenus.api.tables.dml
 
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.cql.Row
-import net.nmoncho.helenus.api.tables.dml
 import org.mockito.ArgumentMatchers
 import org.mockito.Mockito
 import org.mockito.invocation.InvocationOnMock

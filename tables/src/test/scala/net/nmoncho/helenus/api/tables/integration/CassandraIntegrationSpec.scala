@@ -11,6 +11,7 @@ import java.net.InetSocketAddress
 import scala.jdk.CollectionConverters._
 
 import com.datastax.oss.driver.api.core.CqlSession
+import com.datastax.oss.driver.api.core.PagingIterable
 import com.datastax.oss.driver.api.core.cql.BoundStatement
 import com.datastax.oss.driver.api.core.cql.ResultSet
 import com.datastax.oss.driver.api.core.cql.Row
@@ -60,4 +61,7 @@ trait CassandraIntegrationSpec extends AnyFlatSpec with Matchers with BeforeAndA
 
   protected def rows(bstmt: BoundStatement): List[Row] =
     session.execute(bstmt).all().asScala.toList
+
+  protected def rows[Out](pi: PagingIterable[Out]): List[Out] =
+    pi.all().asScala.toList
 }

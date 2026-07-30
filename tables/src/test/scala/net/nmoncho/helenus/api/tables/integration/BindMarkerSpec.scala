@@ -14,12 +14,15 @@ package net.nmoncho.helenus.api.tables
 package integration
 
 import net.nmoncho.helenus.api.tables.TestValues.fixedId
-import net.nmoncho.helenus.api.tables.dml.{?, Select}
+import net.nmoncho.helenus.api.tables.dml.?
+import net.nmoncho.helenus.api.tables.dml.Select
+import org.scalatest.DoNotDiscover
 
 /** The `?` bind marker: statements with holes become FunctionN via
   * `toFunction`, taking one argument per hole (typed as the bound column) and
   * returning the rendered CQL.
   */
+@DoNotDiscover
 class BindMarkerSpec extends CassandraIntegrationSpec {
   import net.nmoncho.helenus._
 

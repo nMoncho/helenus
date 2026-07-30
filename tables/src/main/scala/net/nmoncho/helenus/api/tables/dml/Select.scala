@@ -14,12 +14,11 @@ import scala.concurrent.Future
 import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.cql.BoundStatement
 import com.datastax.oss.driver.api.core.cql.ResultSet
+import com.datastax.oss.driver.api.core.cql.Row
+import net.nmoncho.helenus.ScalaBoundStatement
 import net.nmoncho.helenus.api.RowMapper
-import net.nmoncho.helenus.api.cql.ScalaPreparedStatement.CQLQuery
-import net.nmoncho.helenus.api.cql.WrappedBoundStatement
-import Select.orderedPredicates
-import where._
-import net.nmoncho.helenus.internal.compat.FutureConverters.CompletionStageOps
+import net.nmoncho.helenus.api.tables.dml.Select.orderedPredicates
+import net.nmoncho.helenus.api.tables.dml.where._
 import shapeless.HList
 import shapeless.HNil
 import shapeless.ops.function.FnFromProduct
@@ -117,23 +116,26 @@ final case class Select[
       orderedPredicates(this).asInstanceOf[Seq[BoundPredicate[_, _]]]
     )
 
-  def prepare(
+  def prepare[F](
       implicit @unused ev: CanSelect[table.PK, table.CK, Eq, In, Rng],
       session: CqlSession,
-      to: ToPrepared[Params]
+      to: ToPrepared[Params],
+      fp: FnFromProduct.Aux[Params => ScalaBoundStatement[Row], F]
   ): to.Out#AsOut[Out] =
-    to(CQLQuery(Select.render(this, allowFiltering = false, prepared = true), session))
+    to(Select.render(this, allowFiltering = false, prepared = true), Nil, orderedPredicates(this))
       .as(rowMapper)
 
-  def prepareAsync(
+  def prepareAsync[F](
       implicit @unused ev: CanSelect[table.PK, table.CK, Eq, In, Rng],
       session: Future[CqlSession],
       ec: ExecutionContext,
-      to: ToPrepared[Params]
+      to: ToPrepared[Params],
+      fp: FnFromProduct.Aux[Params => ScalaBoundStatement[Row], F]
   ): Future[to.Out#AsOut[Out]] =
-    session.map(s =>
-      to(CQLQuery(Select.render(this, allowFiltering = false, prepared = true), s)).as(rowMapper)
-    )
+    session.map { implicit s =>
+      to(Select.render(this, allowFiltering = false, prepared = true), Nil, orderedPredicates(this))
+        .as(rowMapper)
+    }
 
   private[dml] def withBoundValues(
       bstmt: BoundStatement,
@@ -214,32 +216,30 @@ object Select {
     /** Like `Select.prepare`, without the primary-key requirement. */
     def prepare[F](
         implicit session: CqlSession,
-        fp: FnFromProduct.Aux[Params => WrappedBoundStatement[Out], F]
-    ): F = {
-      val pstmt = session.prepare(Select.render(select, allowFiltering = true, prepared = true))
-
-      fp { params =>
-        new WrappedBoundStatement(select.withBoundValues(pstmt.bind(), params))(select.rowMapper)
-      }
-    }
+        to: ToPrepared[Params],
+        fp: FnFromProduct.Aux[Params => ScalaBoundStatement[Row], F]
+    ): to.Out#AsOut[Out] =
+      to(
+        Select.render(select, allowFiltering = true, prepared = true),
+        Nil,
+        orderedPredicates(select)
+      )
+        .as(select.rowMapper)
 
     def prepareAsync[F](
         implicit session: Future[CqlSession],
         ec: ExecutionContext,
-        fp: FnFromProduct.Aux[Params => Future[WrappedBoundStatement[Out]], F]
-    ): F = {
-      val pstmt = session.flatMap(
-        _.prepareAsync(Select.render(select, allowFiltering = true, prepared = true)).asScala
-      )
-
-      fp { params =>
-        pstmt.map(p =>
-          new WrappedBoundStatement(select.withBoundValues(p.bind(), params))(
-            select.rowMapper
-          )
+        to: ToPrepared[Params],
+        fp: FnFromProduct.Aux[Params => ScalaBoundStatement[Row], F]
+    ): Future[to.Out#AsOut[Out]] =
+      session.map { implicit s =>
+        to(
+          Select.render(select, allowFiltering = true, prepared = true),
+          Nil,
+          orderedPredicates(select)
         )
+          .as(select.rowMapper)
       }
-    }
   }
 
   private[tables] def render[

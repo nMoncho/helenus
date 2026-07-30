@@ -8,11 +8,13 @@ package net.nmoncho.helenus
 package api
 package tables
 
-import net.nmoncho.helenus.api.{ ColumnNamingScheme, SnakeCase }
-import net.nmoncho.helenus.api.tables.ddl.{ IndexKind, SAI }
-import shapeless._
-
 import java.util.UUID
+
+import net.nmoncho.helenus.api.ColumnNamingScheme
+import net.nmoncho.helenus.api.SnakeCase
+import net.nmoncho.helenus.api.tables.ddl.IndexKind
+import net.nmoncho.helenus.api.tables.ddl.SAI
+import shapeless._
 
 case class User(
     id: UUID,

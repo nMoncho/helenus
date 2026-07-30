@@ -8,6 +8,7 @@ package net.nmoncho.helenus.api.tables
 package dml
 
 import java.util.UUID
+
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 

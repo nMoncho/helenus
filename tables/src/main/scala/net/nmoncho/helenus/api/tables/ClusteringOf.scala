@@ -6,7 +6,9 @@
 
 package net.nmoncho.helenus.api.tables
 
-import shapeless.{ ::, HList, HNil }
+import shapeless.::
+import shapeless.HList
+import shapeless.HNil
 
 /** Phantom marker: clustering column with name tag `C` sorted ascending (the
   * CQL default). Used inside a table's `CK` declaration; a bare tag means the

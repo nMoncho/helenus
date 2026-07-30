@@ -205,11 +205,23 @@ final class IndexEntryPredicate[Col, T, K, V](
 /** Runtime side of a bind predicate: a predicate whose value is a hole,
   * fillable later with an argument of the captured column type.
   */
-sealed abstract class BindPredicate[T, V](val column: TableDef#Column[T], val operator: String)
-    extends Predicate[T, V] {
+sealed class BindPredicate[T, V](
+    val column: TableDef#Column[T],
+    val operator: String,
+    val codec: TypeCodec[V]
+) extends Predicate[T, V] {
 
-  /** Completes this predicate with a value (internally type-safe by construction). */
-  private[tables] def fill(v: V): Predicate[T, V]
+  private[tables] def fill(v: V): Predicate[T, V] = new Predicate[T, V] {
+    override val column: TableDef#Column[T] = BindPredicate.this.column
+
+    override val operator: String = BindPredicate.this.operator
+
+    override def bind(bstmt: BoundStatement, idx: Int, _not_use_value: V): BoundStatement =
+      bstmt.set[V](idx, v, codec)
+  }
+
+  override def bind(bstmt: BoundStatement, idx: Int, value: V): BoundStatement =
+    bstmt.set(idx, value, codec)
 }
 
 object BindPredicate {
@@ -218,16 +230,10 @@ object BindPredicate {
 }
 
 class SingleValueBindPredicate[T](column: TableDef#Column[T], operator: String)
-    extends BindPredicate[T, T](column, operator) {
-
-  override def bind(bstmt: BoundStatement, idx: Int, value: T): BoundStatement =
-    bstmt.set[T](idx, value, column.codec)
-
-  private[tables] def fill(v: T): Predicate[T, T] = Predicate(column, operator, v)
-}
+    extends BindPredicate[T, T](column, operator, column.codec)
 
 /** A bound equality: `col === ?`. */
-final class EqBindPredicate[Col, T](column: TableDef#Column[T])
+class EqBindPredicate[Col, T](column: TableDef#Column[T])
     extends SingleValueBindPredicate[T](column, "=")
 
 /** A bound range: `col > ?`, `col <= ?`, ... */
@@ -240,11 +246,45 @@ final class RangeBindPredicate[Col, T](
 final class InBindPredicate[Col, T, V <: Iterable[T]](
     column: TableDef#Column[T],
     codec: TypeCodec[V]
-) extends BindPredicate[T, V](column, "IN") {
+) extends BindPredicate[T, V](column, "IN", codec) {
 
-  private[tables] def fill(v: V): Predicate[T, V] =
+  override private[tables] def fill(v: V): Predicate[T, V] =
     new InPredicate(column, v, codec)
-
-  override def bind(bstmt: BoundStatement, idx: Int, values: V): BoundStatement =
-    bstmt.set[V](idx, values, codec)
 }
+
+sealed class EntryBindPredicate[T, K, V](column: TableDef#Column[T])(
+    implicit keyCodec: TypeCodec[K],
+    valueCodec: TypeCodec[V],
+    tupleCodec: TypeCodec[(K, V)]
+) extends BindPredicate[T, (K, V)](column, "=", tupleCodec) {
+
+  override def toCQL: String                = s"${column.name}[?] $operator ?"
+  override def forPreparedStatement: String = s"${column.name}[?] $operator ?"
+
+  override def bind(bstmt: BoundStatement, idx: Int, value: (K, V)): BoundStatement = {
+    val (k, v) = value
+
+    bstmt.set[K](idx, k, keyCodec).set[V](idx + 1, v, valueCodec)
+  }
+}
+
+final class IndexEqBindPredicate[Col, T](column: TableDef#Column[T])
+    extends EqBindPredicate[Col, T](column)
+
+/** A `CONTAINS` / `CONTAINS KEY` predicate on a column with a declared
+  * secondary index (see `Table.index` / [[TableDef.Indexed]]). Unlike the
+  * plain [[Predicate]] produced by `contains` / `containsKey` on a
+  * non-indexed column, CQL can satisfy this directly through the index, so it
+  * does not require `ALLOW FILTERING` (see [[PredicateShape]]).
+  */
+final class IndexBindPredicate[Col, T, V](
+    column: TableDef#Column[T],
+    operator: String,
+    codec: TypeCodec[V]
+) extends BindPredicate[T, V](column, operator, codec)
+
+final class IndexEntryBindPredicate[Col, T, K, V](column: TableDef#Column[T])(
+    implicit keyCodec: TypeCodec[K],
+    valueCodec: TypeCodec[V],
+    tupleCodec: TypeCodec[(K, V)]
+) extends EntryBindPredicate[T, K, V](column)

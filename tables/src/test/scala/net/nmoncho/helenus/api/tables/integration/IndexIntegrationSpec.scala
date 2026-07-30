@@ -115,12 +115,31 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
         .where(ArticlesTable.id === article1 and ArticlesTable.tags.contains("scala"))
         .execute()
     )
+
     result should have size 1
+
+    val boundResults = rows(
+      ArticlesTable
+        .select()
+        .where(ArticlesTable.id === article1 and ArticlesTable.tags.contains(?))
+        .prepare
+        .execute("scala")
+    )
+
+    boundResults should have size 1
   }
 
   it should "find nothing for a value no row has, without needing allowFiltering" in {
     rows(
       ArticlesTable.select().where(ArticlesTable.tags.contains("cooking")).execute()
+    ) shouldBe empty
+
+    rows(
+      ArticlesTable
+        .select()
+        .where(ArticlesTable.id === article1 and ArticlesTable.tags.contains(?))
+        .prepare
+        .execute("cooking")
     ) shouldBe empty
   }
 
@@ -135,6 +154,15 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
         prepared       = false
       )
     )
+
+    an[InvalidQueryException] should be thrownBy
+    execute(
+      Select.render(
+        ArticlesTable.select().where(ArticlesTable.categories.contains(?)),
+        allowFiltering = false,
+        prepared       = true
+      )
+    )
   }
 
   it should "run once allowFiltering is used" in {
@@ -145,7 +173,19 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
         .allowFiltering
         .execute()
     )
+
     result.map(_.get("id", classOf[UUID])) shouldBe List(article1)
+
+    val boundResult = rows(
+      ArticlesTable
+        .select()
+        .where(ArticlesTable.categories.contains(?))
+        .allowFiltering
+        .prepare
+        .execute("backend")
+    )
+
+    boundResult.map(_.id) shouldBe List(article1)
   }
 
   // ---- containsKey: indexed map column, no ALLOW FILTERING ------------------
@@ -210,10 +250,12 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
 
   "equality on a non-indexed Frozen column" should "be rejected by Cassandra without ALLOW FILTERING" in {
     an[InvalidQueryException] should be thrownBy
-    Select.render(
-      SnapshotsTable.select().where(SnapshotsTable.tags === Frozen(Set("backend"))),
-      allowFiltering = false,
-      prepared       = false
+    execute(
+      Select.render(
+        SnapshotsTable.select().where(SnapshotsTable.tags === Frozen(Set("backend"))),
+        allowFiltering = false,
+        prepared       = false
+      )
     )
   }
 
@@ -248,10 +290,12 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
 
   "equality on a non-indexed scalar column" should "be rejected by Cassandra without ALLOW FILTERING" in {
     an[InvalidQueryException] should be thrownBy
-    Select.render(
-      CustomersTable.select().where(CustomersTable.age === 30),
-      allowFiltering = false,
-      prepared       = false
+    execute(
+      Select.render(
+        CustomersTable.select().where(CustomersTable.age === 30),
+        allowFiltering = false,
+        prepared       = false
+      )
     )
   }
 
@@ -267,6 +311,12 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
     val result =
       rows(ProfilesTable.select().where(ProfilesTable.attributes.entry("color", "red")).execute())
     result.map(_.get("id", classOf[UUID])) shouldBe List(profile1)
+
+    // implicit val rm = RowMapper[Profile]() // FIXME this should NOT be happening, this is because ScalaBoundStatement doesn't carry the RowMapper
+    // rows(pstmt("color" -> "red").execute("color" -> "red")).map(_.id) shouldBe List(profile1)
+
+    val pstmt = ProfilesTable.select().where(ProfilesTable.attributes.entry(?, ?)).prepare
+    rows(pstmt.execute("color" -> "red")).map(_.id) shouldBe List(profile1)
   }
 
   it should "find nothing when the key exists but the value doesn't match, without needing allowFiltering" in {
@@ -279,10 +329,18 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
 
   "entry on a non-indexed column" should "be rejected by Cassandra without allowFiltering" in {
     an[InvalidQueryException] should be thrownBy
-    Select.render(
-      ProfilesTable.select().where(ProfilesTable.settings.entry("locale", "en")),
-      allowFiltering = false,
-      prepared       = false
+    execute(
+      Select.render(
+        ProfilesTable.select().where(ProfilesTable.settings.entry("locale", "en")),
+        allowFiltering = false,
+        prepared       = false
+      )
+    )
+  }
+
+  "entry on a Keys-only indexed column" should "NOT compile without allowFiltering (no entries index exists)" in {
+    assertTypeError(
+      """ProfilesTable.select().where(ProfilesTable.settings.entry(?, ?)).prepare"""
     )
   }
 
@@ -362,10 +420,12 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
 
   "contains on a keys-only indexed column" should "be rejected by Cassandra without allowFiltering" in {
     an[InvalidQueryException] should be thrownBy
-    Select.render(
-      DocumentsTable.select().where(DocumentsTable.tags.contains("red")),
-      allowFiltering = false,
-      prepared       = false
+    execute(
+      Select.render(
+        DocumentsTable.select().where(DocumentsTable.tags.contains("red")),
+        allowFiltering = false,
+        prepared       = false
+      )
     )
   }
 
@@ -378,10 +438,12 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
 
   "entry on a keys-only indexed column" should "be rejected by Cassandra without allowFiltering" in {
     an[InvalidQueryException] should be thrownBy
-    Select.render(
-      DocumentsTable.select().where(DocumentsTable.tags.entry("color", "red")),
-      allowFiltering = false,
-      prepared       = false
+    execute(
+      Select.render(
+        DocumentsTable.select().where(DocumentsTable.tags.entry("color", "red")),
+        allowFiltering = false,
+        prepared       = false
+      )
     )
   }
 
@@ -414,10 +476,12 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
 
   "entry on a values+keys indexed column" should "be rejected by Cassandra without allowFiltering" in {
     an[InvalidQueryException] should be thrownBy
-    Select.render(
-      DocumentsTable.select().where(DocumentsTable.metadata.entry("color", "red")),
-      allowFiltering = false,
-      prepared       = false
+    execute(
+      Select.render(
+        DocumentsTable.select().where(DocumentsTable.metadata.entry("color", "red")),
+        allowFiltering = false,
+        prepared       = false
+      )
     )
   }
 
@@ -455,10 +519,12 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
 
   "equality on a non-indexed Frozen map column" should "be rejected by Cassandra without ALLOW FILTERING" in {
     an[InvalidQueryException] should be thrownBy
-    Select.render(
-      CatalogsTable.select().where(CatalogsTable.tags === Frozen(Map("color" -> "red"))),
-      allowFiltering = false,
-      prepared       = false
+    execute(
+      Select.render(
+        CatalogsTable.select().where(CatalogsTable.tags === Frozen(Map("color" -> "red"))),
+        allowFiltering = false,
+        prepared       = false
+      )
     )
   }
 

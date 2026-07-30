@@ -6,7 +6,9 @@
 
 package net.nmoncho.helenus.api.tables
 
-import shapeless.{ ::, HList, HNil }
+import shapeless.::
+import shapeless.HList
+import shapeless.HNil
 
 /** Materializes the runtime column names from a type-level list of column
   * name tags such as `id.Tag :: username.Tag :: HNil` (each tag dealiases to

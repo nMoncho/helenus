@@ -6,13 +6,12 @@
 
 package net.nmoncho.helenus.api.tables
 
+import java.nio.ByteBuffer
+
 import com.datastax.oss.driver.api.core.ProtocolVersion
 import com.datastax.oss.driver.api.core.`type`.DataType
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.`type`.reflect.GenericType
-import net.nmoncho.helenus.api.tables.dml.IndexTargets
-
-import java.nio.ByteBuffer
 
 /** Marks a collection field as CQL `frozen<...>`: the whole collection is
   * serialized as a single value, so unlike a regular collection it has no

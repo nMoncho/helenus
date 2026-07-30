@@ -12,7 +12,10 @@ import java.time.temporal.ChronoUnit
 import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.cql.BoundStatement
 import com.datastax.oss.driver.api.core.cql.ResultSet
-import net.nmoncho.helenus.api.tables.dml.where.{BindPredicate, BoundPredicate, Predicate}
+import net.nmoncho.helenus.api.tables.dml.where.BindPredicate
+import net.nmoncho.helenus.api.tables.dml.where.BoundPredicate
+import net.nmoncho.helenus.api.tables.dml.where.EntryBindPredicate
+import net.nmoncho.helenus.api.tables.dml.where.Predicate
 import shapeless.HList
 import shapeless.ops.function.FnFromProduct
 
@@ -47,14 +50,21 @@ package object dml {
       predicates: Seq[Predicate[_, _]],
       values: Iterator[Any],
       offset: Int = 0
-  ): BoundStatement =
-    predicates.zipWithIndex.foldLeft(bstmt) {
-      case (bstmt, (p: BoundPredicate[Any, Any], idx)) =>
-        p.bind(bstmt, idx + offset, p.value)
+  ): BoundStatement = {
+    val (bound, _) = predicates.foldLeft(bstmt -> offset) {
+      case ((bstmt, idx), p: BoundPredicate[Any, Any]) =>
+        p.bind(bstmt, idx, p.value) -> (idx + 1)
 
-      case (bstmt, (p: BindPredicate[_, Any], idx)) =>
-        p.bind(bstmt, idx + offset, values.next())
+      case ((bstmt, idx), p: EntryBindPredicate[Any, Any, Any]) =>
+        val (key, value) = values.next().asInstanceOf[(Any, Any)]
+        p.bind(bstmt, idx, key -> value) -> (idx + 2)
+
+      case ((bstmt, idx), p: BindPredicate[_, Any]) =>
+        p.bind(bstmt, idx, values.next()) -> (idx + 1)
     }
+
+    bound
+  }
 
   def bindBoundAssignments(
       bstmt: BoundStatement,
