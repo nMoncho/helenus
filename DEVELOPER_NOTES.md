@@ -44,3 +44,33 @@ $ java -jar antlr-4.13.2-complete.jar \
   -visitor \                                                        # generate visitor classes
   core/src/main/antlr4/CqlLexer.g4 core/src/main/antlr4/CqlParser.64
 ```
+
+### CQL String Interpolation - Bind Markers vs Injected Text
+
+An interpolated parameter is either bound, or injected into the query text as is. Which one
+applies is not decided by what the parameter is, but by where it sits:
+
+```scala
+// `tableName` and `name` are injected, `DefaultName` is bound
+cql"SELECT * FROM $tableName WHERE $name = $DefaultName ALLOW FILTERING"
+```
+
+`CqlQueryInterpolation` asks the grammar. Every parameter starts out as a bind marker, and the
+statement is handed to `CqlValidator` as a whole; whenever the parser rejects a marker, that
+parameter is injected into the query text instead and the statement is checked again. Each round
+settles one parameter, so this converges in at most one round per parameter.
+
+Two things follow from asking the grammar rather than looking at the value:
+
+- A compile-time constant in a value position is *bound*, not spliced into the query text, so it
+  goes through its `TypeCodec` like any other value. That means no CQL literal quoting or
+  escaping to get wrong. Only positions where CQL has no room for a bind marker (a table name, a
+  column name, `LIMIT`) get the constant injected, and only a constant can go there at all.
+- Since the compiler folds constants into literals before the macro runs, a bound constant has no
+  name left to build a marker out of, so one is derived from its position (`:p2`). Parameters that
+  do have a name keep it (`:nickname`).
+
+A parameter the parser rejects that *isn't* a compile-time constant can't be injected, so the
+statement stays invalid and `CqlValidator` reports it. In that case the error shows the statement
+with every constant injected, the way the caller wrote it, so it points at the query they typed
+rather than at bind markers they never asked for.

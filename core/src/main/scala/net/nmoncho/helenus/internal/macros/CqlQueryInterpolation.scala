@@ -6,6 +6,7 @@
 
 package net.nmoncho.helenus.internal.macros
 
+import scala.annotation.tailrec
 import scala.annotation.unused
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
@@ -99,7 +100,7 @@ object CqlQueryInterpolation {
       case Left((error, pos)) =>
         c.abort(
           c.enclosingPosition.withPoint(c.enclosingPosition.point + pos),
-          s"Invalid CQL: $error"
+          s"Invalid CQL [$stmt]. Cause: $error"
         )
     }
 
@@ -107,10 +108,10 @@ object CqlQueryInterpolation {
       q"$session.prepare($stmt).bind()"
     )
 
-    val expr = bindParameters.foldLeft(bstmt) { case (stmt, parameter) =>
+    val expr = bindParameters.foldLeft(bstmt) { case (stmt, (name, parameter)) =>
       setBindParameter(c)(parameter) { codec =>
         c.Expr[BoundStatement](
-          q"$stmt.set(${parameter.tree.symbol.name.toString}, $parameter, $codec)"
+          q"$stmt.set($name, $parameter, $codec)"
         )
       }
     }
@@ -135,7 +136,7 @@ object CqlQueryInterpolation {
       case Left((error, pos)) =>
         c.abort(
           c.enclosingPosition.withPoint(c.enclosingPosition.point + pos),
-          s"Invalid CQL: $error"
+          s"Invalid CQL [$stmt]. Cause: $error"
         )
     }
 
@@ -143,10 +144,10 @@ object CqlQueryInterpolation {
       q"$session.flatMap(s => _root_.net.nmoncho.helenus.internal.compat.FutureConverters.asScala(s.prepareAsync($stmt)))"
     )
 
-    val bounders = bindParameters.map { parameter =>
+    val bounders = bindParameters.map { case (name, parameter) =>
       setBindParameter(c)(parameter) { codec =>
         c.Expr[Unit](
-          q"bstmt = bstmt.set(${parameter.tree.symbol.name.toString}, $parameter, $codec)"
+          q"bstmt = bstmt.set($name, $parameter, $codec)"
         )
       }
     }
@@ -159,16 +160,17 @@ object CqlQueryInterpolation {
   }
 
   /** Builds a CQL Statement, considering:
-    *   - Constants will be replaced as is
-    *   - Other expressions will be considered 'Named Bound Parameters'
+    *   - Parameters sitting where CQL takes a value become 'Named Bound Parameters'
+    *   - Parameters sitting anywhere else are injected into the query text as is, which
+    *     requires them to be compile-time constants
     *
     * @param c Context
     * @param params String Interpolated parameters
-    * @return CQL statement, with the expression that are meant to be Bound Parameters
+    * @return CQL statement, with the name and expression of each Bound Parameter
     */
   private def buildStatement(
       c: blackbox.Context
-  )(params: Seq[c.Expr[Any]]): (String, Seq[c.Expr[Any]]) = {
+  )(params: Seq[c.Expr[Any]]): (String, Seq[(String, c.Expr[Any])]) = {
     import c.universe._
 
     // All parts a String constants
@@ -177,40 +179,154 @@ object CqlQueryInterpolation {
         rawParts.map { case Literal(Constant(value: String)) => value }
     }
 
-    // Params that are constants will be replaced as is,
-    // whereas other are defined as named bind parameters
-    val paramsTokens = params.map { expr =>
-      expr.tree match {
-        case Literal(Constant(value)) =>
-          value
+    val names = bindMarkerNames(c)(params)
 
-        case other =>
-          val symbol = other.symbol.name.toString
-          val named  =
-            if (Strings.needsDoubleQuotes(symbol)) Strings.doubleQuote(symbol)
-            else symbol
+    // A constant is the only kind of parameter that can be injected into the query text. The
+    // compiler folds those into literals before the macro sees them, which is also why their
+    // name is no longer around to build a bind marker out of.
+    val injectable = params.map(_.tree match {
+      case Literal(Constant(value)) => Some(String.valueOf(value))
+      case _ => None
+    })
 
-          s":$named"
-      }
+    val bound = boundParams(parts, names, injectable)
+    val cql   = interleave(parts, tokensOf(names, injectable, bound))
+
+    val bindParameters = params.indices.collect {
+      case idx if bound(idx) => names(idx) -> params(idx)
     }
 
-    val cql = parts
-      .zip(paramsTokens)
+    cql -> bindParameters
+  }
+
+  /** Decides which parameters can be bound, by asking the grammar where a bind marker fits.
+    *
+    * Every parameter starts out as a bind marker and the statement is handed to the parser as a
+    * whole. Whenever the parser rejects one, that parameter is injected into the query text
+    * instead and the statement is checked again, until the parser is happy. A parameter the
+    * parser rejects and the macro can't inject - anything that isn't a compile-time constant -
+    * is left alone, for the caller's validation to report.
+    *
+    * Each round settles one parameter for good, so this converges in at most one round per
+    * parameter.
+    *
+    * @param parts String Interpolated constant parts
+    * @param names bind marker name of each parameter
+    * @param injectable query text of each parameter that can be injected as is
+    * @return whether each parameter is to be bound
+    */
+  private def boundParams(
+      parts: Seq[String],
+      names: Seq[String],
+      injectable: Seq[Option[String]]
+  ): Seq[Boolean] = {
+    val bound = Array.fill(names.size)(true)
+
+    def statement: String = interleave(parts, tokensOf(names, injectable, bound))
+
+    // Where a parameter's text starts within the statement built out of the current decisions
+    def startOf(idx: Int): Int =
+      parts.take(idx + 1).map(_.length).sum +
+        tokensOf(names, injectable, bound).take(idx).map(_.length).sum
+
+    // A bind marker the parser accepted, but which isn't a marker at all: the caller wrapped it
+    // in quotes, so it ended up as part of a string literal rather than as a token of its own
+    def swallowed(stmt: String): Option[Int] = {
+      val markers = CqlValidator.bindMarkerOffsets(stmt)
+
+      names.indices.find(idx => bound(idx) && injectable(idx).isDefined && !markers(startOf(idx)))
+    }
+
+    // The rightmost parameter the parser could be rejecting: one that starts no later than the
+    // offending token, and that can still be injected instead. Anything further to the right
+    // can't be the cause, since parsing stops at the first error.
+    def rejected(stmt: String): Option[Int] =
+      CqlValidator.firstErrorOffset(stmt).flatMap { offset =>
+        names.indices.reverse
+          .find(idx => bound(idx) && injectable(idx).isDefined && startOf(idx) <= offset)
+      }
+
+    @tailrec
+    def settle(rounds: Int): Unit =
+      if (rounds > 0) {
+        val stmt = statement
+
+        rejected(stmt).orElse(swallowed(stmt)) match {
+          case Some(idx) =>
+            bound(idx) = false
+            settle(rounds - 1)
+
+          // Either the statement is valid, or nothing else can be injected
+          case None => ()
+        }
+      }
+
+    settle(names.size)
+
+    // A statement that can't be made valid is reported with every constant injected as the user
+    // wrote it, so that the error points at the query they typed rather than at bind markers
+    // they never asked for
+    if (CqlValidator.firstErrorOffset(statement).isEmpty) bound.toSeq
+    else injectable.map(_.isEmpty)
+  }
+
+  /** Name of the bind marker each parameter would use.
+    *
+    * Parameters that carry a name keep it, which is what makes a statement readable. A constant
+    * has been folded into a literal by the time the macro runs, so its name is gone and one is
+    * derived from its position instead.
+    *
+    * @param c Context
+    * @param params String Interpolated parameters
+    * @return bind marker name of each parameter, in the same order
+    */
+  private def bindMarkerNames(c: blackbox.Context)(params: Seq[c.Expr[Any]]): Seq[String] = {
+    import c.universe._
+
+    val named = params.map(_.tree match {
+      case Literal(Constant(_)) => None
+      case other => Some(other.symbol.name.toString)
+    })
+
+    val taken = named.flatten.toSet
+
+    named.zipWithIndex.map {
+      case (Some(name), _) => name
+
+      // Keep suffixing until the derived name can't collide with one of the parameters that
+      // came with its own, which would bind both of them to the same marker
+      case (None, idx) => Iterator.iterate(s"p$idx")(_ + "_").find(!taken.contains(_)).get
+    }
+  }
+
+  /** Text each parameter contributes to the query: a bind marker, or the constant it folds to */
+  private def tokensOf(
+      names: Seq[String],
+      injectable: Seq[Option[String]],
+      bound: Seq[Boolean]
+  ): Seq[String] =
+    names.indices.map { idx =>
+      // Only a parameter that can be injected is ever left unbound, so the fallback below is
+      // there to keep this total rather than because it can be reached
+      if (bound(idx)) bindMarker(names(idx))
+      else injectable(idx).getOrElse(bindMarker(names(idx)))
+    }
+
+  /** A named bind marker, quoted if the name calls for it */
+  private def bindMarker(name: String): String =
+    if (Strings.needsDoubleQuotes(name)) s":${Strings.doubleQuote(name)}" else s":$name"
+
+  /** Weaves the constant parts of a String Interpolation and its parameters back into a single
+    * statement
+    */
+  private def interleave(parts: Seq[String], params: Seq[String]): String =
+    parts
+      .zip(params)
       .foldLeft(new StringBuilder()) { case (acc, (part, param)) =>
         acc.append(part).append(param)
       }
       .append(parts.lastOption.getOrElse(""))
       .toString
-
-    val bindParameters = params.filter {
-      _.tree match {
-        case Literal(Constant(_)) => false
-        case _ => true
-      }
-    }
-
-    cql -> bindParameters
-  }
 
   /** Sets a Bind Parameter into a CQL BoundStatement
     *
@@ -225,14 +341,18 @@ object CqlQueryInterpolation {
   )(param: c.Expr[Any])(bind: c.Tree => c.Expr[A]): c.Expr[A] = {
     import c.universe._
 
+    // A constant is typed as the single value it holds (eg. `String("helenus")`), and a codec is
+    // only ever defined for the type itself, so the singleton has to be widened away first
+    val tpe = param.tree.tpe.widen
+
     c.typecheck(
-      q"implicitly[_root_.com.datastax.oss.driver.api.core.`type`.codec.TypeCodec[${param.tree.tpe}]]",
+      q"implicitly[_root_.com.datastax.oss.driver.api.core.`type`.codec.TypeCodec[$tpe]]",
       silent = true
     ) match {
       case EmptyTree =>
         c.abort(
           c.enclosingPosition,
-          s"Couldn't find an implicit TypeCodec for [${param.tree.tpe}]"
+          s"Couldn't find an implicit TypeCodec for [$tpe]"
         )
 
       case codec =>
