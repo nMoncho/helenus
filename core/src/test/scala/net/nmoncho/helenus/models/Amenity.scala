@@ -6,8 +6,6 @@
 
 package net.nmoncho.helenus.models
 
-import net.nmoncho.helenus.api.RowMapper
-
 final case class Amenity(name: String, description: String)
 
 object Amenity {

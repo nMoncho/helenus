@@ -18,7 +18,6 @@ import com.datastax.oss.driver.api.core.MappedAsyncPagingIterable
 import com.datastax.oss.driver.api.core.PagingIterable
 import com.datastax.oss.driver.api.core.cql.BoundStatement
 import com.datastax.oss.driver.api.core.cql.Row
-import net.nmoncho.helenus.api.RowMapper
 import net.nmoncho.helenus.api.`type`.codec.CodecDerivation
 import net.nmoncho.helenus.api.cql._
 import net.nmoncho.helenus.internal.cql._

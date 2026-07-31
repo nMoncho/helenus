@@ -14,10 +14,6 @@ import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.cql.Row
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
-import net.nmoncho.helenus.api.RowMapper
-import net.nmoncho.helenus.api.cql.Adapter
-import net.nmoncho.helenus.api.cql.Pager
-import net.nmoncho.helenus.api.cql.PagerSerializer
 import net.nmoncho.helenus.utils.CassandraSpec
 import org.apache.pekko.Done
 import org.apache.pekko.NotUsed

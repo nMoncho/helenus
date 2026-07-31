@@ -14,7 +14,6 @@ import com.datastax.oss.driver.api.core.cql._
 import net.nmoncho.helenus.SettableByNameOps
 import net.nmoncho.helenus.api.ColumnNamingScheme
 import net.nmoncho.helenus.api.DefaultColumnNamingScheme
-import net.nmoncho.helenus.api.RowMapper
 import net.nmoncho.helenus.api.cql.Mapping
 import net.nmoncho.helenus.api.cql.ScalaBoundStatement
 import net.nmoncho.helenus.api.cql.ScalaPreparedStatement

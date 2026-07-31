@@ -6,11 +6,11 @@
 
 package net.nmoncho.helenus.api.cql
 
+import scala.reflect.ClassTag
+
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import net.nmoncho.helenus.api.RowMapper
 import net.nmoncho.helenus.internal.cql.DerivedMapping.Builder
-
-import scala.reflect.ClassTag
 
 /** Defines the contract of how Helenus can map a type [[T]] into and from the database
   *

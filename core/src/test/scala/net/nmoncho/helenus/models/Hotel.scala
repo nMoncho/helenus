@@ -6,8 +6,6 @@
 
 package net.nmoncho.helenus.models
 
-import net.nmoncho.helenus.api.RowMapper
-
 final case class Hotel(id: String, name: String, phone: String, address: Address, pois: Set[String])
 
 object Hotel {

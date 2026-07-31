@@ -16,14 +16,8 @@ import com.datastax.oss.driver.api.core.MappedAsyncPagingIterable
 import com.datastax.oss.driver.api.core.PagingIterable
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.cql._
-import net.nmoncho.helenus.api.RowMapper
 import net.nmoncho.helenus.api.cql.Adapter
 import net.nmoncho.helenus.api.cql.Mapping
-import net.nmoncho.helenus.api.cql.PagerSerializer
-import net.nmoncho.helenus.api.cql.ScalaBoundStatement
-import net.nmoncho.helenus.api.cql.ScalaPreparedStatement
-import net.nmoncho.helenus.api.cql.StatementOptions
-import net.nmoncho.helenus.api.cql.{ Pager => ApiPager }
 import org.reactivestreams.Publisher
 
 // format: off
@@ -79,13 +73,13 @@ class AdaptedScalaPreparedStatement[In2, In, Out](pstmt: ScalaPreparedStatement[
   override def withOptions(options: StatementOptions): Self =
     new AdaptedScalaPreparedStatement(pstmt, mapper, adapter, options)
 
-  def pager(t1: In2): ApiPager[Out] =
+  def pager(t1: In2): Pager[Out] =
     Pager.initial(apply(t1))
 
-  def pager(pagingState: PagingState, t1: In2): Try[ApiPager[Out]] =
+  def pager(pagingState: PagingState, t1: In2): Try[Pager[Out]] =
     Pager.continue(apply(t1), pagingState)
 
-  def pager[A: PagerSerializer](pagingState: A, t1: In2): Try[ApiPager[Out]] =
+  def pager[A: PagerSerializer](pagingState: A, t1: In2): Try[Pager[Out]] =
     Pager.continueFromEncoded(apply(t1), pagingState)
 
 }
@@ -140,12 +134,12 @@ class ScalaPreparedStatementUnit[Out](pstmt: PreparedStatement, mapper: RowMappe
   override def withOptions(options: StatementOptions): Self =
     new ScalaPreparedStatementUnit(pstmt, mapper, options)
 
-  def pager(): ApiPager[Out] = Pager.initial(apply())
+  def pager(): Pager[Out] = Pager.initial(apply())
 
-  def pager(pagingState: PagingState): Try[ApiPager[Out]] =
+  def pager(pagingState: PagingState): Try[Pager[Out]] =
     Pager.continue(apply(), pagingState)
 
-  def pager[A: PagerSerializer](pagingState: A): Try[ApiPager[Out]] =
+  def pager[A: PagerSerializer](pagingState: A): Try[Pager[Out]] =
     Pager.continueFromEncoded(apply(), pagingState)
 
 }
@@ -199,12 +193,12 @@ class ScalaPreparedStatementMapped[T1, Out](pstmt: PreparedStatement, mapper: Ro
   override def withOptions(options: StatementOptions): Self =
     new ScalaPreparedStatementMapped(pstmt, mapper, options, mapping)
 
-  def pager(t1: T1): ApiPager[Out] = Pager.initial(apply(t1))
+  def pager(t1: T1): Pager[Out] = Pager.initial(apply(t1))
 
-  def pager(pagingState: PagingState, t1: T1): Try[ApiPager[Out]] =
+  def pager(pagingState: PagingState, t1: T1): Try[Pager[Out]] =
     Pager.continue(apply(t1), pagingState)
 
-  def pager[A: PagerSerializer](pagingState: A, t1: T1): Try[ApiPager[Out]] =
+  def pager[A: PagerSerializer](pagingState: A, t1: T1): Try[Pager[Out]] =
     Pager.continueFromEncoded(apply(t1), pagingState)
 
 }
@@ -268,12 +262,12 @@ class ScalaPreparedStatement1[T1, Out](pstmt: PreparedStatement, mapper: RowMapp
   override def withOptions(options: StatementOptions): Self =
     new ScalaPreparedStatement1(pstmt, mapper, options, t1Codec)
 
-  def pager(t1: T1): ApiPager[Out] = Pager.initial(apply(t1))
+  def pager(t1: T1): Pager[Out] = Pager.initial(apply(t1))
 
-  def pager(pagingState: PagingState, t1: T1): Try[ApiPager[Out]] =
+  def pager(pagingState: PagingState, t1: T1): Try[Pager[Out]] =
     Pager.continue(apply(t1), pagingState)
 
-  def pager[A: PagerSerializer](pagingState: A, t1: T1): Try[ApiPager[Out]] =
+  def pager[A: PagerSerializer](pagingState: A, t1: T1): Try[Pager[Out]] =
     Pager.continueFromEncoded(apply(t1), pagingState)
 
 }
@@ -336,7 +330,7 @@ class ScalaPreparedStatement1[T1, Out](pstmt: PreparedStatement, mapper: RowMapp
 //        |
 //        |  def pager($parameterList): Pager[Out] = Pager.initial(apply($methodParameters))
 //        |
-//        |  def pager[A: PagerSerializer](pagingState: A, $parameterList): Try[ApiPager[Out]] =
+//        |  def pager[A: PagerSerializer](pagingState: A, $parameterList): Try[Pager[Out]] =
 //        |    Pager.continue(apply($methodParameters), pagingState)
 //        |
 //        |
@@ -398,13 +392,13 @@ class ScalaPreparedStatement2[T1, T2, Out](pstmt: PreparedStatement, mapper: Row
   override def withOptions(options: StatementOptions): Self =
     new ScalaPreparedStatement2(pstmt, mapper, options, t1Codec, t2Codec)
 
-  def pager(t1: T1, t2: T2): ApiPager[Out] =
+  def pager(t1: T1, t2: T2): Pager[Out] =
     Pager.initial(apply(t1, t2))
 
-  def pager(pagingState: PagingState, t1: T1, t2: T2): Try[ApiPager[Out]] =
+  def pager(pagingState: PagingState, t1: T1, t2: T2): Try[Pager[Out]] =
     Pager.continue(apply(t1, t2), pagingState)
 
-  def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2): Try[ApiPager[Out]] =
+  def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2): Try[Pager[Out]] =
     Pager.continueFromEncoded(apply(t1, t2), pagingState)
 
 }
@@ -460,13 +454,13 @@ class ScalaPreparedStatement3[T1, T2, T3, Out](pstmt: PreparedStatement, mapper:
   override def withOptions(options: StatementOptions): Self =
     new ScalaPreparedStatement3(pstmt, mapper, options, t1Codec, t2Codec, t3Codec)
 
-  def pager(t1: T1, t2: T2, t3: T3): ApiPager[Out] =
+  def pager(t1: T1, t2: T2, t3: T3): Pager[Out] =
     Pager.initial(apply(t1, t2, t3))
 
-  def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3): Try[ApiPager[Out]] =
+  def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3): Try[Pager[Out]] =
     Pager.continue(apply(t1, t2, t3), pagingState)
 
-  def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3): Try[ApiPager[Out]] =
+  def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3): Try[Pager[Out]] =
     Pager.continueFromEncoded(apply(t1, t2, t3), pagingState)
 
 }
@@ -522,13 +516,13 @@ class ScalaPreparedStatement4[T1, T2, T3, T4, Out](pstmt: PreparedStatement, map
   override def withOptions(options: StatementOptions): Self =
     new ScalaPreparedStatement4(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec)
 
-  def pager(t1: T1, t2: T2, t3: T3, t4: T4): ApiPager[Out] =
+  def pager(t1: T1, t2: T2, t3: T3, t4: T4): Pager[Out] =
     Pager.initial(apply(t1, t2, t3, t4))
 
-  def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4): Try[ApiPager[Out]] =
+  def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4): Try[Pager[Out]] =
     Pager.continue(apply(t1, t2, t3, t4), pagingState)
 
-  def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4): Try[ApiPager[Out]] =
+  def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4): Try[Pager[Out]] =
     Pager.continueFromEncoded(apply(t1, t2, t3, t4), pagingState)
 
 }
@@ -584,13 +578,13 @@ class ScalaPreparedStatement5[T1, T2, T3, T4, T5, Out](pstmt: PreparedStatement,
   override def withOptions(options: StatementOptions): Self =
     new ScalaPreparedStatement5(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec)
 
-  def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5): ApiPager[Out] =
+  def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5): Pager[Out] =
     Pager.initial(apply(t1, t2, t3, t4, t5))
 
-  def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5): Try[ApiPager[Out]] =
+  def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5): Try[Pager[Out]] =
     Pager.continue(apply(t1, t2, t3, t4, t5), pagingState)
 
-  def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5): Try[ApiPager[Out]] =
+  def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5): Try[Pager[Out]] =
     Pager.continueFromEncoded(apply(t1, t2, t3, t4, t5), pagingState)
 
 }
@@ -646,13 +640,13 @@ class ScalaPreparedStatement6[T1, T2, T3, T4, T5, T6, Out](pstmt: PreparedStatem
   override def withOptions(options: StatementOptions): Self =
     new ScalaPreparedStatement6(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec)
 
-  def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6): ApiPager[Out] =
+  def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6): Pager[Out] =
     Pager.initial(apply(t1, t2, t3, t4, t5, t6))
 
-  def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6): Try[ApiPager[Out]] =
+  def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6): Try[Pager[Out]] =
     Pager.continue(apply(t1, t2, t3, t4, t5, t6), pagingState)
 
-  def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6): Try[ApiPager[Out]] =
+  def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6): Try[Pager[Out]] =
     Pager.continueFromEncoded(apply(t1, t2, t3, t4, t5, t6), pagingState)
 
 }
@@ -708,13 +702,13 @@ class ScalaPreparedStatement7[T1, T2, T3, T4, T5, T6, T7, Out](pstmt: PreparedSt
   override def withOptions(options: StatementOptions): Self =
     new ScalaPreparedStatement7(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec)
 
-  def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7): ApiPager[Out] =
+  def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7): Pager[Out] =
     Pager.initial(apply(t1, t2, t3, t4, t5, t6, t7))
 
-  def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7): Try[ApiPager[Out]] =
+  def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7): Try[Pager[Out]] =
     Pager.continue(apply(t1, t2, t3, t4, t5, t6, t7), pagingState)
 
-  def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7): Try[ApiPager[Out]] =
+  def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7): Try[Pager[Out]] =
     Pager.continueFromEncoded(apply(t1, t2, t3, t4, t5, t6, t7), pagingState)
 
 }
@@ -770,13 +764,13 @@ class ScalaPreparedStatement8[T1, T2, T3, T4, T5, T6, T7, T8, Out](pstmt: Prepar
   override def withOptions(options: StatementOptions): Self =
     new ScalaPreparedStatement8(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec)
 
-  def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8): ApiPager[Out] =
+  def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8): Pager[Out] =
     Pager.initial(apply(t1, t2, t3, t4, t5, t6, t7, t8))
 
-  def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8): Try[ApiPager[Out]] =
+  def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8): Try[Pager[Out]] =
     Pager.continue(apply(t1, t2, t3, t4, t5, t6, t7, t8), pagingState)
 
-  def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8): Try[ApiPager[Out]] =
+  def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8): Try[Pager[Out]] =
     Pager.continueFromEncoded(apply(t1, t2, t3, t4, t5, t6, t7, t8), pagingState)
 
 }
@@ -832,13 +826,13 @@ class ScalaPreparedStatement9[T1, T2, T3, T4, T5, T6, T7, T8, T9, Out](pstmt: Pr
   override def withOptions(options: StatementOptions): Self =
     new ScalaPreparedStatement9(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec)
 
-  def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9): ApiPager[Out] =
+  def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9): Pager[Out] =
     Pager.initial(apply(t1, t2, t3, t4, t5, t6, t7, t8, t9))
 
-  def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9): Try[ApiPager[Out]] =
+  def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9): Try[Pager[Out]] =
     Pager.continue(apply(t1, t2, t3, t4, t5, t6, t7, t8, t9), pagingState)
 
-  def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9): Try[ApiPager[Out]] =
+  def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9): Try[Pager[Out]] =
     Pager.continueFromEncoded(apply(t1, t2, t3, t4, t5, t6, t7, t8, t9), pagingState)
 
 }
@@ -894,13 +888,13 @@ class ScalaPreparedStatement10[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, Out](pst
   override def withOptions(options: StatementOptions): Self =
     new ScalaPreparedStatement10(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec)
 
-  def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10): ApiPager[Out] =
+  def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10): Pager[Out] =
     Pager.initial(apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10))
 
-  def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10): Try[ApiPager[Out]] =
+  def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10): Try[Pager[Out]] =
     Pager.continue(apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10), pagingState)
 
-  def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10): Try[ApiPager[Out]] =
+  def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10): Try[Pager[Out]] =
     Pager.continueFromEncoded(apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10), pagingState)
 
 }
@@ -956,13 +950,13 @@ class ScalaPreparedStatement11[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, Out
   override def withOptions(options: StatementOptions): Self =
     new ScalaPreparedStatement11(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec)
 
-  def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11): ApiPager[Out] =
+  def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11): Pager[Out] =
     Pager.initial(apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11))
 
-  def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11): Try[ApiPager[Out]] =
+  def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11): Try[Pager[Out]] =
     Pager.continue(apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11), pagingState)
 
-  def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11): Try[ApiPager[Out]] =
+  def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11): Try[Pager[Out]] =
     Pager.continueFromEncoded(apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11), pagingState)
 
 }
@@ -1018,13 +1012,13 @@ class ScalaPreparedStatement12[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   override def withOptions(options: StatementOptions): Self =
     new ScalaPreparedStatement12(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec)
 
-  def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12): ApiPager[Out] =
+  def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12): Pager[Out] =
     Pager.initial(apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12))
 
-  def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12): Try[ApiPager[Out]] =
+  def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12): Try[Pager[Out]] =
     Pager.continue(apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12), pagingState)
 
-  def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12): Try[ApiPager[Out]] =
+  def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12): Try[Pager[Out]] =
     Pager.continueFromEncoded(apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12), pagingState)
 
 }
@@ -1080,13 +1074,13 @@ class ScalaPreparedStatement13[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   override def withOptions(options: StatementOptions): Self =
     new ScalaPreparedStatement13(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec)
 
-  def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13): ApiPager[Out] =
+  def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13): Pager[Out] =
     Pager.initial(apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13))
 
-  def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13): Try[ApiPager[Out]] =
+  def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13): Try[Pager[Out]] =
     Pager.continue(apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13), pagingState)
 
-  def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13): Try[ApiPager[Out]] =
+  def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13): Try[Pager[Out]] =
     Pager.continueFromEncoded(apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13), pagingState)
 
 }
@@ -1142,13 +1136,13 @@ class ScalaPreparedStatement14[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   override def withOptions(options: StatementOptions): Self =
     new ScalaPreparedStatement14(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec, t14Codec)
 
-  def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14): ApiPager[Out] =
+  def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14): Pager[Out] =
     Pager.initial(apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14))
 
-  def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14): Try[ApiPager[Out]] =
+  def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14): Try[Pager[Out]] =
     Pager.continue(apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14), pagingState)
 
-  def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14): Try[ApiPager[Out]] =
+  def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14): Try[Pager[Out]] =
     Pager.continueFromEncoded(apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14), pagingState)
 
 }
@@ -1204,13 +1198,13 @@ class ScalaPreparedStatement15[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   override def withOptions(options: StatementOptions): Self =
     new ScalaPreparedStatement15(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec, t14Codec, t15Codec)
 
-  def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15): ApiPager[Out] =
+  def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15): Pager[Out] =
     Pager.initial(apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15))
 
-  def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15): Try[ApiPager[Out]] =
+  def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15): Try[Pager[Out]] =
     Pager.continue(apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15), pagingState)
 
-  def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15): Try[ApiPager[Out]] =
+  def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15): Try[Pager[Out]] =
     Pager.continueFromEncoded(apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15), pagingState)
 
 }
@@ -1266,13 +1260,13 @@ class ScalaPreparedStatement16[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   override def withOptions(options: StatementOptions): Self =
     new ScalaPreparedStatement16(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec, t14Codec, t15Codec, t16Codec)
 
-  def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16): ApiPager[Out] =
+  def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16): Pager[Out] =
     Pager.initial(apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16))
 
-  def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16): Try[ApiPager[Out]] =
+  def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16): Try[Pager[Out]] =
     Pager.continue(apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16), pagingState)
 
-  def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16): Try[ApiPager[Out]] =
+  def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16): Try[Pager[Out]] =
     Pager.continueFromEncoded(apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16), pagingState)
 
 }
@@ -1328,13 +1322,13 @@ class ScalaPreparedStatement17[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   override def withOptions(options: StatementOptions): Self =
     new ScalaPreparedStatement17(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec, t14Codec, t15Codec, t16Codec, t17Codec)
 
-  def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17): ApiPager[Out] =
+  def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17): Pager[Out] =
     Pager.initial(apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17))
 
-  def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17): Try[ApiPager[Out]] =
+  def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17): Try[Pager[Out]] =
     Pager.continue(apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17), pagingState)
 
-  def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17): Try[ApiPager[Out]] =
+  def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17): Try[Pager[Out]] =
     Pager.continueFromEncoded(apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17), pagingState)
 
 }
@@ -1390,13 +1384,13 @@ class ScalaPreparedStatement18[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   override def withOptions(options: StatementOptions): Self =
     new ScalaPreparedStatement18(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec, t14Codec, t15Codec, t16Codec, t17Codec, t18Codec)
 
-  def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18): ApiPager[Out] =
+  def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18): Pager[Out] =
     Pager.initial(apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18))
 
-  def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18): Try[ApiPager[Out]] =
+  def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18): Try[Pager[Out]] =
     Pager.continue(apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18), pagingState)
 
-  def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18): Try[ApiPager[Out]] =
+  def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18): Try[Pager[Out]] =
     Pager.continueFromEncoded(apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18), pagingState)
 
 }
@@ -1452,13 +1446,13 @@ class ScalaPreparedStatement19[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   override def withOptions(options: StatementOptions): Self =
     new ScalaPreparedStatement19(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec, t14Codec, t15Codec, t16Codec, t17Codec, t18Codec, t19Codec)
 
-  def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19): ApiPager[Out] =
+  def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19): Pager[Out] =
     Pager.initial(apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19))
 
-  def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19): Try[ApiPager[Out]] =
+  def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19): Try[Pager[Out]] =
     Pager.continue(apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19), pagingState)
 
-  def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19): Try[ApiPager[Out]] =
+  def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19): Try[Pager[Out]] =
     Pager.continueFromEncoded(apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19), pagingState)
 
 }
@@ -1514,13 +1508,13 @@ class ScalaPreparedStatement20[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   override def withOptions(options: StatementOptions): Self =
     new ScalaPreparedStatement20(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec, t14Codec, t15Codec, t16Codec, t17Codec, t18Codec, t19Codec, t20Codec)
 
-  def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20): ApiPager[Out] =
+  def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20): Pager[Out] =
     Pager.initial(apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20))
 
-  def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20): Try[ApiPager[Out]] =
+  def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20): Try[Pager[Out]] =
     Pager.continue(apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20), pagingState)
 
-  def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20): Try[ApiPager[Out]] =
+  def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20): Try[Pager[Out]] =
     Pager.continueFromEncoded(apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20), pagingState)
 
 }
@@ -1576,13 +1570,13 @@ class ScalaPreparedStatement21[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   override def withOptions(options: StatementOptions): Self =
     new ScalaPreparedStatement21(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec, t14Codec, t15Codec, t16Codec, t17Codec, t18Codec, t19Codec, t20Codec, t21Codec)
 
-  def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21): ApiPager[Out] =
+  def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21): Pager[Out] =
     Pager.initial(apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21))
 
-  def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21): Try[ApiPager[Out]] =
+  def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21): Try[Pager[Out]] =
     Pager.continue(apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21), pagingState)
 
-  def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21): Try[ApiPager[Out]] =
+  def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21): Try[Pager[Out]] =
     Pager.continueFromEncoded(apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21), pagingState)
 
 }
@@ -1638,13 +1632,13 @@ class ScalaPreparedStatement22[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12
   override def withOptions(options: StatementOptions): Self =
     new ScalaPreparedStatement22(pstmt, mapper, options, t1Codec, t2Codec, t3Codec, t4Codec, t5Codec, t6Codec, t7Codec, t8Codec, t9Codec, t10Codec, t11Codec, t12Codec, t13Codec, t14Codec, t15Codec, t16Codec, t17Codec, t18Codec, t19Codec, t20Codec, t21Codec, t22Codec)
 
-  def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21, t22: T22): ApiPager[Out] =
+  def pager(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21, t22: T22): Pager[Out] =
     Pager.initial(apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21, t22))
 
-  def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21, t22: T22): Try[ApiPager[Out]] =
+  def pager(pagingState: PagingState, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21, t22: T22): Try[Pager[Out]] =
     Pager.continue(apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21, t22), pagingState)
 
-  def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21, t22: T22): Try[ApiPager[Out]] =
+  def pager[A: PagerSerializer](pagingState: A, t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21, t22: T22): Try[Pager[Out]] =
     Pager.continueFromEncoded(apply(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21, t22), pagingState)
 
 }

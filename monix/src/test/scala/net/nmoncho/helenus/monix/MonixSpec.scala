@@ -11,9 +11,6 @@ import com.datastax.oss.driver.api.core.cql.Row
 import monix.execution.Scheduler.Implicits.global
 import monix.reactive.Consumer
 import monix.reactive.Observable
-import net.nmoncho.helenus.api.RowMapper
-import net.nmoncho.helenus.api.cql.Adapter
-import net.nmoncho.helenus.api.cql.PagerSerializer
 import net.nmoncho.helenus.monix.MonixSpec._
 import net.nmoncho.helenus.utils.CassandraSpec
 import org.scalatest.concurrent.ScalaFutures

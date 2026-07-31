@@ -27,7 +27,6 @@ import com.datastax.oss.driver.api.core.cql._
 import com.datastax.oss.driver.api.core.data.SettableByIndex
 import com.datastax.oss.driver.api.core.data.SettableByName
 import com.datastax.oss.driver.api.core.metadata.schema.KeyspaceMetadata
-import net.nmoncho.helenus.api.RowMapper
 import net.nmoncho.helenus.api.`type`.codec.CodecDerivation
 import net.nmoncho.helenus.api.cql.ScalaPreparedStatement.CQLQuery
 import net.nmoncho.helenus.api.cql.{ Pager => ApiPager, _ }
@@ -44,6 +43,31 @@ package object helenus extends CodecDerivation {
 
   implicit def cqlSessionAdapter(implicit session: CqlSession): Future[CqlSession] =
     Future.successful(session)
+
+  val RowMapper = net.nmoncho.helenus.api.RowMapper
+  type RowMapper[Out] = net.nmoncho.helenus.api.RowMapper[Out]
+
+  val Adapter = net.nmoncho.helenus.api.cql.Adapter
+  type Adapter[In, Out] = net.nmoncho.helenus.api.cql.Adapter[In, Out]
+
+  val Mapping = net.nmoncho.helenus.api.cql.Mapping
+  type Mapping[T] = net.nmoncho.helenus.api.cql.Mapping[T]
+
+  val Pager = net.nmoncho.helenus.internal.cql.Pager
+  type Pager[T] = net.nmoncho.helenus.api.cql.Pager[T]
+
+  val PagerSerializer = net.nmoncho.helenus.api.cql.PagerSerializer
+  type PagerSerializer[In] = net.nmoncho.helenus.api.cql.PagerSerializer[In]
+
+  val ScalaPreparedStatement = net.nmoncho.helenus.api.cql.ScalaPreparedStatement
+  type ScalaPreparedStatement[In, Out] = net.nmoncho.helenus.api.cql.ScalaPreparedStatement[In, Out]
+
+  val StatementOptions = net.nmoncho.helenus.api.cql.StatementOptions
+  type StatementOptions = net.nmoncho.helenus.api.cql.StatementOptions
+
+  val ScalaBoundStatement   = net.nmoncho.helenus.api.cql.ScalaBoundStatement
+  val WrappedBoundStatement = net.nmoncho.helenus.api.cql.WrappedBoundStatement
+  type ScalaBoundStatement[Out] = net.nmoncho.helenus.api.cql.ScalaBoundStatement[Out]
 
   implicit val defaultIdentityRowMapper: RowMapper[Row] = RowMapper.identity
 
@@ -135,9 +159,6 @@ package object helenus extends CodecDerivation {
       macro CqlQueryInterpolation.cqlAsync
 
   }
-
-//  @inline private[helenus] def tag[Out](bs: BoundStatement): ScalaBoundStatement[Out] =
-//    bs.asInstanceOf[ScalaBoundStatement[Out]]
 
   implicit class SettableByIndexOps[Self <: SettableByIndex[Self]](private val bs: Self)
       extends AnyVal {
