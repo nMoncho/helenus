@@ -44,11 +44,14 @@ package object helenus extends CodecDerivation {
   implicit def cqlSessionAdapter(implicit session: CqlSession): Future[CqlSession] =
     Future.successful(session)
 
-  val RowMapper = net.nmoncho.helenus.api.RowMapper
-  type RowMapper[Out] = net.nmoncho.helenus.api.RowMapper[Out]
-
   val Adapter = net.nmoncho.helenus.api.cql.Adapter
   type Adapter[In, Out] = net.nmoncho.helenus.api.cql.Adapter[In, Out]
+
+  val ColumnNamingScheme = net.nmoncho.helenus.api.ColumnNamingScheme
+  type ColumnNamingScheme = net.nmoncho.helenus.api.ColumnNamingScheme
+
+  val ColumnMapper = net.nmoncho.helenus.api.RowMapper.ColumnMapper
+  type ColumnMapper[T] = net.nmoncho.helenus.api.RowMapper.ColumnMapper[T]
 
   val Mapping = net.nmoncho.helenus.api.cql.Mapping
   type Mapping[T] = net.nmoncho.helenus.api.cql.Mapping[T]
@@ -58,6 +61,9 @@ package object helenus extends CodecDerivation {
 
   val PagerSerializer = net.nmoncho.helenus.api.cql.PagerSerializer
   type PagerSerializer[In] = net.nmoncho.helenus.api.cql.PagerSerializer[In]
+
+  val RowMapper = net.nmoncho.helenus.api.RowMapper
+  type RowMapper[Out] = net.nmoncho.helenus.api.RowMapper[Out]
 
   val ScalaPreparedStatement = net.nmoncho.helenus.api.cql.ScalaPreparedStatement
   type ScalaPreparedStatement[In, Out] = net.nmoncho.helenus.api.cql.ScalaPreparedStatement[In, Out]

@@ -7,7 +7,6 @@
 package net.nmoncho.helenus.models
 
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
-import net.nmoncho.helenus.api.ColumnNamingScheme
 
 final case class Address(
     street: String,

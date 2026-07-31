@@ -7,7 +7,6 @@
 package net.nmoncho.helenus.api
 
 import com.datastax.oss.driver.api.core.cql.Row
-import net.nmoncho.helenus.api.RowMapper.ColumnMapper
 import net.nmoncho.helenus.api.RowMapperDerivationSpec.IceCream
 import net.nmoncho.helenus.api.RowMapperDerivationSpec.IceCreamWithSpecialProps
 import net.nmoncho.helenus.api.RowMapperDerivationSpec.IceCreamWithSpecialPropsAsTuple
