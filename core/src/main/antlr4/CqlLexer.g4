@@ -34,7 +34,7 @@ OPERATOR_GT  : '>';
 OPERATOR_LTE : '<=';
 OPERATOR_GTE : '>=';
 BIND_MARKER        : '?';
-NAMED_BIND_MARKER  : ':' [A-Z] [A-Z0-9_]*;
+NAMED_BIND_MARKER  : ':' ([A-Z] [A-Z0-9_]* | '"' ~'"'+ '"');
 
 // Keywords
 

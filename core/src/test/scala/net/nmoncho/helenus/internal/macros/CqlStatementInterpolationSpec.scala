@@ -167,6 +167,19 @@ class CqlStatementInterpolationSpec extends AnyFlatSpec with Matchers {
     ) shouldBe "SELECT * FROM users WHERE name = :nickname ALLOW FILTERING"
   }
 
+  it should "quote the name of a parameter that requires it" in {
+    // FAILING: Cassandra accepts a quoted named bind marker, but the grammar's NAMED_BIND_MARKER
+    // token only covers the bare form (`':' [A-Z] [A-Z0-9_]*`), so `CqlValidator` rejects the
+    // statement and macro expansion aborts. Any parameter whose name isn't all lowercase - ie.
+    // any camelCase `val` - hits this.
+    statementOf(
+      """
+        |val nameValue = "helenus"
+        |cql"SELECT * FROM $tableName WHERE $name = $nameValue ALLOW FILTERING"
+        |""".stripMargin
+    ) shouldBe "SELECT * FROM users WHERE name = :\"nameValue\" ALLOW FILTERING"
+  }
+
   it should "not reuse the marker of a parameter that came with its own name" in {
     // `$DefaultName` is the third parameter, so its marker would be derived as `p2` and collide
     // with the name the fifth one already has, binding both of them to the same marker
