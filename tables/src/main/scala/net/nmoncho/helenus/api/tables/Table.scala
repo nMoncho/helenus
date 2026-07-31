@@ -13,7 +13,6 @@ import scala.collection.mutable
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.cql.Row
 import net.nmoncho.helenus.api.ColumnNamingScheme
-import net.nmoncho.helenus.api.DefaultColumnNamingScheme
 import net.nmoncho.helenus.api.RowMapper
 import net.nmoncho.helenus.api.RowMapper.ColumnMapper
 import net.nmoncho.helenus.api.tables.ddl._
@@ -271,7 +270,7 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
   class IndexDef(val name: String, val target: String, val kind: IndexKind = IndexKind.Secondary)
 
   /** How case-class field names map to CQL column names. */
-  protected def naming: ColumnNamingScheme = DefaultColumnNamingScheme
+  protected def naming: ColumnNamingScheme = ColumnNamingScheme.Default
 
   /** Registered columns declared on this table, that are not computed, in declaration order. */
   private val registeredColumns       = scala.collection.mutable.ListBuffer.empty[Column[_]]

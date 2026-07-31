@@ -22,7 +22,6 @@ import com.datastax.oss.driver.api.core.`type`.reflect.GenericType
 import com.datastax.oss.driver.internal.core.`type`.DefaultUserDefinedType
 import com.datastax.oss.driver.internal.core.`type`.codec.ParseUtils
 import net.nmoncho.helenus.api.ColumnNamingScheme
-import net.nmoncho.helenus.api.DefaultColumnNamingScheme
 import shapeless.labelled.FieldType
 import shapeless.syntax.singleton.mkSingletonOps
 
@@ -103,7 +102,7 @@ object IdenticalUDTCodec {
   def apply[A](keyspace: String, name: String, frozen: Boolean)(
       implicit codec: IdenticalUDTCodec[A],
       tag: ClassTag[A],
-      columnNamingScheme: ColumnNamingScheme = DefaultColumnNamingScheme
+      columnNamingScheme: ColumnNamingScheme = ColumnNamingScheme.Default
   ): TypeCodec[A] = new TypeCodec[A] with UDTCodec[A] {
 
     private val actualKeyspace =
@@ -193,7 +192,7 @@ object IdenticalUDTCodec {
   implicit def lastUdtCComponent[K <: Symbol, H](
       implicit codec: TypeCodec[H],
       witness: Witness.Aux[K],
-      columnNamingScheme: ColumnNamingScheme = DefaultColumnNamingScheme
+      columnNamingScheme: ColumnNamingScheme = ColumnNamingScheme.Default
   ): IdenticalUDTCodec[FieldType[K, H] :: HNil] = new IdenticalUDTCodec[FieldType[K, H] :: HNil] {
 
     private val fieldName: String = witness.value.name
@@ -261,7 +260,7 @@ object IdenticalUDTCodec {
       implicit headCodec: TypeCodec[H],
       witness: Witness.Aux[K],
       tailCodec: IdenticalUDTCodec[T],
-      columnNamingScheme: ColumnNamingScheme = DefaultColumnNamingScheme
+      columnNamingScheme: ColumnNamingScheme = ColumnNamingScheme.Default
   ): IdenticalUDTCodec[FieldType[K, H] :: T] =
     new IdenticalUDTCodec[FieldType[K, H] :: T] {
 

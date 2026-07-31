@@ -34,34 +34,38 @@ sealed trait ColumnNamingScheme extends Serializable {
   }
 }
 
-object DefaultColumnNamingScheme extends ColumnNamingScheme {
-  override def apply(fieldName: String): String = fieldName
-}
+object ColumnNamingScheme {
 
-object SnakeCase extends ColumnNamingScheme {
-  final val separator = '_'
+  object Default extends ColumnNamingScheme {
+    override def apply(fieldName: String): String = fieldName
+  }
 
-  override def apply(fieldName: String): String = {
-    val col = mutable.ListBuffer[Char]()
-    col += fieldName.head.toLower
-    fieldName.tail.toCharArray.foreach { c =>
-      if (c.isUpper) {
-        col += separator
+  object SnakeCase extends ColumnNamingScheme {
+    final val separator = '_'
+
+    override def apply(fieldName: String): String = {
+      val col = mutable.ListBuffer[Char]()
+      col += fieldName.head.toLower
+      fieldName.tail.toCharArray.foreach { c =>
+        if (c.isUpper) {
+          col += separator
+        }
+
+        col += c.toLower
       }
 
-      col += c.toLower
+      col.result().mkString
     }
-
-    col.result().mkString
   }
-}
 
-object PascalCase extends ColumnNamingScheme {
-  override def apply(fieldName: String): String =
-    if (fieldName.length == 1) fieldName.toUpperCase
-    else {
-      val chars = fieldName.toCharArray
-      chars(0) = chars(0).toUpper
-      new String(chars)
-    }
+  object PascalCase extends ColumnNamingScheme {
+    override def apply(fieldName: String): String =
+      if (fieldName.length == 1) fieldName.toUpperCase
+      else {
+        val chars = fieldName.toCharArray
+        chars(0) = chars(0).toUpper
+        new String(chars)
+      }
+  }
+
 }

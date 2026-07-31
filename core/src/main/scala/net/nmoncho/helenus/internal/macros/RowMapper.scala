@@ -24,7 +24,7 @@ object RowMapper {
       q"implicitly[_root_.net.nmoncho.helenus.api.ColumnNamingScheme]",
       silent = true
     ) match {
-      case EmptyTree => q"_root_.net.nmoncho.helenus.api.DefaultColumnNamingScheme"
+      case EmptyTree => q"_root_.net.nmoncho.helenus.api.ColumnNamingScheme.Default"
       case n => n
     }
 

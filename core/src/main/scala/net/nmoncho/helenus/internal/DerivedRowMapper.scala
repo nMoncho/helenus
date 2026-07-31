@@ -11,7 +11,6 @@ import scala.annotation.unused
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.cql.Row
 import net.nmoncho.helenus.api.ColumnNamingScheme
-import net.nmoncho.helenus.api.DefaultColumnNamingScheme
 import net.nmoncho.helenus.api.RowMapper
 import net.nmoncho.helenus.api.RowMapper.ColumnMapper
 import shapeless.::
@@ -36,7 +35,7 @@ trait CaseClassRowMapperDerivation {
   implicit def lastCCElement[K <: Symbol, H](
       implicit colDecoder: ColumnMapper[H],
       witness: Witness.Aux[K],
-      naming: ColumnNamingScheme = DefaultColumnNamingScheme
+      naming: ColumnNamingScheme = ColumnNamingScheme.Default
   ): DerivedRowMapper.Builder[FieldType[K, H] :: HNil] =
     (mapping: DerivedRowMapper.FieldToColumn) =>
       new DerivedNameRowMapper[FieldType[K, H] :: HNil] {
@@ -51,7 +50,7 @@ trait CaseClassRowMapperDerivation {
       implicit colDecoder: ColumnMapper[H],
       witness: Witness.Aux[K],
       tailRowBuilder: DerivedRowMapper.Builder[T],
-      naming: ColumnNamingScheme = DefaultColumnNamingScheme
+      naming: ColumnNamingScheme = ColumnNamingScheme.Default
   ): DerivedRowMapper.Builder[FieldType[K, H] :: T] = (mapping: DerivedRowMapper.FieldToColumn) =>
     new DerivedNameRowMapper[FieldType[K, H] :: T] {
       override val column: String =
@@ -72,7 +71,7 @@ trait CaseClassRowMapperDerivation {
   implicit def genericCCRowMapperBuilder[T, R](
       implicit gen: LabelledGeneric.Aux[T, R],
       builder: DerivedRowMapper.Builder[R],
-      naming: ColumnNamingScheme = DefaultColumnNamingScheme
+      naming: ColumnNamingScheme = ColumnNamingScheme.Default
   ): DerivedRowMapper.Builder[T] = (mappings: DerivedRowMapper.FieldToColumn) => {
     val reprRowMapper = builder(mappings)
 
@@ -84,7 +83,7 @@ trait CaseClassRowMapperDerivation {
   implicit def genericCCRowMapper[T, R](
       implicit gen: LabelledGeneric.Aux[T, R],
       builder: DerivedRowMapper.Builder[T],
-      columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme
+      columnMapper: ColumnNamingScheme = ColumnNamingScheme.Default
   ): DerivedRowMapper[T] = builder(Map.empty)
 
 }

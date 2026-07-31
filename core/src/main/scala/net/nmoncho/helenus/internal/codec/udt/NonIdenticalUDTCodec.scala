@@ -18,7 +18,6 @@ import com.datastax.oss.driver.api.core.`type`.reflect.GenericType
 import com.datastax.oss.driver.api.core.data.UdtValue
 import com.datastax.oss.driver.internal.core.`type`.codec.{ UdtCodec => DseUdtCodec }
 import net.nmoncho.helenus.api.ColumnNamingScheme
-import net.nmoncho.helenus.api.DefaultColumnNamingScheme
 import shapeless.labelled.FieldType
 import shapeless.syntax.singleton.mkSingletonOps
 
@@ -78,7 +77,7 @@ object NonIdenticalUDTCodec {
   def apply[A](session: CqlSession, keyspace: String, name: String)(
       implicit codec: NonIdenticalUDTCodec[A],
       tag: ClassTag[A],
-      columnNamingScheme: ColumnNamingScheme = DefaultColumnNamingScheme
+      columnNamingScheme: ColumnNamingScheme = ColumnNamingScheme.Default
   ): TypeCodec[A] = {
     import scala.jdk.OptionConverters._
 
@@ -156,7 +155,7 @@ object NonIdenticalUDTCodec {
   implicit def lastUdtElementCodec[K <: Symbol, H](
       implicit codec: TypeCodec[H],
       witness: Witness.Aux[K],
-      columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme
+      columnMapper: ColumnNamingScheme = ColumnNamingScheme.Default
   ): NonIdenticalUDTCodec[FieldType[K, H] :: HNil] =
     new NonIdenticalUDTCodec[FieldType[K, H] :: HNil] {
       private val column = columnMapper.apply(witness.value.name)
@@ -174,7 +173,7 @@ object NonIdenticalUDTCodec {
       implicit codec: TypeCodec[H],
       witness: Witness.Aux[K],
       tailCodec: NonIdenticalUDTCodec[T],
-      columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme
+      columnMapper: ColumnNamingScheme = ColumnNamingScheme.Default
   ): NonIdenticalUDTCodec[FieldType[K, H] :: T] =
     new NonIdenticalUDTCodec[FieldType[K, H] :: T] {
 
@@ -196,7 +195,7 @@ object NonIdenticalUDTCodec {
   implicit def genericUdtCodec[A, R](
       implicit generic: LabelledGeneric.Aux[A, R],
       codec: Lazy[NonIdenticalUDTCodec[R]],
-      columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme
+      columnMapper: ColumnNamingScheme = ColumnNamingScheme.Default
   ): NonIdenticalUDTCodec[A] = new NonIdenticalUDTCodec[A] {
 
     @inline override def innerToOuter(value: UdtValue): A =

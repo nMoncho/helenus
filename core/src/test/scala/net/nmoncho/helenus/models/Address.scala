@@ -8,7 +8,6 @@ package net.nmoncho.helenus.models
 
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import net.nmoncho.helenus.api.ColumnNamingScheme
-import net.nmoncho.helenus.api.SnakeCase
 
 final case class Address(
     street: String,
@@ -20,7 +19,7 @@ final case class Address(
 
 object Address {
   import net.nmoncho.helenus._
-  implicit val namingScheme: ColumnNamingScheme = SnakeCase
+  implicit val namingScheme: ColumnNamingScheme = ColumnNamingScheme.SnakeCase
 
   final val Empty: Address = Address("", "", "", "", "")
 

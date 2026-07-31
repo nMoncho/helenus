@@ -33,7 +33,6 @@ import com.datastax.oss.driver.internal.core.metadata.token.ByteOrderedToken
 import com.datastax.oss.driver.internal.core.metadata.token.Murmur3Token
 import com.datastax.oss.driver.internal.core.metadata.token.RandomToken
 import net.nmoncho.helenus.api.ColumnNamingScheme
-import net.nmoncho.helenus.api.DefaultColumnNamingScheme
 import net.nmoncho.helenus.api.NominalEncoded
 import net.nmoncho.helenus.api.OrdinalEncoded
 import net.nmoncho.helenus.api.RowMapper.ColumnMapper
@@ -189,7 +188,7 @@ trait CodecDerivation extends TupleCodecDerivation { that =>
         name: String     = "",
         frozen: Boolean  = true
     )(
-        implicit columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme,
+        implicit columnMapper: ColumnNamingScheme = ColumnNamingScheme.Default,
         @unused ev: ClassTag[T]
     ): TypeCodec[T] = new UnifiedUDTCodec[T](
       IdenticalUDTCodec[T](keyspace, name, frozen),
@@ -218,7 +217,7 @@ trait CodecDerivation extends TupleCodecDerivation { that =>
         name: String     = "",
         frozen: Boolean  = true
     )(
-        implicit columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme,
+        implicit columnMapper: ColumnNamingScheme = ColumnNamingScheme.Default,
         @unused ev: ClassTag[T]
     ): TypeCodec[T] = IdenticalUDTCodec[T](keyspace, name, frozen)
 
@@ -243,7 +242,7 @@ trait CodecDerivation extends TupleCodecDerivation { that =>
         keyspace: String = "",
         name: String     = ""
     )(
-        implicit columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme,
+        implicit columnMapper: ColumnNamingScheme = ColumnNamingScheme.Default,
         @unused ev: ClassTag[T]
     ): TypeCodec[T] = NonIdenticalUDTCodec[T](session, keyspace, name)
 

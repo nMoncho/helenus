@@ -11,7 +11,6 @@ package tables
 import java.util.UUID
 
 import net.nmoncho.helenus.api.ColumnNamingScheme
-import net.nmoncho.helenus.api.SnakeCase
 import net.nmoncho.helenus.api.tables.ddl.IndexKind
 import net.nmoncho.helenus.api.tables.ddl.SAI
 import shapeless._
@@ -45,7 +44,7 @@ object UsersTable extends Table[User]("my_keyspace", "users") {
 case class Event(tenantId: String, eventType: String, eventId: UUID, payload: String)
 
 object EventsTable extends Table[Event]("analytics", "events") {
-  override protected def naming: ColumnNamingScheme = SnakeCase
+  override protected def naming: ColumnNamingScheme = ColumnNamingScheme.SnakeCase
 
   val tenantId  = column[String]("tenantId")
   val eventType = column[String]("eventType")
@@ -62,7 +61,7 @@ object EventsTable extends Table[Event]("analytics", "events") {
 case class Sensors(deviceId: UUID, year: Int, ts: Long, reading: Double)
 
 object SensorsTable extends Table[Sensors]("iot", "sensor_readings") {
-  override protected def naming: ColumnNamingScheme = SnakeCase
+  override protected def naming: ColumnNamingScheme = ColumnNamingScheme.SnakeCase
 
   val deviceId = column[UUID]("deviceId")
   val year     = column[Int]("year")

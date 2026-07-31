@@ -17,8 +17,6 @@ import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.cql.Row
 import com.datastax.oss.driver.api.core.servererrors.ServerError
 import net.nmoncho.helenus.api.ColumnNamingScheme
-import net.nmoncho.helenus.api.DefaultColumnNamingScheme
-import net.nmoncho.helenus.api.SnakeCase
 import net.nmoncho.helenus.internal.codec.UdtCodecSpec.IceCream3
 import net.nmoncho.helenus.internal.codec.udt.NonIdenticalUDTCodec
 import net.nmoncho.helenus.internal.codec.udt.UDTCodec
@@ -85,7 +83,7 @@ class UdtCodecSpec extends AnyWordSpec with Matchers {
     }
 
     "create a codec from fields" in {
-      implicit val colMapper: ColumnNamingScheme = DefaultColumnNamingScheme
+      implicit val colMapper: ColumnNamingScheme = ColumnNamingScheme.Default
       val codec: TypeCodec[IceCream3]            =
         Codec.udtFromFields[IceCream3]("", "", true)(_.name, _.cone, _.count, _.numCherries)
 
@@ -199,7 +197,7 @@ class CassandraUdtCodecSpec extends AnyWordSpec with Matchers with CassandraSpec
     }
 
     "work when fields are in different order (with fields)" in {
-      implicit val colMapper: ColumnNamingScheme = SnakeCase
+      implicit val colMapper: ColumnNamingScheme = ColumnNamingScheme.SnakeCase
       val codec: TypeCodec[IceCreamShuffled]     =
         Codec.udtFromFields[IceCreamShuffled]("", "", true)(_.name, _.numCherries, _.cone)
 
@@ -276,7 +274,7 @@ class CassandraUdtCodecSpec extends AnyWordSpec with Matchers with CassandraSpec
   case class IceCream(name: String, numCherries: Int, cone: Boolean)
 
   object IceCream {
-    implicit val colMapper: ColumnNamingScheme = SnakeCase
+    implicit val colMapper: ColumnNamingScheme = ColumnNamingScheme.SnakeCase
 
     implicit val codec: TypeCodec[IceCream] = Codec.of[IceCream]()
   }
@@ -284,7 +282,7 @@ class CassandraUdtCodecSpec extends AnyWordSpec with Matchers with CassandraSpec
   case class IceCreamShuffled(numCherries: Int, cone: Boolean, name: String)
 
   object IceCreamShuffled {
-    implicit val colMapper: ColumnNamingScheme = SnakeCase
+    implicit val colMapper: ColumnNamingScheme = ColumnNamingScheme.SnakeCase
 
     implicit val codec: TypeCodec[IceCreamShuffled] =
       Codec.of[IceCreamShuffled](name = "ice_cream")
@@ -293,7 +291,7 @@ class CassandraUdtCodecSpec extends AnyWordSpec with Matchers with CassandraSpec
   case class IceCreamInvalid(cherriesNumber: Int, cone: Boolean, name: String)
 
   object IceCreamInvalid {
-    implicit val colMapper: ColumnNamingScheme = SnakeCase
+    implicit val colMapper: ColumnNamingScheme = ColumnNamingScheme.SnakeCase
 
     implicit val codec: TypeCodec[IceCreamInvalid] =
       Codec.of[IceCreamInvalid](name = "ice_cream")

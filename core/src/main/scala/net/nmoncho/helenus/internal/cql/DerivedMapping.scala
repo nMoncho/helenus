@@ -13,7 +13,6 @@ import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.cql._
 import net.nmoncho.helenus.SettableByNameOps
 import net.nmoncho.helenus.api.ColumnNamingScheme
-import net.nmoncho.helenus.api.DefaultColumnNamingScheme
 import net.nmoncho.helenus.api.cql.Mapping
 import net.nmoncho.helenus.api.cql.ScalaBoundStatement
 import net.nmoncho.helenus.api.cql.ScalaPreparedStatement
@@ -213,7 +212,7 @@ object DerivedMapping {
   implicit def lastElementCollector[K <: Symbol, H](
       implicit codec: TypeCodec[H],
       witness: Witness.Aux[K],
-      columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme
+      columnMapper: ColumnNamingScheme = ColumnNamingScheme.Default
   ): Builder[FieldType[K, H] :: HNil] = (mapping: FieldToColumn) =>
     new FieldCollector[FieldType[K, H] :: HNil] {
 
@@ -254,7 +253,7 @@ object DerivedMapping {
       implicit codec: TypeCodec[H],
       witness: Witness.Aux[K],
       tailBuilder: Builder[T],
-      columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme
+      columnMapper: ColumnNamingScheme = ColumnNamingScheme.Default
   ): Builder[FieldType[K, H] :: T] = (mapping: FieldToColumn) =>
     new FieldCollector[FieldType[K, H] :: T] {
 
@@ -314,7 +313,7 @@ object DerivedMapping {
   implicit def genericCollector[A, R](
       implicit gen: LabelledGeneric.Aux[A, R],
       collectorBuilder: Lazy[Builder[R]],
-      columnMapper: ColumnNamingScheme = DefaultColumnNamingScheme
+      columnMapper: ColumnNamingScheme = ColumnNamingScheme.Default
   ): Builder[A] = (mappings: FieldToColumn) => {
     val collector = collectorBuilder.value(mappings)
 
