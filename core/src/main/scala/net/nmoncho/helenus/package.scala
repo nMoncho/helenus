@@ -7,6 +7,7 @@
 package net.nmoncho
 
 import scala.annotation.nowarn
+import scala.annotation.unused
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
@@ -378,7 +379,7 @@ package object helenus extends CodecDerivation {
       * }}}
       */
     def to[Col[_]](factory: Factory[T, Col[T]])(
-        implicit cbf: BuildFrom[Nothing, T, Col[T]]
+        implicit @unused cbf: BuildFrom[Nothing, T, Col[T]]
     ): Col[T] = iter.to(factory)
   }
 
@@ -481,6 +482,8 @@ package object helenus extends CodecDerivation {
     @nowarn("cat=unused-imports")
     def iter(timeout: FiniteDuration)(implicit ec: ExecutionContext): Iterator[T] = {
       // Don't remove me 'import scala.collection.compat._' // scalafix:ok
+      // noinspection ScalaUnusedSymbol
+      import scala.collection.compat._ // scalafix:ok
       // FIXME Using `TraversableOnce` Scala 2.12, also it doesn't lazily concat iterators
       // since `compat` implementation is different
       def concat(current: MappedAsyncPagingIterable[T]): TraversableOnce[T] =

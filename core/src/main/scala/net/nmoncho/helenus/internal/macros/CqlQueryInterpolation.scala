@@ -6,6 +6,7 @@
 
 package net.nmoncho.helenus.internal.macros
 
+import scala.annotation.unused
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.reflect.macros.blackbox
@@ -54,7 +55,7 @@ object CqlQueryInterpolation {
 
   def toCQLAsync(c: blackbox.Context)(
       futSession: c.Expr[Future[CqlSession]],
-      ec: c.Expr[ExecutionContext]
+      @unused ec: c.Expr[ExecutionContext]
   ): c.Expr[Future[CQLQuery]] = {
     import c.universe._
 

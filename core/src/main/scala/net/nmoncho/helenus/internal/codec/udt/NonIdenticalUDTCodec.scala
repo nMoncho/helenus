@@ -7,6 +7,7 @@
 package net.nmoncho.helenus
 package internal.codec.udt
 
+import scala.annotation.unused
 import scala.reflect.ClassTag
 
 import com.datastax.oss.driver.api.core.CqlSession
@@ -195,7 +196,7 @@ object NonIdenticalUDTCodec {
   implicit def genericUdtCodec[A, R](
       implicit generic: LabelledGeneric.Aux[A, R],
       codec: Lazy[NonIdenticalUDTCodec[R]],
-      columnMapper: ColumnNamingScheme = ColumnNamingScheme.Default
+      @unused columnMapper: ColumnNamingScheme = ColumnNamingScheme.Default
   ): NonIdenticalUDTCodec[A] = new NonIdenticalUDTCodec[A] {
 
     @inline override def innerToOuter(value: UdtValue): A =

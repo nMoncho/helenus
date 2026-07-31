@@ -132,6 +132,6 @@ object RowMapper {
     // Splice this UNTYPED tree instead of the typechecked result.
     val derived = q"_root_.shapeless.lazily[$target]"
 
-    (derived, fieldNames, renamedFields.map(extract))
+    (derived, fieldNames, renamedFields.map(f => extract(f)))
   }
 }

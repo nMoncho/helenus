@@ -75,15 +75,11 @@ object WrappedBoundStatement {
     def pager(implicit ec: ExecutionContext): Future[Pager[Out]] =
       fut.map(_.pager)
 
-    def pager(pagingState: PagingState)(
-        implicit mapper: RowMapper[Out],
-        ec: ExecutionContext
-    ): Future[Pager[Out]] =
+    def pager(pagingState: PagingState)(implicit ec: ExecutionContext): Future[Pager[Out]] =
       fut.map(_.pager(pagingState).get)
 
     def pager[A: PagerSerializer](pagingState: A)(
-        implicit newMapper: RowMapper[Out],
-        ec: ExecutionContext
+        implicit ec: ExecutionContext
     ): Future[Pager[Out]] =
       fut.map(_.pager(pagingState).get)
   }

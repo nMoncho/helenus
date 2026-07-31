@@ -71,7 +71,7 @@ trait CaseClassRowMapperDerivation {
   implicit def genericCCRowMapperBuilder[T, R](
       implicit gen: LabelledGeneric.Aux[T, R],
       builder: DerivedRowMapper.Builder[R],
-      naming: ColumnNamingScheme = ColumnNamingScheme.Default
+      @unused naming: ColumnNamingScheme = ColumnNamingScheme.Default
   ): DerivedRowMapper.Builder[T] = (mappings: DerivedRowMapper.FieldToColumn) => {
     val reprRowMapper = builder(mappings)
 
@@ -81,9 +81,9 @@ trait CaseClassRowMapperDerivation {
   /** Derives a [[DerivedRowMapper]] for type [[T]] when refined field/column mapping is not required.
     */
   implicit def genericCCRowMapper[T, R](
-      implicit gen: LabelledGeneric.Aux[T, R],
+      implicit @unused gen: LabelledGeneric.Aux[T, R],
       builder: DerivedRowMapper.Builder[T],
-      columnMapper: ColumnNamingScheme = ColumnNamingScheme.Default
+      @unused columnMapper: ColumnNamingScheme = ColumnNamingScheme.Default
   ): DerivedRowMapper[T] = builder(Map.empty)
 
 }

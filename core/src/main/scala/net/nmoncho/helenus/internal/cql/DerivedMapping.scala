@@ -6,6 +6,7 @@
 
 package net.nmoncho.helenus.internal.cql
 
+import scala.annotation.unused
 import scala.jdk.CollectionConverters._
 import scala.reflect.ClassTag
 
@@ -313,7 +314,7 @@ object DerivedMapping {
   implicit def genericCollector[A, R](
       implicit gen: LabelledGeneric.Aux[A, R],
       collectorBuilder: Lazy[Builder[R]],
-      columnMapper: ColumnNamingScheme = ColumnNamingScheme.Default
+      @unused columnMapper: ColumnNamingScheme = ColumnNamingScheme.Default
   ): Builder[A] = (mappings: FieldToColumn) => {
     val collector = collectorBuilder.value(mappings)
 

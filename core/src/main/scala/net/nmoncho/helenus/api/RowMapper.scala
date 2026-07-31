@@ -6,6 +6,7 @@
 
 package net.nmoncho.helenus.api
 
+import scala.annotation.unused
 import scala.util.Try
 
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
@@ -115,8 +116,9 @@ object RowMapper {
 
   /** Derives a [[RowMapper]] for tuples
     */
-  implicit def derivedTupleRowMapper[T: IsTuple](
-      implicit mapper: DerivedRowMapper[T]
+  implicit def derivedTupleRowMapper[T](
+      implicit @unused ev: IsTuple[T],
+      mapper: DerivedRowMapper[T]
   ): RowMapper[T] = mapper
 
   /** Derives a [[RowMapper]] from a [[TypeCodec]] when [[T]] isn't a `Product`
