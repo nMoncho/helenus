@@ -110,8 +110,8 @@ class UpdateIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
       .where(UsersTable.id === id and UsersTable.username === ?)
       .prepare
 
-    setAge(60, "alice")
-    setAge(61, "bob")
+    setAge.execute(60, "alice")
+    setAge.execute(61, "bob")
 
     ageOf("alice") shouldBe 60
     ageOf("bob") shouldBe 61

@@ -65,6 +65,7 @@ abstract class ScalaPreparedStatement[In, Out](pstmt: PreparedStatement, val map
   def as[Out2](mapper: RowMapper[Out2])(implicit ev: Out =:= Row): AsOut[Out2] =
     as[Out2](ev, mapper)
 
+  // FIXME provide hints for tables and interpolated statements
   /** Verifies that this [[ScalaPreparedStatement]] has the same amount of bind parameters (e.g. '?') as the amount
    * used on the '.prepare' call. It will also verify that these parameters have the same type as the specified in
    * the '.prepare' call.

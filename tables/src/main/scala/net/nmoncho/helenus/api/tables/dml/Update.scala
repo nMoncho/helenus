@@ -10,16 +10,19 @@ package dml
 import java.time.Duration
 
 import scala.annotation.unused
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
 
 import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.cql.ResultSet
+import com.datastax.oss.driver.api.core.cql.Row
+import net.nmoncho.helenus.ScalaBoundStatement
+import net.nmoncho.helenus.api.tables.dml.where._
 import shapeless.::
 import shapeless.HList
 import shapeless.HNil
 import shapeless.ops.function.FnFromProduct
 import shapeless.ops.hlist.Prepend
-
-import where._
 
 /** A typed UPDATE builder.
   *
@@ -167,8 +170,22 @@ final case class Update[
       implicit session: CqlSession,
       @unused ev: CanUpdate[table.PK, table.CK, Eq, In, Rng],
       @unused all: Prepend.Aux[SetPm, WherePm, AllPm],
-      fp: FnFromProduct.Aux[AllPm => ResultSet, F]
-  ): F = prepareStatement[AllPm, F](render(prepared = true), assignments, predicates)
+      to: ToPrepared[AllPm],
+      fp: FnFromProduct.Aux[AllPm => ScalaBoundStatement[Row], F]
+  ): to.Out =
+    to(render(prepared = true), assignments, predicates)
+
+  def prepareAsync[AllPm <: HList, F](
+      implicit session: Future[CqlSession],
+      ec: ExecutionContext,
+      @unused ev: CanUpdate[table.PK, table.CK, Eq, In, Rng],
+      @unused all: Prepend.Aux[SetPm, WherePm, AllPm],
+      to: ToPrepared[AllPm],
+      fp: FnFromProduct.Aux[AllPm => ScalaBoundStatement[Row], F]
+  ): Future[to.Out] =
+    session.map { implicit s =>
+      to(render(prepared = true), assignments, predicates)
+    }
 
   override def toString: String = render()
 }

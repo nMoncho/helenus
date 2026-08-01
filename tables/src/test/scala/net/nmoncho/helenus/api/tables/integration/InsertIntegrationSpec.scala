@@ -119,14 +119,15 @@ class InsertIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
   }
 
   it should "insert through a function produced from bound values" in {
+    import net.nmoncho.helenus._
     val insertUser = UsersTable.insert
       .value(UsersTable.id := ?)
       .value(UsersTable.username := ?)
       .value(UsersTable.age := ?)
       .prepare
 
-    insertUser(id, "alice", 30)
-    insertUser(id, "bob", 25)
+    insertUser.execute(id, "alice", 30)
+    insertUser.execute(id, "bob", 25)
 
     rows(UsersTable.select().where(UsersTable.id === id).execute()) should have size 2
   }

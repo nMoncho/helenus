@@ -10,9 +10,13 @@ package dml
 import java.time.Duration
 
 import scala.annotation.unused
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
 
 import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.cql.ResultSet
+import com.datastax.oss.driver.api.core.cql.Row
+import net.nmoncho.helenus.ScalaBoundStatement
 import shapeless.::
 import shapeless.HList
 import shapeless.HNil
@@ -102,8 +106,20 @@ final case class Insert[T <: TableDef, Params <: HList](
     */
   def prepare[F](
       implicit session: CqlSession,
-      fp: FnFromProduct.Aux[Params => ResultSet, F]
-  ): F = prepareStatement[Params, F](render(prepared = true), assignments, Nil)
+      to: ToPrepared[Params],
+      fp: FnFromProduct.Aux[Params => ScalaBoundStatement[Row], F]
+  ): to.Out =
+    to(render(prepared = true), assignments, Nil)
+
+  def prepareAsync[F](
+      implicit session: Future[CqlSession],
+      ec: ExecutionContext,
+      to: ToPrepared[Params],
+      fp: FnFromProduct.Aux[Params => ScalaBoundStatement[Row], F]
+  ): Future[to.Out] =
+    session.map { implicit s =>
+      to(render(prepared = true), assignments, Nil)
+    }
 
   override def toString: String = toCQL
 }
