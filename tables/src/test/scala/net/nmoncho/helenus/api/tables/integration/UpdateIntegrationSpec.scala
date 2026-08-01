@@ -47,7 +47,7 @@ class UpdateIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
         .select(UsersTable.age)
         .where(UsersTable.id === id and UsersTable.username === username)
         .execute()
-    ).head.getInt("age")
+    ).head
 
   "Update.execute()" should "update exactly the row identified by the primary key" in {
     UsersTable.update

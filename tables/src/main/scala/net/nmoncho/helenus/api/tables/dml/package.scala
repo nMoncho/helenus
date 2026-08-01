@@ -126,6 +126,7 @@ package object dml {
   )(implicit session: CqlSession, fp: FnFromProduct.Aux[Params => ResultSet, F]): F = {
     val pstmt = session.prepare(cql)
 
+    // TODO refactor this section with `ToPrepared`
     fp { params =>
       val values          = Binding.values(params).iterator
       val assignmentCount = assignments.length

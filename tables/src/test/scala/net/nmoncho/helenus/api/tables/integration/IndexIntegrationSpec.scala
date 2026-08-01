@@ -105,7 +105,7 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
 
   "contains on an indexed column" should "run without allowFiltering and find the matching row" in {
     val result = rows(ArticlesTable.select().where(ArticlesTable.tags.contains("scala")).execute())
-    result.map(_.get("id", classOf[UUID])) shouldBe List(article1)
+    result.map(_.id) shouldBe List(article1)
   }
 
   it should "combine with the primary key and still run without allowFiltering" in {
@@ -174,7 +174,7 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
         .execute()
     )
 
-    result.map(_.get("id", classOf[UUID])) shouldBe List(article1)
+    result.map(_.id) shouldBe List(article1)
 
     val boundResult = rows(
       ArticlesTable
@@ -193,7 +193,7 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
   "containsKey on an indexed column" should "run without allowFiltering and find the matching row" in {
     val result =
       rows(ProfilesTable.select().where(ProfilesTable.attributes.containsKey("color")).execute())
-    result.map(_.get("id", classOf[UUID])) shouldBe List(profile1)
+    result.map(_.id) shouldBe List(profile1)
   }
 
   it should "combine with the primary key and still run without allowFiltering" in {
@@ -229,7 +229,7 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
         .execute()
     )
 
-    result.map(_.get("id", classOf[UUID])) shouldBe List(profile1)
+    result.map(_.id) shouldBe List(profile1)
   }
 
   // ---- Frozen: FULL index lets equality run without ALLOW FILTERING --------
@@ -239,7 +239,7 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
       SnapshotsTable.select().where(SnapshotsTable.labels === Frozen(Set("scala", "cql"))).execute()
     )
 
-    result.map(_.get("id", classOf[UUID])) shouldBe List(snapshot1)
+    result.map(_.id) shouldBe List(snapshot1)
   }
 
   it should "find nothing for a value no row has, without needing ALLOW FILTERING" in {
@@ -267,7 +267,7 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
         .allowFiltering
         .execute()
     )
-    result.map(_.get("id", classOf[UUID])) shouldBe List(snapshot1)
+    result.map(_.id) shouldBe List(snapshot1)
   }
 
   // ---- equality on ANY indexed column, not just collections -----------------
@@ -275,7 +275,7 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
   "equality on an indexed scalar column" should "run without ALLOW FILTERING and find the matching row" in {
     val result =
       rows(CustomersTable.select().where(CustomersTable.email === "alice@example.com").execute())
-    result.map(_.get("id", classOf[UUID])) shouldBe List(customer1)
+    result.map(_.id) shouldBe List(customer1)
   }
 
   it should "combine with the primary key and still run without allowFiltering" in {
@@ -302,7 +302,7 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
   it should "run once allowFiltering is used" in {
     val result =
       rows(CustomersTable.select().where(CustomersTable.age === 30).allowFiltering.execute())
-    result.map(_.get("id", classOf[UUID])) shouldBe List(customer1)
+    result.map(_.id) shouldBe List(customer1)
   }
 
   // ---- entry: indexed map column (ENTRIES index), no ALLOW FILTERING -------
@@ -310,7 +310,7 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
   "entry on an indexed column" should "run without allowFiltering and find the matching row" in {
     val result =
       rows(ProfilesTable.select().where(ProfilesTable.attributes.entry("color", "red")).execute())
-    result.map(_.get("id", classOf[UUID])) shouldBe List(profile1)
+    result.map(_.id) shouldBe List(profile1)
 
     // implicit val rm = RowMapper[Profile]() // FIXME this should NOT be happening, this is because ScalaBoundStatement doesn't carry the RowMapper
     // rows(pstmt("color" -> "red").execute("color" -> "red")).map(_.id) shouldBe List(profile1)
@@ -352,18 +352,18 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
         .allowFiltering
         .execute()
     )
-    result.map(_.get("id", classOf[UUID])) shouldBe List(profile1)
+    result.map(_.id) shouldBe List(profile1)
   }
 
   // ---- compound: contains + containsKey + entry, all indexed on ONE column -
 
   "a map column with all 3 indices" should "let contains, containsKey and entry each run without allowFiltering" in {
     rows(ProfilesTable.select().where(ProfilesTable.attributes.contains("red")).execute())
-      .map(_.get("id", classOf[UUID])) shouldBe List(profile1)
+      .map(_.id) shouldBe List(profile1)
     rows(ProfilesTable.select().where(ProfilesTable.attributes.containsKey("color")).execute())
-      .map(_.get("id", classOf[UUID])) shouldBe List(profile1)
+      .map(_.id) shouldBe List(profile1)
     rows(ProfilesTable.select().where(ProfilesTable.attributes.entry("color", "red")).execute())
-      .map(_.get("id", classOf[UUID])) shouldBe List(profile1)
+      .map(_.id) shouldBe List(profile1)
   }
 
   // Cassandra restriction the type gate does not model (confirmed on both
@@ -415,7 +415,7 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
   "containsKey on a keys-only indexed column" should "run without allowFiltering and find the matching row" in {
     val result =
       rows(DocumentsTable.select().where(DocumentsTable.tags.containsKey("color")).execute())
-    result.map(_.get("id", classOf[UUID])) shouldBe List(document1)
+    result.map(_.id) shouldBe List(document1)
   }
 
   "contains on a keys-only indexed column" should "be rejected by Cassandra without allowFiltering" in {
@@ -433,7 +433,7 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
     val result = rows(
       DocumentsTable.select().where(DocumentsTable.tags.contains("red")).allowFiltering.execute()
     )
-    result.map(_.get("id", classOf[UUID])) shouldBe List(document1)
+    result.map(_.id) shouldBe List(document1)
   }
 
   "entry on a keys-only indexed column" should "be rejected by Cassandra without allowFiltering" in {
@@ -455,7 +455,7 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
         .allowFiltering
         .execute()
     )
-    result.map(_.get("id", classOf[UUID])) shouldBe List(document1)
+    result.map(_.id) shouldBe List(document1)
   }
 
   // ---- Table.indexValuesAndKeys: only VALUES + KEYS indexes exist ----------
@@ -465,13 +465,13 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
   "contains on a values+keys indexed column" should "run without allowFiltering and find the matching row" in {
     val result =
       rows(DocumentsTable.select().where(DocumentsTable.metadata.contains("red")).execute())
-    result.map(_.get("id", classOf[UUID])) shouldBe List(document1)
+    result.map(_.id) shouldBe List(document1)
   }
 
   "containsKey on a values+keys indexed column" should "run without allowFiltering and find the matching row" in {
     val result =
       rows(DocumentsTable.select().where(DocumentsTable.metadata.containsKey("color")).execute())
-    result.map(_.get("id", classOf[UUID])) shouldBe List(document1)
+    result.map(_.id) shouldBe List(document1)
   }
 
   "entry on a values+keys indexed column" should "be rejected by Cassandra without allowFiltering" in {
@@ -493,7 +493,7 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
         .allowFiltering
         .execute()
     )
-    result.map(_.get("id", classOf[UUID])) shouldBe List(document1)
+    result.map(_.id) shouldBe List(document1)
   }
 
   // ---- Frozen maps: only whole-value equality works, via a FULL index -----
@@ -505,7 +505,7 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
     val result = rows(
       CatalogsTable.select().where(CatalogsTable.labels === Frozen(Map("color" -> "red"))).execute()
     )
-    result.map(_.get("id", classOf[UUID])) shouldBe List(catalog1)
+    result.map(_.id) shouldBe List(catalog1)
   }
 
   it should "find nothing for a value no row has, without needing ALLOW FILTERING" in {
@@ -536,6 +536,6 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
         .allowFiltering
         .execute()
     )
-    result.map(_.get("id", classOf[UUID])) shouldBe List(catalog1)
+    result.map(_.id) shouldBe List(catalog1)
   }
 }

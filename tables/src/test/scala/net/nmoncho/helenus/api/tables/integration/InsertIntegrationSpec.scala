@@ -11,8 +11,6 @@ import java.time.Duration
 import java.time.temporal.ChronoUnit
 import java.util.UUID
 
-import scala.jdk.CollectionConverters._
-
 import net.nmoncho.helenus.api.tables.dml.?
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.DoNotDiscover
@@ -48,9 +46,9 @@ class InsertIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
     )
 
     val row = aliceRow().get
-    row.getUuid("id") shouldBe id
-    row.getString("username") shouldBe "alice"
-    row.getInt("age") shouldBe 30
+    row.id shouldBe id
+    row.username shouldBe "alice"
+    row.age shouldBe 30
   }
 
   it should "round-trip values containing single quotes" in {
@@ -62,7 +60,7 @@ class InsertIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
     )
 
     val row = rows(UsersTable.select().where(UsersTable.id === id).execute()).head
-    row.getString("username") shouldBe "o'reilly"
+    row.username shouldBe "o'reilly"
   }
 
   it should "not overwrite an existing row with IF NOT EXISTS" in {
@@ -84,7 +82,7 @@ class InsertIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
     )
 
     second.wasApplied() shouldBe false
-    aliceRow().get.getInt("age") shouldBe 30
+    aliceRow().get.age shouldBe 30
   }
 
   it should "apply USING TTL" in {
@@ -144,7 +142,7 @@ class InsertIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
     )
 
     val row = aliceRow().get
-    row.getSet("tags", classOf[String]).asScala shouldBe Set("admin", "beta")
-    row.getMap("metadata", classOf[String], classOf[String]).asScala shouldBe Map("k" -> "v")
+    row.tags shouldBe Set("admin", "beta")
+    row.metadata shouldBe Map("k" -> "v")
   }
 }

@@ -88,7 +88,7 @@ class SelectExecuteIntegrationSpec extends CassandraIntegrationSpec {
         .execute()
     )
     result should have size 1
-    result.head.getInt("age") shouldBe 30
+    result.head.age shouldBe 30
   }
 
   it should "run a composite partition key constrained out of order" in {
@@ -99,7 +99,7 @@ class SelectExecuteIntegrationSpec extends CassandraIntegrationSpec {
         .execute()
     )
     result should have size 1
-    result.head.getString("payload") shouldBe "p1"
+    result.head.payload shouldBe "p1"
   }
 
   it should "run a clustering range after the === prefix" in {
@@ -111,7 +111,8 @@ class SelectExecuteIntegrationSpec extends CassandraIntegrationSpec {
         )
         .execute()
     )
-    result.map(_.getLong("ts")).toSet shouldBe Set(150L, 250L)
+
+    result.map(_.ts).toSet shouldBe Set(150L, 250L)
   }
 
   it should "run a slice with two ranges on the same clustering column" in {
@@ -123,7 +124,7 @@ class SelectExecuteIntegrationSpec extends CassandraIntegrationSpec {
         )
         .execute()
     )
-    result.map(_.getLong("ts")).toSet shouldBe Set(150L, 250L)
+    result.map(_.ts).toSet shouldBe Set(150L, 250L)
   }
 
   it should "run IN on a single-column partition key" in {
@@ -139,7 +140,7 @@ class SelectExecuteIntegrationSpec extends CassandraIntegrationSpec {
         .where(EventsTable.tenantId === "acme" and EventsTable.eventType.in(Seq("click", "view")))
         .execute()
     )
-    result.map(_.getString("payload")).toSet shouldBe Set("p1", "p2")
+    result.map(_.payload).toSet shouldBe Set("p1", "p2")
   }
 
   it should "run partition IN combined with clustering restrictions and a range" in {
@@ -152,7 +153,7 @@ class SelectExecuteIntegrationSpec extends CassandraIntegrationSpec {
         )
         .execute()
     )
-    result.map(_.getLong("ts")).toSet shouldBe Set(150L, 250L)
+    result.map(_.ts).toSet shouldBe Set(150L, 250L)
   }
 
   it should "run IN on the last clustering column" in {
@@ -165,7 +166,7 @@ class SelectExecuteIntegrationSpec extends CassandraIntegrationSpec {
         .where(UsersTable.id === userA and UsersTable.username.in(Seq("alice", "bob")))
         .execute()
     )
-    result.map(_.getString("username")).toSet shouldBe Set("alice", "bob")
+    result.map { case (_, username, _) => username }.toSet shouldBe Set("alice", "bob")
   }
 
   it should "respect the DESC clustering order declared in CK" in {
@@ -175,7 +176,7 @@ class SelectExecuteIntegrationSpec extends CassandraIntegrationSpec {
         .where(SensorsTable.deviceId === deviceId and SensorsTable.year === 2026)
         .execute()
     )
-    result.map(_.getLong("ts")) shouldBe List(250L, 150L, 50L)
+    result.map(_.ts) shouldBe List(250L, 150L, 50L)
   }
 
   it should "apply query-time ORDER BY" in {
@@ -186,7 +187,7 @@ class SelectExecuteIntegrationSpec extends CassandraIntegrationSpec {
         .orderBy(UsersTable.username.desc)
         .execute()
     )
-    result.map(_.getString("username")) shouldBe List("bob", "alice")
+    result.map(_.username) shouldBe List("bob", "alice")
   }
 
   it should "apply LIMIT" in {
@@ -195,7 +196,7 @@ class SelectExecuteIntegrationSpec extends CassandraIntegrationSpec {
 
   it should "run non-key filters through allowFiltering" in {
     val result = rows(UsersTable.select().where(UsersTable.age > 26).allowFiltering.execute())
-    result.map(_.getString("username")).toSet shouldBe Set("alice", "carol")
+    result.map(_.username).toSet shouldBe Set("alice", "carol")
   }
 
   // ---- bind markers: produced functions run against the server -------------

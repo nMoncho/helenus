@@ -37,9 +37,9 @@ class ComputedColumnIntegrationSpec extends CassandraIntegrationSpec {
         .execute()
     ).head
 
-    row.getUuid("id") shouldBe id
-    row.getString("name") shouldBe "alice"
-    row.getDouble("value") shouldBe 1.5
+    row.id shouldBe id
+    row.name shouldBe "alice"
+    row.value shouldBe 1.5
   }
 
   it should "store the computed value so it can be read back explicitly" in {
@@ -52,6 +52,6 @@ class ComputedColumnIntegrationSpec extends CassandraIntegrationSpec {
         .execute()
     ).head
 
-    row.getInt("shard") shouldBe 3 // "bob".length
+    row._3 shouldBe 3 // "bob".length
   }
 }

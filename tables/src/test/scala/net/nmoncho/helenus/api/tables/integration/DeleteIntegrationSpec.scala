@@ -61,7 +61,7 @@ class DeleteIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
     println(delete.render(prepared = true))
     delete.execute()
 
-    userRows().map(_.getString("username")) shouldBe List("bob")
+    userRows().map(_.username) shouldBe List("bob")
   }
 
   it should "delete a whole partition" in {
@@ -83,7 +83,7 @@ class DeleteIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
         .where(SensorsTable.deviceId === deviceId and SensorsTable.year === 2026)
         .execute()
     )
-    remaining.map(_.getLong("ts")) shouldBe List(50L)
+    remaining.map(_.ts) shouldBe List(50L)
   }
 
   it should "delete a single column and keep the row" in {
@@ -95,8 +95,9 @@ class DeleteIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
     val alice = rows(
       UsersTable.select().where(UsersTable.id === id and UsersTable.username === "alice").execute()
     ).head
-    alice.isNull("email") shouldBe true
-    alice.getInt("age") shouldBe 30
+
+    Option(alice.email).isEmpty shouldBe true
+    alice.age shouldBe 30
   }
 
   it should "report unapplied IF EXISTS on a missing row" in {
@@ -115,7 +116,7 @@ class DeleteIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
       .where(UsersTable.id === id and UsersTable.username === "alice")
       .execute()
 
-    userRows().map(_.getString("username")).toSet shouldBe Set("alice", "bob")
+    userRows().map(_.username).toSet shouldBe Set("alice", "bob")
   }
 
   it should "delete through a function produced from bound key parameters" in {
@@ -124,7 +125,7 @@ class DeleteIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
       .prepare
 
     deleteUser("alice")
-    userRows().map(_.getString("username")) shouldBe List("bob")
+    userRows().map(_.username) shouldBe List("bob")
 
     deleteUser("bob")
     userRows() shouldBe empty

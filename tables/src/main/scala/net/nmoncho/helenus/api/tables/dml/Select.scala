@@ -12,9 +12,10 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
 import com.datastax.oss.driver.api.core.CqlSession
+import com.datastax.oss.driver.api.core.PagingIterable
 import com.datastax.oss.driver.api.core.cql.BoundStatement
-import com.datastax.oss.driver.api.core.cql.ResultSet
 import com.datastax.oss.driver.api.core.cql.Row
+import net.nmoncho.helenus.ResultSetOps
 import net.nmoncho.helenus.api.RowMapper
 import net.nmoncho.helenus.api.cql.ScalaBoundStatement
 import net.nmoncho.helenus.api.tables.dml.Select.orderedPredicates
@@ -108,13 +109,15 @@ final case class Select[
       implicit session: CqlSession,
       @unused ev: CanSelect[table.PK, table.CK, Eq, In, Rng],
       @unused noUnboundParams: Params =:= HNil
-  ): ResultSet = // TODO change this to `PagingIterable[Out]` when we can define `Out`
+  ): PagingIterable[Out] =
     executeStatement(
       Select.render(this, allowFiltering = false, prepared = true),
       Seq.empty,
       // Safe to case this to `Seq[BoundPredicate[_, _]]` as there are no unbound parameters
       orderedPredicates(this).asInstanceOf[Seq[BoundPredicate[_, _]]]
-    )
+    ).as[Out](rowMapper)
+
+  // TODO add `executeAsync`
 
   def prepare[F](
       implicit @unused ev: CanSelect[table.PK, table.CK, Eq, In, Rng],
@@ -203,14 +206,13 @@ object Select {
 
     def toCQL: String = render(select, allowFiltering = true)
 
-    // TODO change this to `PagingIterable[Out]` when we can define `Out`
-    def execute()(implicit session: CqlSession): ResultSet = {
+    def execute()(implicit session: CqlSession): PagingIterable[Out] = {
       val pstmt = session.prepare(Select.render(select, allowFiltering = true, prepared = true))
 
       // Safe to case this to `Seq[BoundPredicate[_, _]]` as there are no unbound parameters
       val bstmt = select.withBoundValues(pstmt.bind(), HNil)
 
-      session.execute(bstmt)
+      session.execute(bstmt).as[Out](select.rowMapper)
     }
 
     /** Like `Select.prepare`, without the primary-key requirement. */
