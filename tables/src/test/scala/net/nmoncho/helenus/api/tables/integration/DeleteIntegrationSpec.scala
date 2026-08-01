@@ -120,14 +120,16 @@ class DeleteIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfter
   }
 
   it should "delete through a function produced from bound key parameters" in {
+    import net.nmoncho.helenus._
+
     val deleteUser = UsersTable.delete
       .where(UsersTable.id === id and UsersTable.username === ?)
       .prepare
 
-    deleteUser("alice")
+    deleteUser.execute("alice")
     userRows().map(_.username) shouldBe List("bob")
 
-    deleteUser("bob")
+    deleteUser.execute("bob")
     userRows() shouldBe empty
   }
 

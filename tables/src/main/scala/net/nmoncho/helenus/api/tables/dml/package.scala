@@ -128,28 +128,30 @@ package object dml {
       cql: String,
       assignments: Seq[TableDef#BoundAssignment[_]],
       predicates: Seq[BoundPredicate[_, _]]
-  )(implicit session: CqlSession, ec: ExecutionContext): Future[AsyncResultSet] =
-    session.prepareAsync(cql).asScala.flatMap { pstmt =>
-      val assignmentCount = assignments.length
+  )(implicit session: Future[CqlSession], ec: ExecutionContext): Future[AsyncResultSet] =
+    session.flatMap { s =>
+      s.prepareAsync(cql).asScala.flatMap { pstmt =>
+        val assignmentCount = assignments.length
 
-      val bstmt = if (assignments.isEmpty) {
-        pstmt.bind()
-      } else {
-        bindBoundAssignments(
-          pstmt.bind(),
-          // Safe to case this to `Seq[SimpleAssignment[_]]` as there are no unbound parameters
-          assignments.asInstanceOf[Seq[TableDef#BoundAssignment[Any]]]
+        val bstmt = if (assignments.isEmpty) {
+          pstmt.bind()
+        } else {
+          bindBoundAssignments(
+            pstmt.bind(),
+            // Safe to case this to `Seq[SimpleAssignment[_]]` as there are no unbound parameters
+            assignments.asInstanceOf[Seq[TableDef#BoundAssignment[Any]]]
+          )
+        }
+
+        val withPredicates = bindBoundPredicates(
+          bstmt,
+          // Safe to case this to `Seq[BoundPredicate[_, _]]` as there are no unbound parameters
+          predicates.asInstanceOf[Seq[BoundPredicate[_, _]]],
+          assignmentCount
         )
+
+        s.executeAsync(withPredicates).asScala
       }
-
-      val withPredicates = bindBoundPredicates(
-        bstmt,
-        // Safe to case this to `Seq[BoundPredicate[_, _]]` as there are no unbound parameters
-        predicates.asInstanceOf[Seq[BoundPredicate[_, _]]],
-        assignmentCount
-      )
-
-      session.executeAsync(withPredicates).asScala
     }
 
   def prepareStatement[Params <: HList, F](

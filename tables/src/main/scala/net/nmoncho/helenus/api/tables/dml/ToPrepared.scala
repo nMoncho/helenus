@@ -37,6 +37,8 @@ import shapeless.ops.function.FnFromProduct
 sealed trait ToPrepared[Params <: HList] {
   type Out <: ScalaPreparedStatement[_, Row]
 
+  // TODO missing prepare async
+
   /** Converts to a ScalaPreparedStatement
     *
     * @param cql query to prepare

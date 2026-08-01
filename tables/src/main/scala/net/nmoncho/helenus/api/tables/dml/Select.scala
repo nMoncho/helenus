@@ -121,7 +121,7 @@ final case class Select[
     ).as[Out](rowMapper)
 
   def executeAsync()(
-      implicit session: CqlSession,
+      implicit session: Future[CqlSession],
       ec: ExecutionContext,
       @unused ev: CanSelect[table.PK, table.CK, Eq, In, Rng],
       @unused noUnboundParams: Params =:= HNil

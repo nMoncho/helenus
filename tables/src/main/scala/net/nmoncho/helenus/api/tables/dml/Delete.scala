@@ -10,15 +10,19 @@ package dml
 import java.time.Duration
 
 import scala.annotation.unused
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
 
 import com.datastax.oss.driver.api.core.CqlSession
+import com.datastax.oss.driver.api.core.cql.AsyncResultSet
 import com.datastax.oss.driver.api.core.cql.ResultSet
+import com.datastax.oss.driver.api.core.cql.Row
+import net.nmoncho.helenus.ScalaBoundStatement
+import net.nmoncho.helenus.api.tables.dml.where._
 import shapeless.HList
 import shapeless.HNil
 import shapeless.ops.function.FnFromProduct
 import shapeless.ops.hlist.Prepend
-
-import where._
 
 /** A typed DELETE builder.
   *
@@ -138,6 +142,19 @@ final case class Delete[
       predicates.asInstanceOf[Seq[BoundPredicate[_, _]]]
     )
 
+  def executeAsync()(
+      implicit session: Future[CqlSession],
+      ec: ExecutionContext,
+      @unused ev: CanDelete[M, table.PK, table.CK, Eq, In, Rng],
+      @unused noUnboundParams: Params =:= HNil
+  ): Future[AsyncResultSet] =
+    executeStatementAsync(
+      render(prepared = true),
+      Seq.empty,
+      // Safe to case this to `Seq[BoundPredicate[_, _]]` as there are no unbound parameters
+      predicates.asInstanceOf[Seq[BoundPredicate[_, _]]]
+    )
+
   /** Turn a delete containing `?` markers into a `FunctionN` taking one
     * argument per marker (typed as the bound column, in writing order) and
     * returning the rendered CQL. Gated by the same rules as [[execute]]:
@@ -147,8 +164,21 @@ final case class Delete[
   def prepare[F](
       implicit session: CqlSession,
       @unused ev: CanDelete[M, table.PK, table.CK, Eq, In, Rng],
-      fp: FnFromProduct.Aux[Params => ResultSet, F]
-  ): F = prepareStatement[Params, F](render(prepared = true), Nil, predicates)
+      to: ToPrepared[Params],
+      fp: FnFromProduct.Aux[Params => ScalaBoundStatement[Row], F]
+  ): to.Out =
+    to(render(prepared = true), Nil, predicates)
+
+  def prepareAsync[F](
+      implicit session: Future[CqlSession],
+      ec: ExecutionContext,
+      @unused ev: CanDelete[M, table.PK, table.CK, Eq, In, Rng],
+      to: ToPrepared[Params],
+      fp: FnFromProduct.Aux[Params => ScalaBoundStatement[Row], F]
+  ): Future[to.Out] =
+    session.map { implicit s =>
+      to(render(prepared = true), Nil, predicates)
+    }
 
   override def toString: String = render()
 }
