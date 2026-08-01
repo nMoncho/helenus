@@ -9,18 +9,23 @@ package net.nmoncho.helenus.api.tables
 import java.time.Duration
 import java.time.temporal.ChronoUnit
 
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
+
 import com.datastax.oss.driver.api.core.CqlSession
+import com.datastax.oss.driver.api.core.cql.AsyncResultSet
 import com.datastax.oss.driver.api.core.cql.BoundStatement
 import com.datastax.oss.driver.api.core.cql.ResultSet
 import net.nmoncho.helenus.api.tables.dml.where.BindPredicate
 import net.nmoncho.helenus.api.tables.dml.where.BoundPredicate
 import net.nmoncho.helenus.api.tables.dml.where.EntryBindPredicate
 import net.nmoncho.helenus.api.tables.dml.where.Predicate
+import net.nmoncho.helenus.internal.compat.FutureConverters.CompletionStageOps
 import shapeless.HList
 import shapeless.ops.function.FnFromProduct
 
 package object dml {
-
+  // TODO refactor and unify duplicate code
   def renderPredicates(predicates: Seq[Predicate[_, _]], prepared: Boolean): String =
     if (predicates.isEmpty) ""
     else if (prepared) s" WHERE ${predicates.map(_.forPreparedStatement).mkString(" AND ")}"
@@ -118,6 +123,34 @@ package object dml {
 
     session.execute(withPredicates)
   }
+
+  def executeStatementAsync(
+      cql: String,
+      assignments: Seq[TableDef#BoundAssignment[_]],
+      predicates: Seq[BoundPredicate[_, _]]
+  )(implicit session: CqlSession, ec: ExecutionContext): Future[AsyncResultSet] =
+    session.prepareAsync(cql).asScala.flatMap { pstmt =>
+      val assignmentCount = assignments.length
+
+      val bstmt = if (assignments.isEmpty) {
+        pstmt.bind()
+      } else {
+        bindBoundAssignments(
+          pstmt.bind(),
+          // Safe to case this to `Seq[SimpleAssignment[_]]` as there are no unbound parameters
+          assignments.asInstanceOf[Seq[TableDef#BoundAssignment[Any]]]
+        )
+      }
+
+      val withPredicates = bindBoundPredicates(
+        bstmt,
+        // Safe to case this to `Seq[BoundPredicate[_, _]]` as there are no unbound parameters
+        predicates.asInstanceOf[Seq[BoundPredicate[_, _]]],
+        assignmentCount
+      )
+
+      session.executeAsync(withPredicates).asScala
+    }
 
   def prepareStatement[Params <: HList, F](
       cql: String,

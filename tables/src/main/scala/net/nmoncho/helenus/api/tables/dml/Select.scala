@@ -12,14 +12,17 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
 import com.datastax.oss.driver.api.core.CqlSession
+import com.datastax.oss.driver.api.core.MappedAsyncPagingIterable
 import com.datastax.oss.driver.api.core.PagingIterable
 import com.datastax.oss.driver.api.core.cql.BoundStatement
 import com.datastax.oss.driver.api.core.cql.Row
+import net.nmoncho.helenus.AsyncResultSetOps
 import net.nmoncho.helenus.ResultSetOps
 import net.nmoncho.helenus.api.RowMapper
 import net.nmoncho.helenus.api.cql.ScalaBoundStatement
 import net.nmoncho.helenus.api.tables.dml.Select.orderedPredicates
 import net.nmoncho.helenus.api.tables.dml.where._
+import net.nmoncho.helenus.internal.compat.FutureConverters.CompletionStageOps
 import shapeless.HList
 import shapeless.HNil
 import shapeless.ops.function.FnFromProduct
@@ -117,7 +120,18 @@ final case class Select[
       orderedPredicates(this).asInstanceOf[Seq[BoundPredicate[_, _]]]
     ).as[Out](rowMapper)
 
-  // TODO add `executeAsync`
+  def executeAsync()(
+      implicit session: CqlSession,
+      ec: ExecutionContext,
+      @unused ev: CanSelect[table.PK, table.CK, Eq, In, Rng],
+      @unused noUnboundParams: Params =:= HNil
+  ): Future[MappedAsyncPagingIterable[Out]] =
+    executeStatementAsync(
+      Select.render(this, allowFiltering = false, prepared = true),
+      Seq.empty,
+      // Safe to case this to `Seq[BoundPredicate[_, _]]` as there are no unbound parameters
+      orderedPredicates(this).asInstanceOf[Seq[BoundPredicate[_, _]]]
+    ).map(_.as[Out](rowMapper))
 
   def prepare[F](
       implicit @unused ev: CanSelect[table.PK, table.CK, Eq, In, Rng],
@@ -214,6 +228,20 @@ object Select {
 
       session.execute(bstmt).as[Out](select.rowMapper)
     }
+
+    def executeAsync()(
+        implicit session: CqlSession,
+        ec: ExecutionContext
+    ): Future[MappedAsyncPagingIterable[Out]] =
+      session
+        .prepareAsync(Select.render(select, allowFiltering = true, prepared = true))
+        .asScala
+        .flatMap { pstmt =>
+          // Safe to case this to `Seq[BoundPredicate[_, _]]` as there are no unbound parameters
+          val bstmt = select.withBoundValues(pstmt.bind(), HNil)
+
+          session.executeAsync(bstmt).asScala.map(_.as[Out](select.rowMapper))
+        }
 
     /** Like `Select.prepare`, without the primary-key requirement. */
     def prepare[F](
