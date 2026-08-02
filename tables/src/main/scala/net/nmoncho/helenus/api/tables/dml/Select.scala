@@ -99,8 +99,6 @@ final case class Select[
       orderByClauses
     )
 
-  // TODO unify this with `toCQL`, no need to have one that can be used as escape hatch
-
   /** Run the query. Available only when the WHERE clause is a valid
     * primary-key restriction (full partition key by `===`, a contiguous
     * clustering `===` prefix, optionally ranges on the next clustering column,
