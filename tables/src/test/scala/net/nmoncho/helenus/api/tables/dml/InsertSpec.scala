@@ -78,14 +78,32 @@ class InsertSpec extends AnyFlatSpec with Matchers {
     cql should include("'admin'")
   }
 
-  it should "NOT compile execute/prepare without at least one value" in {
-    // An implicit session is in scope so the only thing missing on the empty
-    // insert is the `NonEmpty[Cols]` evidence, not the `CqlSession`.
+  it should "NOT compile execute/prepare unless the whole primary key is set" in {
+    // An implicit session is in scope so the only thing missing is the
+    // `CanInsert` evidence (the primary key), not the `CqlSession`.
+    // UsersTable's primary key is `id` (partition) + `username` (clustering).
     implicit val session: com.datastax.oss.driver.api.core.CqlSession = null
 
+    // no columns at all
     assertTypeError("UsersTable.insert.execute()")
     assertTypeError("UsersTable.insert.prepare")
-    assertCompiles("UsersTable.insert.value(UsersTable.id := fixedId).execute()")
+
+    // partial key: `id` set but the `username` clustering column is missing
+    assertTypeError("UsersTable.insert.value(UsersTable.id := fixedId).execute()")
+
+    // whole primary key set
+    assertCompiles(
+      """UsersTable.insert.value(UsersTable.id := fixedId).value(UsersTable.username := "alice").execute()"""
+    )
+
+    // whole primary key plus an optional non-key column is also fine
+    assertCompiles(
+      """UsersTable.insert
+           .value(UsersTable.id := fixedId)
+           .value(UsersTable.username := "alice")
+           .value(UsersTable.age := 30)
+           .execute()"""
+    )
   }
 
   it should "NOT compile with a value from another table" in {

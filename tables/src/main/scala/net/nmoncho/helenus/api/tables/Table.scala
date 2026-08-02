@@ -22,6 +22,7 @@ import shapeless.::
 import shapeless.Generic
 import shapeless.HList
 import shapeless.HNil
+import shapeless.ops.hlist.Prepend
 
 /** Base of every table definition: holds the inner column / assignment
   * classes, the type-level key declarations, and the entry points that do not
@@ -183,10 +184,10 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
 
     // ---- assignment (used in INSERT / UPDATE) -----------------------------
 
-    def :=(value: T): Assignment[T] = new BoundAssignment[T](this, value)
+    def :=(value: T): BoundAssignment[Tag, T] = new BoundAssignment[Tag, T](this, value)
 
     /** A bound assignment: `col := ?` (value supplied via `toFunction`). */
-    def :=(@unused m: BindMarker): BindAssignment[T] = new BindAssignment[T](this)
+    def :=(@unused m: BindMarker): BindAssignment[Tag, T] = new BindAssignment[Tag, T](this)
 
     override def toString: String =
       s"Column($fieldName -> $name ${codec.getCqlType.asCql(frozen, false)})"
@@ -198,21 +199,26 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
     def column: Column[T]
 
     final def toCQL: String = this match {
-      case bound: BoundAssignment[_] => s"${column.name} = ${column.codec.format(bound.value)}"
-      case _: BindAssignment[_] => s"${column.name} = ?"
+      case bound: BoundAssignment[_, _] => s"${column.name} = ${column.codec.format(bound.value)}"
+      case _: BindAssignment[_, _] => s"${column.name} = ?"
     }
 
     override def toString: String = s"Assignment($toCQL)"
   }
 
-  /** A SET / VALUES assignment. */
-  class BoundAssignment[T](override val column: Column[T], val value: T) extends Assignment[T]
+  /** A SET / VALUES assignment. `Col` is the assigned column's field tag (see
+    * [[Column.Tag]]), carried at the type level so the INSERT builder can prove
+    * the whole primary key is set (see [[dml.where.CanInsert]]); it is phantom
+    * at the value level. `T` is the column's value type.
+    */
+  class BoundAssignment[Col, T](override val column: Column[T], val value: T) extends Assignment[T]
 
   /** An assignment with a bound value (`col := ?`). The value arrives later
     * as an argument of the function produced by `toFunction`, typed as the
-    * column's `V`.
+    * column's `V`. `Col` carries the column's field tag exactly like
+    * [[BoundAssignment]].
     */
-  final class BindAssignment[T](override val column: Column[T]) extends Assignment[T]
+  final class BindAssignment[Col, T](override val column: Column[T]) extends Assignment[T]
 
 }
 
@@ -263,7 +269,7 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
   class ComputedColumn[T: TypeCodec](name: String, frozen: Boolean, val render: A => T)
       extends Column[T](name, name, frozen) {
 
-    def fill(a: A): Assignment[T] = new BoundAssignment[T](this, render(a))
+    def fill(a: A): Assignment[T] = new BoundAssignment[Tag, T](this, render(a))
   }
 
   /** Registry entry for a secondary index: index name and its CQL target (see [[IndexTargets]]). */
@@ -706,7 +712,10 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
     * column (filled by its `compute` function). The returned builder can be
     * refined further (`ifNotExists`, `usingTTL`, extra `value(...)`).
     */
-  def insertFrom(a: A): Insert[this.type, HNil, Unit :: HNil] = {
+  def insertFrom[CKCols <: HList, Keys <: HList](a: A)(
+      implicit @unused strip: StripOrder.Aux[CK, CKCols],
+      @unused keys: Prepend.Aux[PK, CKCols, Keys]
+  ): Insert[this.type, HNil, Keys] = {
     val fieldAssignments = insertValuesForA.values(
       a,
       registeredColumnsByName.asInstanceOf[mutable.Map[String, TableDef#Column[_]]],
@@ -715,10 +724,10 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
 
     val computedAssignments = computedColumns.toList.map(_.fill(a))
 
-    // A whole-entity insert always writes at least one column, so it is safe to
-    // hand back a `Cols` that witnesses non-emptiness (the exact length is
-    // irrelevant to the `NonEmpty` gate).
-    new Insert[this.type, HNil, Unit :: HNil](
+    // A whole-entity insert writes every field, so in particular the entire
+    // primary key. We hand back an `Assigned` equal to the key columns, which
+    // is exactly the evidence `CanInsert` needs to allow execute / prepare.
+    new Insert[this.type, HNil, Keys](
       this,
       assignments = fieldAssignments ++ computedAssignments
     )

@@ -73,7 +73,7 @@ package object dml {
 
   def bindBoundAssignments(
       bstmt: BoundStatement,
-      assignments: Seq[TableDef#BoundAssignment[Any]],
+      assignments: Seq[TableDef#BoundAssignment[_, Any]],
       offset: Int = 0
   ): BoundStatement =
     assignments.zipWithIndex
@@ -89,16 +89,16 @@ package object dml {
   ): BoundStatement =
     assignments.zipWithIndex
       .foldLeft(bstmt) {
-        case (bstmt, (as: TableDef#BindAssignment[Any], idx)) =>
+        case (bstmt, (as: TableDef#BindAssignment[_, Any], idx)) =>
           bstmt.set(idx + offset, values.next(), as.column.codec)
 
-        case (bstmt, (as: TableDef#BoundAssignment[Any], idx)) =>
+        case (bstmt, (as: TableDef#BoundAssignment[_, Any], idx)) =>
           bstmt.set(idx + offset, as.value, as.column.codec)
       }
 
   def executeStatement(
       cql: String,
-      assignments: Seq[TableDef#BoundAssignment[_]],
+      assignments: Seq[TableDef#BoundAssignment[_, _]],
       predicates: Seq[BoundPredicate[_, _]]
   )(implicit session: CqlSession): ResultSet = {
     val pstmt           = session.prepare(cql)
@@ -110,7 +110,7 @@ package object dml {
       bindBoundAssignments(
         pstmt.bind(),
         // Safe to case this to `Seq[SimpleAssignment[_]]` as there are no unbound parameters
-        assignments.asInstanceOf[Seq[TableDef#BoundAssignment[Any]]]
+        assignments.asInstanceOf[Seq[TableDef#BoundAssignment[_, Any]]]
       )
     }
 
@@ -126,7 +126,7 @@ package object dml {
 
   def executeStatementAsync(
       cql: String,
-      assignments: Seq[TableDef#BoundAssignment[_]],
+      assignments: Seq[TableDef#BoundAssignment[_, _]],
       predicates: Seq[BoundPredicate[_, _]]
   )(implicit session: Future[CqlSession], ec: ExecutionContext): Future[AsyncResultSet] =
     session.flatMap { s =>
@@ -139,7 +139,7 @@ package object dml {
           bindBoundAssignments(
             pstmt.bind(),
             // Safe to case this to `Seq[SimpleAssignment[_]]` as there are no unbound parameters
-            assignments.asInstanceOf[Seq[TableDef#BoundAssignment[Any]]]
+            assignments.asInstanceOf[Seq[TableDef#BoundAssignment[_, Any]]]
           )
         }
 

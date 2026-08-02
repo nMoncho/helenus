@@ -83,7 +83,7 @@ final case class Update[
 
   /** A bound assignment (`col := ?`), appended to the SET parameter list. */
   def set[V, P2 <: HList](
-      assignment: table.BindAssignment[V]
+      assignment: table.BindAssignment[_, V]
   )(
       implicit @unused pp: Prepend.Aux[SetPm, V :: HNil, P2]
   ): Update[T, Eq, In, Rng, P2, WherePm, BindMarker :: Cols] =
@@ -141,7 +141,7 @@ final case class Update[
     val usingStr    = renderUsing(ttlSeconds, timestampMicros)
     val setStr      = assignments
       .map {
-        case simple: TableDef#BoundAssignment[_] if !prepared =>
+        case simple: TableDef#BoundAssignment[_, _] if !prepared =>
           s"${simple.column.name} = ${simple.column.codec.format(simple.value)}"
 
         case assignment =>
@@ -172,7 +172,7 @@ final case class Update[
     executeStatement(
       render(prepared = true),
       // Safe to case this to `Seq[SimpleAssignment[_]]` as there are no unbound parameters
-      assignments.asInstanceOf[Seq[TableDef#BoundAssignment[Any]]],
+      assignments.asInstanceOf[Seq[TableDef#BoundAssignment[_, Any]]],
       // Safe to case this to `Seq[BoundPredicate[_, _]]` as there are no unbound parameters
       predicates.asInstanceOf[Seq[BoundPredicate[_, _]]]
     )
