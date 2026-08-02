@@ -154,11 +154,11 @@ final class RangePredicate[Col, T](column: TableDef#Column[T], operator: String,
   * own set because CQL only allows IN on the last component of the primary
   * key, a position each gate checks according to its statement type.
   */
-final class InPredicate[Col, T, V <: Iterable[T]](
+final class InPredicate[Col, T](
     column: TableDef#Column[T],
-    values: V,
-    codec: TypeCodec[V]
-) extends MultiValuePredicate[T, V](column, "IN", values, codec)
+    values: Seq[T],
+    codec: TypeCodec[Seq[T]]
+) extends MultiValuePredicate[T, Seq[T]](column, "IN", values, codec)
 
 /** A `CONTAINS` / `CONTAINS KEY` predicate on a column with a declared
   * secondary index (see `Table.index` / [[TableDef.Indexed]]). Unlike the
@@ -243,12 +243,12 @@ final class RangeBindPredicate[Col, T](
 ) extends SingleValueBindPredicate[T](column, operator)
 
 /** A bound multi-value equality: `col.in(?)`, binding a whole `Seq[T]`. */
-final class InBindPredicate[Col, T, V <: Iterable[T]](
+final class InBindPredicate[Col, T](
     column: TableDef#Column[T],
-    codec: TypeCodec[V]
-) extends BindPredicate[T, V](column, "IN", codec) {
+    codec: TypeCodec[Seq[T]]
+) extends BindPredicate[T, Seq[T]](column, "IN", codec) {
 
-  override private[tables] def fill(v: V): Predicate[T, V] =
+  override private[tables] def fill(v: Seq[T]): Predicate[T, Seq[T]] =
     new InPredicate(column, v, codec)
 }
 

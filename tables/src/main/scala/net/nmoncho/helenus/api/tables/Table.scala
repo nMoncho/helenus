@@ -108,14 +108,13 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
 
     // FIXME Split DSL on predicates based on the column type
 
-    // TODO check if we can actually be `V <: Iterable[T]` or we have to go to `Seq[T]`
     // Not sure if we can have any collection here, if Cassandra will support it
     /** Multi-value equality. Carries the column's field tag: CQL allows IN
       * only on the last component of the primary key (the gates check the
       * position per statement type).
       */
-    def in[V <: Iterable[T]](values: V)(implicit iCodec: TypeCodec[V]): InPredicate[Tag, T, V] =
-      new InPredicate[Tag, T, V](this, values, iCodec)
+    def in(values: Seq[T])(implicit iCodec: TypeCodec[Seq[T]]): InPredicate[Tag, T] =
+      new InPredicate[Tag, T](this, values, iCodec)
 
     /** `col CONTAINS value`: an element of a collection, or a value of a map (see [[ContainsValue]]). */
     def contains[V](value: V)(
@@ -159,8 +158,8 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
 
     def in(@unused m: BindMarker)(
         implicit iCodec: TypeCodec[Seq[T]]
-    ): InBindPredicate[Tag, T, Seq[T]] =
-      new InBindPredicate[Tag, T, Seq[T]](this, iCodec)
+    ): InBindPredicate[Tag, T] =
+      new InBindPredicate[Tag, T](this, iCodec)
 
     def contains[V](@unused m: BindMarker)(
         implicit @unused containsEv: ContainsValue[T, V],
