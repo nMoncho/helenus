@@ -48,7 +48,7 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
 
   def drop: DropTable = DropTable(this)
 
-  def insert: Insert[this.type, HNil] = Insert[this.type](this)
+  def insert: Insert[this.type, HNil, HNil] = Insert[this.type](this)
 
   def update: Update[this.type, HNil, HNil, HNil, HNil, HNil] = Update[this.type](this)
 
@@ -706,7 +706,7 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
     * column (filled by its `compute` function). The returned builder can be
     * refined further (`ifNotExists`, `usingTTL`, extra `value(...)`).
     */
-  def insertFrom(a: A): Insert[this.type, HNil] = {
+  def insertFrom(a: A): Insert[this.type, HNil, Unit :: HNil] = {
     val fieldAssignments = insertValuesForA.values(
       a,
       registeredColumnsByName.asInstanceOf[mutable.Map[String, TableDef#Column[_]]],
@@ -715,7 +715,13 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
 
     val computedAssignments = computedColumns.toList.map(_.fill(a))
 
-    Insert[this.type](this).copy(assignments = fieldAssignments ++ computedAssignments)
+    // A whole-entity insert always writes at least one column, so it is safe to
+    // hand back a `Cols` that witnesses non-emptiness (the exact length is
+    // irrelevant to the `NonEmpty` gate).
+    new Insert[this.type, HNil, Unit :: HNil](
+      this,
+      assignments = fieldAssignments ++ computedAssignments
+    )
   }
 
   private def keyColumnNames(pk: ColumnNames[PK], ck: ClusteringOf[CK]): Seq[String] =

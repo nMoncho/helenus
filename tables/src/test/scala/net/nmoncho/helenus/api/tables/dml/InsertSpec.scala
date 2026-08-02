@@ -78,8 +78,14 @@ class InsertSpec extends AnyFlatSpec with Matchers {
     cql should include("'admin'")
   }
 
-  it should "require at least one value" in {
-    an[IllegalArgumentException] should be thrownBy UsersTable.insert.toCQL
+  it should "NOT compile execute/prepare without at least one value" in {
+    // An implicit session is in scope so the only thing missing on the empty
+    // insert is the `NonEmpty[Cols]` evidence, not the `CqlSession`.
+    implicit val session: com.datastax.oss.driver.api.core.CqlSession = null
+
+    assertTypeError("UsersTable.insert.execute()")
+    assertTypeError("UsersTable.insert.prepare")
+    assertCompiles("UsersTable.insert.value(UsersTable.id := fixedId).execute()")
   }
 
   it should "NOT compile with a value from another table" in {
