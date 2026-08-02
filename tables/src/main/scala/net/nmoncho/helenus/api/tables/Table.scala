@@ -50,7 +50,7 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
 
   def insert: Insert[this.type, HNil, HNil] = Insert[this.type](this)
 
-  def update: Update[this.type, HNil, HNil, HNil, HNil, HNil] = Update[this.type](this)
+  def update: Update[this.type, HNil, HNil, HNil, HNil, HNil, HNil] = Update[this.type](this)
 
   def delete: Delete[this.type, HNil, HNil, HNil, HNil, DeleteMode.Rows] = Delete[this.type](this)
 

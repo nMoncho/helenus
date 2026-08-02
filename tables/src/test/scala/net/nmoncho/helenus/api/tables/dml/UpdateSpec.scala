@@ -51,9 +51,18 @@ class UpdateSpec extends AnyFlatSpec with Matchers {
     cql should endWith("IF EXISTS")
   }
 
-  it should "require at least one SET assignment" in {
-    an[IllegalArgumentException] should be thrownBy
-    UsersTable.update.where(UsersTable.id === fixedId).render()
+  it should "NOT compile execute/prepare without at least one SET assignment" in {
+    // A full primary-key WHERE and an implicit session are in scope, so the
+    // only thing missing on the SET-less update is the `NonEmpty[Cols]`
+    // evidence, not the `CqlSession` or `CanUpdate`.
+    implicit val session: com.datastax.oss.driver.api.core.CqlSession = null
+
+    assertTypeError(
+      """UsersTable.update.where(UsersTable.id === fixedId and UsersTable.username === "alice").execute()"""
+    )
+    assertCompiles(
+      """UsersTable.update.set(UsersTable.age := 31).where(UsersTable.id === fixedId and UsersTable.username === "alice").execute()"""
+    )
   }
 
   it should "NOT provide an and method on Update" in {

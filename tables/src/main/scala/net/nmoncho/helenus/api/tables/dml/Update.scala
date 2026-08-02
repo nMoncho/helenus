@@ -34,6 +34,15 @@ import shapeless.ops.hlist.Prepend
   * @tparam SetPm   bound value types from `set(col := ?)`, in writing order
   * @tparam WherePm bound value types from `?` markers in the WHERE clause, in
   *                 writing order
+  * @tparam Cols    type-level `HList` accumulating one element per SET
+  *                 assignment added (via either `set` overload), in writing
+  *                 order: the assignment's value type `V` for a literal
+  *                 (`set(col := v)`), or [[BindMarker]] for a bound one
+  *                 (`set(col := ?)`). Its only purpose is to make "at least one
+  *                 SET assignment" a compile-time fact: it starts at `HNil` and
+  *                 every `set(...)` prepends an element, so [[execute]] /
+  *                 [[prepare]] / [[prepareAsync]] can require [[NonEmpty]]
+  *                 evidence that has no instance for `HNil`.
   *
   *                 The WHERE clause is built exactly like SELECT's: a single [[where]] taking
   *                 one predicate or a conjunction. [[execute]] is gated by [[CanUpdate]],
@@ -51,7 +60,8 @@ final case class Update[
     In <: HList,
     Rng <: HList,
     SetPm <: HList,
-    WherePm <: HList
+    WherePm <: HList,
+    Cols <: HList
 ](
     table: T,
     assignments: Seq[TableDef#Assignment[_]] = Seq.empty,
@@ -61,14 +71,23 @@ final case class Update[
     ifExistsFlag: Boolean                    = false
 ) {
 
-  def set(assignment: table.Assignment[_]): Update[T, Eq, In, Rng, SetPm, WherePm] =
-    copy(assignments = assignments :+ assignment)
+  def set[V](assignment: table.Assignment[V]): Update[T, Eq, In, Rng, SetPm, WherePm, V :: Cols] =
+    new Update[T, Eq, In, Rng, SetPm, WherePm, V :: Cols](
+      table,
+      assignments :+ assignment,
+      predicates,
+      ttlSeconds,
+      timestampMicros,
+      ifExistsFlag
+    )
 
   /** A bound assignment (`col := ?`), appended to the SET parameter list. */
   def set[V, P2 <: HList](
       assignment: table.BindAssignment[V]
-  )(implicit @unused pp: Prepend.Aux[SetPm, V :: HNil, P2]): Update[T, Eq, In, Rng, P2, WherePm] =
-    new Update[T, Eq, In, Rng, P2, WherePm](
+  )(
+      implicit @unused pp: Prepend.Aux[SetPm, V :: HNil, P2]
+  ): Update[T, Eq, In, Rng, P2, WherePm, BindMarker :: Cols] =
+    new Update[T, Eq, In, Rng, P2, WherePm, BindMarker :: Cols](
       table,
       assignments :+ assignment,
       predicates,
@@ -99,8 +118,8 @@ final case class Update[
       @unused pi: Prepend.Aux[I, In, I2],
       @unused pr: Prepend.Aux[R, Rng, R2],
       @unused pw: Prepend.Aux[WherePm, Pm, W2]
-  ): Update[T, E2, I2, R2, SetPm, W2] =
-    new Update[T, E2, I2, R2, SetPm, W2](
+  ): Update[T, E2, I2, R2, SetPm, W2, Cols] =
+    new Update[T, E2, I2, R2, SetPm, W2, Cols](
       table,
       assignments,
       predicates ++ ps.predicates(pred),
@@ -109,17 +128,14 @@ final case class Update[
       ifExistsFlag
     )
 
-  def usingTTL(seconds: Duration): Update[T, Eq, In, Rng, SetPm, WherePm] =
+  def usingTTL(seconds: Duration): Update[T, Eq, In, Rng, SetPm, WherePm, Cols] =
     copy(ttlSeconds = Some(seconds))
-  def usingTimestamp(micros: Duration): Update[T, Eq, In, Rng, SetPm, WherePm] =
+  def usingTimestamp(micros: Duration): Update[T, Eq, In, Rng, SetPm, WherePm, Cols] =
     copy(timestampMicros = Some(micros))
 
-  def ifExists: Update[T, Eq, In, Rng, SetPm, WherePm] = copy(ifExistsFlag = true)
+  def ifExists: Update[T, Eq, In, Rng, SetPm, WherePm, Cols] = copy(ifExistsFlag = true)
 
   private[tables] def render(prepared: Boolean = false): String = {
-    // TODO just like Insert, add this requirement at type-level
-    require(assignments.nonEmpty, "UPDATE must have at least one SET assignment")
-
     val ifExistsStr = if (ifExistsFlag) " IF EXISTS" else ""
     val whereStr    = renderPredicates(predicates, prepared)
     val usingStr    = renderUsing(ttlSeconds, timestampMicros)
@@ -150,7 +166,8 @@ final case class Update[
       implicit session: CqlSession,
       @unused ev: CanUpdate[table.PK, table.CK, Eq, In, Rng],
       @unused noUnboundSet: SetPm =:= HNil,
-      @unused noUnboundWhere: WherePm =:= HNil
+      @unused noUnboundWhere: WherePm =:= HNil,
+      @unused nonEmpty: NonEmpty[Cols]
   ): ResultSet =
     executeStatement(
       render(prepared = true),
@@ -171,7 +188,8 @@ final case class Update[
       @unused ev: CanUpdate[table.PK, table.CK, Eq, In, Rng],
       @unused all: Prepend.Aux[SetPm, WherePm, AllPm],
       to: ToPrepared[AllPm],
-      fp: FnFromProduct.Aux[AllPm => ScalaBoundStatement[Row], F]
+      fp: FnFromProduct.Aux[AllPm => ScalaBoundStatement[Row], F],
+      @unused nonEmpty: NonEmpty[Cols]
   ): to.Out =
     to(render(prepared = true), assignments, predicates)
 
@@ -181,7 +199,8 @@ final case class Update[
       @unused ev: CanUpdate[table.PK, table.CK, Eq, In, Rng],
       @unused all: Prepend.Aux[SetPm, WherePm, AllPm],
       to: ToPrepared[AllPm],
-      fp: FnFromProduct.Aux[AllPm => ScalaBoundStatement[Row], F]
+      fp: FnFromProduct.Aux[AllPm => ScalaBoundStatement[Row], F],
+      @unused nonEmpty: NonEmpty[Cols]
   ): Future[to.Out] =
     session.map { implicit s =>
       to(render(prepared = true), assignments, predicates)
@@ -192,6 +211,6 @@ final case class Update[
 
 object Update {
 
-  def apply[T <: TableDef with Singleton](table: T): Update[T, HNil, HNil, HNil, HNil, HNil] =
-    new Update[T, HNil, HNil, HNil, HNil, HNil](table)
+  def apply[T <: TableDef with Singleton](table: T): Update[T, HNil, HNil, HNil, HNil, HNil, HNil] =
+    new Update[T, HNil, HNil, HNil, HNil, HNil, HNil](table)
 }
