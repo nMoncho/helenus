@@ -15,7 +15,7 @@ We also provide integration against several streaming libraries:
 
 - Akka v2.6 (Apache License)
 - Akka BUSL
-- Flink (Experimental)
+- Flink 2.x
 - Pekko
 - ZIO
 
@@ -24,7 +24,13 @@ We also provide integration against several streaming libraries:
 Include the library into you project definition:
 
 ```scala
-libraryDependencies += "net.nmoncho" %% "helenus-core" % "1.10.0"
+libraryDependencies += "net.nmoncho" %% "helenus-core" % "1.10.0+113-5f14bf3a+20260803-0637-SNAPSHOT"
+```
+
+The type-safe [Tables DSL](#tables-dsl) lives in its own module (currently published for Scala 2.13 only):
+
+```scala
+libraryDependencies += "net.nmoncho" %% "helenus-tables" % "1.10.0+113-5f14bf3a+20260803-0637-SNAPSHOT"
 ```
 
 ## Motivation
@@ -42,11 +48,13 @@ similar experience by putting CQL first. Our goals are:
 
 ## Features
 
- - `TypeCodec`s for Scala types. Every type extending `AnyVal`, most Scala Collections, Scala `Enumeration`, etc.
-   - Codecs for [UDTs](https://docs.datastax.com/en/cql-oss/3.3/cql/cql_using/useCreateUDT.html) defined as Case Classes.
-   - Codecs for [Tuples](https://docs.datastax.com/en/cql-oss/3.3/cql/cql_using/useCreateTableTuple.html) defined with Scala Tuples.
- - CQL templating, with String Interpolation, validated at compile time. See [usage](#usage).
- - `PreparedStatement`s and `BoundStatement`s extension methods.
+- `TypeCodec`s for Scala types. Every type extending `AnyVal`, most Scala Collections, Scala `Enumeration`, etc.
+    - Codecs for [UDTs](https://docs.datastax.com/en/cql-oss/3.3/cql/cql_using/useCreateUDT.html) defined as Case Classes.
+    - Codecs for [Tuples](https://docs.datastax.com/en/cql-oss/3.3/cql/cql_using/useCreateTableTuple.html) defined with Scala Tuples.
+- CQL templating, with String Interpolation, validated at compile time. See [usage](#usage).
+- `PreparedStatement`s and `BoundStatement`s extension methods.
+- Short-hand imports and aliases available directly from `net.nmoncho.helenus._`.
+- A new type-safe **Tables DSL**: describe a table as a case class and build `CREATE`, `DROP`, `SELECT`, `INSERT`, `UPDATE`, and `DELETE` statements with compile-time checks. See [Tables DSL](#tables-dsl).
 
 ### Supported Codecs
 
@@ -72,7 +80,7 @@ import net.nmoncho.helenus._
 
 // Then mark your session implicit
 implicit val session: CqlSession = getSession
-// session: CqlSession = com.datastax.oss.driver.internal.core.session.DefaultSession@45e497a4
+// session: CqlSession = com.datastax.oss.driver.internal.core.session.DefaultSession@10214a94
 
 case class Address(street: String, city: String, stateOrProvince: String, postalCode: String, country: String)
 
@@ -83,8 +91,8 @@ implicit val typeCodec: TypeCodec[Address] = Codec.of[Address]()
 // typeCodec: TypeCodec[Address] = UtdCodec[Address]
 
 // We can derive how query results map to case classes
-implicit val rowMapper: RowMapper[Hotel] = RowMapper[Hotel]
-// rowMapper: RowMapper[Hotel] = net.nmoncho.helenus.internal.CaseClassRowMapperDerivation$$anonfun$net$nmoncho$helenus$internal$CaseClassRowMapperDerivation$$$nestedInanonfun$genericCCRowMapperBuilder$1$1@4f383d20
+implicit val rowMapper: RowMapper[Hotel] = RowMapper[Hotel]()
+// rowMapper: RowMapper[Hotel] = net.nmoncho.helenus.internal.CaseClassRowMapperDerivation$$anonfun$net$nmoncho$helenus$internal$CaseClassRowMapperDerivation$$$nestedInanonfun$genericCCRowMapperBuilder$1$1@79911c95
 
 val hotelId = "h1"
 // hotelId: String = "h1"
@@ -93,7 +101,7 @@ val hotelId = "h1"
 val hotelsById = "SELECT * FROM hotels WHERE id = ?".toCQL
     .prepare[String]
     .as[Hotel]
-// hotelsById: internal.cql.ScalaPreparedStatement1[String, Hotel] = net.nmoncho.helenus.internal.cql.ScalaPreparedStatement1@2813f887
+// hotelsById: internal.cql.ScalaPreparedStatement1[String, Hotel] = net.nmoncho.helenus.internal.cql.ScalaPreparedStatement1@7f6be163
 
 // We can extract a single result using `nextOption()`, or
 // use `to(Coll)` to transform the result to a collection
@@ -116,7 +124,7 @@ hotelsById.execute("h1").nextOption()
 
 // We can also run the same using CQL interpolated queries
 val interpolatedHotelsById = cql"SELECT * FROM hotels WHERE id = $hotelId"
-// interpolatedHotelsById: api.cql.WrappedBoundStatement[com.datastax.oss.driver.api.core.cql.Row] = net.nmoncho.helenus.api.cql.WrappedBoundStatement@46f8ecf0
+// interpolatedHotelsById: api.cql.WrappedBoundStatement[com.datastax.oss.driver.api.core.cql.Row] = net.nmoncho.helenus.api.cql.WrappedBoundStatement@48eb24de
 
 interpolatedHotelsById.as[Hotel].execute().nextOption()
 // res1: Option[Hotel] = Some(
@@ -135,6 +143,118 @@ interpolatedHotelsById.as[Hotel].execute().nextOption()
 //   )
 // )
 ```
+## Tables DSL
+
+The `helenus-tables` module adds a type-safe DSL built around a table described
+as a case class. The case class is the single source of truth: DDL and full-row
+projections derive every column from its fields, and a mismatch between the case
+class and the declared columns fails to compile.
+
+```scala
+import java.util.UUID
+
+import net.nmoncho.helenus._
+import net.nmoncho.helenus.api.tables._
+
+case class User(id: UUID, username: String, age: Int, email: String)
+
+object UsersTable extends Table[User]("docs", "users") {
+  // Don't set explicit types on columns to keep full column tagging
+  val id       = column[UUID]("id")
+  val username = column[String]("username")
+  val age      = column[Int]("age")
+  val email    = column[String]("email")
+
+  // Adding a field to `User` without a matching column fails to compile here
+  protected val columns = registerAllColumns(id :: username :: age :: email :: HNil)
+
+  // Type-level key declarations drive the DDL and the compile-time query gates
+  type PK = id.Tag :: HNil
+  type CK = username.Tag :: HNil
+}
+```
+
+With the table in place you can build and run statements:
+
+```scala
+// CREATE TABLE
+UsersTable.create.ifNotExists.execute()
+// res2: com.datastax.oss.driver.api.core.cql.ResultSet = com.datastax.oss.driver.internal.core.cql.SinglePageResultSet@97de79f
+
+val userId = UUID.fromString("b995a896-4ad8-471a-9b05-4fb6fbc6fdd6")
+// userId: UUID = b995a896-4ad8-471a-9b05-4fb6fbc6fdd6
+
+// INSERT: the whole primary key must be set, else it does not compile
+UsersTable.insert
+  .value(UsersTable.id := userId)
+  .value(UsersTable.username := "alice")
+  .value(UsersTable.age := 30)
+  .execute()
+// res3: com.datastax.oss.driver.api.core.cql.ResultSet = com.datastax.oss.driver.internal.core.cql.SinglePageResultSet@4c40f3c8
+
+// Or insert a whole entity at once
+UsersTable.insertFrom(User(userId, "alice", 30, "alice@example.com")).execute()
+// res4: com.datastax.oss.driver.api.core.cql.ResultSet = com.datastax.oss.driver.internal.core.cql.SinglePageResultSet@18c99381
+
+// SELECT returns a PagingIterable of the mapped case class
+val users = UsersTable.select()
+  .where(UsersTable.id === userId)
+  .execute()
+// users: com.datastax.oss.driver.api.core.PagingIterable[User] = com.datastax.oss.driver.internal.core.PagingIterableWrapper@28d3e25f
+
+// UPDATE requires at least one assignment and a fully constrained primary key
+UsersTable.update
+  .set(UsersTable.age := 31)
+  .where(UsersTable.id === userId and UsersTable.username === "alice")
+  .execute()
+// res5: com.datastax.oss.driver.api.core.cql.ResultSet = com.datastax.oss.driver.internal.core.cql.SinglePageResultSet@22034c0a
+
+// DELETE
+UsersTable.delete
+  .where(UsersTable.id === userId and UsersTable.username === "alice")
+  .execute()
+// res6: com.datastax.oss.driver.api.core.cql.ResultSet = com.datastax.oss.driver.internal.core.cql.SinglePageResultSet@295a3322
+
+// DROP TABLE
+UsersTable.drop.ifExists.execute()
+// res7: com.datastax.oss.driver.api.core.cql.ResultSet = com.datastax.oss.driver.internal.core.cql.SinglePageResultSet@23f4228a
+```
+
+The DSL enforces at compile time what CQL enforces at runtime, so mistakes are
+caught before you reach the database:
+
+- `INSERT` and `UPDATE` require at least one assignment, and `INSERT` requires
+  the whole partition and clustering key to be set.
+- Queries that would otherwise need `ALLOW FILTERING` only compile when a
+  suitable index is present, or when you opt in explicitly with `.allowFiltering`.
+- Range and `IN` predicates are only allowed where CQL permits them, following
+  the clustering-column prefix rules.
+
+Passing the `?` bind marker instead of a value leaves a hole and produces a
+`ScalaPreparedStatement` (or a function over the bound parameters) via `prepare`
+and `prepareAsync`:
+
+```scala
+val byId = UsersTable.select().where(UsersTable.id === ?).prepare
+// byId: internal.cql.ScalaPreparedStatement1[UUID, User] = net.nmoncho.helenus.api.tables.dml.ToPrepared$$anon$3$$anon$4@18fc533b
+```
+
+The DSL also supports computed columns, [frozen](https://docs.datastax.com/en/cql-oss/3.3/cql/cql_reference/refCollectionTypes.html)
+columns, secondary and custom (e.g. SAI) indices, named indices, and map key /
+value / entry indices.
+
+## Migrating to v2
+
+The v2 line introduces a few breaking changes:
+
+- `ClqSessionOps` was renamed to `CqlSessionOps`.
+- `ColumnNamingScheme`'s `map` method was renamed to `apply`, and its variants
+  moved into the companion object.
+- Deprecated UDT codec methods (including `udtOf`) were removed.
+- Bound statements now go through a dedicated `ScalaBoundStatement` abstraction,
+  and renamed-field handling is unified across `RowMapper` and `Mapping`. `RowMapper` now
+  requires method application, if no renames are provided (eg. before you could get away with
+  `RowMapper[A]`, now you need to do `RowMapper[A]()`).
 
 For a more detailed guide on how to use Helenus, please read our [wiki](https://github.com/nMoncho/helenus/wiki). We also provide
 [example projects](https://github.com/nMoncho/helenus-examples).

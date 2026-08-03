@@ -147,7 +147,7 @@ lazy val docs = project
       Dependencies.cassandraUnit
     )
   )
-  .dependsOn(core)
+  .dependsOn(core, tables)
 
 lazy val core = project
   .settings(basicSettings)
