@@ -131,9 +131,11 @@ final case class Insert[T <: TableDef, Params <: HList, Assigned <: HList](
       fp: FnFromProduct.Aux[Params => ScalaBoundStatement[Row], F],
       @unused canInsert: CanInsert[table.PK, table.CK, Assigned]
   ): Future[to.Out] =
-    session.map { implicit s =>
-      to(render(prepared = true), assignments, Nil)
-    }
+    to.async(
+      render(prepared = true),
+      assignments,
+      Nil
+    )
 
   override def toString: String = toCQL
 }

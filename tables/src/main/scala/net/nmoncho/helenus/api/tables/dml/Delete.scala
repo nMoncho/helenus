@@ -176,9 +176,11 @@ final case class Delete[
       to: ToPrepared[Params],
       fp: FnFromProduct.Aux[Params => ScalaBoundStatement[Row], F]
   ): Future[to.Out] =
-    session.map { implicit s =>
-      to(render(prepared = true), Nil, predicates)
-    }
+    to.async(
+      render(prepared = true),
+      Nil,
+      predicates
+    )
 
   override def toString: String = render()
 }

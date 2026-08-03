@@ -147,10 +147,11 @@ final case class Select[
       to: ToPrepared[Params],
       fp: FnFromProduct.Aux[Params => ScalaBoundStatement[Row], F]
   ): Future[to.Out#AsOut[Out]] =
-    session.map { implicit s =>
-      to(Select.render(this, allowFiltering = false, prepared = true), Nil, orderedPredicates(this))
-        .as(rowMapper)
-    }
+    to.async(
+      Select.render(this, allowFiltering = false, prepared = true),
+      Nil,
+      orderedPredicates(this)
+    ).map(_.as(rowMapper))
 
   private[dml] def withBoundValues(
       bstmt: BoundStatement,

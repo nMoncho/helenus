@@ -202,9 +202,11 @@ final case class Update[
       fp: FnFromProduct.Aux[AllPm => ScalaBoundStatement[Row], F],
       @unused nonEmpty: NonEmpty[Cols]
   ): Future[to.Out] =
-    session.map { implicit s =>
-      to(render(prepared = true), assignments, predicates)
-    }
+    to.async(
+      render(prepared = true),
+      assignments,
+      predicates
+    )
 
   override def toString: String = render()
 }

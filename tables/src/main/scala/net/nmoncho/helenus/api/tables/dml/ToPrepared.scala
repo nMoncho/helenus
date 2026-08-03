@@ -7,6 +7,9 @@
 package net.nmoncho.helenus.api.tables
 package dml
 
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
+
 import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.cql.BoundStatement
@@ -17,10 +20,12 @@ import net.nmoncho.helenus.api.cql.ScalaBoundStatement
 import net.nmoncho.helenus.api.cql.ScalaPreparedStatement
 import net.nmoncho.helenus.api.cql.StatementOptions
 import net.nmoncho.helenus.api.tables.dml.where.Predicate
+import net.nmoncho.helenus.internal.compat.FutureConverters.CompletionStageOps
 import net.nmoncho.helenus.internal.cql._
 import shapeless.::
 import shapeless.HList
 import shapeless.HNil
+import shapeless.ops.function
 import shapeless.ops.function.FnFromProduct
 
 /** Dispatches a [[Select]]'s `Params` `HList` (the bound `?` marker types, in
@@ -36,8 +41,6 @@ import shapeless.ops.function.FnFromProduct
   */
 sealed trait ToPrepared[Params <: HList] {
   type Out <: ScalaPreparedStatement[_, Row]
-
-  // TODO missing prepare async
 
   /** Converts to a ScalaPreparedStatement
     *
@@ -58,7 +61,27 @@ sealed trait ToPrepared[Params <: HList] {
       fp: FnFromProduct.Aux[Params => ScalaBoundStatement[Row], F]
   ): Out
 
-  protected def toFn[F](
+  /** Converts to a ScalaPreparedStatement
+    *
+    * @param cql query to prepare
+    * @param assignments assignments, if any
+    * @param predicates predicates, if any
+    * @param session session to prepare query against
+    * @param fp function creator
+    * @tparam F function type derived from params
+    * @return
+    */
+  def async[F](
+      cql: String,
+      assignments: Seq[TableDef#Assignment[_]],
+      predicates: Seq[Predicate[_, _]]
+  )(
+      implicit session: Future[CqlSession],
+      ec: ExecutionContext,
+      fp: FnFromProduct.Aux[Params => ScalaBoundStatement[Row], F]
+  ): Future[Out]
+
+  protected def prepare[F](
       cql: String,
       assignments: Seq[TableDef#Assignment[_]],
       predicates: Seq[Predicate[_, _]]
@@ -68,7 +91,32 @@ sealed trait ToPrepared[Params <: HList] {
   ): (PreparedStatement, F) = {
     val pstmt = session.prepare(cql)
 
-    pstmt -> fp { params =>
+    pstmt -> bind(pstmt, assignments, predicates)
+  }
+
+  protected def prepareAsync[F](
+      cql: String,
+      assignments: Seq[TableDef#Assignment[_]],
+      predicates: Seq[Predicate[_, _]]
+  )(
+      implicit session: Future[CqlSession],
+      ec: ExecutionContext,
+      fp: FnFromProduct.Aux[Params => BoundStatement, F]
+  ): Future[(PreparedStatement, F)] =
+    session.flatMap(implicit s =>
+      s.prepareAsync(cql).asScala.map { pstmt =>
+        pstmt -> bind(pstmt, assignments, predicates)
+      }
+    )
+
+  protected def bind[F](
+      pstmt: PreparedStatement,
+      assignments: Seq[TableDef#Assignment[_]],
+      predicates: Seq[Predicate[_, _]]
+  )(
+      implicit fp: FnFromProduct.Aux[Params => BoundStatement, F]
+  ): F =
+    fp { params =>
       val values          = Binding.values(params).iterator
       val assignmentCount = assignments.length
 
@@ -77,7 +125,6 @@ sealed trait ToPrepared[Params <: HList] {
 
       withPredicates
     }
-  }
 }
 
 object ToPrepared {
@@ -88,17 +135,22 @@ object ToPrepared {
     new ToPrepared[HNil] {
       type Out = ScalaPreparedStatementUnit[Row]
 
+      private def create[PsOut](pstmt: PreparedStatement, fn: () => BoundStatement, m: RowMapper[PsOut], o: StatementOptions): ScalaPreparedStatementUnit[PsOut] =
+        new ScalaPreparedStatementUnit[PsOut](pstmt, m, o) {
+          override def apply(): ScalaBoundStatement[PsOut]    = ScalaBoundStatement(this, fn())
+          override def withOptions(options: StatementOptions): Self = create(pstmt, fn, m, options)
+          override def as[Out2](implicit ev: PsOut =:= Row, m2: RowMapper[Out2]): AsOut[Out2] = create(pstmt, fn, m2, o)
+        }
+
       override def apply[F](cql: String, assignments: Seq[TableDef#Assignment[_]], predicates: Seq[Predicate[_, _]])(implicit session: CqlSession, fp: FnFromProduct.Aux[HNil => ScalaBoundStatement[Row], F]): ScalaPreparedStatementUnit[Row] = {
-        val (pstmt, fn) = toFn(cql, assignments, predicates).asInstanceOf[(PreparedStatement, Unit => BoundStatement)]
+        val (pstmt, fn) = prepare(cql, assignments, predicates)
+        create(pstmt, fn, RowMapper.identity, StatementOptions.default)
+      }
 
-        def create[PsOut](m: RowMapper[PsOut], o: StatementOptions): ScalaPreparedStatementUnit[PsOut] =
-          new ScalaPreparedStatementUnit[PsOut](pstmt, m, o) {
-            override def apply(): ScalaBoundStatement[PsOut]    = ScalaBoundStatement(this, fn())
-            override def withOptions(options: StatementOptions): Self = create(m, options)
-            override def as[Out2](implicit ev: PsOut =:= Row, m2: RowMapper[Out2]): AsOut[Out2] = create(m2, o)
-          }
-
-        create(RowMapper.identity, StatementOptions.default)
+      override def async[F](cql: String, assignments: Seq[TableDef#Assignment[_]], predicates: Seq[Predicate[_, _]])(implicit session: Future[CqlSession], ec: ExecutionContext, fp: function.FnFromProduct.Aux[HNil => ScalaBoundStatement[Row], F]): Future[ScalaPreparedStatementUnit[Row]] = {
+        prepareAsync(cql, assignments, predicates).map { case (pstmt, fn) =>
+          create(pstmt, fn, RowMapper.identity, StatementOptions.default)
+        }
       }
     }
 
@@ -107,17 +159,22 @@ object ToPrepared {
     new ToPrepared[T1 :: HNil] {
       type Out = ScalaPreparedStatement1[T1, Row]
 
+      private def create[PsOut](pstmt: PreparedStatement, fn: T1 => BoundStatement, m: RowMapper[PsOut], o: StatementOptions): ScalaPreparedStatement1[T1, PsOut] =
+        new ScalaPreparedStatement1[T1, PsOut](pstmt, m, o, tc1) {
+          override def apply(t1: T1): ScalaBoundStatement[PsOut]    = ScalaBoundStatement(this, fn(t1))
+          override def withOptions(options: StatementOptions): Self = create(pstmt, fn, m, options)
+          override def as[Out2](implicit ev: PsOut =:= Row, m2: RowMapper[Out2]): AsOut[Out2] = create(pstmt, fn, m2, o)
+        }
+
       override def apply[F](cql: String, assignments: Seq[TableDef#Assignment[_]], predicates: Seq[Predicate[_, _]])(implicit session: CqlSession, fp: FnFromProduct.Aux[T1 :: HNil => ScalaBoundStatement[Row], F]): ScalaPreparedStatement1[T1, Row] = {
-        val (pstmt, fn) = toFn[T1 => BoundStatement](cql, assignments, predicates)
+        val (pstmt, fn) = prepare[T1 => BoundStatement](cql, assignments, predicates)
+        create(pstmt, fn, RowMapper.identity, StatementOptions.default)
+      }
 
-        def create[PsOut](m: RowMapper[PsOut], o: StatementOptions): ScalaPreparedStatement1[T1, PsOut] =
-          new ScalaPreparedStatement1[T1, PsOut](pstmt, m, o, tc1) {
-            override def apply(t1: T1): ScalaBoundStatement[PsOut]    = ScalaBoundStatement(this, fn(t1))
-            override def withOptions(options: StatementOptions): Self = create(m, options)
-            override def as[Out2](implicit ev: PsOut =:= Row, m2: RowMapper[Out2]): AsOut[Out2] = create(m2, o)
-          }
-
-        create(RowMapper.identity, StatementOptions.default)
+      override def async[F](cql: String, assignments: Seq[TableDef#Assignment[_]], predicates: Seq[Predicate[_, _]])(implicit session: Future[CqlSession], ec: ExecutionContext, fp: function.FnFromProduct.Aux[T1 :: HNil => ScalaBoundStatement[Row], F]): Future[ScalaPreparedStatement1[T1, Row]] = {
+        prepareAsync[T1 => BoundStatement](cql, assignments, predicates).map { case (pstmt, fn) =>
+          create(pstmt, fn, RowMapper.identity, StatementOptions.default)
+        }
       }
     }
 
@@ -125,17 +182,22 @@ object ToPrepared {
     new ToPrepared[T1 :: T2 :: HNil] {
       type Out = ScalaPreparedStatement2[T1, T2, Row]
 
+      private def create[PsOut](pstmt: PreparedStatement, fn: (T1, T2) => BoundStatement, m: RowMapper[PsOut], o: StatementOptions): ScalaPreparedStatement2[T1, T2, PsOut] =
+        new ScalaPreparedStatement2[T1, T2, PsOut](pstmt, m, o, tc1, tc2) {
+          override def apply(t1: T1, t2: T2): ScalaBoundStatement[PsOut]    = ScalaBoundStatement(this, fn(t1, t2))
+          override def withOptions(options: StatementOptions): Self = create(pstmt, fn, m, options)
+          override def as[Out2](implicit ev: PsOut =:= Row, m2: RowMapper[Out2]): AsOut[Out2] = create(pstmt, fn, m2, o)
+        }
+
       override def apply[F](cql: String, assignments: Seq[TableDef#Assignment[_]], predicates: Seq[Predicate[_, _]])(implicit session: CqlSession, fp: FnFromProduct.Aux[T1 :: T2 :: HNil => ScalaBoundStatement[Row], F]): ScalaPreparedStatement2[T1, T2, Row] = {
-        val (pstmt, fn) = toFn[(T1, T2) => BoundStatement](cql, assignments, predicates)
+        val (pstmt, fn) = prepare[(T1, T2) => BoundStatement](cql, assignments, predicates)
+        create(pstmt, fn, RowMapper.identity, StatementOptions.default)
+      }
 
-        def create[PsOut](m: RowMapper[PsOut], o: StatementOptions): ScalaPreparedStatement2[T1, T2, PsOut] =
-          new ScalaPreparedStatement2[T1, T2, PsOut](pstmt, m, o, tc1, tc2) {
-            override def apply(t1: T1, t2: T2): ScalaBoundStatement[PsOut]    = ScalaBoundStatement(this, fn(t1, t2))
-            override def withOptions(options: StatementOptions): Self = create(m, options)
-            override def as[Out2](implicit ev: PsOut =:= Row, m2: RowMapper[Out2]): AsOut[Out2] = create(m2, o)
-          }
-
-        create(RowMapper.identity, StatementOptions.default)
+      override def async[F](cql: String, assignments: Seq[TableDef#Assignment[_]], predicates: Seq[Predicate[_, _]])(implicit session: Future[CqlSession], ec: ExecutionContext, fp: function.FnFromProduct.Aux[T1 :: T2 :: HNil => ScalaBoundStatement[Row], F]): Future[ScalaPreparedStatement2[T1, T2, Row]] = {
+        prepareAsync[(T1, T2) => BoundStatement](cql, assignments, predicates).map { case (pstmt, fn) =>
+          create(pstmt, fn, RowMapper.identity, StatementOptions.default)
+        }
       }
     }
 
@@ -143,17 +205,22 @@ object ToPrepared {
     new ToPrepared[T1 :: T2 :: T3 :: HNil] {
       type Out = ScalaPreparedStatement3[T1, T2, T3, Row]
 
+      private def create[PsOut](pstmt: PreparedStatement, fn: (T1, T2, T3) => BoundStatement, m: RowMapper[PsOut], o: StatementOptions): ScalaPreparedStatement3[T1, T2, T3, PsOut] =
+        new ScalaPreparedStatement3[T1, T2, T3, PsOut](pstmt, m, o, tc1, tc2, tc3) {
+          override def apply(t1: T1, t2: T2, t3: T3): ScalaBoundStatement[PsOut] = ScalaBoundStatement(this, fn(t1, t2, t3))
+          override def withOptions(options: StatementOptions): Self = create(pstmt, fn, m, options)
+          override def as[Out2](implicit ev: PsOut =:= Row, m2: RowMapper[Out2]): AsOut[Out2] = create(pstmt, fn, m2, o)
+        }
+
       override def apply[F](cql: String, assignments: Seq[TableDef#Assignment[_]], predicates: Seq[Predicate[_, _]])(implicit session: CqlSession, fp: FnFromProduct.Aux[T1 :: T2 :: T3 :: HNil => ScalaBoundStatement[Row], F]): ScalaPreparedStatement3[T1, T2, T3, Row] = {
-        val (pstmt, fn) = toFn[(T1, T2, T3) => BoundStatement](cql, assignments, predicates)
+        val (pstmt, fn) = prepare[(T1, T2, T3) => BoundStatement](cql, assignments, predicates)
+        create(pstmt, fn, RowMapper.identity, StatementOptions.default)
+      }
 
-        def create[PsOut](m: RowMapper[PsOut], o: StatementOptions): ScalaPreparedStatement3[T1, T2, T3, PsOut] =
-          new ScalaPreparedStatement3[T1, T2, T3, PsOut](pstmt, m, o, tc1, tc2, tc3) {
-            override def apply(t1: T1, t2: T2, t3: T3): ScalaBoundStatement[PsOut] = ScalaBoundStatement(this, fn(t1, t2, t3))
-            override def withOptions(options: StatementOptions): Self = create(m, options)
-            override def as[Out2](implicit ev: PsOut =:= Row, m2: RowMapper[Out2]): AsOut[Out2] = create(m2, o)
-          }
-
-        create(RowMapper.identity, StatementOptions.default)
+      override def async[F](cql: String, assignments: Seq[TableDef#Assignment[_]], predicates: Seq[Predicate[_, _]])(implicit session: Future[CqlSession], ec: ExecutionContext, fp: function.FnFromProduct.Aux[T1 :: T2 :: T3 :: HNil => ScalaBoundStatement[Row], F]): Future[ScalaPreparedStatement3[T1, T2, T3, Row]] = {
+        prepareAsync[(T1, T2, T3) => BoundStatement](cql, assignments, predicates).map { case (pstmt, fn) =>
+          create(pstmt, fn, RowMapper.identity, StatementOptions.default)
+        }
       }
     }
 
@@ -161,17 +228,22 @@ object ToPrepared {
     new ToPrepared[T1 :: T2 :: T3 :: T4 :: HNil] {
       type Out = ScalaPreparedStatement4[T1, T2, T3, T4, Row]
 
+      private def create[PsOut](pstmt: PreparedStatement, fn: (T1, T2, T3, T4) => BoundStatement, m: RowMapper[PsOut], o: StatementOptions): ScalaPreparedStatement4[T1, T2, T3, T4, PsOut] =
+        new ScalaPreparedStatement4[T1, T2, T3, T4, PsOut](pstmt, m, o, tc1, tc2, tc3, tc4) {
+          override def apply(t1: T1, t2: T2, t3: T3, t4: T4): ScalaBoundStatement[PsOut] = ScalaBoundStatement(this, fn(t1, t2, t3, t4))
+          override def withOptions(options: StatementOptions): Self = create(pstmt, fn, m, options)
+          override def as[Out2](implicit ev: PsOut =:= Row, m2: RowMapper[Out2]): AsOut[Out2] = create(pstmt, fn, m2, o)
+        }
+
       override def apply[F](cql: String, assignments: Seq[TableDef#Assignment[_]], predicates: Seq[Predicate[_, _]])(implicit session: CqlSession, fp: FnFromProduct.Aux[T1 :: T2 :: T3 :: T4 :: HNil => ScalaBoundStatement[Row], F]): ScalaPreparedStatement4[T1, T2, T3, T4, Row] = {
-        val (pstmt, fn) = toFn[(T1, T2, T3, T4) => BoundStatement](cql, assignments, predicates)
+        val (pstmt, fn) = prepare[(T1, T2, T3, T4) => BoundStatement](cql, assignments, predicates)
+        create(pstmt, fn, RowMapper.identity, StatementOptions.default)
+      }
 
-        def create[PsOut](m: RowMapper[PsOut], o: StatementOptions): ScalaPreparedStatement4[T1, T2, T3, T4, PsOut] =
-          new ScalaPreparedStatement4[T1, T2, T3, T4, PsOut](pstmt, m, o, tc1, tc2, tc3, tc4) {
-            override def apply(t1: T1, t2: T2, t3: T3, t4: T4): ScalaBoundStatement[PsOut] = ScalaBoundStatement(this, fn(t1, t2, t3, t4))
-            override def withOptions(options: StatementOptions): Self = create(m, options)
-            override def as[Out2](implicit ev: PsOut =:= Row, m2: RowMapper[Out2]): AsOut[Out2] = create(m2, o)
-          }
-
-        create(RowMapper.identity, StatementOptions.default)
+      override def async[F](cql: String, assignments: Seq[TableDef#Assignment[_]], predicates: Seq[Predicate[_, _]])(implicit session: Future[CqlSession], ec: ExecutionContext, fp: function.FnFromProduct.Aux[T1 :: T2 :: T3 :: T4 :: HNil => ScalaBoundStatement[Row], F]): Future[ScalaPreparedStatement4[T1, T2, T3, T4, Row]] = {
+        prepareAsync[(T1, T2, T3, T4) => BoundStatement](cql, assignments, predicates).map { case (pstmt, fn) =>
+          create(pstmt, fn, RowMapper.identity, StatementOptions.default)
+        }
       }
     }
 
@@ -179,17 +251,22 @@ object ToPrepared {
     new ToPrepared[T1 :: T2 :: T3 :: T4 :: T5 :: HNil] {
       type Out = ScalaPreparedStatement5[T1, T2, T3, T4, T5, Row]
 
+      private def create[PsOut](pstmt: PreparedStatement, fn: (T1, T2, T3, T4, T5) => BoundStatement, m: RowMapper[PsOut], o: StatementOptions): ScalaPreparedStatement5[T1, T2, T3, T4, T5, PsOut] =
+        new ScalaPreparedStatement5[T1, T2, T3, T4, T5, PsOut](pstmt, m, o, tc1, tc2, tc3, tc4, tc5) {
+          override def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5): ScalaBoundStatement[PsOut] = ScalaBoundStatement(this, fn(t1, t2, t3, t4, t5))
+          override def withOptions(options: StatementOptions): Self = create(pstmt, fn, m, options)
+          override def as[Out2](implicit ev: PsOut =:= Row, m2: RowMapper[Out2]): AsOut[Out2] = create(pstmt, fn, m2, o)
+        }
+
       override def apply[F](cql: String, assignments: Seq[TableDef#Assignment[_]], predicates: Seq[Predicate[_, _]])(implicit session: CqlSession, fp: FnFromProduct.Aux[T1 :: T2 :: T3 :: T4 :: T5 :: HNil => ScalaBoundStatement[Row], F]): ScalaPreparedStatement5[T1, T2, T3, T4, T5, Row] = {
-        val (pstmt, fn) = toFn[(T1, T2, T3, T4, T5) => BoundStatement](cql, assignments, predicates)
+        val (pstmt, fn) = prepare[(T1, T2, T3, T4, T5) => BoundStatement](cql, assignments, predicates)
+        create(pstmt, fn, RowMapper.identity, StatementOptions.default)
+      }
 
-        def create[PsOut](m: RowMapper[PsOut], o: StatementOptions): ScalaPreparedStatement5[T1, T2, T3, T4, T5, PsOut] =
-          new ScalaPreparedStatement5[T1, T2, T3, T4, T5, PsOut](pstmt, m, o, tc1, tc2, tc3, tc4, tc5) {
-            override def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5): ScalaBoundStatement[PsOut] = ScalaBoundStatement(this, fn(t1, t2, t3, t4, t5))
-            override def withOptions(options: StatementOptions): Self = create(m, options)
-            override def as[Out2](implicit ev: PsOut =:= Row, m2: RowMapper[Out2]): AsOut[Out2] = create(m2, o)
-          }
-
-        create(RowMapper.identity, StatementOptions.default)
+      override def async[F](cql: String, assignments: Seq[TableDef#Assignment[_]], predicates: Seq[Predicate[_, _]])(implicit session: Future[CqlSession], ec: ExecutionContext, fp: function.FnFromProduct.Aux[T1 :: T2 :: T3 :: T4 :: T5 :: HNil => ScalaBoundStatement[Row], F]): Future[ScalaPreparedStatement5[T1, T2, T3, T4, T5, Row]] = {
+        prepareAsync[(T1, T2, T3, T4, T5) => BoundStatement](cql, assignments, predicates).map { case (pstmt, fn) =>
+          create(pstmt, fn, RowMapper.identity, StatementOptions.default)
+        }
       }
     }
 
@@ -197,17 +274,22 @@ object ToPrepared {
     new ToPrepared[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: HNil] {
       type Out = ScalaPreparedStatement6[T1, T2, T3, T4, T5, T6, Row]
 
+      private def create[PsOut](pstmt: PreparedStatement, fn: (T1, T2, T3, T4, T5, T6) => BoundStatement, m: RowMapper[PsOut], o: StatementOptions): ScalaPreparedStatement6[T1, T2, T3, T4, T5, T6, PsOut] =
+        new ScalaPreparedStatement6[T1, T2, T3, T4, T5, T6, PsOut](pstmt, m, o, tc1, tc2, tc3, tc4, tc5, tc6) {
+          override def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6): ScalaBoundStatement[PsOut] = ScalaBoundStatement(this, fn(t1, t2, t3, t4, t5, t6))
+          override def withOptions(options: StatementOptions): Self = create(pstmt, fn, m, options)
+          override def as[Out2](implicit ev: PsOut =:= Row, m2: RowMapper[Out2]): AsOut[Out2] = create(pstmt, fn, m2, o)
+        }
+
       override def apply[F](cql: String, assignments: Seq[TableDef#Assignment[_]], predicates: Seq[Predicate[_, _]])(implicit session: CqlSession, fp: FnFromProduct.Aux[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: HNil => ScalaBoundStatement[Row], F]): ScalaPreparedStatement6[T1, T2, T3, T4, T5, T6, Row] = {
-        val (pstmt, fn) = toFn[(T1, T2, T3, T4, T5, T6) => BoundStatement](cql, assignments, predicates)
+        val (pstmt, fn) = prepare[(T1, T2, T3, T4, T5, T6) => BoundStatement](cql, assignments, predicates)
+        create(pstmt, fn, RowMapper.identity, StatementOptions.default)
+      }
 
-        def create[PsOut](m: RowMapper[PsOut], o: StatementOptions): ScalaPreparedStatement6[T1, T2, T3, T4, T5, T6, PsOut] =
-          new ScalaPreparedStatement6[T1, T2, T3, T4, T5, T6, PsOut](pstmt, m, o, tc1, tc2, tc3, tc4, tc5, tc6) {
-            override def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6): ScalaBoundStatement[PsOut] = ScalaBoundStatement(this, fn(t1, t2, t3, t4, t5, t6))
-            override def withOptions(options: StatementOptions): Self = create(m, options)
-            override def as[Out2](implicit ev: PsOut =:= Row, m2: RowMapper[Out2]): AsOut[Out2] = create(m2, o)
-          }
-
-        create(RowMapper.identity, StatementOptions.default)
+      override def async[F](cql: String, assignments: Seq[TableDef#Assignment[_]], predicates: Seq[Predicate[_, _]])(implicit session: Future[CqlSession], ec: ExecutionContext, fp: function.FnFromProduct.Aux[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: HNil => ScalaBoundStatement[Row], F]): Future[ScalaPreparedStatement6[T1, T2, T3, T4, T5, T6, Row]] = {
+        prepareAsync[(T1, T2, T3, T4, T5, T6) => BoundStatement](cql, assignments, predicates).map { case (pstmt, fn) =>
+          create(pstmt, fn, RowMapper.identity, StatementOptions.default)
+        }
       }
     }
 
@@ -215,17 +297,22 @@ object ToPrepared {
     new ToPrepared[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: HNil] {
       type Out = ScalaPreparedStatement7[T1, T2, T3, T4, T5, T6, T7, Row]
 
+      private def create[PsOut](pstmt: PreparedStatement, fn: (T1, T2, T3, T4, T5, T6, T7) => BoundStatement, m: RowMapper[PsOut], o: StatementOptions): ScalaPreparedStatement7[T1, T2, T3, T4, T5, T6, T7, PsOut] =
+        new ScalaPreparedStatement7[T1, T2, T3, T4, T5, T6, T7, PsOut](pstmt, m, o, tc1, tc2, tc3, tc4, tc5, tc6, tc7) {
+          override def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7): ScalaBoundStatement[PsOut] = ScalaBoundStatement(this, fn(t1, t2, t3, t4, t5, t6, t7))
+          override def withOptions(options: StatementOptions): Self = create(pstmt, fn, m, options)
+          override def as[Out2](implicit ev: PsOut =:= Row, m2: RowMapper[Out2]): AsOut[Out2] = create(pstmt, fn, m2, o)
+        }
+
       override def apply[F](cql: String, assignments: Seq[TableDef#Assignment[_]], predicates: Seq[Predicate[_, _]])(implicit session: CqlSession, fp: FnFromProduct.Aux[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: HNil => ScalaBoundStatement[Row], F]): ScalaPreparedStatement7[T1, T2, T3, T4, T5, T6, T7, Row] = {
-        val (pstmt, fn) = toFn[(T1, T2, T3, T4, T5, T6, T7) => BoundStatement](cql, assignments, predicates)
+        val (pstmt, fn) = prepare[(T1, T2, T3, T4, T5, T6, T7) => BoundStatement](cql, assignments, predicates)
+        create(pstmt, fn, RowMapper.identity, StatementOptions.default)
+      }
 
-        def create[PsOut](m: RowMapper[PsOut], o: StatementOptions): ScalaPreparedStatement7[T1, T2, T3, T4, T5, T6, T7, PsOut] =
-          new ScalaPreparedStatement7[T1, T2, T3, T4, T5, T6, T7, PsOut](pstmt, m, o, tc1, tc2, tc3, tc4, tc5, tc6, tc7) {
-            override def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7): ScalaBoundStatement[PsOut] = ScalaBoundStatement(this, fn(t1, t2, t3, t4, t5, t6, t7))
-            override def withOptions(options: StatementOptions): Self = create(m, options)
-            override def as[Out2](implicit ev: PsOut =:= Row, m2: RowMapper[Out2]): AsOut[Out2] = create(m2, o)
-          }
-
-        create(RowMapper.identity, StatementOptions.default)
+      override def async[F](cql: String, assignments: Seq[TableDef#Assignment[_]], predicates: Seq[Predicate[_, _]])(implicit session: Future[CqlSession], ec: ExecutionContext, fp: function.FnFromProduct.Aux[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: HNil => ScalaBoundStatement[Row], F]): Future[ScalaPreparedStatement7[T1, T2, T3, T4, T5, T6, T7, Row]] = {
+        prepareAsync[(T1, T2, T3, T4, T5, T6, T7) => BoundStatement](cql, assignments, predicates).map { case (pstmt, fn) =>
+          create(pstmt, fn, RowMapper.identity, StatementOptions.default)
+        }
       }
     }
 
@@ -233,17 +320,22 @@ object ToPrepared {
     new ToPrepared[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: T8 :: HNil] {
       type Out = ScalaPreparedStatement8[T1, T2, T3, T4, T5, T6, T7, T8, Row]
 
+      private def create[PsOut](pstmt: PreparedStatement, fn: (T1, T2, T3, T4, T5, T6, T7, T8) => BoundStatement, m: RowMapper[PsOut], o: StatementOptions): ScalaPreparedStatement8[T1, T2, T3, T4, T5, T6, T7, T8, PsOut] =
+        new ScalaPreparedStatement8[T1, T2, T3, T4, T5, T6, T7, T8, PsOut](pstmt, m, o, tc1, tc2, tc3, tc4, tc5, tc6, tc7, tc8) {
+          override def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8): ScalaBoundStatement[PsOut] = ScalaBoundStatement(this, fn(t1, t2, t3, t4, t5, t6, t7, t8))
+          override def withOptions(options: StatementOptions): Self = create(pstmt, fn, m, options)
+          override def as[Out2](implicit ev: PsOut =:= Row, m2: RowMapper[Out2]): AsOut[Out2] = create(pstmt, fn, m2, o)
+        }
+
       override def apply[F](cql: String, assignments: Seq[TableDef#Assignment[_]], predicates: Seq[Predicate[_, _]])(implicit session: CqlSession, fp: FnFromProduct.Aux[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: T8 :: HNil => ScalaBoundStatement[Row], F]): ScalaPreparedStatement8[T1, T2, T3, T4, T5, T6, T7, T8, Row] = {
-        val (pstmt, fn) = toFn[(T1, T2, T3, T4, T5, T6, T7, T8) => BoundStatement](cql, assignments, predicates)
+        val (pstmt, fn) = prepare[(T1, T2, T3, T4, T5, T6, T7, T8) => BoundStatement](cql, assignments, predicates)
+        create(pstmt, fn, RowMapper.identity, StatementOptions.default)
+      }
 
-        def create[PsOut](m: RowMapper[PsOut], o: StatementOptions): ScalaPreparedStatement8[T1, T2, T3, T4, T5, T6, T7, T8, PsOut] =
-          new ScalaPreparedStatement8[T1, T2, T3, T4, T5, T6, T7, T8, PsOut](pstmt, m, o, tc1, tc2, tc3, tc4, tc5, tc6, tc7, tc8) {
-            override def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8): ScalaBoundStatement[PsOut] = ScalaBoundStatement(this, fn(t1, t2, t3, t4, t5, t6, t7, t8))
-            override def withOptions(options: StatementOptions): Self = create(m, options)
-            override def as[Out2](implicit ev: PsOut =:= Row, m2: RowMapper[Out2]): AsOut[Out2] = create(m2, o)
-          }
-
-        create(RowMapper.identity, StatementOptions.default)
+      override def async[F](cql: String, assignments: Seq[TableDef#Assignment[_]], predicates: Seq[Predicate[_, _]])(implicit session: Future[CqlSession], ec: ExecutionContext, fp: function.FnFromProduct.Aux[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: T8 :: HNil => ScalaBoundStatement[Row], F]): Future[ScalaPreparedStatement8[T1, T2, T3, T4, T5, T6, T7, T8, Row]] = {
+        prepareAsync[(T1, T2, T3, T4, T5, T6, T7, T8) => BoundStatement](cql, assignments, predicates).map { case (pstmt, fn) =>
+          create(pstmt, fn, RowMapper.identity, StatementOptions.default)
+        }
       }
     }
 
@@ -251,17 +343,22 @@ object ToPrepared {
     new ToPrepared[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: T8 :: T9 :: HNil] {
       type Out = ScalaPreparedStatement9[T1, T2, T3, T4, T5, T6, T7, T8, T9, Row]
 
+      private def create[PsOut](pstmt: PreparedStatement, fn: (T1, T2, T3, T4, T5, T6, T7, T8, T9) => BoundStatement, m: RowMapper[PsOut], o: StatementOptions): ScalaPreparedStatement9[T1, T2, T3, T4, T5, T6, T7, T8, T9, PsOut] =
+        new ScalaPreparedStatement9[T1, T2, T3, T4, T5, T6, T7, T8, T9, PsOut](pstmt, m, o, tc1, tc2, tc3, tc4, tc5, tc6, tc7, tc8, tc9) {
+          override def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9): ScalaBoundStatement[PsOut] = ScalaBoundStatement(this, fn(t1, t2, t3, t4, t5, t6, t7, t8, t9))
+          override def withOptions(options: StatementOptions): Self = create(pstmt, fn, m, options)
+          override def as[Out2](implicit ev: PsOut =:= Row, m2: RowMapper[Out2]): AsOut[Out2] = create(pstmt, fn, m2, o)
+        }
+
       override def apply[F](cql: String, assignments: Seq[TableDef#Assignment[_]], predicates: Seq[Predicate[_, _]])(implicit session: CqlSession, fp: FnFromProduct.Aux[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: T8 :: T9 :: HNil => ScalaBoundStatement[Row], F]): ScalaPreparedStatement9[T1, T2, T3, T4, T5, T6, T7, T8, T9, Row] = {
-        val (pstmt, fn) = toFn[(T1, T2, T3, T4, T5, T6, T7, T8, T9) => BoundStatement](cql, assignments, predicates)
+        val (pstmt, fn) = prepare[(T1, T2, T3, T4, T5, T6, T7, T8, T9) => BoundStatement](cql, assignments, predicates)
+        create(pstmt, fn, RowMapper.identity, StatementOptions.default)
+      }
 
-        def create[PsOut](m: RowMapper[PsOut], o: StatementOptions): ScalaPreparedStatement9[T1, T2, T3, T4, T5, T6, T7, T8, T9, PsOut] =
-          new ScalaPreparedStatement9[T1, T2, T3, T4, T5, T6, T7, T8, T9, PsOut](pstmt, m, o, tc1, tc2, tc3, tc4, tc5, tc6, tc7, tc8, tc9) {
-            override def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9): ScalaBoundStatement[PsOut] = ScalaBoundStatement(this, fn(t1, t2, t3, t4, t5, t6, t7, t8, t9))
-            override def withOptions(options: StatementOptions): Self = create(m, options)
-            override def as[Out2](implicit ev: PsOut =:= Row, m2: RowMapper[Out2]): AsOut[Out2] = create(m2, o)
-          }
-
-        create(RowMapper.identity, StatementOptions.default)
+      override def async[F](cql: String, assignments: Seq[TableDef#Assignment[_]], predicates: Seq[Predicate[_, _]])(implicit session: Future[CqlSession], ec: ExecutionContext, fp: function.FnFromProduct.Aux[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: T8 :: T9 :: HNil => ScalaBoundStatement[Row], F]): Future[ScalaPreparedStatement9[T1, T2, T3, T4, T5, T6, T7, T8, T9, Row]] = {
+        prepareAsync[(T1, T2, T3, T4, T5, T6, T7, T8, T9) => BoundStatement](cql, assignments, predicates).map { case (pstmt, fn) =>
+          create(pstmt, fn, RowMapper.identity, StatementOptions.default)
+        }
       }
     }
 
@@ -269,17 +366,22 @@ object ToPrepared {
     new ToPrepared[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: T8 :: T9 :: T10 :: HNil] {
       type Out = ScalaPreparedStatement10[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, Row]
 
+      private def create[PsOut](pstmt: PreparedStatement, fn: (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10) => BoundStatement, m: RowMapper[PsOut], o: StatementOptions): ScalaPreparedStatement10[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, PsOut] =
+        new ScalaPreparedStatement10[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, PsOut](pstmt, m, o, tc1, tc2, tc3, tc4, tc5, tc6, tc7, tc8, tc9, tc10) {
+          override def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10): ScalaBoundStatement[PsOut] = ScalaBoundStatement(this, fn(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10))
+          override def withOptions(options: StatementOptions): Self = create(pstmt, fn, m, options)
+          override def as[Out2](implicit ev: PsOut =:= Row, m2: RowMapper[Out2]): AsOut[Out2] = create(pstmt, fn, m2, o)
+        }
+
       override def apply[F](cql: String, assignments: Seq[TableDef#Assignment[_]], predicates: Seq[Predicate[_, _]])(implicit session: CqlSession, fp: FnFromProduct.Aux[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: T8 :: T9 :: T10 :: HNil => ScalaBoundStatement[Row], F]): ScalaPreparedStatement10[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, Row] = {
-        val (pstmt, fn) = toFn[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10) => BoundStatement](cql, assignments, predicates)
+        val (pstmt, fn) = prepare[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10) => BoundStatement](cql, assignments, predicates)
+        create(pstmt, fn, RowMapper.identity, StatementOptions.default)
+      }
 
-        def create[PsOut](m: RowMapper[PsOut], o: StatementOptions): ScalaPreparedStatement10[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, PsOut] =
-          new ScalaPreparedStatement10[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, PsOut](pstmt, m, o, tc1, tc2, tc3, tc4, tc5, tc6, tc7, tc8, tc9, tc10) {
-            override def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10): ScalaBoundStatement[PsOut] = ScalaBoundStatement(this, fn(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10))
-            override def withOptions(options: StatementOptions): Self = create(m, options)
-            override def as[Out2](implicit ev: PsOut =:= Row, m2: RowMapper[Out2]): AsOut[Out2] = create(m2, o)
-          }
-
-        create(RowMapper.identity, StatementOptions.default)
+      override def async[F](cql: String, assignments: Seq[TableDef#Assignment[_]], predicates: Seq[Predicate[_, _]])(implicit session: Future[CqlSession], ec: ExecutionContext, fp: function.FnFromProduct.Aux[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: T8 :: T9 :: T10 :: HNil => ScalaBoundStatement[Row], F]): Future[ScalaPreparedStatement10[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, Row]] = {
+        prepareAsync[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10) => BoundStatement](cql, assignments, predicates).map { case (pstmt, fn) =>
+          create(pstmt, fn, RowMapper.identity, StatementOptions.default)
+        }
       }
     }
 
@@ -287,17 +389,22 @@ object ToPrepared {
     new ToPrepared[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: T8 :: T9 :: T10 :: T11 :: HNil] {
       type Out = ScalaPreparedStatement11[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, Row]
 
+      private def create[PsOut](pstmt: PreparedStatement, fn: (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11) => BoundStatement, m: RowMapper[PsOut], o: StatementOptions): ScalaPreparedStatement11[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, PsOut] =
+        new ScalaPreparedStatement11[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, PsOut](pstmt, m, o, tc1, tc2, tc3, tc4, tc5, tc6, tc7, tc8, tc9, tc10, tc11) {
+          override def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11): ScalaBoundStatement[PsOut] = ScalaBoundStatement(this, fn(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11))
+          override def withOptions(options: StatementOptions): Self = create(pstmt, fn, m, options)
+          override def as[Out2](implicit ev: PsOut =:= Row, m2: RowMapper[Out2]): AsOut[Out2] = create(pstmt, fn, m2, o)
+        }
+
       override def apply[F](cql: String, assignments: Seq[TableDef#Assignment[_]], predicates: Seq[Predicate[_, _]])(implicit session: CqlSession, fp: FnFromProduct.Aux[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: T8 :: T9 :: T10 :: T11 :: HNil => ScalaBoundStatement[Row], F]): ScalaPreparedStatement11[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, Row] = {
-        val (pstmt, fn) = toFn[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11) => BoundStatement](cql, assignments, predicates)
+        val (pstmt, fn) = prepare[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11) => BoundStatement](cql, assignments, predicates)
+        create(pstmt, fn, RowMapper.identity, StatementOptions.default)
+      }
 
-        def create[PsOut](m: RowMapper[PsOut], o: StatementOptions): ScalaPreparedStatement11[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, PsOut] =
-          new ScalaPreparedStatement11[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, PsOut](pstmt, m, o, tc1, tc2, tc3, tc4, tc5, tc6, tc7, tc8, tc9, tc10, tc11) {
-            override def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11): ScalaBoundStatement[PsOut] = ScalaBoundStatement(this, fn(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11))
-            override def withOptions(options: StatementOptions): Self = create(m, options)
-            override def as[Out2](implicit ev: PsOut =:= Row, m2: RowMapper[Out2]): AsOut[Out2] = create(m2, o)
-          }
-
-        create(RowMapper.identity, StatementOptions.default)
+      override def async[F](cql: String, assignments: Seq[TableDef#Assignment[_]], predicates: Seq[Predicate[_, _]])(implicit session: Future[CqlSession], ec: ExecutionContext, fp: function.FnFromProduct.Aux[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: T8 :: T9 :: T10 :: T11 :: HNil => ScalaBoundStatement[Row], F]): Future[ScalaPreparedStatement11[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, Row]] = {
+        prepareAsync[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11) => BoundStatement](cql, assignments, predicates).map { case (pstmt, fn) =>
+          create(pstmt, fn, RowMapper.identity, StatementOptions.default)
+        }
       }
     }
 
@@ -305,17 +412,22 @@ object ToPrepared {
     new ToPrepared[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: T8 :: T9 :: T10 :: T11 :: T12 :: HNil] {
       type Out = ScalaPreparedStatement12[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, Row]
 
+      private def create[PsOut](pstmt: PreparedStatement, fn: (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12) => BoundStatement, m: RowMapper[PsOut], o: StatementOptions): ScalaPreparedStatement12[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, PsOut] =
+        new ScalaPreparedStatement12[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, PsOut](pstmt, m, o, tc1, tc2, tc3, tc4, tc5, tc6, tc7, tc8, tc9, tc10, tc11, tc12) {
+          override def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12): ScalaBoundStatement[PsOut] = ScalaBoundStatement(this, fn(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12))
+          override def withOptions(options: StatementOptions): Self = create(pstmt, fn, m, options)
+          override def as[Out2](implicit ev: PsOut =:= Row, m2: RowMapper[Out2]): AsOut[Out2] = create(pstmt, fn, m2, o)
+        }
+
       override def apply[F](cql: String, assignments: Seq[TableDef#Assignment[_]], predicates: Seq[Predicate[_, _]])(implicit session: CqlSession, fp: FnFromProduct.Aux[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: T8 :: T9 :: T10 :: T11 :: T12 :: HNil => ScalaBoundStatement[Row], F]): ScalaPreparedStatement12[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, Row] = {
-        val (pstmt, fn) = toFn[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12) => BoundStatement](cql, assignments, predicates)
+        val (pstmt, fn) = prepare[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12) => BoundStatement](cql, assignments, predicates)
+        create(pstmt, fn, RowMapper.identity, StatementOptions.default)
+      }
 
-        def create[PsOut](m: RowMapper[PsOut], o: StatementOptions): ScalaPreparedStatement12[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, PsOut] =
-          new ScalaPreparedStatement12[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, PsOut](pstmt, m, o, tc1, tc2, tc3, tc4, tc5, tc6, tc7, tc8, tc9, tc10, tc11, tc12) {
-            override def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12): ScalaBoundStatement[PsOut] = ScalaBoundStatement(this, fn(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12))
-            override def withOptions(options: StatementOptions): Self = create(m, options)
-            override def as[Out2](implicit ev: PsOut =:= Row, m2: RowMapper[Out2]): AsOut[Out2] = create(m2, o)
-          }
-
-        create(RowMapper.identity, StatementOptions.default)
+      override def async[F](cql: String, assignments: Seq[TableDef#Assignment[_]], predicates: Seq[Predicate[_, _]])(implicit session: Future[CqlSession], ec: ExecutionContext, fp: function.FnFromProduct.Aux[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: T8 :: T9 :: T10 :: T11 :: T12 :: HNil => ScalaBoundStatement[Row], F]): Future[ScalaPreparedStatement12[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, Row]] = {
+        prepareAsync[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12) => BoundStatement](cql, assignments, predicates).map { case (pstmt, fn) =>
+          create(pstmt, fn, RowMapper.identity, StatementOptions.default)
+        }
       }
     }
 
@@ -323,17 +435,22 @@ object ToPrepared {
     new ToPrepared[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: T8 :: T9 :: T10 :: T11 :: T12 :: T13 :: HNil] {
       type Out = ScalaPreparedStatement13[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, Row]
 
+      private def create[PsOut](pstmt: PreparedStatement, fn: (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13) => BoundStatement, m: RowMapper[PsOut], o: StatementOptions): ScalaPreparedStatement13[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, PsOut] =
+        new ScalaPreparedStatement13[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, PsOut](pstmt, m, o, tc1, tc2, tc3, tc4, tc5, tc6, tc7, tc8, tc9, tc10, tc11, tc12, tc13) {
+          override def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13): ScalaBoundStatement[PsOut] = ScalaBoundStatement(this, fn(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13))
+          override def withOptions(options: StatementOptions): Self = create(pstmt, fn, m, options)
+          override def as[Out2](implicit ev: PsOut =:= Row, m2: RowMapper[Out2]): AsOut[Out2] = create(pstmt, fn, m2, o)
+        }
+
       override def apply[F](cql: String, assignments: Seq[TableDef#Assignment[_]], predicates: Seq[Predicate[_, _]])(implicit session: CqlSession, fp: FnFromProduct.Aux[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: T8 :: T9 :: T10 :: T11 :: T12 :: T13 :: HNil => ScalaBoundStatement[Row], F]): ScalaPreparedStatement13[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, Row] = {
-        val (pstmt, fn) = toFn[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13) => BoundStatement](cql, assignments, predicates)
+        val (pstmt, fn) = prepare[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13) => BoundStatement](cql, assignments, predicates)
+        create(pstmt, fn, RowMapper.identity, StatementOptions.default)
+      }
 
-        def create[PsOut](m: RowMapper[PsOut], o: StatementOptions): ScalaPreparedStatement13[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, PsOut] =
-          new ScalaPreparedStatement13[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, PsOut](pstmt, m, o, tc1, tc2, tc3, tc4, tc5, tc6, tc7, tc8, tc9, tc10, tc11, tc12, tc13) {
-            override def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13): ScalaBoundStatement[PsOut] = ScalaBoundStatement(this, fn(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13))
-            override def withOptions(options: StatementOptions): Self = create(m, options)
-            override def as[Out2](implicit ev: PsOut =:= Row, m2: RowMapper[Out2]): AsOut[Out2] = create(m2, o)
-          }
-
-        create(RowMapper.identity, StatementOptions.default)
+      override def async[F](cql: String, assignments: Seq[TableDef#Assignment[_]], predicates: Seq[Predicate[_, _]])(implicit session: Future[CqlSession], ec: ExecutionContext, fp: function.FnFromProduct.Aux[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: T8 :: T9 :: T10 :: T11 :: T12 :: T13 :: HNil => ScalaBoundStatement[Row], F]): Future[ScalaPreparedStatement13[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, Row]] = {
+        prepareAsync[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13) => BoundStatement](cql, assignments, predicates).map { case (pstmt, fn) =>
+          create(pstmt, fn, RowMapper.identity, StatementOptions.default)
+        }
       }
     }
 
@@ -341,17 +458,22 @@ object ToPrepared {
     new ToPrepared[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: T8 :: T9 :: T10 :: T11 :: T12 :: T13 :: T14 :: HNil] {
       type Out = ScalaPreparedStatement14[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, Row]
 
+      private def create[PsOut](pstmt: PreparedStatement, fn: (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14) => BoundStatement, m: RowMapper[PsOut], o: StatementOptions): ScalaPreparedStatement14[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, PsOut] =
+        new ScalaPreparedStatement14[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, PsOut](pstmt, m, o, tc1, tc2, tc3, tc4, tc5, tc6, tc7, tc8, tc9, tc10, tc11, tc12, tc13, tc14) {
+          override def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14): ScalaBoundStatement[PsOut] = ScalaBoundStatement(this, fn(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14))
+          override def withOptions(options: StatementOptions): Self = create(pstmt, fn, m, options)
+          override def as[Out2](implicit ev: PsOut =:= Row, m2: RowMapper[Out2]): AsOut[Out2] = create(pstmt, fn, m2, o)
+        }
+
       override def apply[F](cql: String, assignments: Seq[TableDef#Assignment[_]], predicates: Seq[Predicate[_, _]])(implicit session: CqlSession, fp: FnFromProduct.Aux[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: T8 :: T9 :: T10 :: T11 :: T12 :: T13 :: T14 :: HNil => ScalaBoundStatement[Row], F]): ScalaPreparedStatement14[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, Row] = {
-        val (pstmt, fn) = toFn[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14) => BoundStatement](cql, assignments, predicates)
+        val (pstmt, fn) = prepare[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14) => BoundStatement](cql, assignments, predicates)
+        create(pstmt, fn, RowMapper.identity, StatementOptions.default)
+      }
 
-        def create[PsOut](m: RowMapper[PsOut], o: StatementOptions): ScalaPreparedStatement14[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, PsOut] =
-          new ScalaPreparedStatement14[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, PsOut](pstmt, m, o, tc1, tc2, tc3, tc4, tc5, tc6, tc7, tc8, tc9, tc10, tc11, tc12, tc13, tc14) {
-            override def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14): ScalaBoundStatement[PsOut] = ScalaBoundStatement(this, fn(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14))
-            override def withOptions(options: StatementOptions): Self = create(m, options)
-            override def as[Out2](implicit ev: PsOut =:= Row, m2: RowMapper[Out2]): AsOut[Out2] = create(m2, o)
-          }
-
-        create(RowMapper.identity, StatementOptions.default)
+      override def async[F](cql: String, assignments: Seq[TableDef#Assignment[_]], predicates: Seq[Predicate[_, _]])(implicit session: Future[CqlSession], ec: ExecutionContext, fp: function.FnFromProduct.Aux[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: T8 :: T9 :: T10 :: T11 :: T12 :: T13 :: T14 :: HNil => ScalaBoundStatement[Row], F]): Future[ScalaPreparedStatement14[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, Row]] = {
+        prepareAsync[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14) => BoundStatement](cql, assignments, predicates).map { case (pstmt, fn) =>
+          create(pstmt, fn, RowMapper.identity, StatementOptions.default)
+        }
       }
     }
 
@@ -359,17 +481,22 @@ object ToPrepared {
     new ToPrepared[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: T8 :: T9 :: T10 :: T11 :: T12 :: T13 :: T14 :: T15 :: HNil] {
       type Out = ScalaPreparedStatement15[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, Row]
 
+      private def create[PsOut](pstmt: PreparedStatement, fn: (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15) => BoundStatement, m: RowMapper[PsOut], o: StatementOptions): ScalaPreparedStatement15[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, PsOut] =
+        new ScalaPreparedStatement15[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, PsOut](pstmt, m, o, tc1, tc2, tc3, tc4, tc5, tc6, tc7, tc8, tc9, tc10, tc11, tc12, tc13, tc14, tc15) {
+          override def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15): ScalaBoundStatement[PsOut] = ScalaBoundStatement(this, fn(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15))
+          override def withOptions(options: StatementOptions): Self = create(pstmt, fn, m, options)
+          override def as[Out2](implicit ev: PsOut =:= Row, m2: RowMapper[Out2]): AsOut[Out2] = create(pstmt, fn, m2, o)
+        }
+
       override def apply[F](cql: String, assignments: Seq[TableDef#Assignment[_]], predicates: Seq[Predicate[_, _]])(implicit session: CqlSession, fp: FnFromProduct.Aux[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: T8 :: T9 :: T10 :: T11 :: T12 :: T13 :: T14 :: T15 :: HNil => ScalaBoundStatement[Row], F]): ScalaPreparedStatement15[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, Row] = {
-        val (pstmt, fn) = toFn[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15) => BoundStatement](cql, assignments, predicates)
+        val (pstmt, fn) = prepare[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15) => BoundStatement](cql, assignments, predicates)
+        create(pstmt, fn, RowMapper.identity, StatementOptions.default)
+      }
 
-        def create[PsOut](m: RowMapper[PsOut], o: StatementOptions): ScalaPreparedStatement15[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, PsOut] =
-          new ScalaPreparedStatement15[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, PsOut](pstmt, m, o, tc1, tc2, tc3, tc4, tc5, tc6, tc7, tc8, tc9, tc10, tc11, tc12, tc13, tc14, tc15) {
-            override def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15): ScalaBoundStatement[PsOut] = ScalaBoundStatement(this, fn(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15))
-            override def withOptions(options: StatementOptions): Self = create(m, options)
-            override def as[Out2](implicit ev: PsOut =:= Row, m2: RowMapper[Out2]): AsOut[Out2] = create(m2, o)
-          }
-
-        create(RowMapper.identity, StatementOptions.default)
+      override def async[F](cql: String, assignments: Seq[TableDef#Assignment[_]], predicates: Seq[Predicate[_, _]])(implicit session: Future[CqlSession], ec: ExecutionContext, fp: function.FnFromProduct.Aux[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: T8 :: T9 :: T10 :: T11 :: T12 :: T13 :: T14 :: T15 :: HNil => ScalaBoundStatement[Row], F]): Future[ScalaPreparedStatement15[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, Row]] = {
+        prepareAsync[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15) => BoundStatement](cql, assignments, predicates).map { case (pstmt, fn) =>
+          create(pstmt, fn, RowMapper.identity, StatementOptions.default)
+        }
       }
     }
 
@@ -377,17 +504,22 @@ object ToPrepared {
     new ToPrepared[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: T8 :: T9 :: T10 :: T11 :: T12 :: T13 :: T14 :: T15 :: T16 :: HNil] {
       type Out = ScalaPreparedStatement16[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, Row]
 
+      private def create[PsOut](pstmt: PreparedStatement, fn: (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16) => BoundStatement, m: RowMapper[PsOut], o: StatementOptions): ScalaPreparedStatement16[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, PsOut] =
+        new ScalaPreparedStatement16[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, PsOut](pstmt, m, o, tc1, tc2, tc3, tc4, tc5, tc6, tc7, tc8, tc9, tc10, tc11, tc12, tc13, tc14, tc15, tc16) {
+          override def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16): ScalaBoundStatement[PsOut] = ScalaBoundStatement(this, fn(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16))
+          override def withOptions(options: StatementOptions): Self = create(pstmt, fn, m, options)
+          override def as[Out2](implicit ev: PsOut =:= Row, m2: RowMapper[Out2]): AsOut[Out2] = create(pstmt, fn, m2, o)
+        }
+
       override def apply[F](cql: String, assignments: Seq[TableDef#Assignment[_]], predicates: Seq[Predicate[_, _]])(implicit session: CqlSession, fp: FnFromProduct.Aux[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: T8 :: T9 :: T10 :: T11 :: T12 :: T13 :: T14 :: T15 :: T16 :: HNil => ScalaBoundStatement[Row], F]): ScalaPreparedStatement16[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, Row] = {
-        val (pstmt, fn) = toFn[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16) => BoundStatement](cql, assignments, predicates)
+        val (pstmt, fn) = prepare[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16) => BoundStatement](cql, assignments, predicates)
+        create(pstmt, fn, RowMapper.identity, StatementOptions.default)
+      }
 
-        def create[PsOut](m: RowMapper[PsOut], o: StatementOptions): ScalaPreparedStatement16[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, PsOut] =
-          new ScalaPreparedStatement16[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, PsOut](pstmt, m, o, tc1, tc2, tc3, tc4, tc5, tc6, tc7, tc8, tc9, tc10, tc11, tc12, tc13, tc14, tc15, tc16) {
-            override def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16): ScalaBoundStatement[PsOut] = ScalaBoundStatement(this, fn(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16))
-            override def withOptions(options: StatementOptions): Self = create(m, options)
-            override def as[Out2](implicit ev: PsOut =:= Row, m2: RowMapper[Out2]): AsOut[Out2] = create(m2, o)
-          }
-
-        create(RowMapper.identity, StatementOptions.default)
+      override def async[F](cql: String, assignments: Seq[TableDef#Assignment[_]], predicates: Seq[Predicate[_, _]])(implicit session: Future[CqlSession], ec: ExecutionContext, fp: function.FnFromProduct.Aux[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: T8 :: T9 :: T10 :: T11 :: T12 :: T13 :: T14 :: T15 :: T16 :: HNil => ScalaBoundStatement[Row], F]): Future[ScalaPreparedStatement16[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, Row]] = {
+        prepareAsync[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16) => BoundStatement](cql, assignments, predicates).map { case (pstmt, fn) =>
+          create(pstmt, fn, RowMapper.identity, StatementOptions.default)
+        }
       }
     }
 
@@ -395,17 +527,22 @@ object ToPrepared {
     new ToPrepared[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: T8 :: T9 :: T10 :: T11 :: T12 :: T13 :: T14 :: T15 :: T16 :: T17 :: HNil] {
       type Out = ScalaPreparedStatement17[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, Row]
 
+      private def create[PsOut](pstmt: PreparedStatement, fn: (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17) => BoundStatement, m: RowMapper[PsOut], o: StatementOptions): ScalaPreparedStatement17[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, PsOut] =
+        new ScalaPreparedStatement17[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, PsOut](pstmt, m, o, tc1, tc2, tc3, tc4, tc5, tc6, tc7, tc8, tc9, tc10, tc11, tc12, tc13, tc14, tc15, tc16, tc17) {
+          override def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17): ScalaBoundStatement[PsOut] = ScalaBoundStatement(this, fn(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17))
+          override def withOptions(options: StatementOptions): Self = create(pstmt, fn, m, options)
+          override def as[Out2](implicit ev: PsOut =:= Row, m2: RowMapper[Out2]): AsOut[Out2] = create(pstmt, fn, m2, o)
+        }
+
       override def apply[F](cql: String, assignments: Seq[TableDef#Assignment[_]], predicates: Seq[Predicate[_, _]])(implicit session: CqlSession, fp: FnFromProduct.Aux[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: T8 :: T9 :: T10 :: T11 :: T12 :: T13 :: T14 :: T15 :: T16 :: T17 :: HNil => ScalaBoundStatement[Row], F]): ScalaPreparedStatement17[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, Row] = {
-        val (pstmt, fn) = toFn[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17) => BoundStatement](cql, assignments, predicates)
+        val (pstmt, fn) = prepare[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17) => BoundStatement](cql, assignments, predicates)
+        create(pstmt, fn, RowMapper.identity, StatementOptions.default)
+      }
 
-        def create[PsOut](m: RowMapper[PsOut], o: StatementOptions): ScalaPreparedStatement17[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, PsOut] =
-          new ScalaPreparedStatement17[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, PsOut](pstmt, m, o, tc1, tc2, tc3, tc4, tc5, tc6, tc7, tc8, tc9, tc10, tc11, tc12, tc13, tc14, tc15, tc16, tc17) {
-            override def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17): ScalaBoundStatement[PsOut] = ScalaBoundStatement(this, fn(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17))
-            override def withOptions(options: StatementOptions): Self = create(m, options)
-            override def as[Out2](implicit ev: PsOut =:= Row, m2: RowMapper[Out2]): AsOut[Out2] = create(m2, o)
-          }
-
-        create(RowMapper.identity, StatementOptions.default)
+      override def async[F](cql: String, assignments: Seq[TableDef#Assignment[_]], predicates: Seq[Predicate[_, _]])(implicit session: Future[CqlSession], ec: ExecutionContext, fp: function.FnFromProduct.Aux[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: T8 :: T9 :: T10 :: T11 :: T12 :: T13 :: T14 :: T15 :: T16 :: T17 :: HNil => ScalaBoundStatement[Row], F]): Future[ScalaPreparedStatement17[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, Row]] = {
+        prepareAsync[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17) => BoundStatement](cql, assignments, predicates).map { case (pstmt, fn) =>
+          create(pstmt, fn, RowMapper.identity, StatementOptions.default)
+        }
       }
     }
 
@@ -413,17 +550,22 @@ object ToPrepared {
     new ToPrepared[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: T8 :: T9 :: T10 :: T11 :: T12 :: T13 :: T14 :: T15 :: T16 :: T17 :: T18 :: HNil] {
       type Out = ScalaPreparedStatement18[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, Row]
 
+      private def create[PsOut](pstmt: PreparedStatement, fn: (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18) => BoundStatement, m: RowMapper[PsOut], o: StatementOptions): ScalaPreparedStatement18[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, PsOut] =
+        new ScalaPreparedStatement18[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, PsOut](pstmt, m, o, tc1, tc2, tc3, tc4, tc5, tc6, tc7, tc8, tc9, tc10, tc11, tc12, tc13, tc14, tc15, tc16, tc17, tc18) {
+          override def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18): ScalaBoundStatement[PsOut] = ScalaBoundStatement(this, fn(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18))
+          override def withOptions(options: StatementOptions): Self = create(pstmt, fn, m, options)
+          override def as[Out2](implicit ev: PsOut =:= Row, m2: RowMapper[Out2]): AsOut[Out2] = create(pstmt, fn, m2, o)
+        }
+
       override def apply[F](cql: String, assignments: Seq[TableDef#Assignment[_]], predicates: Seq[Predicate[_, _]])(implicit session: CqlSession, fp: FnFromProduct.Aux[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: T8 :: T9 :: T10 :: T11 :: T12 :: T13 :: T14 :: T15 :: T16 :: T17 :: T18 :: HNil => ScalaBoundStatement[Row], F]): ScalaPreparedStatement18[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, Row] = {
-        val (pstmt, fn) = toFn[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18) => BoundStatement](cql, assignments, predicates)
+        val (pstmt, fn) = prepare[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18) => BoundStatement](cql, assignments, predicates)
+        create(pstmt, fn, RowMapper.identity, StatementOptions.default)
+      }
 
-        def create[PsOut](m: RowMapper[PsOut], o: StatementOptions): ScalaPreparedStatement18[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, PsOut] =
-          new ScalaPreparedStatement18[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, PsOut](pstmt, m, o, tc1, tc2, tc3, tc4, tc5, tc6, tc7, tc8, tc9, tc10, tc11, tc12, tc13, tc14, tc15, tc16, tc17, tc18) {
-            override def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18): ScalaBoundStatement[PsOut] = ScalaBoundStatement(this, fn(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18))
-            override def withOptions(options: StatementOptions): Self = create(m, options)
-            override def as[Out2](implicit ev: PsOut =:= Row, m2: RowMapper[Out2]): AsOut[Out2] = create(m2, o)
-          }
-
-        create(RowMapper.identity, StatementOptions.default)
+      override def async[F](cql: String, assignments: Seq[TableDef#Assignment[_]], predicates: Seq[Predicate[_, _]])(implicit session: Future[CqlSession], ec: ExecutionContext, fp: function.FnFromProduct.Aux[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: T8 :: T9 :: T10 :: T11 :: T12 :: T13 :: T14 :: T15 :: T16 :: T17 :: T18 :: HNil => ScalaBoundStatement[Row], F]): Future[ScalaPreparedStatement18[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, Row]] = {
+        prepareAsync[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18) => BoundStatement](cql, assignments, predicates).map { case (pstmt, fn) =>
+          create(pstmt, fn, RowMapper.identity, StatementOptions.default)
+        }
       }
     }
 
@@ -431,17 +573,22 @@ object ToPrepared {
     new ToPrepared[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: T8 :: T9 :: T10 :: T11 :: T12 :: T13 :: T14 :: T15 :: T16 :: T17 :: T18 :: T19 :: HNil] {
       type Out = ScalaPreparedStatement19[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, Row]
 
+      private def create[PsOut](pstmt: PreparedStatement, fn: (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19) => BoundStatement, m: RowMapper[PsOut], o: StatementOptions): ScalaPreparedStatement19[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, PsOut] =
+        new ScalaPreparedStatement19[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, PsOut](pstmt, m, o, tc1, tc2, tc3, tc4, tc5, tc6, tc7, tc8, tc9, tc10, tc11, tc12, tc13, tc14, tc15, tc16, tc17, tc18, tc19) {
+          override def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19): ScalaBoundStatement[PsOut] = ScalaBoundStatement(this, fn(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19))
+          override def withOptions(options: StatementOptions): Self = create(pstmt, fn, m, options)
+          override def as[Out2](implicit ev: PsOut =:= Row, m2: RowMapper[Out2]): AsOut[Out2] = create(pstmt, fn, m2, o)
+        }
+
       override def apply[F](cql: String, assignments: Seq[TableDef#Assignment[_]], predicates: Seq[Predicate[_, _]])(implicit session: CqlSession, fp: FnFromProduct.Aux[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: T8 :: T9 :: T10 :: T11 :: T12 :: T13 :: T14 :: T15 :: T16 :: T17 :: T18 :: T19 :: HNil => ScalaBoundStatement[Row], F]): ScalaPreparedStatement19[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, Row] = {
-        val (pstmt, fn) = toFn[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19) => BoundStatement](cql, assignments, predicates)
+        val (pstmt, fn) = prepare[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19) => BoundStatement](cql, assignments, predicates)
+        create(pstmt, fn, RowMapper.identity, StatementOptions.default)
+      }
 
-        def create[PsOut](m: RowMapper[PsOut], o: StatementOptions): ScalaPreparedStatement19[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, PsOut] =
-          new ScalaPreparedStatement19[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, PsOut](pstmt, m, o, tc1, tc2, tc3, tc4, tc5, tc6, tc7, tc8, tc9, tc10, tc11, tc12, tc13, tc14, tc15, tc16, tc17, tc18, tc19) {
-            override def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19): ScalaBoundStatement[PsOut] = ScalaBoundStatement(this, fn(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19))
-            override def withOptions(options: StatementOptions): Self = create(m, options)
-            override def as[Out2](implicit ev: PsOut =:= Row, m2: RowMapper[Out2]): AsOut[Out2] = create(m2, o)
-          }
-
-        create(RowMapper.identity, StatementOptions.default)
+      override def async[F](cql: String, assignments: Seq[TableDef#Assignment[_]], predicates: Seq[Predicate[_, _]])(implicit session: Future[CqlSession], ec: ExecutionContext, fp: function.FnFromProduct.Aux[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: T8 :: T9 :: T10 :: T11 :: T12 :: T13 :: T14 :: T15 :: T16 :: T17 :: T18 :: T19 :: HNil => ScalaBoundStatement[Row], F]): Future[ScalaPreparedStatement19[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, Row]] = {
+        prepareAsync[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19) => BoundStatement](cql, assignments, predicates).map { case (pstmt, fn) =>
+          create(pstmt, fn, RowMapper.identity, StatementOptions.default)
+        }
       }
     }
 
@@ -449,17 +596,22 @@ object ToPrepared {
     new ToPrepared[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: T8 :: T9 :: T10 :: T11 :: T12 :: T13 :: T14 :: T15 :: T16 :: T17 :: T18 :: T19 :: T20 :: HNil] {
       type Out = ScalaPreparedStatement20[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, Row]
 
+      private def create[PsOut](pstmt: PreparedStatement, fn: (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20) => BoundStatement, m: RowMapper[PsOut], o: StatementOptions): ScalaPreparedStatement20[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, PsOut] =
+        new ScalaPreparedStatement20[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, PsOut](pstmt, m, o, tc1, tc2, tc3, tc4, tc5, tc6, tc7, tc8, tc9, tc10, tc11, tc12, tc13, tc14, tc15, tc16, tc17, tc18, tc19, tc20) {
+          override def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20): ScalaBoundStatement[PsOut] = ScalaBoundStatement(this, fn(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20))
+          override def withOptions(options: StatementOptions): Self = create(pstmt, fn, m, options)
+          override def as[Out2](implicit ev: PsOut =:= Row, m2: RowMapper[Out2]): AsOut[Out2] = create(pstmt, fn, m2, o)
+        }
+
       override def apply[F](cql: String, assignments: Seq[TableDef#Assignment[_]], predicates: Seq[Predicate[_, _]])(implicit session: CqlSession, fp: FnFromProduct.Aux[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: T8 :: T9 :: T10 :: T11 :: T12 :: T13 :: T14 :: T15 :: T16 :: T17 :: T18 :: T19 :: T20 :: HNil => ScalaBoundStatement[Row], F]): ScalaPreparedStatement20[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, Row] = {
-        val (pstmt, fn) = toFn[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20) => BoundStatement](cql, assignments, predicates)
+        val (pstmt, fn) = prepare[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20) => BoundStatement](cql, assignments, predicates)
+        create(pstmt, fn, RowMapper.identity, StatementOptions.default)
+      }
 
-        def create[PsOut](m: RowMapper[PsOut], o: StatementOptions): ScalaPreparedStatement20[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, PsOut] =
-          new ScalaPreparedStatement20[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, PsOut](pstmt, m, o, tc1, tc2, tc3, tc4, tc5, tc6, tc7, tc8, tc9, tc10, tc11, tc12, tc13, tc14, tc15, tc16, tc17, tc18, tc19, tc20) {
-            override def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20): ScalaBoundStatement[PsOut] = ScalaBoundStatement(this, fn(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20))
-            override def withOptions(options: StatementOptions): Self = create(m, options)
-            override def as[Out2](implicit ev: PsOut =:= Row, m2: RowMapper[Out2]): AsOut[Out2] = create(m2, o)
-          }
-
-        create(RowMapper.identity, StatementOptions.default)
+      override def async[F](cql: String, assignments: Seq[TableDef#Assignment[_]], predicates: Seq[Predicate[_, _]])(implicit session: Future[CqlSession], ec: ExecutionContext, fp: function.FnFromProduct.Aux[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: T8 :: T9 :: T10 :: T11 :: T12 :: T13 :: T14 :: T15 :: T16 :: T17 :: T18 :: T19 :: T20 :: HNil => ScalaBoundStatement[Row], F]): Future[ScalaPreparedStatement20[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, Row]] = {
+        prepareAsync[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20) => BoundStatement](cql, assignments, predicates).map { case (pstmt, fn) =>
+          create(pstmt, fn, RowMapper.identity, StatementOptions.default)
+        }
       }
     }
 
@@ -467,17 +619,22 @@ object ToPrepared {
     new ToPrepared[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: T8 :: T9 :: T10 :: T11 :: T12 :: T13 :: T14 :: T15 :: T16 :: T17 :: T18 :: T19 :: T20 :: T21 :: HNil] {
       type Out = ScalaPreparedStatement21[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, Row]
 
+      private def create[PsOut](pstmt: PreparedStatement, fn: (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21) => BoundStatement, m: RowMapper[PsOut], o: StatementOptions): ScalaPreparedStatement21[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, PsOut] =
+        new ScalaPreparedStatement21[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, PsOut](pstmt, m, o, tc1, tc2, tc3, tc4, tc5, tc6, tc7, tc8, tc9, tc10, tc11, tc12, tc13, tc14, tc15, tc16, tc17, tc18, tc19, tc20, tc21) {
+          override def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21): ScalaBoundStatement[PsOut] = ScalaBoundStatement(this, fn(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21))
+          override def withOptions(options: StatementOptions): Self = create(pstmt, fn, m, options)
+          override def as[Out2](implicit ev: PsOut =:= Row, m2: RowMapper[Out2]): AsOut[Out2] = create(pstmt, fn, m2, o)
+        }
+
       override def apply[F](cql: String, assignments: Seq[TableDef#Assignment[_]], predicates: Seq[Predicate[_, _]])(implicit session: CqlSession, fp: FnFromProduct.Aux[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: T8 :: T9 :: T10 :: T11 :: T12 :: T13 :: T14 :: T15 :: T16 :: T17 :: T18 :: T19 :: T20 :: T21 :: HNil => ScalaBoundStatement[Row], F]): ScalaPreparedStatement21[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, Row] = {
-        val (pstmt, fn) = toFn[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21) => BoundStatement](cql, assignments, predicates)
+        val (pstmt, fn) = prepare[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21) => BoundStatement](cql, assignments, predicates)
+        create(pstmt, fn, RowMapper.identity, StatementOptions.default)
+      }
 
-        def create[PsOut](m: RowMapper[PsOut], o: StatementOptions): ScalaPreparedStatement21[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, PsOut] =
-          new ScalaPreparedStatement21[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, PsOut](pstmt, m, o, tc1, tc2, tc3, tc4, tc5, tc6, tc7, tc8, tc9, tc10, tc11, tc12, tc13, tc14, tc15, tc16, tc17, tc18, tc19, tc20, tc21) {
-            override def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21): ScalaBoundStatement[PsOut] = ScalaBoundStatement(this, fn(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21))
-            override def withOptions(options: StatementOptions): Self = create(m, options)
-            override def as[Out2](implicit ev: PsOut =:= Row, m2: RowMapper[Out2]): AsOut[Out2] = create(m2, o)
-          }
-
-        create(RowMapper.identity, StatementOptions.default)
+      override def async[F](cql: String, assignments: Seq[TableDef#Assignment[_]], predicates: Seq[Predicate[_, _]])(implicit session: Future[CqlSession], ec: ExecutionContext, fp: function.FnFromProduct.Aux[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: T8 :: T9 :: T10 :: T11 :: T12 :: T13 :: T14 :: T15 :: T16 :: T17 :: T18 :: T19 :: T20 :: T21 :: HNil => ScalaBoundStatement[Row], F]): Future[ScalaPreparedStatement21[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, Row]] = {
+        prepareAsync[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21) => BoundStatement](cql, assignments, predicates).map { case (pstmt, fn) =>
+          create(pstmt, fn, RowMapper.identity, StatementOptions.default)
+        }
       }
     }
 
@@ -485,17 +642,22 @@ object ToPrepared {
     new ToPrepared[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: T8 :: T9 :: T10 :: T11 :: T12 :: T13 :: T14 :: T15 :: T16 :: T17 :: T18 :: T19 :: T20 :: T21 :: T22 :: HNil] {
       type Out = ScalaPreparedStatement22[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, Row]
 
+      private def create[PsOut](pstmt: PreparedStatement, fn: (T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22) => BoundStatement, m: RowMapper[PsOut], o: StatementOptions): ScalaPreparedStatement22[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, PsOut] =
+        new ScalaPreparedStatement22[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, PsOut](pstmt, m, o, tc1, tc2, tc3, tc4, tc5, tc6, tc7, tc8, tc9, tc10, tc11, tc12, tc13, tc14, tc15, tc16, tc17, tc18, tc19, tc20, tc21, tc22) {
+          override def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21, t22: T22): ScalaBoundStatement[PsOut] = ScalaBoundStatement(this, fn(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21, t22))
+          override def withOptions(options: StatementOptions): Self = create(pstmt, fn, m, options)
+          override def as[Out2](implicit ev: PsOut =:= Row, m2: RowMapper[Out2]): AsOut[Out2] = create(pstmt, fn, m2, o)
+        }
+
       override def apply[F](cql: String, assignments: Seq[TableDef#Assignment[_]], predicates: Seq[Predicate[_, _]])(implicit session: CqlSession, fp: FnFromProduct.Aux[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: T8 :: T9 :: T10 :: T11 :: T12 :: T13 :: T14 :: T15 :: T16 :: T17 :: T18 :: T19 :: T20 :: T21 :: T22 :: HNil => ScalaBoundStatement[Row], F]): ScalaPreparedStatement22[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, Row] = {
-        val (pstmt, fn) = toFn[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22) => BoundStatement](cql, assignments, predicates)
+        val (pstmt, fn) = prepare[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22) => BoundStatement](cql, assignments, predicates)
+        create(pstmt, fn, RowMapper.identity, StatementOptions.default)
+      }
 
-        def create[PsOut](m: RowMapper[PsOut], o: StatementOptions): ScalaPreparedStatement22[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, PsOut] =
-          new ScalaPreparedStatement22[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, PsOut](pstmt, m, o, tc1, tc2, tc3, tc4, tc5, tc6, tc7, tc8, tc9, tc10, tc11, tc12, tc13, tc14, tc15, tc16, tc17, tc18, tc19, tc20, tc21, tc22) {
-            override def apply(t1: T1, t2: T2, t3: T3, t4: T4, t5: T5, t6: T6, t7: T7, t8: T8, t9: T9, t10: T10, t11: T11, t12: T12, t13: T13, t14: T14, t15: T15, t16: T16, t17: T17, t18: T18, t19: T19, t20: T20, t21: T21, t22: T22): ScalaBoundStatement[PsOut] = ScalaBoundStatement(this, fn(t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20, t21, t22))
-            override def withOptions(options: StatementOptions): Self = create(m, options)
-            override def as[Out2](implicit ev: PsOut =:= Row, m2: RowMapper[Out2]): AsOut[Out2] = create(m2, o)
-          }
-
-        create(RowMapper.identity, StatementOptions.default)
+      override def async[F](cql: String, assignments: Seq[TableDef#Assignment[_]], predicates: Seq[Predicate[_, _]])(implicit session: Future[CqlSession], ec: ExecutionContext, fp: function.FnFromProduct.Aux[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: T8 :: T9 :: T10 :: T11 :: T12 :: T13 :: T14 :: T15 :: T16 :: T17 :: T18 :: T19 :: T20 :: T21 :: T22 :: HNil => ScalaBoundStatement[Row], F]): Future[ScalaPreparedStatement22[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, Row]] = {
+        prepareAsync[(T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22) => BoundStatement](cql, assignments, predicates).map { case (pstmt, fn) =>
+          create(pstmt, fn, RowMapper.identity, StatementOptions.default)
+        }
       }
     }
   // format: on
