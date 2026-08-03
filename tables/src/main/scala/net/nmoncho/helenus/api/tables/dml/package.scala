@@ -15,17 +15,16 @@ import scala.concurrent.Future
 import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.cql.AsyncResultSet
 import com.datastax.oss.driver.api.core.cql.BoundStatement
+import com.datastax.oss.driver.api.core.cql.PreparedStatement
 import com.datastax.oss.driver.api.core.cql.ResultSet
 import net.nmoncho.helenus.api.tables.dml.where.BindPredicate
 import net.nmoncho.helenus.api.tables.dml.where.BoundPredicate
 import net.nmoncho.helenus.api.tables.dml.where.EntryBindPredicate
 import net.nmoncho.helenus.api.tables.dml.where.Predicate
 import net.nmoncho.helenus.internal.compat.FutureConverters.CompletionStageOps
-import shapeless.HList
-import shapeless.ops.function.FnFromProduct
 
 package object dml {
-  // TODO refactor and unify duplicate code
+
   def renderPredicates(predicates: Seq[Predicate[_, _]], prepared: Boolean): String =
     if (predicates.isEmpty) ""
     else if (prepared) s" WHERE ${predicates.map(_.forPreparedStatement).mkString(" AND ")}"
@@ -39,16 +38,6 @@ package object dml {
 
     if (usingParts.isEmpty) "" else s" USING ${usingParts.mkString(" AND ")}"
   }
-
-  def bindBoundPredicates(
-      bstmt: BoundStatement,
-      predicates: Seq[BoundPredicate[_, _]],
-      offset: Int = 0
-  ): BoundStatement =
-    predicates.zipWithIndex
-      .foldLeft(bstmt) { case (bstmt, (p: BoundPredicate[Any, Any], idx)) =>
-        p.bind(bstmt, idx + offset, p.value)
-      }
 
   def bindPredicates(
       bstmt: BoundStatement,
@@ -71,16 +60,6 @@ package object dml {
     bound
   }
 
-  def bindBoundAssignments(
-      bstmt: BoundStatement,
-      assignments: Seq[TableDef#BoundAssignment[_, Any]],
-      offset: Int = 0
-  ): BoundStatement =
-    assignments.zipWithIndex
-      .foldLeft(bstmt) { case (bstmt, (as, idx)) =>
-        bstmt.set(idx + offset, as.value, as.column.codec)
-      }
-
   def bindAssignment(
       bstmt: BoundStatement,
       assignments: Seq[TableDef#Assignment[_]],
@@ -101,7 +80,27 @@ package object dml {
       assignments: Seq[TableDef#BoundAssignment[_, _]],
       predicates: Seq[BoundPredicate[_, _]]
   )(implicit session: CqlSession): ResultSet = {
-    val pstmt           = session.prepare(cql)
+    val pstmt = session.prepare(cql)
+
+    session.execute(bind(pstmt, assignments, predicates))
+  }
+
+  def executeStatementAsync(
+      cql: String,
+      assignments: Seq[TableDef#BoundAssignment[_, _]],
+      predicates: Seq[BoundPredicate[_, _]]
+  )(implicit session: Future[CqlSession], ec: ExecutionContext): Future[AsyncResultSet] =
+    session.flatMap { s =>
+      s.prepareAsync(cql).asScala.flatMap { pstmt =>
+        s.executeAsync(bind(pstmt, assignments, predicates)).asScala
+      }
+    }
+
+  private def bind(
+      pstmt: PreparedStatement,
+      assignments: Seq[TableDef#BoundAssignment[_, _]],
+      predicates: Seq[BoundPredicate[_, _]]
+  ): BoundStatement = {
     val assignmentCount = assignments.length
 
     val bstmt = if (assignments.isEmpty) {
@@ -121,56 +120,26 @@ package object dml {
       assignmentCount
     )
 
-    session.execute(withPredicates)
+    withPredicates
   }
 
-  def executeStatementAsync(
-      cql: String,
-      assignments: Seq[TableDef#BoundAssignment[_, _]],
-      predicates: Seq[BoundPredicate[_, _]]
-  )(implicit session: Future[CqlSession], ec: ExecutionContext): Future[AsyncResultSet] =
-    session.flatMap { s =>
-      s.prepareAsync(cql).asScala.flatMap { pstmt =>
-        val assignmentCount = assignments.length
-
-        val bstmt = if (assignments.isEmpty) {
-          pstmt.bind()
-        } else {
-          bindBoundAssignments(
-            pstmt.bind(),
-            // Safe to case this to `Seq[SimpleAssignment[_]]` as there are no unbound parameters
-            assignments.asInstanceOf[Seq[TableDef#BoundAssignment[_, Any]]]
-          )
-        }
-
-        val withPredicates = bindBoundPredicates(
-          bstmt,
-          // Safe to case this to `Seq[BoundPredicate[_, _]]` as there are no unbound parameters
-          predicates.asInstanceOf[Seq[BoundPredicate[_, _]]],
-          assignmentCount
-        )
-
-        s.executeAsync(withPredicates).asScala
+  private def bindBoundPredicates(
+      bstmt: BoundStatement,
+      predicates: Seq[BoundPredicate[_, _]],
+      offset: Int = 0
+  ): BoundStatement =
+    predicates.zipWithIndex
+      .foldLeft(bstmt) { case (bstmt, (p: BoundPredicate[Any, Any], idx)) =>
+        p.bind(bstmt, idx + offset, p.value)
       }
-    }
 
-  def prepareStatement[Params <: HList, F](
-      cql: String,
-      assignments: Seq[TableDef#Assignment[_]],
-      predicates: Seq[Predicate[_, _]]
-  )(implicit session: CqlSession, fp: FnFromProduct.Aux[Params => ResultSet, F]): F = {
-    val pstmt = session.prepare(cql)
-
-    // TODO refactor this section with `ToPrepared`
-    fp { params =>
-      val values          = Binding.values(params).iterator
-      val assignmentCount = assignments.length
-
-      val bstmt          = bindAssignment(pstmt.bind(), assignments, values)
-      val withPredicates = bindPredicates(bstmt, predicates, values, assignmentCount)
-
-      session.execute(withPredicates)
-    }
-  }
-
+  private def bindBoundAssignments(
+      bstmt: BoundStatement,
+      assignments: Seq[TableDef#BoundAssignment[_, Any]],
+      offset: Int = 0
+  ): BoundStatement =
+    assignments.zipWithIndex
+      .foldLeft(bstmt) { case (bstmt, (as, idx)) =>
+        bstmt.set(idx + offset, as.value, as.column.codec)
+      }
 }
