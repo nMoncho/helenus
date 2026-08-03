@@ -7,189 +7,221 @@
 package net.nmoncho.helenus
 package api
 
-import scala.annotation.nowarn
-
-import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.cql.Row
-import net.nmoncho.helenus.api.RowMapper.ColumnMapper
-import net.nmoncho.helenus.internal.cql.ScalaPreparedStatement1
 import net.nmoncho.helenus.models.Address
 import net.nmoncho.helenus.models.Hotel
-import net.nmoncho.helenus.utils.CassandraSpec
-import net.nmoncho.helenus.utils.HotelsTestData
-import org.scalatest.OptionValues.convertOptionToValuable
-import org.scalatest.concurrent.Eventually
-import org.scalatest.concurrent.ScalaFutures
+import net.nmoncho.helenus.utils.HotelsTestData.Hotels
+import net.nmoncho.helenus.utils.TestRow
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.time.Seconds
-import org.scalatest.time.Span
 import org.scalatest.wordspec.AnyWordSpec
 
-@nowarn("cat=unused-imports")
-class RowMapperSpec
-    extends AnyWordSpec
-    with Matchers
-    with Eventually
-    with CassandraSpec
-    with ScalaFutures {
+/** Unit tests for [[RowMapper]] derivation and mapping.
+  *
+  * These don't need a live Cassandra connection: the mapping logic only reads
+  * columns out of a [[Row]], so every test runs against a mocked row (see
+  * [[TestRow]]). The end-to-end integration against a genuine driver row lives
+  * in `RowMapperCassandraSpec`.
+  */
+class RowMapperSpec extends AnyWordSpec with Matchers {
 
-  import HotelsTestData._
+  import RowMapperSpec._
 
-  import scala.collection.compat._
-  import scala.concurrent.ExecutionContext.Implicits.global
+  "RowMapper derivation" should {
+    "semi-auto derive on companion object" in {
+      IceCream.rowMapper should not be null
 
-  private implicit lazy val cqlSession: CqlSession = session
+      withClue("and should be implicitly available, and not be derived twice") {
+        implicitly[RowMapper[IceCream]] shouldBe IceCream.rowMapper
+      }
+    }
 
-  // We create the mapper here to avoid testing the generic derivation
-  implicit val rowMapper: RowMapper[Hotel] = (row: Row) =>
-    Hotel(
-      row.getCol[String]("id"),
-      row.getCol[String]("name"),
-      row.getCol[String]("phone"),
-      Address.Empty,
-      Set.empty[String]
-    )
+    "produce instances for tuples" in {
+      RowMapper.of[(String, Int)] should not be null
+
+      withClue("and should be implicitly available") {
+        implicitly[RowMapper[(String, Int)]] should not be null
+      }
+    }
+
+    "produce instances for simple types" in {
+      RowMapper.of[String] should not be null
+
+      withClue("and should be implicitly available") {
+        implicitly[RowMapper[String]] should not be null
+      }
+    }
+
+    "semi-auto derive using a custom ColumnMapper" in {
+      IceCreamWithSpecialProps.rowMapper should not be null
+
+      withClue("and should be implicitly available, and not be derived twice") {
+        implicitly[RowMapper[IceCreamWithSpecialProps]] shouldBe IceCreamWithSpecialProps.rowMapper
+      }
+    }
+
+    "semi-auto derive with a tuple field" in {
+      IceCreamWithSpecialPropsAsTuple.rowMapper should not be null
+
+      withClue("and should be implicitly available, and not be derived twice") {
+        implicitly[
+          RowMapper[IceCreamWithSpecialPropsAsTuple]
+        ] shouldBe IceCreamWithSpecialPropsAsTuple.rowMapper
+      }
+    }
+
+    "semi-auto derive on companion object with renamed mapping" in {
+      RenamedIceCream.rowMapper should not be null
+
+      withClue("and should be implicitly available, and not be derived twice") {
+        implicitly[RowMapper[RenamedIceCream]] shouldBe RenamedIceCream.rowMapper
+      }
+    }
+  }
 
   "RowMapper" should {
-    "map rows" in {
-      // this test if when users don't use the short-hand syntax
-      val query = "SELECT name FROM hotels WHERE id = ?".toCQL
-        .prepare[String]
-        .as[String]
+    "map a single-column result to a simple type" in {
+      // A simple type reads the first column, by index
+      RowMapper.of[String].apply(TestRow("name" -> Hotels.h1.name)) shouldBe Hotels.h1.name
+    }
 
-      query(Hotels.h3.id)
-        .execute()
-        .nextOption() shouldBe Some(Hotels.h3.name)
+    "map a result to a tuple" in {
+      // Tuples read their elements by index, in order
+      RowMapper
+        .of[(String, String)]
+        .apply(TestRow("name" -> Hotels.h1.name, "phone" -> Hotels.h1.phone)) shouldBe
+      (Hotels.h1.name -> Hotels.h1.phone)
+    }
 
-      query(Hotels.h4.id)
-        .execute()
-        .nextOption() shouldBe Some(Hotels.h4.name)
+    "map a result to a case class using the derived mapper" in {
+      Hotel.rowMapper.apply(rowFor(Hotels.h1)) shouldBe Hotels.h1
+    }
 
-      val page = whenReady(query(Hotels.h5.id).executeAsync()) { page =>
-        page.currPage.nextOption() shouldBe Some(Hotels.h5.name)
-
-        page
-      }
-
-      whenReady(page.nextPage) { next =>
-        next shouldBe empty
-      }
-
-      withClue(", with an Either field") {
-        case class Hotel2(
-            id: String,
-            name: String,
-            phoneOrAddress: Either[String, Address],
-            pois: Set[String]
+    "map a result to a case class using an explicit mapper (columns by name)" in {
+      val mapper: RowMapper[Hotel] = (row: Row) =>
+        Hotel(
+          row.getCol[String]("id"),
+          row.getCol[String]("name"),
+          row.getCol[String]("phone"),
+          row.getCol[Address]("address"),
+          row.getCol[Set[String]]("pois")
         )
 
-        implicit val phoneOrAddressColMapper: ColumnMapper[Either[String, Address]] =
-          ColumnMapper.either[String, Address]("phone", "address")
-        implicit val mapper: RowMapper[Hotel2] = RowMapper[Hotel2]()
-
-        val query = "SELECT * FROM hotels WHERE id = ?".toCQL
-          .prepare[String]
-          .as[Hotel2]
-
-        query(Hotels.h3.id)
-          .execute()
-          .nextOption()
-          .value
-          .phoneOrAddress shouldBe Right(Hotels.h3.address)
-      }
+      mapper.apply(rowFor(Hotels.h1)) shouldBe Hotels.h1
     }
 
-    "map single column results" in {
-      val query = "SELECT name FROM hotels WHERE id = ?".toCQL
-        .prepare[String]
-        .as[String]
-
-      val hotelH1Opt = query.execute(Hotels.h1.id).nextOption()
-      hotelH1Opt shouldBe defined
-      hotelH1Opt shouldBe Some(Hotels.h1.name)
-    }
-
-    "map result to tuples" in {
-      val query = "SELECT name, phone FROM hotels WHERE id = ?".toCQL
-        .prepare[String]
-        .as[(String, String)]
-
-      val hotelH1Opt = query.execute(Hotels.h1.id).nextOption()
-      hotelH1Opt shouldBe defined
-      hotelH1Opt shouldBe Some(Hotels.h1.name -> Hotels.h1.phone)
-    }
-
-    "map result to case classes" in {
-      val query = "SELECT * FROM hotels WHERE id = ?".toCQL
-        .prepare[String]
-        .as[Hotel]
-
-      val hotelH1Opt = query.execute(Hotels.h1.id).nextOption()
-      hotelH1Opt shouldBe defined
-      hotelH1Opt.map(_.name) shouldBe Some(Hotels.h1.name)
-
-      withClue("(when using an explicit mapper)") {
-        def assertQuery(pstmt: ScalaPreparedStatement1[String, Hotel]) = {
-          val hotelH1Opt = pstmt.execute(Hotels.h1.id).nextOption()
-          hotelH1Opt shouldBe defined
-          hotelH1Opt.map(_.name) shouldBe Some(Hotels.h1.name)
-        }
-
-        val query = "SELECT id, name, phone, address, pois FROM hotels WHERE id = ?".toCQL
-          .prepare[String]
-
-        val withNameGetCol = query.as((row: Row) =>
-          Hotel(
-            row.getCol[String]("id"),
-            row.getCol[String]("name"),
-            row.getCol[String]("phone"),
-            row.getCol[Address]("address"),
-            row.getCol[Set[String]]("pois")
-          )
+    "map a result to a case class using an explicit mapper (columns by index)" in {
+      val mapper: RowMapper[Hotel] = (row: Row) =>
+        Hotel(
+          row.getCol[String](0),
+          row.getCol[String](1),
+          row.getCol[String](2),
+          row.getCol[Address](3),
+          row.getCol[Set[String]](4)
         )
 
-        val withIndexGetCol = query.as((row: Row) =>
-          Hotel(
-            row.getCol[String](0),
-            row.getCol[String](1),
-            row.getCol[String](2),
-            row.getCol[Address](3),
-            row.getCol[Set[String]](4)
-          )
-        )
-
-        val withAs = query.as(_.as[Hotel])
-
-        assertQuery(withNameGetCol)
-        assertQuery(withIndexGetCol)
-        assertQuery(withAs)
-      }
+      mapper.apply(rowFor(Hotels.h1)) shouldBe Hotels.h1
     }
 
-    "map result to case classes (async)" in {
-      val query = "SELECT * FROM hotels WHERE id = ?".toCQL
-        .prepare[String]
-        .as[Hotel]
+    "map a result using a semi-auto derived mapper" in {
+      IceCream.rowMapper.apply(
+        TestRow("name" -> "Vanilla", "numCherries" -> 3, "cone" -> true)
+      ) shouldBe IceCream("Vanilla", 3, cone = true)
+    }
 
-      whenReady(
-        query
-          .executeAsync(Hotels.h2.id)
-          .map(it => it.currPage.nextOption())
-      ) { h2RowOpt =>
-        h2RowOpt.map(_.name) shouldBe Some(Hotels.h2.name)
+    "map a result using a custom ColumnMapper" in {
+      IceCreamWithSpecialProps.rowMapper.apply(
+        TestRow("name" -> "Vanilla", "numCherries" -> 3, "cone" -> true)
+      ) shouldBe IceCreamWithSpecialProps("Vanilla", SpecialProps(3, cone = true))
+    }
+
+    "map a result honoring renamed mappings" in {
+      RenamedIceCream.rowMapper.apply(
+        TestRow("name" -> "Vanilla", "numCherries" -> 3, "cone" -> true)
+      ) shouldBe RenamedIceCream("Vanilla", 3, hoorn = true)
+    }
+
+    "map a result with an Either field to different columns" in {
+      case class Hotel2(
+          id: String,
+          name: String,
+          phoneOrAddress: Either[String, Address],
+          pois: Set[String]
+      )
+
+      implicit val phoneOrAddressColMapper: ColumnMapper[Either[String, Address]] =
+        ColumnMapper.either[String, Address]("phone", "address")
+      val mapper: RowMapper[Hotel2] = RowMapper[Hotel2]()
+
+      val hotel = Hotels.h3
+
+      withClue("resolving to Right when the left column is null: ") {
+        val row = TestRow(
+          "id" -> hotel.id,
+          "name" -> hotel.name,
+          "phone" -> null,
+          "address" -> hotel.address,
+          "pois" -> hotel.pois
+        )
+
+        mapper.apply(row).phoneOrAddress shouldBe Right(hotel.address)
+      }
+
+      withClue("resolving to Left when the right column is null: ") {
+        val row = TestRow(
+          "id" -> hotel.id,
+          "name" -> hotel.name,
+          "phone" -> hotel.phone,
+          "address" -> null,
+          "pois" -> hotel.pois
+        )
+
+        mapper.apply(row).phoneOrAddress shouldBe Left(hotel.phone)
       }
     }
   }
 
-  override implicit def patienceConfig: PatienceConfig = PatienceConfig(Span(6, Seconds))
+  /** Builds a row exposing every [[Hotel]] column, both by name and by index. */
+  private def rowFor(hotel: Hotel): Row = TestRow(
+    "id" -> hotel.id,
+    "name" -> hotel.name,
+    "phone" -> hotel.phone,
+    "address" -> hotel.address,
+    "pois" -> hotel.pois
+  )
+}
 
-  override def beforeAll(): Unit = {
-    super.beforeAll()
-    executeFile("hotels.cql")
-    insertTestData()
+object RowMapperSpec {
+
+  case class IceCream(name: String, numCherries: Int, cone: Boolean)
+
+  object IceCream {
+    implicit val rowMapper: RowMapper[IceCream] = RowMapper[IceCream]()
   }
 
-  override def afterEach(): Unit = {
-    // Don't truncate keyspace
+  case class SpecialProps(numCherries: Int, cone: Boolean)
+  object SpecialProps {
+    implicit val columnMapper: ColumnMapper[SpecialProps] = (_: String, row: Row) =>
+      SpecialProps(
+        row.getInt("numCherries"),
+        row.getBoolean("cone")
+      )
+  }
+  case class IceCreamWithSpecialProps(name: String, props: SpecialProps)
+  object IceCreamWithSpecialProps {
+    implicit val rowMapper: RowMapper[IceCreamWithSpecialProps] =
+      RowMapper[IceCreamWithSpecialProps]()
+  }
+
+  case class IceCreamWithSpecialPropsAsTuple(name: String, props: (Int, Boolean))
+  object IceCreamWithSpecialPropsAsTuple {
+    implicit val rowMapper: RowMapper[IceCreamWithSpecialPropsAsTuple] =
+      RowMapper[IceCreamWithSpecialPropsAsTuple]()
+  }
+
+  case class RenamedIceCream(naam: String, kers: Int, hoorn: Boolean)
+
+  object RenamedIceCream {
+    implicit val rowMapper: RowMapper[RenamedIceCream] =
+      RowMapper[RenamedIceCream](_.naam -> "name", _.kers -> "numCherries", _.hoorn -> "cone")
   }
 }
