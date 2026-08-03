@@ -45,20 +45,6 @@ sealed class SingleValuePredicate[T](
     bstmt.set[T](idx, value, column.codec)
 }
 
-// FIXME Maybe we don't need this, and we can just put this implementation on `InPredicate`
-sealed class MultiValuePredicate[T, V <: Iterable[T]](
-    val column: TableDef#Column[T],
-    val operator: String,
-    val value: V,
-    val codec: TypeCodec[V]
-) extends BoundPredicate[T, V] {
-  override def toCQL: String =
-    s"${column.name} $operator (${value.map(column.codec.format).mkString(", ")})"
-
-  override def bind(bstmt: BoundStatement, idx: Int, @unused _value: V): BoundStatement =
-    bstmt.set[V](idx, this.value, codec)
-}
-
 final class SingleValueOnCollectionPredicate[T, V](
     val column: TableDef#Column[T],
     val operator: String,
@@ -155,10 +141,19 @@ final class RangePredicate[Col, T](column: TableDef#Column[T], operator: String,
   * key, a position each gate checks according to its statement type.
   */
 final class InPredicate[Col, T](
-    column: TableDef#Column[T],
-    values: Seq[T],
+    val column: TableDef#Column[T],
+    val value: Seq[T],
     codec: TypeCodec[Seq[T]]
-) extends MultiValuePredicate[T, Seq[T]](column, "IN", values, codec)
+) extends BoundPredicate[T, Seq[T]] {
+
+  override val operator: String = "IN"
+
+  override def toCQL: String =
+    s"${column.name} $operator (${value.map(column.codec.format).mkString(", ")})"
+
+  override def bind(bstmt: BoundStatement, idx: Int, @unused _value: Seq[T]): BoundStatement =
+    bstmt.set[Seq[T]](idx, this.value, codec)
+}
 
 /** A `CONTAINS` / `CONTAINS KEY` predicate on a column with a declared
   * secondary index (see `Table.index` / [[TableDef.Indexed]]). Unlike the

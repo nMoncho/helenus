@@ -312,9 +312,6 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
       rows(ProfilesTable.select().where(ProfilesTable.attributes.entry("color", "red")).execute())
     result.map(_.id) shouldBe List(profile1)
 
-    // implicit val rm = RowMapper[Profile]() // FIXME this should NOT be happening, this is because ScalaBoundStatement doesn't carry the RowMapper
-    // rows(pstmt("color" -> "red").execute("color" -> "red")).map(_.id) shouldBe List(profile1)
-
     val pstmt = ProfilesTable.select().where(ProfilesTable.attributes.entry(?, ?)).prepare
     rows(pstmt.execute("color" -> "red")).map(_.id) shouldBe List(profile1)
   }
