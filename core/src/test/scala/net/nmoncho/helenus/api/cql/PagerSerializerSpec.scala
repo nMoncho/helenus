@@ -8,100 +8,42 @@ package net.nmoncho.helenus
 package api.cql
 
 import java.nio.ByteBuffer
-import java.time.LocalDate
 
 import scala.util.Failure
 import scala.util.Success
 
-import com.datastax.oss.driver.api.core.CqlSession
-import net.nmoncho.helenus.models.Hotel
-import net.nmoncho.helenus.utils.CassandraSpec
-import net.nmoncho.helenus.utils.HotelsTestData
-import org.scalatest.OptionValues._
-import org.scalatest.concurrent.Eventually
-import org.scalatest.concurrent.ScalaFutures
+import com.datastax.oss.driver.api.core.cql.PagingState
+import com.datastax.oss.driver.api.core.cql.Statement
+import com.datastax.oss.driver.api.core.session.Session
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.time.Seconds
-import org.scalatest.time.Span
 import org.scalatest.wordspec.AnyWordSpec
 
-class PagerSerializerSpec
-    extends AnyWordSpec
-    with Matchers
-    with Eventually
-    with CassandraSpec
-    with ScalaFutures {
+/** Unit tests for the [[PagerSerializer]] implementations.
+  *
+  * `serialize`/`deserialize` are close to pure functions, so these don't need a
+  * live Cassandra connection: `serialize` reads off a stub [[PagingState]] and
+  * `deserialize` ignores the bound statement. The end-to-end paging round-trip
+  * (encoding a genuine driver paging state mid-query and continuing from it)
+  * lives in `PagerSerializerCassandraSpec`.
+  */
+class PagerSerializerSpec extends AnyWordSpec with Matchers {
 
-  import HotelsTestData._
-
-  private implicit lazy val cqlSession: CqlSession = session
-
-  private val pageSize      = 2
-  private val tamperedState = "29a1f5e96cfd7e7f42fbb3b3092a"
+  // `deserialize` ignores the bound statement for both serializers
+  private val noBoundStatement: ScalaBoundStatement[_] = null
 
   "DefaultPagingStateSerializer" should {
-    implicit val pagerSerializer: PagerSerializer[String] =
-      PagerSerializer.DefaultPagingStateSerializer
+    val serializer = PagerSerializer.DefaultPagingStateSerializer
 
-    validatePageSerializer(tamperedState = tamperedState, isSafe = true)
-  }
+    "serialize a paging state to its string form" in {
+      val pagingState = stubPagingState(asString = "some-encoded-state")
 
-  "SimplePagingStateSerializer" should {
-    implicit val pagerSerializer: PagerSerializer[ByteBuffer] =
-      PagerSerializer.SimplePagingStateSerializer
-
-    validatePageSerializer(
-      tamperedState = ByteBuffer.wrap(tamperedState.getBytes()),
-      isSafe        = false
-    )
-  }
-
-  private def validatePageSerializer[A](
-      tamperedState: A,
-      isSafe: Boolean
-  )(implicit ser: PagerSerializer[A]): Unit = {
-
-    "serialize state" in {
-      val queryHotels = "SELECT * FROM hotels".toCQL.prepareUnit.as[Hotel]
-      val pager0      = queryHotels.pager()
-
-      withClue("an initial page shouldn't have a paging state") {
-        pager0.encodePagingState shouldBe empty
-      }
-
-      val (pager1, _) = pager0.execute(pageSize)
-      val pager1PS    = pager1.encodePagingState
-
-      val continuePager1 = withClue("a non initial page should have a valid paging state") {
-        pager1PS should not be empty
-
-        queryHotels.pager(pager1PS.value) match {
-          case Success(value) =>
-            value
-
-          case Failure(exception) =>
-            fail("Couldn't serialize a paging state", exception)
-        }
-      }
-
-      withClue("Executing a Next Page, and Continuing a Page should provide the same results") {
-        val (_, nextPage)     = pager1.execute(pageSize)
-        val (_, continuePage) = continuePager1.execute(pageSize)
-
-        nextPage.toSeq shouldEqual continuePage.toSeq
-      }
-
-      withClue("encode with extension method") {
-        val ps = pager1.pagingState.value
-
-        ps.encode() shouldBe a[Success[_]]
-      }
+      serializer.serialize(pagingState) shouldBe Success("some-encoded-state")
     }
 
-    "react to tampered state" in runIfSafe {
-      val queryHotels = "SELECT * FROM hotels".toCQL.prepareUnit.as[Hotel]
+    "fail to deserialize a tampered state" in {
+      val result = serializer.deserialize(noBoundStatement, "29a1f5e96cfd7e7f42fbb3b3092a")
 
-      queryHotels.pager(tamperedState) match {
+      result match {
         case Success(value) =>
           fail(s"Expected an invalid state here instead of $value")
 
@@ -112,92 +54,57 @@ class PagerSerializerSpec
           )
       }
     }
+  }
 
-    "react to a state from another statement" in runIfSafe {
-      val queryHotels = "SELECT * FROM hotels".toCQL.prepareUnit.as[Hotel]
-      val queryRooms  =
-        "SELECT date, room_number, is_available FROM available_rooms_by_hotel_date WHERE hotel_id = ?".toCQL
-          .prepare[String]
-          .as[(LocalDate, Short, Boolean)]
+  "SimplePagingStateSerializer" should {
+    val serializer = PagerSerializer.SimplePagingStateSerializer
 
-      val (hotelsPager1, _) = queryHotels.pager().execute(pageSize)
-      val (roomsPager1, _)  = queryRooms.pager(Hotels.h1.id).execute(pageSize)
+    "serialize a paging state to its raw ByteBuffer" in {
+      val raw         = ByteBuffer.wrap("raw-state".getBytes())
+      val pagingState = stubPagingState(rawState = raw)
 
-      val queryHotelPage1PS = hotelsPager1.encodePagingState
-      val queryRoomsPage1PS = roomsPager1.encodePagingState
+      serializer.serialize(pagingState) shouldBe Success(raw)
+    }
 
-      // use 'QueryRoom' State with 'QueryHotels' Statement
-      queryHotels.pager(queryRoomsPage1PS.value) match {
-        case Success(value) =>
-          fail(s"Expected an invalid state here instead of $value")
+    "deserialize the raw ByteBuffer back into a paging state" in {
+      val raw = ByteBuffer.wrap("raw-state".getBytes())
 
-        case Failure(exception) =>
-          exception shouldBe a[IllegalArgumentException]
-          exception.getMessage should include(
-            "Either Query String and/or Bound Parameters don't match PagingState and cannot be reused with current state"
-          )
-      }
-
-      // use 'QueryHotels' State with 'QueryRoom' Statement
-      queryRooms.pager(queryHotelPage1PS.value, Hotels.h1.id) match {
-        case Success(value) =>
-          fail(s"Expected an invalid state here instead of $value")
+      serializer.deserialize(noBoundStatement, raw) match {
+        case Success(pagingState) =>
+          pagingState.getRawPagingState shouldBe raw
+          pagingState.toBytes shouldBe raw.array()
 
         case Failure(exception) =>
-          exception shouldBe a[IllegalArgumentException]
-          exception.getMessage should include(
-            "Either Query String and/or Bound Parameters don't match PagingState and cannot be reused with current state"
-          )
+          fail("Expected a valid paging state", exception)
       }
     }
 
-    "react to state from same statement but different parameters" in runIfSafe {
-      val queryRooms =
-        "SELECT date, room_number, is_available FROM available_rooms_by_hotel_date WHERE hotel_id = ?".toCQL
-          .prepare[String]
-          .as[(LocalDate, Short, Boolean)]
+    "reuse a state regardless of the statement it came from (it never validates)" in {
+      // This is the defining, deliberately unsafe behaviour of this serializer:
+      // the deserialized state matches ANY statement/session.
+      val raw = ByteBuffer.wrap("raw-state".getBytes())
 
-      val (hotel1RoomsPager1, _) = queryRooms.pager(Hotels.h1.id).execute(pageSize)
-      val (hotel2RoomsPager1, _) = queryRooms.pager(Hotels.h2.id).execute(pageSize)
-
-      val hotel1PS = hotel1RoomsPager1.encodePagingState
-      val hotel2PS = hotel2RoomsPager1.encodePagingState
-
-      queryRooms.pager(hotel1PS.value, Hotels.h2.id) match {
-        case Success(value) =>
-          fail(s"Expected an invalid state here instead of $value")
+      serializer.deserialize(noBoundStatement, raw) match {
+        case Success(pagingState) =>
+          pagingState.matches(anyStatement, anySession) shouldBe true
 
         case Failure(exception) =>
-          exception shouldBe a[IllegalArgumentException]
-          exception.getMessage should include(
-            "Either Query String and/or Bound Parameters don't match PagingState and cannot be reused with current state"
-          )
-      }
-
-      queryRooms.pager(hotel2PS.value, Hotels.h1.id) match {
-        case Success(value) =>
-          fail(s"Expected an invalid state here instead of $value")
-
-        case Failure(exception) =>
-          exception shouldBe a[IllegalArgumentException]
-          exception.getMessage should include(
-            "Either Query String and/or Bound Parameters don't match PagingState and cannot be reused with current state"
-          )
+          fail("Expected a valid paging state", exception)
       }
     }
-
-    def runIfSafe(fn: => Any): Any = if (isSafe) fn else ()
   }
 
-  override implicit def patienceConfig: PatienceConfig = PatienceConfig(Span(6, Seconds))
-
-  override def beforeAll(): Unit = {
-    super.beforeAll()
-    executeFile("hotels.cql")
-    insertTestData()
+  /** Minimal [[PagingState]] stub whose accessors return the given values. */
+  private def stubPagingState(
+      asString: String = "",
+      rawState: ByteBuffer = ByteBuffer.allocate(0)
+  ): PagingState = new PagingState {
+    override def toString: String                                        = asString
+    override def getRawPagingState: ByteBuffer                           = rawState
+    override def toBytes: Array[Byte]                                    = rawState.array()
+    override def matches(statement: Statement[_], session: Session): Boolean = false
   }
 
-  override def afterEach(): Unit = {
-    // Don't truncate keyspace
-  }
+  private def anyStatement: Statement[_] = null
+  private def anySession: Session        = null
 }
