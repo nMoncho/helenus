@@ -7,7 +7,13 @@
 package net.nmoncho.helenus.api.tables
 package ddl
 
-/** @param target the CQL index target: a bare column name (indexes a
+/** A `CREATE INDEX` statement derived from a [[Table]] definition.
+  *
+  * {{{
+  * UsersTable.createIndexes.map(_.execute())
+  * }}}
+  *
+  * @param target the CQL index target: a bare column name (indexes a
   *               scalar column, or a collection's values), or a wrapped
   *               form such as `KEYS(col)` (a map's keys) / `ENTRIES(col)`.
   * @param kind   [[IndexKind.Secondary]] (the default, `CREATE INDEX`) or

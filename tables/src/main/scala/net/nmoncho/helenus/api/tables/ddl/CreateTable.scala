@@ -17,6 +17,28 @@ import com.datastax.oss.driver.api.core.cql.AsyncResultSet
 import com.datastax.oss.driver.api.core.cql.ResultSet
 import net.nmoncho.helenus.internal.compat.FutureConverters.CompletionStageOps
 
+/** A `CREATE TABLE` statement derived from a [[Table]] definition.
+  *
+  * Instances are not built by hand: obtain one from [[Table.create]], which
+  * fills every field from the mapped case class and the table's `PK` / `CK`
+  * declarations. Rendering the CQL always emits the full column list, the
+  * `PRIMARY KEY` clause (parenthesising the partition key when it is composite
+  * or when clustering columns follow), and a `CLUSTERING ORDER BY` clause only
+  * when at least one clustering column is declared descending (ASC being the
+  * CQL default).
+  *
+  * {{{
+  * UsersTable.create.ifNotExists.execute()
+  * }}}
+  *
+  * @param table             the table this statement creates.
+  * @param columns           every column to declare, registered plus computed,
+  *                          in declaration order.
+  * @param partitionKey      partition-key column names, in key order.
+  * @param clusteringColumns clustering columns with their sort direction, in
+  *                          declaration order.
+  * @param ifNotExistsFlag   whether to emit `IF NOT EXISTS` (set via [[ifNotExists]]).
+  */
 case class CreateTable(
     table: TableDef,
     columns: Seq[TableDef#Column[_]],
@@ -25,20 +47,27 @@ case class CreateTable(
     ifNotExistsFlag: Boolean = false
 ) {
 
+  /** Emit `CREATE TABLE IF NOT EXISTS`, making the statement a no-op when the
+    * table already exists instead of failing.
+    */
   def ifNotExists: CreateTable = copy(ifNotExistsFlag = true)
 
+  /** Run this statement synchronously and return the driver [[ResultSet]]. */
   def execute()(implicit session: CqlSession): ResultSet =
     session.execute(toCQL)
 
+  /** Run this statement asynchronously, completing with the [[AsyncResultSet]]. */
   def executeAsync()(
       implicit session: CqlSession,
       @unused ec: ExecutionContext
   ): Future[AsyncResultSet] =
     session.executeAsync(toCQL).asScala
 
+  /** Run this statement reactively, returning a [[ReactiveResultSet]]. */
   def executeReactive()(implicit session: CqlSession): ReactiveResultSet =
     session.executeReactive(toCQL)
 
+  /** Render this statement as a CQL string (also what [[toString]] returns). */
   def toCQL: String = {
     val ifNotExistsStr = if (ifNotExistsFlag) " IF NOT EXISTS" else ""
 
