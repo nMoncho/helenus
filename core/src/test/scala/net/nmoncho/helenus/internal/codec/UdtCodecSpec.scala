@@ -7,6 +7,7 @@
 package net.nmoncho.helenus
 package internal.codec
 
+import java.nio.ByteBuffer
 import java.util.UUID
 
 import scala.jdk.OptionConverters.RichOptional
@@ -41,6 +42,30 @@ class UdtCodecSpec extends AnyWordSpec with Matchers {
 
       round shouldBe sundae
       round should not be vanilla
+    }
+
+    "decode a NULL UDT column to null (without throwing)" in {
+      // Reading a row where a non-optional UDT column is CQL NULL hands the
+      // codec a null buffer; per the TypeCodec contract it must return null
+      // rather than NPE while reconstructing a null HList.
+      codec.decode(null, ProtocolVersion.DEFAULT) shouldBe null
+    }
+
+    "decode a collection holding a null UDT element (without throwing)" in {
+      val seqCodec = collection.SeqCodec.frozen(codec)
+
+      // A collection payload with a single element whose size prefix is -1
+      // (a NULL element) hands the inner UDT codec a null buffer, which must
+      // decode to null rather than NPE.
+      val buffer = ByteBuffer.allocate(8)
+      buffer.putInt(1) // element count
+      buffer.putInt(-1) // one NULL element
+      buffer.flip()
+
+      val decoded = seqCodec.decode(buffer, ProtocolVersion.DEFAULT)
+
+      decoded should have size 1
+      decoded.head shouldBe null
     }
 
     "encode-decode a case class with a tuple" in {

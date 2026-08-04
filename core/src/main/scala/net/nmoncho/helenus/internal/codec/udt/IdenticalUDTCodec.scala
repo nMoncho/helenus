@@ -160,7 +160,8 @@ object IdenticalUDTCodec {
       }
 
     override def decode(buffer: ByteBuffer, protocolVersion: ProtocolVersion): A =
-      codec.decode(buffer, protocolVersion)
+      if (buffer == null) null.asInstanceOf[A]
+      else codec.decode(buffer, protocolVersion)
 
     override def format(value: A): String =
       if (value == null) NULL
@@ -351,7 +352,8 @@ object IdenticalUDTCodec {
       else codec.value.encode(gen.to(value), protocolVersion)
 
     @inline override def decode(buffer: ByteBuffer, protocolVersion: ProtocolVersion): A =
-      gen.from(codec.value.decode(buffer, protocolVersion))
+      if (buffer == null) null.asInstanceOf[A]
+      else gen.from(codec.value.decode(buffer, protocolVersion))
 
     @inline override def format(value: A, sb: mutable.StringBuilder): mutable.StringBuilder =
       codec.value.format(gen.to(value), sb)
