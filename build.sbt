@@ -1,10 +1,4 @@
-import com.typesafe.tools.mima.core.{
-  DirectMissingMethodProblem,
-  IncompatibleResultTypeProblem,
-  MissingClassProblem,
-  ProblemFilters,
-  ReversedMissingMethodProblem
-}
+import com.typesafe.tools.mima.core.*
 
 Global / concurrentRestrictions += Tags.limit(Tags.Test, 2)
 
@@ -277,7 +271,7 @@ lazy val flink = project
   .settings(basicSettings)
   .dependsOn(
     core % "compile->compile;test->test"
-  ) // FIXME there are several excluded or shaded dependencies from the Java Driver, why?
+  )
   .settings(
     name := "helenus-flink",
     scalaVersion := Dependencies.Version.scala213,
@@ -286,7 +280,7 @@ lazy val flink = project
     crossScalaVersions := List(Dependencies.Version.scala212, Dependencies.Version.scala213),
     mimaPreviousArtifacts := Set("net.nmoncho" %% "helenus-flink" % "1.7.0"),
     libraryDependencies ++= Seq(
-      Dependencies.ossJavaDriver,
+      Dependencies.ossJavaDriver      % "provided,test",
       Dependencies.flinkCore          % "provided,test",
       Dependencies.flinkStreamingJava % "provided,test",
       Dependencies.flinkConnectorBase % "provided,test",
