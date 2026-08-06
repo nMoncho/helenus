@@ -188,7 +188,7 @@ object CqlQueryInterpolation {
       case other =>
         c.abort(
           other.pos,
-          s"Expected a String interpolation (`cql\"...\"`), but got `${showCode(other)}`"
+          s"Expected a CQL string interpolation, but got `${showCode(other)}`"
         )
     }
 
@@ -429,6 +429,25 @@ object CqlQueryInterpolation {
           r <- evalString(c)(receiver)
           a <- evalString(c)(arg)
         } yield r + a
+
+      // `StringContext(parts).s(args)`: Scala 2.13 folds a constant interpolation
+      // down to a single Literal (handled above), but Scala 2.12 leaves this raw
+      // shape in the typed tree. Fold it here when every part and every argument is
+      // itself a compile-time constant, so `s"...$const...".toCQL` behaves the same
+      // on both versions. Must precede the generic single-arg `Apply` case below,
+      // which would otherwise misinterpret a one-argument `.s(arg)`.
+      case Apply(Select(Apply(Select(_, TermName("apply")), rawParts), TermName("s")), args) =>
+        val partResults = rawParts.map(evalString(c)(_))
+        val argResults  = args.map(evalString(c)(_))
+
+        (partResults ++ argResults).collectFirst { case Left(err) => err } match {
+          case Some(err) => Left(err)
+          case None =>
+            val parts  = partResults.collect { case Right(s) => s }
+            val values = argResults.collect { case Right(s) => s }
+            // n+1 parts interleaved with n argument values: p0 a0 p1 a1 … pn
+            Right(parts.head + values.zip(parts.tail).map { case (a, p) => a + p }.mkString)
+        }
 
       // Single-arg application: transparent wrapper (e.g. Predef.augmentString).
       // Recurse into the wrapped value — if it's not a constant we return None.

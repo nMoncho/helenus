@@ -59,7 +59,10 @@ class CassandraSourceSpec extends AnyWordSpec with Matchers with FlinkCassandraS
       split3.value shouldBe CassandraSplit(0, 4611686018427387904L)
 
       // back splits have priority
-      val newState4 = newState3.addSplitsBack(util.List.of(CassandraSplit(0, 4611686018427387904L)))
+      val newState4 =
+        newState3.addSplitsBack(
+          util.Collections.singletonList(CassandraSplit(0, 4611686018427387904L))
+        )
       val (split5, newState5) = newState4.nextSplit()
       split5.value shouldBe CassandraSplit(0, 4611686018427387904L)
 

@@ -6,6 +6,7 @@
 
 package net.nmoncho.helenus.zio
 
+import scala.annotation.nowarn
 import scala.util.Try
 
 import _root_.zio._
@@ -16,7 +17,10 @@ import com.datastax.oss.driver.api.core.cql.Row
 import net.nmoncho.helenus.api.RowMapper
 import net.nmoncho.helenus.api.cql.Adapter
 
+@nowarn("cat=unused-imports")
 object ZIOQueriesSpec extends ZCassandraSpec {
+
+  import scala.collection.compat._ // Don't remove me: needed for `.to(List)` on Scala 2.12
 
   override def spec = suite("Helenus")(
     syncSimpleInsertQueryTest,

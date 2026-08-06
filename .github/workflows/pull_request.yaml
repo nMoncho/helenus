@@ -14,7 +14,7 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
 
     steps:
       - uses: actions/checkout@v3
@@ -36,5 +36,11 @@ jobs:
       - name: Check docs
         run: sbt docs/mdoc
 
-      - name: Test Coverage
+      - name: Test Coverage (Scala 2.13)
         run: sbt testCoverage
+
+      # `testCoverage` above only exercises the default Scala 2.13. Cross-test the
+      # modules that also cross-build to 2.12 so a 2.12-only breakage cannot ship
+      # unnoticed (the 2.13-only modules — tables, akka, pekko — are excluded).
+      - name: Test Scala 2.12
+        run: sbt ++2.12.21 core/test monix/test zio/test flink/test

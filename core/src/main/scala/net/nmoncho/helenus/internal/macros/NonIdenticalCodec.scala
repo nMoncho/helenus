@@ -50,18 +50,15 @@ object NonIdenticalCodec {
         )
     }
 
-    // Verify `A` is a case class
-    c.typecheck(
-      q"implicitly[_root_.scala.<:<[${A.tpe}, _root_.scala.Product]]",
-      silent = true
-    ) match {
-      case EmptyTree =>
-        c.abort(
-          c.enclosingPosition,
-          s"Only case classes are allowed to be used for UDTs, but got ${A.tpe}"
-        )
-
-      case _ => // all good
+    // Verify `A` is a case class. Inspect the symbol directly rather than via
+    // `implicitly[A <:< Product]` inside `c.typecheck`, which does not resolve on
+    // Scala 2.12 even for genuine case classes.
+    val typeSymbol = A.tpe.typeSymbol
+    if (!(typeSymbol.isClass && typeSymbol.asClass.isCaseClass)) {
+      c.abort(
+        c.enclosingPosition,
+        s"Only case classes are allowed to be used for UDTs, but got ${A.tpe}"
+      )
     }
 
     // Pick up Case Class field names and their respective TypeCodec

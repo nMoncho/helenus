@@ -7,6 +7,8 @@
 package net.nmoncho.helenus
 package flink
 
+import scala.annotation.nowarn
+
 import net.nmoncho.helenus.api.cql.Adapter
 import net.nmoncho.helenus.flink.sink.CassandraSink
 import net.nmoncho.helenus.models.Address
@@ -18,7 +20,10 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+@nowarn("cat=unused-imports")
 class OutputFormatSinkTest extends AnyFlatSpec with Matchers with FlinkCassandraSpec {
+
+  import scala.collection.compat._ // Don't remove me: needed for `.to(List)` on Scala 2.12
 
   "A ScalaPreparedStatement" should "work as an OutputFormat for a DataStream" in {
     val query = "SELECT * FROM hotels".toCQL(session).prepareUnit.as[Hotel]
