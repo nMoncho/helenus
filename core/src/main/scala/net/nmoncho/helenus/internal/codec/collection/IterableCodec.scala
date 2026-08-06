@@ -26,6 +26,9 @@ abstract class AbstractSeqCodec[T, M[T] <: scala.collection.Seq[T]](
     extends IterableCodec[T, M](inner, '[', ']') {
 
   override val getCqlType: DataType = new DefaultListType(inner.getCqlType, frozen)
+
+  override protected def acceptsCollection(value: Any): Boolean =
+    value.isInstanceOf[scala.collection.Seq[_]]
 }
 
 abstract class AbstractSetCodec[T, M[T] <: scala.collection.Set[T]](
@@ -35,6 +38,9 @@ abstract class AbstractSetCodec[T, M[T] <: scala.collection.Set[T]](
     extends IterableCodec[T, M](inner, '{', '}') {
 
   override val getCqlType: DataType = new DefaultSetType(inner.getCqlType, frozen)
+
+  override protected def acceptsCollection(value: Any): Boolean =
+    value.isInstanceOf[scala.collection.Set[_]]
 }
 
 abstract class IterableCodec[T, M[T] <: Iterable[T]](
@@ -169,8 +175,24 @@ abstract class IterableCodec[T, M[T] <: Iterable[T]](
       }
     }
 
+  /** Whether `value`'s runtime collection type belongs to this codec's family
+    * (a `Seq` vs a `Set`).
+    *
+    * The element type `M` is erased, so a bare `value match { case _: M[_] }`
+    * degrades to `case _: Iterable[_]` and cannot tell a `Seq` from a `Set`.
+    * Concrete codecs implement this against the concrete collection trait so a
+    * `Seq` codec rejects a `Set` (and vice versa).
+    */
+  protected def acceptsCollection(value: Any): Boolean
+
   override def accepts(value: Any): Boolean = value match {
-    case l: M[_] @unchecked => if (l.isEmpty) true else inner.accepts(l.head)
+    case iterable: Iterable[_] if acceptsCollection(value) =>
+      // Under erasure only the head element's type can be sampled. An empty
+      // collection of the right family is accepted since there is nothing to
+      // check. Value-based registry lookup cannot disambiguate same-family
+      // codecs (e.g. List vs Vector) and is not supported for these codecs.
+      iterable.isEmpty || inner.accepts(iterable.head)
+
     case _ => false
   }
 }

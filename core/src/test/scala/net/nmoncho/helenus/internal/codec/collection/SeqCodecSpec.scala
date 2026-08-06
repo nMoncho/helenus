@@ -106,6 +106,15 @@ abstract class AbstractSeqCodecSpec[Coll[_] <: scala.collection.Seq[_]](name: St
       codec.accepts(oneTwoThree) shouldBe true
       codec.accepts(fooBar) shouldBe false
     }
+
+    "reject a value from a different collection family" in {
+      // A Seq codec must not accept a Set: the element type is erased, so the
+      // collection family is checked explicitly (previously this returned true).
+      codec.accepts(Set(1, 2, 3)) shouldBe false
+      // An empty collection of the wrong family is rejected too (previously an
+      // empty collection of any family was blindly accepted).
+      codec.accepts(Set.empty[Int]) shouldBe false
+    }
   }
 }
 
