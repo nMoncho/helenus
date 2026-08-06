@@ -131,7 +131,7 @@ package object monix {
 
   // format: off
   // $COVERAGE-OFF$
-  implicit class ScalaPreparedStatement2Ops[T1, T2, T3, Out](private val pstmt: ScalaPreparedStatement2[T1, T2, Out]) extends AnyVal {
+  implicit class ScalaPreparedStatement2Ops[T1, T2, Out](private val pstmt: ScalaPreparedStatement2[T1, T2, Out]) extends AnyVal {
     /** An [[Observable]] reading from Cassandra */
     def asObservable(t1: T1, t2: T2)(implicit session: CqlSession): Observable[Out] = {
       Observable.fromReactivePublisher(pstmt.executeReactive(t1, t2))
