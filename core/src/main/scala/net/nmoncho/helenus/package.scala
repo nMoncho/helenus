@@ -6,7 +6,6 @@
 
 package net.nmoncho
 
-import scala.annotation.nowarn
 import scala.annotation.unused
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext
@@ -474,37 +473,32 @@ package object helenus extends CodecDerivation {
       * without having to request more pages.
       *
       * It will fetch the next page in a blocking fashion after it has exhausted the current page.
-      * <b>NOTE:</b> On Scala 2.12 it will fetch all pages!
       *
       * @param timeout how much time to wait for the next page to be ready
       * @param ec
       */
-    @nowarn("cat=unused-imports")
-    def iter(timeout: FiniteDuration)(implicit ec: ExecutionContext): Iterator[T] = {
-      // Don't remove me 'import scala.collection.compat._' // scalafix:ok
-      // noinspection ScalaUnusedSymbol
-      import scala.collection.compat._ // scalafix:ok
-      // FIXME Using `TraversableOnce` Scala 2.12, also it doesn't lazily concat iterators
-      // since `compat` implementation is different
-      def concat(current: MappedAsyncPagingIterable[T]): TraversableOnce[T] =
-        current
-          .currentPage()
-          .iterator()
-          .asScala
-          .concat {
-            if (current.hasMorePages) {
-              log.debug("fetching more pages")
-              val next = Await.result(current.fetchNextPage().asScala, timeout)
+    def iter(timeout: FiniteDuration)(implicit @unused ec: ExecutionContext): Iterator[T] =
+      // A hand-rolled Iterator that fetches the next page (blocking) only once the
+      // current page is exhausted -- lazily and identically on Scala 2.12 and 2.13.
+      // The previous `scala.collection.compat` `concat` was by-name (lazy) on 2.13
+      // but strict on 2.12, which forced every page to be fetched up front.
+      new Iterator[T] {
+        private var current: MappedAsyncPagingIterable[T] = pi
+        private var page: java.util.Iterator[T]           = pi.currentPage().iterator()
 
-              concat(next)
-            } else {
-              log.debug("no more pages")
-              Iterator()
-            }
+        override def hasNext: Boolean = {
+          while (!page.hasNext && current.hasMorePages) {
+            log.debug("fetching more pages")
+            current = Await.result(current.fetchNextPage().asScala, timeout)
+            page    = current.currentPage().iterator()
           }
+          page.hasNext
+        }
 
-      concat(pi).iterator
-    }
+        override def next(): T =
+          if (hasNext) page.next()
+          else Iterator.empty.next()
+      }
   }
 
   /** [[PagingState]] Extension Methods
