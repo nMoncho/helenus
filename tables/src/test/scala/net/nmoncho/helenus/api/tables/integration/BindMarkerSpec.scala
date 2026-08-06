@@ -124,6 +124,12 @@ class BindMarkerSpec extends CassandraIntegrationSpec {
     )
   }
 
+  it should "NOT compile allowFiltering.execute with unbound parameters" in {
+    assertTypeError(
+      """UsersTable.select().where(UsersTable.age >= ?).allowFiltering.execute()"""
+    )
+  }
+
   it should "NOT compile toFunction when the gate rejects the shape" in {
     assertTypeError(
       """UsersTable.select().where(UsersTable.age >= ? and UsersTable.age <= ?).toFunction"""

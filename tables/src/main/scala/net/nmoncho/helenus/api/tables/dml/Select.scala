@@ -210,7 +210,9 @@ object Select {
     new Select[T, HNil, HNil, HNil, HNil, Out](table, columns.map(_.name), keyColumns, rowMapper)
 
   /** A SELECT that has opted into `ALLOW FILTERING`. Its [[execute]] and
-    * [[prepare]] carry no primary-key requirement.
+    * [[prepare]] carry no primary-key requirement. [[execute]] still requires
+    * every `?` marker to be bound (`Params =:= HNil`); a query with unbound
+    * markers must go through [[prepare]].
     */
   final class Filtering[
       T <: TableDef with Singleton,
@@ -225,28 +227,34 @@ object Select {
 
     def toCQL: String = render(select, allowFiltering = true)
 
-    def execute()(implicit session: CqlSession): PagingIterable[Out] = {
+    def execute()(
+        implicit session: CqlSession,
+        @unused noUnboundParams: Params =:= HNil
+    ): PagingIterable[Out] = {
       val pstmt = session.prepare(Select.render(select, allowFiltering = true, prepared = true))
 
-      // Safe to case this to `Seq[BoundPredicate[_, _]]` as there are no unbound parameters
+      // Safe: `Params =:= HNil` guarantees there are no unbound `?` markers, so
+      // every predicate is a BoundPredicate carrying its own value.
       val bstmt = select.withBoundValues(pstmt.bind(), HNil)
 
       session.execute(bstmt).as[Out](select.rowMapper)
     }
 
     def executeAsync()(
-        implicit session: CqlSession,
-        ec: ExecutionContext
+        implicit session: Future[CqlSession],
+        ec: ExecutionContext,
+        @unused noUnboundParams: Params =:= HNil
     ): Future[MappedAsyncPagingIterable[Out]] =
-      session
-        .prepareAsync(Select.render(select, allowFiltering = true, prepared = true))
-        .asScala
-        .flatMap { pstmt =>
-          // Safe to case this to `Seq[BoundPredicate[_, _]]` as there are no unbound parameters
-          val bstmt = select.withBoundValues(pstmt.bind(), HNil)
+      session.flatMap { s =>
+        s.prepareAsync(Select.render(select, allowFiltering = true, prepared = true))
+          .asScala
+          .flatMap { pstmt =>
+            // Safe: `Params =:= HNil` guarantees there are no unbound `?` markers.
+            val bstmt = select.withBoundValues(pstmt.bind(), HNil)
 
-          session.executeAsync(bstmt).asScala.map(_.as[Out](select.rowMapper))
-        }
+            s.executeAsync(bstmt).asScala.map(_.as[Out](select.rowMapper))
+          }
+      }
 
     /** Like `Select.prepare`, without the primary-key requirement. */
     def prepare[F](
