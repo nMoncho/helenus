@@ -41,6 +41,18 @@ package object helenus extends CodecDerivation {
 
   private val log = LoggerFactory.getLogger("net.nmoncho.helenus")
 
+  /** Lifts an implicit synchronous [[CqlSession]] into an implicit
+    * `Future[CqlSession]`, so the async execution extension methods (which take a
+    * `Future[CqlSession]`) can be used when only a synchronous session is in scope.
+    *
+    * <b>Note:</b> the lift is [[Future.successful]]; it does <em>not</em> move work
+    * off the calling thread. The session is wrapped as an already-completed future,
+    * so the subsequent `map`/`flatMap` on it may run on the calling thread depending
+    * on the [[ExecutionContext]]. Because this is always in scope via
+    * `import net.nmoncho.helenus._`, an async execution can be selected from a plain
+    * `CqlSession` without an explicit `Future[CqlSession]` — keep that in mind when
+    * reasoning about which thread the driver call runs on.
+    */
   implicit def cqlSessionAdapter(implicit session: CqlSession): Future[CqlSession] =
     Future.successful(session)
 
@@ -210,7 +222,11 @@ package object helenus extends CodecDerivation {
   implicit class BoundStatementAsyncOps[Out](private val bstmt: Future[ScalaBoundStatement[Out]])
       extends AnyVal {
 
-    /** Executes this CQL Statement synchronously
+    /** Executes this CQL Statement, returning the results in a [[Future]].
+      *
+      * This uses the driver's blocking `execute` under the hood, run inside the
+      * provided [[ExecutionContext]]; the returned [[Future]] completes once that
+      * (blocking) call returns. For a fully non-blocking execution use [[executeAsync]].
       */
     def execute()(
         implicit session: Future[CqlSession],
