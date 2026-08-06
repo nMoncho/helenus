@@ -1,0 +1,9 @@
+version: 2
+updates:
+  # Keep the GitHub Actions used in the workflows up to date. Scala/sbt library
+  # dependencies are handled by Scala Steward (.scala-steward.conf); Dependabot
+  # has no sbt package-ecosystem, so it cannot cover those.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
