@@ -28,28 +28,53 @@ class TakeOperator[A](pub: Publisher[A], amount: Int) {
   }
 
   private class TakeSubscriber[B >: A](subscriber: Subscriber[B]) extends Subscriber[A] {
-    private var count = 0
+    private var count                      = 0
+    private var completed                  = false
+    private var subscription: Subscription = _
 
-    override def onSubscribe(s: Subscription): Unit =
+    override def onSubscribe(s: Subscription): Unit = {
+      // Keep the upstream subscription so we can cancel it once we have enough
+      // elements, otherwise the driver keeps auto-fetching (and decoding) pages
+      // we would only discard.
+      subscription = s
       subscriber.onSubscribe(s)
-
-    override def onNext(t: A): Unit = {
-      if (count < amount) {
-        subscriber.onNext(t)
-      }
-
-      count += 1
-      if (count >= amount) {
-        subscriber.onComplete()
-      }
     }
+
+    override def onNext(t: A): Unit =
+      // Reactive Streams delivers signals serially, so no synchronization is
+      // needed here. Ignore any element that arrives in-flight after we have
+      // already completed (e.g. before the upstream cancellation takes effect).
+      if (!completed) {
+        if (count < amount) {
+          subscriber.onNext(t)
+          count += 1
+        }
+
+        if (count >= amount) {
+          complete()
+        }
+      }
 
     // $COVERAGE-OFF$
     override def onError(t: Throwable): Unit =
-      subscriber.onError(t)
+      if (!completed) {
+        completed = true
+        subscriber.onError(t)
+      }
     // $COVERAGE-ON$
 
     override def onComplete(): Unit =
-      subscriber.onComplete()
+      if (!completed) {
+        completed = true
+        subscriber.onComplete()
+      }
+
+    /** Cancel the upstream subscription and complete the downstream, at most once. */
+    private def complete(): Unit =
+      if (!completed) {
+        completed = true
+        if (subscription != null) subscription.cancel()
+        subscriber.onComplete()
+      }
   }
 }
