@@ -221,6 +221,34 @@ class SelectExecuteIntegrationSpec extends CassandraIntegrationSpec {
     rows(fn(userA, "bob")).head.getInt("age") shouldBe 25
   }
 
+  it should "bind out-of-order markers to the correct columns (different types)" in {
+    // Written username-first, id-second. CQL key order is id (partition key)
+    // then username, so before the fix the String argument was bound to the
+    // UUID column (and vice versa), throwing at bind time.
+    val fn = UsersTable
+      .select(UsersTable.id, UsersTable.username, UsersTable.age)
+      .where(UsersTable.username === ? and UsersTable.id === ?)
+      .prepare
+
+    val result = rows(fn("alice", userA))
+    result should have size 1
+    result.head.getInt("age") shouldBe 30
+  }
+
+  it should "bind out-of-order same-type markers to the correct columns" in {
+    // Written event_type-first, tenant_id-second, both String. CQL key order is
+    // tenant_id then event_type, so before the fix the two arguments were
+    // swapped and the query silently matched no partition.
+    val fn = EventsTable
+      .select()
+      .where(EventsTable.eventType === ? and EventsTable.tenantId === ?)
+      .prepare
+
+    val result = rows(fn("click", "acme"))
+    result should have size 1
+    result.head.getString("payload") shouldBe "p1"
+  }
+
   it should "run a bound non-key range through allowFiltering" in {
     val fn = UsersTable
       .select(UsersTable.id, UsersTable.username, UsersTable.age)

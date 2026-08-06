@@ -40,17 +40,20 @@ class BindMarkerSpec extends CassandraIntegrationSpec {
     fn shouldBe "SELECT * FROM my_keyspace.users WHERE id = ?"
   }
 
-  it should "produce a Function2 with parameters in writing order despite CQL reordering" in {
+  it should "render prepared markers in writing order so ? positions match arguments" in {
     val fn = Select.render(
       UsersTable
         .select(UsersTable.age)
         .where(UsersTable.username === ? and UsersTable.id === ?),
       allowFiltering = false,
-      prepared       = true
+      prepared       = true,
+      keyOrdered     = false
     )
 
-    // written username-first, rendered id-first: arguments still bind by writing order
-    fn shouldBe "SELECT age FROM my_keyspace.users WHERE id = ? AND username = ?"
+    // Written username-first: the prepared CQL keeps that order, so the first
+    // `?` is username and the second is id, matching the produced function's
+    // argument order. (Fully-bound `toCQL` still renders in CQL key order.)
+    fn shouldBe "SELECT age FROM my_keyspace.users WHERE username = ? AND id = ?"
   }
 
   it should "mix literal and bound predicates" in {

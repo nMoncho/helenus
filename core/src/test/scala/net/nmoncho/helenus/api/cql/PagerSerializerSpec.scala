@@ -96,12 +96,12 @@ class PagerSerializerSpec extends AnyWordSpec with Matchers {
 
   /** Minimal [[PagingState]] stub whose accessors return the given values. */
   private def stubPagingState(
-      asString: String = "",
+      asString: String     = "",
       rawState: ByteBuffer = ByteBuffer.allocate(0)
   ): PagingState = new PagingState {
-    override def toString: String                                        = asString
-    override def getRawPagingState: ByteBuffer                           = rawState
-    override def toBytes: Array[Byte]                                    = rawState.array()
+    override def toString: String                                            = asString
+    override def getRawPagingState: ByteBuffer                               = rawState
+    override def toBytes: Array[Byte]                                        = rawState.array()
     override def matches(statement: Statement[_], session: Session): Boolean = false
   }
 

@@ -69,7 +69,7 @@ class PagerSpec extends AnyWordSpec with Matchers with Eventually {
   private def stubPagingState: PagingState = new PagingState {
     override def toBytes: Array[Byte]                                        = Array.emptyByteArray
     override def matches(statement: Statement[_], session: Session): Boolean = true
-    override def getRawPagingState: ByteBuffer                               = ByteBuffer.allocate(0)
+    override def getRawPagingState: ByteBuffer = ByteBuffer.allocate(0)
   }
 
   private val failingSerializer: PagerSerializer[String] = new PagerSerializer[String] {

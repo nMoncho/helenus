@@ -42,8 +42,11 @@ import shapeless.ops.hlist.Prepend
   * The WHERE clause is built with a single [[where]] call; several predicates
   * are combined with the `and` combinator on predicates themselves, in any
   * order: `where(UsersTable.id === x and UsersTable.username === "alice")`.
-  * Rendering reorders predicates to CQL order (partition key, then clustering
-  * columns, then the rest). The ungated [[execute]] is available only when
+  * For fully-bound queries ([[execute]], [[toCQL]]) rendering reorders
+  * predicates to CQL order (partition key, then clustering columns, then the
+  * rest). Prepared queries ([[prepare]]) instead render and bind in writing
+  * order, so a `?` marker's position in the CQL always matches its argument
+  * position. The ungated [[execute]] is available only when
   * the accumulated constraints form a valid primary-key restriction (see
   * [[CanExecute]], including the IN placement rules), or when there are no
   * constraints at all; every other query must
@@ -137,8 +140,11 @@ final case class Select[
       to: ToPrepared[Params],
       fp: FnFromProduct.Aux[Params => ScalaBoundStatement[Row], F]
   ): to.Out#AsOut[Out] =
-    to(Select.render(this, allowFiltering = false, prepared = true), Nil, orderedPredicates(this))
-      .as(rowMapper)
+    to(
+      Select.render(this, allowFiltering = false, prepared = true, keyOrdered = false),
+      Nil,
+      predicates
+    ).as(rowMapper)
 
   def prepareAsync[F](
       implicit @unused ev: CanSelect[table.PK, table.CK, Eq, In, Rng],
@@ -148,9 +154,9 @@ final case class Select[
       fp: FnFromProduct.Aux[Params => ScalaBoundStatement[Row], F]
   ): Future[to.Out#AsOut[Out]] =
     to.async(
-      Select.render(this, allowFiltering = false, prepared = true),
+      Select.render(this, allowFiltering = false, prepared = true, keyOrdered = false),
       Nil,
-      orderedPredicates(this)
+      predicates
     ).map(_.as(rowMapper))
 
   private[dml] def withBoundValues(
@@ -249,9 +255,9 @@ object Select {
         fp: FnFromProduct.Aux[Params => ScalaBoundStatement[Row], F]
     ): to.Out#AsOut[Out] =
       to(
-        Select.render(select, allowFiltering = true, prepared = true),
+        Select.render(select, allowFiltering = true, prepared = true, keyOrdered = false),
         Nil,
-        orderedPredicates(select)
+        select.predicates
       )
         .as(select.rowMapper)
 
@@ -263,9 +269,9 @@ object Select {
     ): Future[to.Out#AsOut[Out]] =
       session.map { implicit s =>
         to(
-          Select.render(select, allowFiltering = true, prepared = true),
+          Select.render(select, allowFiltering = true, prepared = true, keyOrdered = false),
           Nil,
-          orderedPredicates(select)
+          select.predicates
         )
           .as(select.rowMapper)
       }
@@ -281,10 +287,14 @@ object Select {
   ](
       s: Select[T, Eq, In, Rng, Params, Out],
       allowFiltering: Boolean,
-      prepared: Boolean = false
+      prepared: Boolean   = false,
+      keyOrdered: Boolean = true
   ): String = {
-    val colStr   = if (s.columns.isEmpty) "*" else s.columns.mkString(", ")
-    val whereStr = renderPredicates(orderedPredicates(s), prepared)
+    val colStr  = if (s.columns.isEmpty) "*" else s.columns.mkString(", ")
+    val ordered =
+      if (keyOrdered) orderedPredicates(s) // canonical CQL order for fully-bound queries
+      else s.predicates // writing order keeps `?` positions aligned with argument positions
+    val whereStr = renderPredicates(ordered, prepared)
 
     val orderStr =
       if (s.orderByClauses.isEmpty) ""
@@ -300,8 +310,10 @@ object Select {
     * partition-key columns first (in key order), then clustering columns (in
     * declaration order), then everything else in insertion order. The sort is
     * stable, so several predicates on the same column (a slice) keep their
-    * relative order. Bound parameters are filled in writing order BEFORE this
-    * reordering, so `?` positions and argument positions always agree.
+    * relative order. Used only for fully-bound queries and canonical `toCQL`
+    * rendering, where each predicate carries its own value; prepared queries
+    * render and bind in writing order instead (see [[render]]'s `keyOrdered`),
+    * so a `?` marker's position always matches its argument position.
     */
   private def orderedPredicates[
       T <: TableDef with Singleton,
