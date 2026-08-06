@@ -202,6 +202,23 @@ class MappingSpec extends AnyWordSpec with Matchers with CassandraSpec {
           .apply(Hotels.h1)
       }
     }
+
+    "fail fast under strict mapping when query parameters are missing from the case class" in {
+      implicit val mapping: Mapping[Hotel] = Mapping[Hotel]().withStrictMapping()
+
+      // 'poi_name' and 'hotel_id' cannot be bound from a `Hotel`; strict mapping
+      // turns the (otherwise logged) mismatch into a descriptive failure.
+      val ex = intercept[IllegalArgumentException] {
+        """INSERT INTO hotels_by_poi(poi_name, hotel_id, name, phone, address)
+          |VALUES (?, ?, ?, ?, ?)""".stripMargin.toCQL
+          .prepareFrom[Hotel]
+          .apply(Hotels.h1)
+      }
+
+      ex.getMessage should include(classOf[Hotel].getName)
+      ex.getMessage should include("hotels_by_poi")
+      ex.getMessage should include("poi_name")
+    }
   }
 
   private def insertHotel(implicit mapping: Mapping[Hotel]) =

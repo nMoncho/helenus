@@ -116,6 +116,16 @@ lazy val basicSettings = Seq(
     ),
     ProblemFilters.exclude[ReversedMissingMethodProblem](
       "net.nmoncho.helenus.api.type.codec.CodecDerivation.net$nmoncho$helenus$api$type$codec$CodecDerivation$_setter_$byteOrderedTokenCodec_="
+    ),
+    // `Mapping.withStrictMapping` (opt-in strict mapping) added in v2
+    ProblemFilters.exclude[ReversedMissingMethodProblem](
+      "net.nmoncho.helenus.api.cql.Mapping.withStrictMapping"
+    ),
+    ProblemFilters.exclude[ReversedMissingMethodProblem](
+      "net.nmoncho.helenus.api.cql.Mapping.withStrictMapping$default$1"
+    ),
+    ProblemFilters.exclude[DirectMissingMethodProblem](
+      "net.nmoncho.helenus.internal.cql.DerivedMapping$DefaultCaseClassDerivedMapping.this"
     )
   )
 )

@@ -39,6 +39,20 @@ trait Mapping[T] extends RowMapper[T] {
       implicit codec: TypeCodec[Col]
   ): Mapping[T]
 
+  /** Returns a [[Mapping]] that fails fast (throws `IllegalArgumentException`)
+    * when the case class does not cover every bind parameter of the prepared
+    * query, instead of only logging the mismatch.
+    *
+    * Codec/column type mismatches remain warnings even in strict mode, because
+    * the underlying `TypeCodec.accepts(DataType)` check is heuristic (it can, for
+    * instance, disagree on frozen vs. non-frozen collections), so promoting it to
+    * a hard failure would reject otherwise-valid mappings.
+    *
+    * @param strict whether to enable strict mapping (defaults to `true`)
+    * @return a [[Mapping]] with the strict policy applied
+    */
+  def withStrictMapping(strict: Boolean = true): Mapping[T] = this
+
 }
 
 object Mapping {

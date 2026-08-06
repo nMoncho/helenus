@@ -48,7 +48,8 @@ object DerivedMapping {
   class DefaultCaseClassDerivedMapping[T](
       collector: FieldCollector[T],
       classTag: ClassTag[T],
-      computedColumns: Map[String, BindParameterCollector[T]]
+      computedColumns: Map[String, BindParameterCollector[T]],
+      strict: Boolean = false
   ) extends DerivedMapping[T] {
 
     override def apply(row: Row): T = collector(row)
@@ -56,7 +57,7 @@ object DerivedMapping {
     override def apply[Out](
         pstmt: ScalaPreparedStatement[T, Out]
     ): T => ScalaBoundStatement[Out] = {
-      verify(pstmt)
+      verify(pstmt, strict)
 
       val collected        = collector(pstmt)
       val requiredComputed = computedColumns.collect {
@@ -86,11 +87,15 @@ object DerivedMapping {
       new DefaultCaseClassDerivedMapping[T](
         collector,
         classTag,
-        computedColumns + (column -> computedColumnCollector(column, compute, codec))
+        computedColumns + (column -> computedColumnCollector(column, compute, codec)),
+        strict
       )
     }
 
-    private def verify(pstmt: PreparedStatement): Unit = {
+    override def withStrictMapping(strict: Boolean): Mapping[T] =
+      new DefaultCaseClassDerivedMapping[T](collector, classTag, computedColumns, strict)
+
+    private def verify(pstmt: PreparedStatement, strict: Boolean): Unit = {
       // Check if we have any missing parameters
       val expectedParameters = pstmt.getVariableDefinitions.asScala.map(_.getName.toString).toSet
       val usedParameters = computedColumns.foldLeft(collector.usedParameters(pstmt, Set.empty)) {
@@ -99,14 +104,17 @@ object DerivedMapping {
       }
 
       if (expectedParameters != usedParameters) {
-        log.error(
-          "Invalid PreparedStatement [{}] expects [{}] bind parameters but only [{}] are available. Missing fields [{}] from class [{}]",
-          pstmt.getQuery,
-          expectedParameters.mkString(", "),
-          usedParameters.mkString(", "),
-          (expectedParameters -- usedParameters).mkString(", "),
-          classTag.runtimeClass.getName
-        )
+        val message =
+          s"Invalid mapping for class [${classTag.runtimeClass.getName}]: query [${pstmt.getQuery}] " +
+            s"expects bind parameters [${expectedParameters.mkString(", ")}], but the class provides " +
+            s"[${usedParameters.mkString(", ")}]; missing [${(expectedParameters -- usedParameters)
+                .mkString(", ")}]. " +
+            "Use `Mapping#withStrictMapping(false)` to allow this, or bind the missing parameters elsewhere."
+
+        // Lenient by default (a case class may intentionally cover only some of a
+        // query's parameters); strict mode fails fast for misconfigured mappings.
+        if (strict) throw new IllegalArgumentException(message)
+        else log.error(message)
       }
 
       // Check if we are overriding some fields with computed columns
@@ -349,11 +357,12 @@ object DerivedMapping {
   ): Unit = {
     val columnDefinition = pstmt.getVariableDefinitions.get(column)
     if (!codec.accepts(columnDefinition.getType)) {
+      // Kept as a warning even under strict mapping: `accepts(DataType)` is
+      // heuristic (e.g. frozen vs. non-frozen collections) and can report a
+      // mismatch for a codec that would actually bind correctly.
       log.warn(
-        "Invalid PreparedStatement expected parameter with type {} for name {} but got type {}",
-        columnDefinition.getType.toString,
-        column,
-        codec.getCqlType.toString
+        s"Possible mapping mismatch: query [${pstmt.getQuery}] expects parameter [$column] of type " +
+          s"[${columnDefinition.getType.toString}], but the field codec has CQL type [${codec.getCqlType.toString}]"
       )
     }
   }
