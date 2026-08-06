@@ -69,6 +69,11 @@ object NonIdenticalCodec {
       val (select, name) = field.tree match {
         case Function(List(ValDef(_, _, _, _)), select @ Select(_, TermName(name))) =>
           select -> name
+        case other =>
+          c.abort(
+            field.tree.pos,
+            s"Expected a simple field selector like `_.field`, but got `${showCode(other)}`"
+          )
       }
 
       c.typecheck(

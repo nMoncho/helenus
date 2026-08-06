@@ -96,6 +96,13 @@ object RowMapper {
     def extract(expr: c.Expr[A => (Any, String)]): c.Expr[(String, String)] = {
       val paramName: String = expr.tree match {
         case Function(List(ValDef(_, TermName(name), _, _)), _) => name
+        case other =>
+          c.abort(
+            expr.tree.pos,
+            s"""Expected a lambda like `(x: A) => x.field -> "column"`, or `_.field -> "column"`, but got `${showCode(
+                other
+              )}`"""
+          )
       }
       val fieldName: String = findFieldName(expr, paramName)
       val mapping           = expr.tree

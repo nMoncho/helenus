@@ -176,7 +176,20 @@ object CqlQueryInterpolation {
     // All parts a String constants
     val parts = c.prefix.tree match {
       case Apply(_, List(Apply(_, rawParts))) =>
-        rawParts.map { case Literal(Constant(value: String)) => value }
+        rawParts.map {
+          case Literal(Constant(value: String)) => value
+          case other =>
+            c.abort(
+              other.pos,
+              s"Expected a constant string part in the CQL interpolation, but got `${showCode(other)}`"
+            )
+        }
+
+      case other =>
+        c.abort(
+          other.pos,
+          s"Expected a String interpolation (`cql\"...\"`), but got `${showCode(other)}`"
+        )
     }
 
     val names = bindMarkerNames(c)(params)
