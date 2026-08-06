@@ -160,8 +160,18 @@ lazy val docs = project
   .dependsOn(core, tables)
 
 lazy val core = project
+  .enablePlugins(Antlr4Plugin)
   .settings(basicSettings)
   .settings(
+    // The CQL lexer/parser are generated from the `.g4` grammars at build time,
+    // rather than committing (and hand-regenerating) the generated Java. This
+    // keeps the generated sources in lock-step with the grammar and the ANTLR
+    // runtime version, so they can never drift. Only the lexer + parser are used
+    // (no listener/visitor).
+    Antlr4 / antlr4Version := Dependencies.Version.antlr4,
+    Antlr4 / antlr4PackageName := Some("net.nmoncho.helenus.internal.cql"),
+    Antlr4 / antlr4GenListener := false,
+    Antlr4 / antlr4GenVisitor := false,
     name := "helenus-core",
     scalaVersion := Dependencies.Version.scala213,
     Test / testOptions += Tests.Setup(() => EmbeddedDatabase.start()),
