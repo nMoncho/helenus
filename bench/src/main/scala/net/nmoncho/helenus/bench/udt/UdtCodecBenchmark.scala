@@ -79,7 +79,7 @@ class UdtCodecBenchmark {
   private val dseCodec = new DseUdtCodec(udtType)
   private val codec    = Codec.of[UdtCodecBenchmark.Sundae]()
 
-  private val rnd                    = new Random(0)
+  private val rnd                             = new Random(0)
   private var input: UdtCodecBenchmark.Sundae = _
 
   @Setup
@@ -102,7 +102,8 @@ class UdtCodecBenchmark {
       .setInt(3, input.scoops)
       .setDouble(4, input.weightGrams)
 
-    val decoded = dseCodec.decode(dseCodec.encode(value, ProtocolVersion.DEFAULT), ProtocolVersion.DEFAULT)
+    val decoded =
+      dseCodec.decode(dseCodec.encode(value, ProtocolVersion.DEFAULT), ProtocolVersion.DEFAULT)
 
     // Read every field back so the baseline materializes as much as `bench` does.
     blackHole.consume(

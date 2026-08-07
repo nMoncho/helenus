@@ -11,13 +11,15 @@ Helenus is collection of Scala utilities for Apache Cassandra. Its goal is to
 make interacting with Cassandra easier, in a type-safe manner, while trying to
 avoid introducing a complex API.
 
-We also provide integration against several streaming libraries:
+We also provide integration against several streaming libraries (each module has a short usage
+guide in its own README):
 
-- Akka v2.6 (Apache License)
-- Akka BUSL
-- Flink 2.x
-- Pekko
-- ZIO
+- [Akka v2.6 (Apache License)](akka/README.md)
+- [Akka BUSL](akka-busl/README.md)
+- [Flink 2.x](flink/README.md)
+- [Monix](monix/README.md)
+- [Pekko](pekko/README.md)
+- [ZIO](zio/README.md)
 
 ## Installation
 
