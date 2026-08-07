@@ -46,13 +46,25 @@ trait IdenticalUDTCodec[A] {
 
   def columns: List[(String, DataType)]
 
-  /** Encodes an [[A]] value as a [[ByteBuffer]], and appends it to a list
+  /** Encodes an [[A]] value, writing each field's [[ByteBuffer]] into `buffer`.
+    *
+    * Mirrors the collection codec's near-zero-intermediate-allocation encode: instead of
+    * returning a `(List[ByteBuffer], Int)` at each level (which allocates a cons cell and a
+    * `Tuple2` per field), the shapeless recursion writes into a shared, pre-sized array and
+    * accumulates the total payload size as an `Int`.
     *
     * @param value           value to be encoded
     * @param protocolVersion DSE Version in use
-    * @return accumulated buffers, one per case class component, with the total buffer size
+    * @param buffer          pre-sized array receiving one encoded buffer per case class component
+    * @param index           index in `buffer` at which to write this value's first field
+    * @return the accumulated payload size (in bytes) of the fields written
     */
-  @inline def encode(value: A, protocolVersion: ProtocolVersion): (List[ByteBuffer], Int)
+  @inline def encode(
+      value: A,
+      protocolVersion: ProtocolVersion,
+      buffer: Array[ByteBuffer],
+      index: Int
+  ): Int
 
   /** Decodes an [[A]] value from a [[ByteCodec]]
     *
@@ -113,6 +125,9 @@ object IdenticalUDTCodec {
       if (name.isBlank) columnNamingScheme.apply(tag.runtimeClass.getSimpleName)
       else name
 
+    // Number of case class components, computed once so `encode` can pre-size its array.
+    private val fieldCount: Int = codec.columns.size
+
     override val getJavaType: GenericType[A] =
       GenericType.of(tag.runtimeClass.asInstanceOf[Class[A]])
 
@@ -145,18 +160,26 @@ object IdenticalUDTCodec {
     override def encode(value: A, protocolVersion: ProtocolVersion): ByteBuffer =
       if (value == null) null
       else {
-        val (buffers, size) = codec.encode(value, protocolVersion)
-        val result          = ByteBuffer.allocate(size)
+        // Pre-size a plain array (matching the collection codec) instead of building a List
+        // via the shapeless recursion, so there is no per-field cons-cell or Tuple2 allocation.
+        // The recursion writes each field's buffer into `buffers` and returns the payload size.
+        val buffers = new Array[ByteBuffer](fieldCount)
+        val size    = codec.encode(value, protocolVersion, buffers, 0)
+        val result  = ByteBuffer.allocate(size)
 
-        buffers.foreach { field =>
+        var i = 0
+        while (i < fieldCount) {
+          val field = buffers(i)
           if (field == null) result.putInt(-1)
           else {
             result.putInt(field.remaining())
-            result.put(field.duplicate())
+            result.put(field)
           }
+          i += 1
         }
 
         result.flip()
+        result // return the buffer explicitly; safe across JDK 8 (flip returns Buffer) and 9+
       }
 
     override def decode(buffer: ByteBuffer, protocolVersion: ProtocolVersion): A =
@@ -203,12 +226,14 @@ object IdenticalUDTCodec {
 
     @inline override def encode(
         value: FieldType[K, H] :: HNil,
-        protocolVersion: ProtocolVersion
-    ): (List[ByteBuffer], Int) = {
+        protocolVersion: ProtocolVersion,
+        buffer: Array[ByteBuffer],
+        index: Int
+    ): Int = {
       val encoded = codec.encode(value.head, protocolVersion)
-      val size    = if (encoded == null) 4 else 4 + encoded.remaining()
+      buffer(index) = encoded
 
-      List(encoded) -> size
+      if (encoded == null) 4 else 4 + encoded.remaining()
     }
 
     @inline override def decode(
@@ -273,13 +298,15 @@ object IdenticalUDTCodec {
 
       @inline override def encode(
           value: FieldType[K, H] :: T,
-          protocolVersion: ProtocolVersion
-      ): (List[ByteBuffer], Int) = {
-        val (tailBuffer, tailSize) = tailCodec.encode(value.tail, protocolVersion)
-        val encoded                = headCodec.encode(value.head, protocolVersion)
-        val size                   = if (encoded == null) 4 else 4 + encoded.remaining()
+          protocolVersion: ProtocolVersion,
+          buffer: Array[ByteBuffer],
+          index: Int
+      ): Int = {
+        val encoded = headCodec.encode(value.head, protocolVersion)
+        buffer(index) = encoded
+        val size = if (encoded == null) 4 else 4 + encoded.remaining()
 
-        (encoded :: tailBuffer) -> (size + tailSize)
+        size + tailCodec.encode(value.tail, protocolVersion, buffer, index + 1)
       }
 
       @inline override def decode(
@@ -346,10 +373,11 @@ object IdenticalUDTCodec {
 
     @inline override def encode(
         value: A,
-        protocolVersion: ProtocolVersion
-    ): (List[ByteBuffer], Int) =
-      if (value == null) null
-      else codec.value.encode(gen.to(value), protocolVersion)
+        protocolVersion: ProtocolVersion,
+        buffer: Array[ByteBuffer],
+        index: Int
+    ): Int =
+      codec.value.encode(gen.to(value), protocolVersion, buffer, index)
 
     @inline override def decode(buffer: ByteBuffer, protocolVersion: ProtocolVersion): A =
       if (buffer == null) null.asInstanceOf[A]
