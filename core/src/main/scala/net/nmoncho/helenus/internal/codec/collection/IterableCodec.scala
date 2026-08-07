@@ -90,7 +90,9 @@ abstract class IterableCodec[T, M[T] <: Iterable[T]](
         // Full 32-bit length prefix: the previous `.toShort` truncated any
         // element larger than 32767 bytes and corrupted the payload.
         result.putInt(element.remaining())
-        result.put(element.duplicate())
+        // No defensive `.duplicate()`: `inner.encode` returns a fresh, single-use
+        // buffer with exactly one consumer (see the codec package invariant).
+        result.put(element)
         j += 1
       }
 

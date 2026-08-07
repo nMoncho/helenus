@@ -173,6 +173,8 @@ object IdenticalUDTCodec {
           if (field == null) result.putInt(-1)
           else {
             result.putInt(field.remaining())
+            // No defensive `.duplicate()`: each field codec returns a fresh, single-use
+            // buffer with exactly one consumer (see the codec package invariant).
             result.put(field)
           }
           i += 1

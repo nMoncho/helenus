@@ -9,6 +9,20 @@ package net.nmoncho.helenus.internal
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.internal.core.`type`.codec.ParseUtils
 
+/** Codec internals shared across the primitive, collection, tuple, and UDT codecs.
+  *
+  * ==Single-use encode buffer invariant==
+  *
+  * Every [[com.datastax.oss.driver.api.core.`type`.codec.TypeCodec]] `encode` in this
+  * package returns a fresh [[java.nio.ByteBuffer]] on each call. That buffer is never
+  * cached, shared, or reused, so a caller that aggregates encoded fields/elements into a
+  * larger buffer may consume it directly with `result.put(buffer)`, without first taking a
+  * defensive `buffer.duplicate()`. `duplicate()` only guards against a buffer's position
+  * being advanced by more than one consumer; since these buffers have exactly one consumer,
+  * it is pure allocation overhead on the encode hot path. The collection
+  * (`IterableCodec`, `AbstractMapCodec`) and UDT (`IdenticalUDTCodec`) codecs all rely on
+  * this invariant.
+  */
 package object codec {
 
   private[codec] val NULL = "NULL"
