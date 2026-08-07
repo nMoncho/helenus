@@ -114,6 +114,27 @@ val interpolatedHotelsById = cql"SELECT * FROM hotels WHERE id = $hotelId"
 
 interpolatedHotelsById.as[Hotel].execute().nextOption()
 ```
+
+### Reusing derived `RowMapper`s
+
+Deriving a `RowMapper` builds a nested mapper structure and computes the field-to-column
+name transforms. This happens each time the mapper is materialized. Because `row.as[T]` and
+`resultSet.as[T]` take the `RowMapper` as an implicit parameter, calling them in a hot loop
+without a bound mapper re-runs the derivation on every row.
+
+Bind the mapper to a single `implicit val` so it is derived once and reused. On the prepared
+statement path (for example `prepare[String].as[Hotel]` above) this is already handled for you,
+since the mapper is stored on the statement.
+
+`RowMapper.of[T]` derives the mapper eagerly; `RowMapper.cached[T]` additionally memoizes it
+process-wide (keyed by type and naming scheme), so even a repeated call never re-derives it:
+
+```scala mdoc
+// Prefer binding once as an `implicit val` in real code; shown as a plain val here to
+// avoid introducing a second implicit `RowMapper[Hotel]` into this example's scope.
+val reusableHotelMapper: RowMapper[Hotel] = RowMapper.cached[Hotel]
+```
+
 ## Tables DSL
 
 The `helenus-tables` module adds a type-safe DSL built around a table described

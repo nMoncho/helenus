@@ -76,6 +76,22 @@ class RowMapperSpec extends AnyWordSpec with Matchers {
         implicitly[RowMapper[RenamedIceCream]] shouldBe RenamedIceCream.rowMapper
       }
     }
+
+    "cache auto-derived mappers so repeated derivation returns the same instance" in {
+      val first  = RowMapper.cached[CachedIceCream]()
+      val second = RowMapper.cached[CachedIceCream]()
+
+      first should not be null
+      withClue("repeated `cached` calls must reuse the memoized mapper: ") {
+        first should be theSameInstanceAs second
+      }
+
+      withClue("and the cached mapper must still map correctly: ") {
+        first(
+          TestRow("name" -> "Vanilla", "numCherries" -> 3, "cone" -> true)
+        ) shouldBe CachedIceCream("Vanilla", 3, cone = true)
+      }
+    }
   }
 
   "RowMapper" should {
@@ -93,7 +109,7 @@ class RowMapperSpec extends AnyWordSpec with Matchers {
     }
 
     "map a result to a case class using the derived mapper" in {
-      Hotel.rowMapper.apply(rowFor(Hotels.h1)) shouldBe Hotels.h1
+      Hotel.rowMapper(rowFor(Hotels.h1)) shouldBe Hotels.h1
     }
 
     "map a result to a case class using an explicit mapper (columns by name)" in {
@@ -106,7 +122,7 @@ class RowMapperSpec extends AnyWordSpec with Matchers {
           row.getCol[Set[String]]("pois")
         )
 
-      mapper.apply(rowFor(Hotels.h1)) shouldBe Hotels.h1
+      mapper(rowFor(Hotels.h1)) shouldBe Hotels.h1
     }
 
     "map a result to a case class using an explicit mapper (columns by index)" in {
@@ -119,23 +135,23 @@ class RowMapperSpec extends AnyWordSpec with Matchers {
           row.getCol[Set[String]](4)
         )
 
-      mapper.apply(rowFor(Hotels.h1)) shouldBe Hotels.h1
+      mapper(rowFor(Hotels.h1)) shouldBe Hotels.h1
     }
 
     "map a result using a semi-auto derived mapper" in {
-      IceCream.rowMapper.apply(
+      IceCream.rowMapper(
         TestRow("name" -> "Vanilla", "numCherries" -> 3, "cone" -> true)
       ) shouldBe IceCream("Vanilla", 3, cone = true)
     }
 
     "map a result using a custom ColumnMapper" in {
-      IceCreamWithSpecialProps.rowMapper.apply(
+      IceCreamWithSpecialProps.rowMapper(
         TestRow("name" -> "Vanilla", "numCherries" -> 3, "cone" -> true)
       ) shouldBe IceCreamWithSpecialProps("Vanilla", SpecialProps(3, cone = true))
     }
 
     "map a result honoring renamed mappings" in {
-      RenamedIceCream.rowMapper.apply(
+      RenamedIceCream.rowMapper(
         TestRow("name" -> "Vanilla", "numCherries" -> 3, "cone" -> true)
       ) shouldBe RenamedIceCream("Vanilla", 3, hoorn = true)
     }
@@ -163,7 +179,7 @@ class RowMapperSpec extends AnyWordSpec with Matchers {
           "pois" -> hotel.pois
         )
 
-        mapper.apply(row).phoneOrAddress shouldBe Right(hotel.address)
+        mapper(row).phoneOrAddress shouldBe Right(hotel.address)
       }
 
       withClue("resolving to Left when the right column is null: ") {
@@ -175,7 +191,7 @@ class RowMapperSpec extends AnyWordSpec with Matchers {
           "pois" -> hotel.pois
         )
 
-        mapper.apply(row).phoneOrAddress shouldBe Left(hotel.phone)
+        mapper(row).phoneOrAddress shouldBe Left(hotel.phone)
       }
     }
   }
@@ -217,6 +233,9 @@ object RowMapperSpec {
     implicit val rowMapper: RowMapper[IceCreamWithSpecialPropsAsTuple] =
       RowMapper[IceCreamWithSpecialPropsAsTuple]()
   }
+
+  // No implicit RowMapper on the companion: `cached` derives it on first use.
+  case class CachedIceCream(name: String, numCherries: Int, cone: Boolean)
 
   case class RenamedIceCream(naam: String, kers: Int, hoorn: Boolean)
 

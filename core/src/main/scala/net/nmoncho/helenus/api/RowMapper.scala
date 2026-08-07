@@ -6,7 +6,10 @@
 
 package net.nmoncho.helenus.api
 
+import java.util.concurrent.ConcurrentHashMap
+
 import scala.annotation.unused
+import scala.reflect.ClassTag
 import scala.util.Try
 
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
@@ -16,6 +19,7 @@ import net.nmoncho.helenus.internal.macros.{ RowMapper => RowMapperMacros }
 import org.slf4j.LoggerFactory
 import shapeless.<:!<
 import shapeless.IsTuple
+import shapeless.Lazy
 
 /** Maps a [[Row]] into a [[T]]
   *
@@ -104,8 +108,6 @@ object RowMapper {
 
   }
 
-  def of[T](implicit mapper: DerivedRowMapper[T]): RowMapper[T] = mapper
-
   /** Derives a [[RowMapper]] considering the specified name mapping.
     *
     * @param renamedFields renamed fields
@@ -113,6 +115,57 @@ object RowMapper {
     */
   def apply[T](renamedFields: T => (Any, ColumnName)*): RowMapper[T] =
     macro RowMapperMacros.renamedMapper[DerivedRowMapper.Builder, T]
+
+  /** Auto-derives a [[RowMapper]] for [[T]].
+    *
+    * '''Performance note:''' derivation builds a nested mapper structure and computes the
+    * field-to-column name transforms once, when this method is materialized. Because the
+    * `row.as[T]` / `resultSet.as[T]` extension methods take the [[RowMapper]] as an ''implicit''
+    * parameter, calling them in a hot loop without a bound mapper re-runs this derivation on
+    * every iteration. Bind the mapper to a single `implicit val` (or use [[cached]]) so the
+    * derivation happens once and is reused:
+    *
+    * {{{
+    * // Derived once, reused for every row:
+    * implicit val fooMapper: RowMapper[Foo] = RowMapper.of[Foo]
+    * rows.map(_.as[Foo])
+    * }}}
+    */
+  def of[T](implicit mapper: DerivedRowMapper[T]): RowMapper[T] = mapper
+
+  /** Process-wide cache of auto-derived mappers, keyed by target class and naming scheme.
+    *
+    * Keying on the [[ColumnNamingScheme]] keeps the cache correct when the same case class is
+    * mapped under different schemes; the [[ColumnNamingScheme]] hierarchy is `sealed` and its
+    * members are stable singletons, so reference-based keys are safe.
+    */
+  private val derivedCache =
+    new ConcurrentHashMap[(Class[_], ColumnNamingScheme), RowMapper[_]]()
+
+  /** Auto-derives a [[RowMapper]] for [[T]] once and caches it for the lifetime of the process.
+    *
+    * Behaves like [[of]] but memoizes the derived mapper, keyed by [[T]]'s runtime class and the
+    * in-scope [[ColumnNamingScheme]]. Repeated calls (including an accidental call inside a hot
+    * loop) return the same instance and never re-run the derivation. The [[Lazy]] wrapper ensures
+    * the (potentially expensive) derivation is only forced on a cache miss.
+    *
+    * This is intended for the common case where a given type is always mapped with the same codecs
+    * and naming scheme. If you need per-call-site control over the codecs used, bind a mapper
+    * explicitly with `implicit val ... = RowMapper.of[T]` instead.
+    *
+    * {{{
+    * implicit val fooMapper: RowMapper[Foo] = RowMapper.cached[Foo]
+    * }}}
+    */
+  def cached[T]()(
+      implicit mapper: Lazy[DerivedRowMapper[T]],
+      tag: ClassTag[T],
+      naming: ColumnNamingScheme = ColumnNamingScheme.Default
+  ): RowMapper[T] =
+    // TODO add the ability to rename fields on a cached instance
+    derivedCache
+      .computeIfAbsent((tag.runtimeClass, naming), _ => mapper.value)
+      .asInstanceOf[RowMapper[T]]
 
   /** Derives a [[RowMapper]] for tuples
     */

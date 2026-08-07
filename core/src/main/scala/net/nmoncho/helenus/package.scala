@@ -322,6 +322,10 @@ package object helenus extends CodecDerivation {
   implicit class RowOps(private val row: Row) extends AnyVal {
 
     /** Converts a [[Row]] into a [[T]]
+      *
+      * When mapping many rows, bind the [[RowMapper]] to a single `implicit val` (via
+      * `RowMapper.of[T]` or `RowMapper.cached[T]`) so the mapper is derived once and reused,
+      * rather than re-derived on every call. See `RowMapper.of` for details.
       */
     def as[T](implicit mapper: RowMapper[T]): T = mapper.apply(row)
 
@@ -341,6 +345,10 @@ package object helenus extends CodecDerivation {
   implicit class ResultSetOps(private val rs: ResultSet) extends AnyVal {
 
     /** Converts a [[ResultSet]] into a [[PagingIterable]] of type [[T]]
+      *
+      * The mapper is applied to every row, so bind the [[RowMapper]] to a single `implicit val`
+      * (via `RowMapper.of[T]` or `RowMapper.cached[T]`) to avoid re-deriving it. See
+      * `RowMapper.of` for details.
       */
     def as[T](implicit mapper: RowMapper[T]): PagingIterable[T] = rs.map(mapper.apply)
   }
