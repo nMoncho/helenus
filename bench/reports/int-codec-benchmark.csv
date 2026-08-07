@@ -1,0 +1,3 @@
+"Benchmark","Mode","Threads","Samples","Score","Score Error (99.9%)","Unit"
+"net.nmoncho.helenus.bench.IntCodecBenchmark.baseline","avgt",1,60,2.837638,0.049060,"ns/op"
+"net.nmoncho.helenus.bench.IntCodecBenchmark.bench","avgt",1,60,2.276853,0.015677,"ns/op"

@@ -1,0 +1,3 @@
+"Benchmark","Mode","Threads","Samples","Score","Score Error (99.9%)","Unit"
+"net.nmoncho.helenus.bench.FloatCodecBenchmark.baseline","avgt",1,60,3.620086,0.052756,"ns/op"
+"net.nmoncho.helenus.bench.FloatCodecBenchmark.bench","avgt",1,60,2.151854,0.026857,"ns/op"
