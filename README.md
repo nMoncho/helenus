@@ -65,11 +65,12 @@ As of this version, Helenus supports the following types:
 - Java types: `String`, `UUID`, `Instant`, `LocalDate`, `LocalTime`, `InetAddress`.
 - `AnyVal` types: `Boolean`, `Byte`, `Double`, `Float`, `Int`, `Long`, `Short`.
   - This means, if used properly, no more boxing.
-- Collections: `Seq`, `List`, `Vector`, `Map`, `Set`, `SortedMap`, `SortedSet`.
-  - If you need a codec that isn't provided out of the box, please read [this guide](https://github.com/nMoncho/helenus/wiki/Codecs#where-is-the-typecodec-for-x-collection) on how to add it.
-- Enumerations: Can be encoded by name or by order. See [Enumeration Codecs](https://github.com/nMoncho/helenus/wiki/Codecs).
-- Tuples: Encoded as regular Cassandra tuples
-- Case Classes: Encoded as regular Cassandra UDTs
+- Collections: `Seq`, `List`, `Vector`, `Map`, `Set`, `SortedMap`, `SortedSet`. See the
+  [Codecs guide](guide/codecs.md).
+- Enumerations: Can be encoded by name or by order. See the
+  [Enumeration Codecs guide](guide/enumerations.md).
+- Tuples: Encoded as regular Cassandra tuples.
+- Case Classes: Encoded as regular Cassandra UDTs. See the [UDTs guide](guide/udts.md).
 - Others: `Option`, and `Either` (encoded as a tuple).
 
 
@@ -165,6 +166,17 @@ process-wide (keyed by type and naming scheme), so even a repeated call never re
 // avoid introducing a second implicit `RowMapper[Hotel]` into this example's scope.
 val reusableHotelMapper: RowMapper[Hotel] = RowMapper.cached[Hotel]
 ```
+
+## Guides
+
+These in-repo guides cover the core concepts and are compile-checked against the current version:
+
+- [Codecs](guide/codecs.md): built-in, collection, `Option`/`Either` codecs.
+- [Enumeration Codecs](guide/enumerations.md): encoding `Enumeration`s by name or by order.
+- [UDTs](guide/udts.md): mapping case classes to UDTs, and the field-ordering rules.
+- [Paging](guide/paging.md): consuming results and driving paging.
+
+The [wiki](https://github.com/nMoncho/helenus/wiki) remains available as supplementary material.
 
 ## Tables DSL
 
