@@ -230,8 +230,11 @@ package object zio extends CodecDerivation {
   ) extends AnyVal {
 
     /** Maps the result from this [[BoundStatement]] with a different [[Out2]]
-      * as long as there is an implicit [[RowMapper]] and [[Out]] is [[Row]] (this is
-      * meant to avoid calling `as` twice)
+      * as long as there is an implicit [[RowMapper]] and [[Out]] is [[Row]].
+      *
+      * This is the equivalent of `as[Out2]` in the other modules (core, akka, pekko, monix).
+      * It is named `to` rather than `as` because ZIO effects already define an `as` method,
+      * which would shadow an `as` enrichment here and make it uncallable.
       */
     def to[Out2](implicit ev: Out =:= Row, m: RowMapper[Out2]): ZWrappedBoundStatement[Out2] =
       bstmt.map(_.as[Out2])

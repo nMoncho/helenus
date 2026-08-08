@@ -27,6 +27,8 @@ val insert =
     .sink()
 ```
 
-Note ZIO uses `to[T]` where the other modules use `as[T]`. The session is supplied through the
-ZIO environment rather than an implicit. These snippets are compile-checked by
+Note ZIO uses `to[T]` to map result rows, where the other modules use `as[T]`. This divergence is
+intentional: ZIO effects already define an `as` method, so an `as[T]` enrichment would be shadowed
+by it and could never be called. The session is supplied through the ZIO environment rather than an
+implicit. These snippets are compile-checked by
 [`DocExamples.scala`](src/test/scala/net/nmoncho/helenus/zio/DocExamples.scala).

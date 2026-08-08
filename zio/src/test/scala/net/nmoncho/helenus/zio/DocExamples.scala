@@ -18,6 +18,8 @@ import net.nmoncho.helenus.api.cql.Adapter
   */
 object DocExamples {
 
+  // NOTE: this module maps results with `to[T]` rather than `as[T]` (used by the other modules),
+  // because ZIO's own effects already define an `as` method that would shadow the enrichment.
   /** A prepared `SELECT` becomes a `ZStream` over the `ZCqlSession` environment. */
   def read: ZCqlStream[Try[IceCream]] =
     "SELECT * FROM ice_creams".toZCQL.prepareUnit.to[IceCream].stream()
@@ -33,7 +35,7 @@ object DocExamples {
 final case class IceCream(name: String, numCherries: Int, cone: Boolean)
 
 object IceCream {
-  implicit val rowMapper: RowMapper[IceCream] = RowMapper[IceCream]()
+  implicit val rowMapper: RowMapper[IceCream]                        = RowMapper[IceCream]()
   implicit val rowAdapter: Adapter[IceCream, (String, Int, Boolean)] =
     Adapter.builder[IceCream].build
 }

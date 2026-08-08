@@ -47,7 +47,8 @@ object DocExamples {
       })
 
     rows.addCassandraSink(
-      "INSERT INTO hotels(id, name, phone, address) VALUES (?, ?, ?, ?)".toCQL(_)
+      "INSERT INTO hotels(id, name, phone, address) VALUES (?, ?, ?, ?)"
+        .toCQL(_)
         .prepare[String, String, String, Address],
       CassandraSink.Config()
     )

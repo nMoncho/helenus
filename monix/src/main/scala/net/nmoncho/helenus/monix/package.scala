@@ -94,7 +94,7 @@ package object monix {
 
   implicit class CassandraObservableOps[In](private val obs: Observable[In]) extends AnyVal {
 
-    def batchedConsumer[K](
+    def asBatchedConsumer[K](
         pstmt: ScalaPreparedStatement[In, _],
         groupingKey: In => K,
         maxBatchSize: Int,
@@ -125,6 +125,17 @@ package object monix {
             }
           }
         )
+
+    /** Alias for `asBatchedConsumer`; retained for backwards compatibility. */
+    @deprecated("Use `asBatchedConsumer` instead, for naming consistency", "2.0.0")
+    def batchedConsumer[K](
+        pstmt: ScalaPreparedStatement[In, _],
+        groupingKey: In => K,
+        maxBatchSize: Int,
+        maxBatchWait: FiniteDuration,
+        batchType: BatchType
+    )(implicit session: CqlSession): Task[Unit] =
+      asBatchedConsumer(pstmt, groupingKey, maxBatchSize, maxBatchWait, batchType)
 
   }
 
