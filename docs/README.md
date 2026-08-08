@@ -156,11 +156,14 @@ as a case class. The case class is the single source of truth: DDL and full-row
 projections derive every column from its fields, and a mismatch between the case
 class and the declared columns fails to compile.
 
+The DSL is imported from `net.nmoncho.helenus.tables`, matching how the streaming modules are
+imported (the full set of public types is also available under `net.nmoncho.helenus.api.tables`):
+
 ```scala mdoc
 import java.util.UUID
 
 import net.nmoncho.helenus._
-import net.nmoncho.helenus.api.tables._
+import net.nmoncho.helenus.tables._
 
 case class User(id: UUID, username: String, age: Int, email: String)
 
