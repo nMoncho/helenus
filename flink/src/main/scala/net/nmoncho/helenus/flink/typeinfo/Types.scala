@@ -17,6 +17,21 @@ import scala.reflect.ClassTag
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple
 
+/** Factories for Flink `TypeInformation` of Scala and Java
+  * types.
+  *
+  * These are the explicit counterparts of the implicit instances in [[ImplicitTypes]]: use them
+  * when you want to build a `TypeInformation` by hand (for example to nest one collection's element
+  * type inside another) rather than summon it implicitly. Scalar members mirror Flink's own
+  * `org.apache.flink.api.common.typeinfo.Types`, while `List`/`Map`/`Seq`/`Set`/`Vector` and the
+  * `Mutable*` members cover the Scala collections Flink does not know about natively.
+  *
+  * {{{
+  * import net.nmoncho.helenus.flink.typeinfo.Types
+  *
+  * val ti = Types.Map(Types.String, Types.List(Types.Int))
+  * }}}
+  */
 // $COVERAGE-OFF$
 object Types {
 

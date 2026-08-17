@@ -14,6 +14,16 @@ import org.apache.flink.api.common.typeutils._
 import org.apache.flink.core.memory.DataInputView
 import org.apache.flink.core.memory.DataOutputView
 
+/** `TypeInformation` for an immutable Scala `Map`.
+  *
+  * Keys and values are handled by `key` and `value`; the map is rebuilt through the implicit
+  * `factory`. Prefer [[net.nmoncho.helenus.flink.typeinfo.Types.Map]] or the implicit in
+  * [[net.nmoncho.helenus.flink.typeinfo.ImplicitTypes]] over instantiating this directly. See the
+  * `mutable` package for the `mutable.Map` counterpart.
+  *
+  * @param key   key type information
+  * @param value value type information
+  */
 // $COVERAGE-OFF$
 class MapTypeInformation[K, V](
     val key: TypeInformation[K],

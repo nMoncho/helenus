@@ -17,6 +17,13 @@ import scala.reflect.ClassTag
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple
 
+/** Implicit Flink `TypeInformation` instances for Scala and Java types.
+  *
+  * Mixing in this trait (or importing its members) puts a `TypeInformation` for the common scalar,
+  * enum, tuple, array, and collection types in implicit scope, so a Flink source or sink over those
+  * element types resolves its `TypeInformation` automatically. Each instance delegates to the
+  * matching factory in [[Types]]; reach for `Types` directly when you need to build one explicitly.
+  */
 // $COVERAGE-OFF$
 trait ImplicitTypes {
 

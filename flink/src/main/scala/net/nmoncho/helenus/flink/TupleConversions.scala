@@ -8,6 +8,22 @@ package net.nmoncho.helenus.flink
 
 import org.apache.flink.api.java.tuple
 
+/** Enrichments that turn a Flink `Tuple`N into the corresponding Scala tuple.
+  *
+  * Mixing in this trait (or importing the members it provides) makes `.asScala()` available on
+  * every Flink `Tuple1` through `Tuple22`, returning the matching Scala `TupleN`. This is the
+  * counterpart of [[ScalaTupleToFlinkImplicitConversions]], which goes the other way.
+  *
+  * {{{
+  * import net.nmoncho.helenus.flink._
+  *
+  * val flinkTuple: org.apache.flink.api.java.tuple.Tuple2[String, Int] = ...
+  * val (name, age): (String, Int)                                      = flinkTuple.asScala()
+  * }}}
+  *
+  * One `FlinkTupleN HasAsScala` implicit class is defined per arity; they all follow the same
+  * shape, so only this trait is documented.
+  */
 // $COVERAGE-OFF$
 trait FlinkTupleAsScalaConversions {
 

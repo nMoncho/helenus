@@ -10,6 +10,22 @@ import scala.language.implicitConversions
 
 import org.apache.flink.api.java.tuple
 
+/** Implicit conversions from a Scala tuple to the corresponding Flink `Tuple`N.
+  *
+  * Mixing in this trait (or importing its members) lets a Scala `TupleN` be used wherever Flink
+  * expects a `TupleN`, for `Tuple1` through `Tuple22`. This is the counterpart of
+  * [[FlinkTupleAsScalaConversions]], which converts in the other direction with an explicit
+  * `.asScala()`.
+  *
+  * {{{
+  * import net.nmoncho.helenus.flink._
+  *
+  * val flinkTuple: org.apache.flink.api.java.tuple.Tuple2[String, Int] = ("alice", 30)
+  * }}}
+  *
+  * One `scalaTupleAsFlinkIC` overload is defined per arity; they all follow the same shape, so only
+  * this trait is documented.
+  */
 // $COVERAGE-OFF$
 trait ScalaTupleToFlinkImplicitConversions {
 

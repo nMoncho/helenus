@@ -14,6 +14,18 @@ import org.apache.flink.api.common.typeutils._
 import org.apache.flink.core.memory.DataInputView
 import org.apache.flink.core.memory.DataOutputView
 
+/** Base `TypeInformation` for a Scala `Iterable` collection.
+  *
+  * It delegates element handling to `inner` and rebuilds the collection through the implicit
+  * `factory`, so concrete subclasses only need to fix the collection type (see the
+  * `List`/`Seq`/`Set`/`Vector` subclasses in the `immutable` package object and their `mutable`
+  * counterparts). Prefer the factories in [[net.nmoncho.helenus.flink.typeinfo.Types]] or the
+  * implicits in [[net.nmoncho.helenus.flink.typeinfo.ImplicitTypes]] over instantiating this
+  * directly.
+  *
+  * @param inner   element type information
+  * @param factory builder for the target collection type
+  */
 // $COVERAGE-OFF$
 abstract class IterableTypeInformation[T, Iter[T] <: scala.collection.Iterable[T]](
     val inner: TypeInformation[T]
