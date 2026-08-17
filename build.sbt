@@ -157,10 +157,11 @@ lazy val docs = project
     mdocOut := file("."),
     libraryDependencies ++= Seq(
       Dependencies.ossJavaDriver,
+      Dependencies.alpakka,
       Dependencies.cassandraUnit
     )
   )
-  .dependsOn(core, tables)
+  .dependsOn(core, akka, tables)
 
 lazy val core = project
   .enablePlugins(Antlr4Plugin)

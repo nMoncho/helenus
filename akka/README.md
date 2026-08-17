@@ -15,19 +15,34 @@ libraryDependencies += "net.nmoncho" %% "helenus-akka" % helenusVersion
 
 ## Usage
 
+
 ```scala
 import net.nmoncho.helenus._
+import net.nmoncho.helenus.akka._
+
+implicit val system: ActorSystem = ActorSystem("helenus-akka", cassandraConfig)
+// system: ActorSystem = akka://helenus-akka
+
+implicit val session: CassandraSession = CassandraSessionRegistry(system).sessionFor(CassandraSessionSettings())
+// session: CassandraSession = akka.stream.alpakka.cassandra.scaladsl.CassandraSession@47568bdc
+
+val writeSettings: CassandraWriteSettings = CassandraWriteSettings.defaults
+// writeSettings: CassandraWriteSettings = CassandraWriteSettings(parallelism=1,maxBatchSize=100,maxBatchWait=500 milliseconds,batchType=LOGGED)
+
+import system.dispatcher // or bring your own ExecutionContext
 
 // A prepared SELECT becomes a Source:
 val ices: Source[IceCream, NotUsed] =
-  "SELECT * FROM ice_creams".toCQL.prepareUnit.as[IceCream].asReadSource()
+  "SELECT * FROM ice_creams".toCQLAsync.prepareUnit.as[IceCream].asReadSource()
+// ices: Source[IceCream, NotUsed] = Source(SourceShape(FutureFlattenSource.out(1543778981)))
 
 // A prepared INSERT becomes a Sink; each element supplies the bind parameters:
 val insert: Sink[IceCream, Future[Done]] =
-  "INSERT INTO ice_creams(name, numCherries, cone) VALUES(?, ?, ?)".toCQL
+  "INSERT INTO ice_creams(name, numCherries, cone) VALUES(?, ?, ?)".toCQLAsync
     .prepare[String, Int, Boolean]
     .from[IceCream]
     .asWriteSink(writeSettings)
+// insert: Sink[IceCream, Future[Done]] = Sink(SinkShape(FlatMapPrefix.in(306158570)))
 ```
 
 `toCQL`/`prepare` need an implicit `CqlSession`; `asReadSource`/`asWriteSink` need an implicit
