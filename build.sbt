@@ -158,10 +158,11 @@ lazy val docs = project
     libraryDependencies ++= Seq(
       Dependencies.ossJavaDriver,
       Dependencies.alpakka,
+      Dependencies.pekkoConnector,
       Dependencies.cassandraUnit
     )
   )
-  .dependsOn(core, akka, tables)
+  .dependsOn(core, akka, pekko, tables)
 
 lazy val core = project
   .enablePlugins(Antlr4Plugin)

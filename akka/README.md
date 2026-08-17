@@ -3,8 +3,7 @@
 Akka Streams / Alpakka Cassandra integration for Helenus: turn prepared statements into
 `Source`s and `Sink`s. Compiled against Apache-licensed Akka 2.6.
 
-> Note: this module uses Apache-licensed Akka. For newer (BUSL) Akka, see
-> [`helenus-akka-busl`](../akka-busl/README.md).
+> Note: this module uses Apache-licensed Akka. For newer (BUSL) Akka.
 
 ## Setup
 
@@ -24,7 +23,7 @@ implicit val system: ActorSystem = ActorSystem("helenus-akka", cassandraConfig)
 // system: ActorSystem = akka://helenus-akka
 
 implicit val session: CassandraSession = CassandraSessionRegistry(system).sessionFor(CassandraSessionSettings())
-// session: CassandraSession = akka.stream.alpakka.cassandra.scaladsl.CassandraSession@47568bdc
+// session: CassandraSession = akka.stream.alpakka.cassandra.scaladsl.CassandraSession@42a86e94
 
 val writeSettings: CassandraWriteSettings = CassandraWriteSettings.defaults
 // writeSettings: CassandraWriteSettings = CassandraWriteSettings(parallelism=1,maxBatchSize=100,maxBatchWait=500 milliseconds,batchType=LOGGED)
@@ -34,7 +33,7 @@ import system.dispatcher // or bring your own ExecutionContext
 // A prepared SELECT becomes a Source:
 val ices: Source[IceCream, NotUsed] =
   "SELECT * FROM ice_creams".toCQLAsync.prepareUnit.as[IceCream].asReadSource()
-// ices: Source[IceCream, NotUsed] = Source(SourceShape(FutureFlattenSource.out(1543778981)))
+// ices: Source[IceCream, NotUsed] = Source(SourceShape(FutureFlattenSource.out(233149589)))
 
 // A prepared INSERT becomes a Sink; each element supplies the bind parameters:
 val insert: Sink[IceCream, Future[Done]] =
@@ -42,9 +41,6 @@ val insert: Sink[IceCream, Future[Done]] =
     .prepare[String, Int, Boolean]
     .from[IceCream]
     .asWriteSink(writeSettings)
-// insert: Sink[IceCream, Future[Done]] = Sink(SinkShape(FlatMapPrefix.in(306158570)))
+// insert: Sink[IceCream, Future[Done]] = Sink(SinkShape(FlatMapPrefix.in(821296112)))
 ```
 
-`toCQL`/`prepare` need an implicit `CqlSession`; `asReadSource`/`asWriteSink` need an implicit
-Alpakka `CassandraSession`. These snippets are compile-checked by
-[`DocExamples.scala`](src/test/scala/net/nmoncho/helenus/akka/DocExamples.scala).
