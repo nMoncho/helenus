@@ -16,8 +16,6 @@ libraryDependencies += "net.nmoncho" %% "helenus-zio" % helenusVersion
 import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import net.nmoncho.helenus.zio._
-import net.nmoncho.helenus.RowMapper
-import net.nmoncho.helenus.Adapter
 import scala.util.Try
 
 case class Address(street: String, city: String, stateOrProvince: String, postalCode: String, country: String)
