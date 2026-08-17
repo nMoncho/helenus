@@ -11,20 +11,25 @@ libraryDependencies += "net.nmoncho" %% "helenus-monix" % helenusVersion
 
 ## Usage
 
+
 ```scala
 import net.nmoncho.helenus._
+import net.nmoncho.helenus.monix._
 
 // A prepared SELECT becomes an Observable:
-val ices: Observable[IceCream] =
-  "SELECT * FROM ice_creams".toCQL.prepareUnit.as[IceCream].asObservable()
+val hotels: Observable[Hotel] =
+  "SELECT * FROM hotels".toCQL.prepareUnit.as[Hotel].asObservable()
+// hotels: Observable[Hotel] = monix.reactive.internal.builders.ReactiveObservable@63607189
+
+val hotelById: Observable[Hotel] =
+  "SELECT * FROM hotels WHERE id = ?".toCQL.prepare[String].as[Hotel].asObservable("h1")
+// hotelById: Observable[Hotel] = monix.reactive.internal.builders.ReactiveObservable@30480122
 
 // A prepared INSERT becomes a Consumer; each element supplies the bind parameters:
-val insert: Consumer[IceCream, Unit] =
-  "INSERT INTO ice_creams(name, numCherries, cone) VALUES(?, ?, ?)".toCQL
-    .prepare[String, Int, Boolean]
-    .from[IceCream]
+val insert: Consumer[Hotel, Unit] =
+  "INSERT INTO hotels(id, name, phone, address, pois) VALUES(?, ?, ?, ?, ?)".toCQL
+    .prepare[String, String, String, Address, Set[String]]
+    .from[Hotel]
     .asConsumer()
+// insert: Consumer[Hotel, Unit] = <function1>
 ```
-
-Both need an implicit `CqlSession`. These snippets are compile-checked by
-[`DocExamples.scala`](src/test/scala/net/nmoncho/helenus/monix/DocExamples.scala).
