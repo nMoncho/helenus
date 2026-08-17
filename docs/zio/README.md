@@ -12,19 +12,39 @@ libraryDependencies += "net.nmoncho" %% "helenus-zio" % helenusVersion
 
 ## Usage
 
+```scala mdoc:invisible
+import com.datastax.oss.driver.api.core.CqlSession
+import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
+import net.nmoncho.helenus.zio._
+import net.nmoncho.helenus.RowMapper
+import net.nmoncho.helenus.Adapter
+import scala.util.Try
 
-```scala
+case class Address(street: String, city: String, stateOrProvince: String, postalCode: String, country: String)
+
+case class Hotel(id: String, name: String, phone: String, address: Address, pois: Set[String])
+
+// We can derive Cassandra TypeCodecs used to map UDTs to case classes
+implicit val typeCodec: TypeCodec[Address] = Codec.of[Address]()
+
+// We can derive how query results map to case classes
+implicit val rowMapper: RowMapper[Hotel] = RowMapper[Hotel]()
+
+implicit val rowAdapter: Adapter[Hotel, (String, String, String, Address, Set[String])] = Adapter.builder[Hotel].build
+
+implicit val session: CqlSession = net.nmoncho.helenus.docs.DocsHelper.cqlSession
+```
+
+```scala mdoc
 // import net.nmoncho.helenus._ // Do not import! just use the following line
 import net.nmoncho.helenus.zio._
 
 // A prepared SELECT becomes a ZStream over the ZCqlSession environment:
 val hotels: ZCqlStream[Try[Hotel]] =
   "SELECT * FROM hotels".toZCQL.prepareUnit.to[Hotel].stream()
-// hotels: ZCqlStream[Try[Hotel]] = zio.stream.ZStream@1ab42f53
 
 val hotelById: ZCqlStream[Try[Hotel]] =
   "SELECT * FROM hotels WHERE id = ?".toZCQL.prepare[String].to[Hotel].stream("h1")
-// hotelById: ZCqlStream[Try[Hotel]] = zio.stream.ZStream@418274d
 
 // A prepared INSERT becomes a ZSink; each element supplies the bind parameters:
 val insert =
@@ -32,7 +52,6 @@ val insert =
     .prepare[String, String, String, Address, Set[String]]
     .from[Hotel]
     .sink()
-// insert: zio.stream.ZSink[ZCqlSession, Throwable, Hotel, Nothing, Unit] = zio.stream.ZSink@f3a90a13
 ```
 
 Note ZIO uses `to[T]` to map result rows, where the other modules use `as[T]`. This divergence is

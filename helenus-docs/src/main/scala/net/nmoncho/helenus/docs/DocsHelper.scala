@@ -48,6 +48,10 @@ object DocsHelper {
       """INSERT INTO hotels(id, name, phone, address, pois)
         |VALUES ('h1', 'The New York Hotel Rotterdam', '+31 10 217 3000', {street: 'Meent 78-82', city: 'Rotterdam', state_or_province: 'Zuid-Holland', postal_code: '3011 JM', country: 'Netherlands'}, {'Erasmus Bridge', 'Rotterdam Zoo', 'Markthal Rotterdam'})""".stripMargin
     )
+
+    session.execute(
+      "CREATE TABLE users (id UUID, username TEXT, age INT, email TEXT, PRIMARY KEY (id, username))"
+    )
   }
 
   def cqlSession: CqlSession = this.synchronized {

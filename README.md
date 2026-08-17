@@ -26,13 +26,13 @@ guide in its own README):
 Include the library into you project definition:
 
 ```scala
-libraryDependencies += "net.nmoncho" %% "helenus-core" % "2.0.0-RC2+32-0fec4e46+20260817-1202-SNAPSHOT"
+libraryDependencies += "net.nmoncho" %% "helenus-core" % "2.0.0-RC2+33-839ec129+20260817-1608-SNAPSHOT"
 ```
 
 The type-safe [Tables DSL](#tables-dsl) lives in its own module (currently published for Scala 2.13 only):
 
 ```scala
-libraryDependencies += "net.nmoncho" %% "helenus-tables" % "2.0.0-RC2+32-0fec4e46+20260817-1202-SNAPSHOT"
+libraryDependencies += "net.nmoncho" %% "helenus-tables" % "2.0.0-RC2+33-839ec129+20260817-1608-SNAPSHOT"
 ```
 
 ## Motivation
@@ -83,7 +83,7 @@ import net.nmoncho.helenus._
 
 // Then mark your session implicit
 implicit val session: CqlSession = getSession
-// session: CqlSession = com.datastax.oss.driver.internal.core.session.DefaultSession@714eb685
+// session: CqlSession = com.datastax.oss.driver.internal.core.session.DefaultSession@1b1fba4f
 
 case class Address(street: String, city: String, stateOrProvince: String, postalCode: String, country: String)
 
@@ -95,7 +95,7 @@ implicit val typeCodec: TypeCodec[Address] = Codec.of[Address]()
 
 // We can derive how query results map to case classes
 implicit val rowMapper: RowMapper[Hotel] = RowMapper[Hotel]()
-// rowMapper: RowMapper[Hotel] = net.nmoncho.helenus.internal.CaseClassRowMapperDerivation$$anonfun$net$nmoncho$helenus$internal$CaseClassRowMapperDerivation$$$nestedInanonfun$genericCCRowMapperBuilder$1$1@32510c5b
+// rowMapper: RowMapper[Hotel] = net.nmoncho.helenus.internal.CaseClassRowMapperDerivation$$anonfun$net$nmoncho$helenus$internal$CaseClassRowMapperDerivation$$$nestedInanonfun$genericCCRowMapperBuilder$1$1@71f65c38
 
 val hotelId = "h1"
 // hotelId: String = "h1"
@@ -104,7 +104,7 @@ val hotelId = "h1"
 val hotelsById = "SELECT * FROM hotels WHERE id = ?".toCQL
     .prepare[String]
     .as[Hotel]
-// hotelsById: internal.cql.ScalaPreparedStatement1[String, Hotel] = net.nmoncho.helenus.internal.cql.ScalaPreparedStatement1@3efa8894
+// hotelsById: internal.cql.ScalaPreparedStatement1[String, Hotel] = net.nmoncho.helenus.internal.cql.ScalaPreparedStatement1@6033feeb
 
 // We can extract a single result using `nextOption()`, or
 // use `to(Coll)` to transform the result to a collection
@@ -127,7 +127,7 @@ hotelsById.execute("h1").nextOption()
 
 // We can also run the same using CQL interpolated queries
 val interpolatedHotelsById = cql"SELECT * FROM hotels WHERE id = $hotelId"
-// interpolatedHotelsById: api.cql.WrappedBoundStatement[com.datastax.oss.driver.api.core.cql.Row] = net.nmoncho.helenus.api.cql.WrappedBoundStatement@2e1ea1d1
+// interpolatedHotelsById: api.cql.WrappedBoundStatement[com.datastax.oss.driver.api.core.cql.Row] = net.nmoncho.helenus.api.cql.WrappedBoundStatement@51042cd7
 
 interpolatedHotelsById.as[Hotel].execute().nextOption()
 // res1: Option[Hotel] = Some(
@@ -165,7 +165,7 @@ process-wide (keyed by type and naming scheme), so even a repeated call never re
 // Prefer binding once as an `implicit val` in real code; shown as a plain val here to
 // avoid introducing a second implicit `RowMapper[Hotel]` into this example's scope.
 val reusableHotelMapper: RowMapper[Hotel] = RowMapper.cached[Hotel]
-// reusableHotelMapper: RowMapper[Hotel] = net.nmoncho.helenus.internal.CaseClassRowMapperDerivation$$anonfun$net$nmoncho$helenus$internal$CaseClassRowMapperDerivation$$$nestedInanonfun$genericCCRowMapperBuilder$1$1@460bc852
+// reusableHotelMapper: RowMapper[Hotel] = net.nmoncho.helenus.internal.CaseClassRowMapperDerivation$$anonfun$net$nmoncho$helenus$internal$CaseClassRowMapperDerivation$$$nestedInanonfun$genericCCRowMapperBuilder$1$1@553e056b
 ```
 
 ## Guides
@@ -218,7 +218,7 @@ With the table in place you can build and run statements:
 ```scala
 // CREATE TABLE
 UsersTable.create.ifNotExists.execute()
-// res2: com.datastax.oss.driver.api.core.cql.ResultSet = com.datastax.oss.driver.internal.core.cql.SinglePageResultSet@1636bfbe
+// res2: com.datastax.oss.driver.api.core.cql.ResultSet = com.datastax.oss.driver.internal.core.cql.SinglePageResultSet@349f0f6a
 
 val userId = UUID.fromString("b995a896-4ad8-471a-9b05-4fb6fbc6fdd6")
 // userId: UUID = b995a896-4ad8-471a-9b05-4fb6fbc6fdd6
@@ -229,34 +229,34 @@ UsersTable.insert
   .value(UsersTable.username := "alice")
   .value(UsersTable.age := 30)
   .execute()
-// res3: com.datastax.oss.driver.api.core.cql.ResultSet = com.datastax.oss.driver.internal.core.cql.SinglePageResultSet@4c41ba6d
+// res3: com.datastax.oss.driver.api.core.cql.ResultSet = com.datastax.oss.driver.internal.core.cql.SinglePageResultSet@4c7634f5
 
 // Or insert a whole entity at once
 UsersTable.insertFrom(User(userId, "alice", 30, "alice@example.com")).execute()
-// res4: com.datastax.oss.driver.api.core.cql.ResultSet = com.datastax.oss.driver.internal.core.cql.SinglePageResultSet@4a3d95f3
+// res4: com.datastax.oss.driver.api.core.cql.ResultSet = com.datastax.oss.driver.internal.core.cql.SinglePageResultSet@442a6860
 
 // SELECT returns a PagingIterable of the mapped case class
 val users = UsersTable.select()
   .where(UsersTable.id === userId)
   .execute()
-// users: com.datastax.oss.driver.api.core.PagingIterable[User] = com.datastax.oss.driver.internal.core.PagingIterableWrapper@34ed7974
+// users: com.datastax.oss.driver.api.core.PagingIterable[User] = com.datastax.oss.driver.internal.core.PagingIterableWrapper@575a106d
 
 // UPDATE requires at least one assignment and a fully constrained primary key
 UsersTable.update
   .set(UsersTable.age := 31)
   .where(UsersTable.id === userId and UsersTable.username === "alice")
   .execute()
-// res5: com.datastax.oss.driver.api.core.cql.ResultSet = com.datastax.oss.driver.internal.core.cql.SinglePageResultSet@7eecfd8e
+// res5: com.datastax.oss.driver.api.core.cql.ResultSet = com.datastax.oss.driver.internal.core.cql.SinglePageResultSet@32ac6a65
 
 // DELETE
 UsersTable.delete
   .where(UsersTable.id === userId and UsersTable.username === "alice")
   .execute()
-// res6: com.datastax.oss.driver.api.core.cql.ResultSet = com.datastax.oss.driver.internal.core.cql.SinglePageResultSet@669185f0
+// res6: com.datastax.oss.driver.api.core.cql.ResultSet = com.datastax.oss.driver.internal.core.cql.SinglePageResultSet@36691e2f
 
 // DROP TABLE
 UsersTable.drop.ifExists.execute()
-// res7: com.datastax.oss.driver.api.core.cql.ResultSet = com.datastax.oss.driver.internal.core.cql.SinglePageResultSet@3f12825
+// res7: com.datastax.oss.driver.api.core.cql.ResultSet = com.datastax.oss.driver.internal.core.cql.SinglePageResultSet@65ae6c9e
 ```
 
 The DSL enforces at compile time what CQL enforces at runtime, so mistakes are
@@ -275,7 +275,7 @@ and `prepareAsync`:
 
 ```scala
 val byId = UsersTable.select().where(UsersTable.id === ?).prepare
-// byId: internal.cql.ScalaPreparedStatement1[UUID, User] = net.nmoncho.helenus.api.tables.dml.ToPrepared$$anon$3$$anon$4@765f9d54
+// byId: internal.cql.ScalaPreparedStatement1[UUID, User] = net.nmoncho.helenus.api.tables.dml.ToPrepared$$anon$3$$anon$4@30535234
 ```
 
 The DSL also supports computed columns, [frozen](https://docs.datastax.com/en/cql-oss/3.3/cql/cql_reference/refCollectionTypes.html)

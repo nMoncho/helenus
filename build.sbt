@@ -161,10 +161,13 @@ lazy val docs = project
       Dependencies.pekkoConnector,
       Dependencies.monix,
       Dependencies.monixReactive,
+      Dependencies.zio,
+      Dependencies.zioStreams,
+      Dependencies.zioStreamsInterop,
       Dependencies.cassandraUnit
     )
   )
-  .dependsOn(core, akka, monix, pekko, tables)
+  .dependsOn(core, akka, monix, pekko, tables, zio)
 
 lazy val core = project
   .enablePlugins(Antlr4Plugin)
