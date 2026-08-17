@@ -33,6 +33,15 @@ lazy val basicSettings = Seq(
   scalaVersion := Dependencies.Version.scala213,
   startYear := Some(2021),
   homepage := Some(url("https://github.com/nMoncho/helenus")),
+  // Publish a browsable API reference for every module via javadoc.io (which auto-generates
+  // Scaladoc for artifacts on Maven Central). `apiURL` records it in each POM, and
+  // `autoAPIMappings` makes our Scaladoc link to dependencies that advertise their own `apiURL`.
+  autoAPIMappings := true,
+  apiURL := Some(
+    url(
+      s"https://javadoc.io/doc/net.nmoncho/${moduleName.value}_${scalaBinaryVersion.value}/${version.value}/"
+    )
+  ),
   licenses := Seq("MIT License" -> new URL("http://opensource.org/licenses/MIT")),
   headerLicense := Some(
     HeaderLicense.MIT("2021", "the original author or authors", HeaderLicenseStyle.SpdxSyntax)
