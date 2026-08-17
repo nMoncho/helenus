@@ -228,7 +228,25 @@ lazy val core = project
     coverageMinimumStmtTotal := 70,
     coverageMinimumBranchTotal := 70,
     coverageFailOnMinimum := true,
-    mimaPreviousArtifacts := Set("net.nmoncho" %% "helenus-core" % "1.0.0")
+    mimaPreviousArtifacts := Set("net.nmoncho" %% "helenus-core" % "1.0.0"),
+    // F6: the fixed-size primitive codecs now share `FixedSizePrimitiveCodec`, so `decode`/`format`/
+    // `parse` moved from each codec object to the shared base. These are internal codecs
+    // (`internal.codec`), and the move is source- and runtime-compatible (verified by the codec
+    // specs, including the "on par with Java Codec" checks); only the erased bytecode signatures on
+    // the objects changed. Scoped per method so the filter cannot hide anything else.
+    mimaBinaryIssueFilters ++= Seq(
+      "BooleanCodec",
+      "ByteCodec",
+      "DoubleCodec",
+      "FloatCodec",
+      "IntCodec",
+      "LongCodec",
+      "ShortCodec"
+    ).flatMap { codec =>
+      Seq("decode", "format", "parse").map { method =>
+        ProblemFilters.exclude[Problem](s"net.nmoncho.helenus.internal.codec.$codec.$method")
+      }
+    }
   )
 
 lazy val bench = project
