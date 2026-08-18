@@ -27,6 +27,11 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 
 package object flink {
 
+  val CassandraSource = net.nmoncho.helenus.flink.source.CassandraSource
+
+  val CassandraSink = net.nmoncho.helenus.flink.sink.CassandraSink
+  type CassandraSink[A] = net.nmoncho.helenus.flink.sink.CassandraSink[A]
+
   implicit class DataStreamOps[T](private val input: DataStream[T]) extends AnyVal {
 
     /** Adds a sink sending data to Cassandra

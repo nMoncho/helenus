@@ -165,6 +165,10 @@ lazy val docs = project
     libraryDependencies ++= Seq(
       Dependencies.ossJavaDriver,
       Dependencies.alpakka,
+      Dependencies.flinkCore,
+      Dependencies.flinkStreamingJava,
+      Dependencies.flinkConnectorBase,
+      Dependencies.flinkTestUtils,
       Dependencies.pekkoConnector,
       Dependencies.monix,
       Dependencies.monixReactive,
@@ -174,7 +178,7 @@ lazy val docs = project
       Dependencies.cassandraUnit
     )
   )
-  .dependsOn(core, akka, monix, pekko, tables, zio)
+  .dependsOn(core, akka, flink, monix, pekko, tables, zio)
 
 lazy val core = project
   .enablePlugins(Antlr4Plugin)

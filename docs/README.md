@@ -15,7 +15,7 @@ We also provide integration against several streaming libraries (each module has
 guide in its own README):
 
 - [Akka v2.6 (Apache License)](akka/README.md)
-- [Akka BUSL](akka-busl/README.md)
+- Akka BUSL
 - [Flink 2.x](flink/README.md)
 - [Monix](monix/README.md)
 - [Pekko](pekko/README.md)
@@ -135,7 +135,7 @@ process-wide (keyed by type and naming scheme), so even a repeated call never re
 ```scala mdoc
 // Prefer binding once as an `implicit val` in real code; shown as a plain val here to
 // avoid introducing a second implicit `RowMapper[Hotel]` into this example's scope.
-val reusableHotelMapper: RowMapper[Hotel] = RowMapper.cached[Hotel]
+val reusableHotelMapper: RowMapper[Hotel] = RowMapper.cached[Hotel]()
 ```
 
 ## Guides
@@ -218,7 +218,7 @@ UsersTable.delete
   .execute()
 
 // DROP TABLE
-UsersTable.drop.ifExists.execute()
+UsersTable.drop.ifExists.toString()
 ```
 
 The DSL enforces at compile time what CQL enforces at runtime, so mistakes are

@@ -23,7 +23,6 @@ import org.apache.pekko.stream.connectors.cassandra.CassandraSessionSettings
 import org.apache.pekko.stream.connectors.cassandra.CassandraWriteSettings
 import org.apache.pekko.stream.connectors.cassandra.scaladsl.CassandraSession
 import org.apache.pekko.stream.connectors.cassandra.scaladsl.CassandraSessionRegistry
-import org.apache.pekko.stream.scaladsl._
 import org.apache.pekko.stream.scaladsl.Sink
 import org.apache.pekko.stream.scaladsl.Source
 

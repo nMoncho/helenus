@@ -14,40 +14,58 @@ Flink and the DataStax driver are `provided`, so add them (and `flink-streaming-
 
 ## Usage
 
+```scala mdoc:invisible
+import com.datastax.oss.driver.api.core.CqlSession
+import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 
-```scala
+import org.apache.flink.api.common.typeinfo.TypeInformation
+import org.apache.flink.api.common.eventtime.WatermarkStrategy
+import org.apache.flink.api.common.functions.MapFunction
+import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
+
+import net.nmoncho.helenus._
+
+case class Address(street: String, city: String, stateOrProvince: String, postalCode: String, country: String)
+
+case class Hotel(id: String, name: String, phone: String, address: Address, pois: Set[String])
+
+// We can derive Cassandra TypeCodecs used to map UDTs to case classes
+implicit val typeCodec: TypeCodec[Address] = Codec.of[Address]()
+
+// We can derive how query results map to case classes
+implicit val rowMapper: RowMapper[Hotel] = RowMapper[Hotel]()
+
+implicit val rowAdapter: Adapter[Hotel, (String, String, String, Address, Set[String])] = Adapter.builder[Hotel].build
+```
+
+```scala mdoc
 import net.nmoncho.helenus._
 import net.nmoncho.helenus.flink._
 
 val env = StreamExecutionEnvironment.getExecutionEnvironment.setParallelism(2)
-// env: StreamExecutionEnvironment = org.apache.flink.streaming.api.environment.LocalStreamEnvironment@4bb18881
 
 // Derive TypeInformation, or bring your own
 import net.nmoncho.helenus.flink.typeinfo.TypeInformationDerivation._
 
 implicit val addressTypeInformation: TypeInformation[Address] = Pojo[Address]
-// addressTypeInformation: TypeInformation[Address] = PojoType<repl.MdocSession$MdocApp$Address, fields = [city: String, country: String, postalCode: String, stateOrProvince: String, street: String]>
 implicit val hotelTypeInformation: TypeInformation[Hotel]     = Pojo[Hotel]
-// hotelTypeInformation: TypeInformation[Hotel] = PojoType<repl.MdocSession$MdocApp$Hotel, fields = [address: PojoType<repl.MdocSession$MdocApp$Address, fields = [city: String, country: String, postalCode: String, stateOrProvince: String, street: String]>, id: String, name: String, phone: String, pois: Set[String]]>
 
 // Source: a prepared SELECT, given a function that builds it from a CqlSession.
 val query = (session: CqlSession) =>
   "SELECT * FROM hotels".toCQL(session).prepareUnit.as[Hotel].apply()
-// query: CqlSession => ScalaBoundStatement[Hotel] = <function1>
 
 val hotels: DataStream[Hotel] = env.fromSource(
   query.asSource(CassandraSource.Config()),
   WatermarkStrategy.noWatermarks(),
   "Cassandra Source"
 )
-// hotels: DataStream[Hotel] = org.apache.flink.streaming.api.datastream.DataStreamSource@3d3eb689
 
 val rows: DataStream[(String, String, String, Address)] =
   hotels.map(new MapFunction[Hotel, (String, String, String, Address)] {
     override def map(h: Hotel): (String, String, String, Address) =
       (h.id, h.name, h.phone, h.address)
   })
-// rows: DataStream[(String, String, String, Address)] = org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator@4a6d4992
 
 // Sink: write a DataStream through a prepared INSERT (statement built per CqlSession).
 rows.addCassandraSink(
@@ -55,7 +73,6 @@ rows.addCassandraSink(
     .prepare[String, String, String, Address],
   CassandraSink.Config()
 )
-// res0: CassandraSink[(String, String, String, Address)] = net.nmoncho.helenus.flink.sink.CassandraSink@552ca977
 ```
 
 Populate `CassandraSource.Config()` / `CassandraSink.Config()` with your driver configuration.
