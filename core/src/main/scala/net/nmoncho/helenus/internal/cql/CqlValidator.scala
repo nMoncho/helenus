@@ -10,7 +10,28 @@ import scala.annotation.tailrec
 
 import org.antlr.v4.runtime._
 
-/** CQL Validator without requiring connection to Cassandra
+/** CQL Validator without requiring connection to Cassandra.
+  *
+  * This is a best-effort, offline syntactic check built on a hand-maintained ANTLR grammar, not a
+  * full CQL parser. It is the correctness boundary for the compile-time `cql"..."` interpolator and
+  * `"...".toCQL`, so its bias matters: '''accepting''' invalid CQL is harmless (the server rejects it
+  * at runtime), but '''rejecting''' valid CQL turns into a compile error the user cannot bypass on
+  * that path.
+  *
+  * ==Known grammar gaps==
+  *
+  * The grammar does not yet cover the following '''valid''' CQL constructs, so `validate` currently
+  * returns `Left` for them (tracked by `CqlValidatorSpec`'s "known grammar gaps" section):
+  *
+  *   - `BEGIN BATCH ... APPLY BATCH`.
+  *   - `token(...)` function calls inside a `WHERE` relation (e.g. `WHERE token(id) > token(?)`).
+  *   - `FROZEN<...>` and other nested parameterized collection types in DDL
+  *     (plain `MAP<K, V>` / `LIST<T>` / `SET<T>` are accepted).
+  *   - `WRITETIME(...)` / `TTL(...)` selectors in a `SELECT` list.
+  *
+  * When you need one of these, bypass validation with `"...".toUnsafeCQL` (or `toUnsafeCQLAsync`),
+  * which builds the statement without this check. Prefer widening the grammar over adding to this
+  * list; keep the list and the spec in sync whenever the grammar changes.
   */
 object CqlValidator {
 
@@ -144,7 +165,6 @@ object CqlValidator {
     }
 
     // Infer what was expected from the preceding visible token.
-    // FIXME this is a very toy example, and doesn't catch complex queries. Improve!
     private def describe(tokens: TokenStream, offending: Token): Option[String] = {
       val prev     = prevVisible(tokens, offending.getTokenIndex)
       val prevPrev = prev.flatMap(token => prevVisible(tokens, token.getTokenIndex))

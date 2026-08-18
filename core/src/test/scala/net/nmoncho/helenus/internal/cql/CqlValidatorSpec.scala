@@ -312,4 +312,146 @@ class CqlValidatorSpec extends AnyFlatSpec with Matchers {
     val (_, pos) = invalid(query)
     pos shouldBe query.indexOf("foo")
   }
+
+  // ---------------------------------------------------------------------------
+  // Extended valid-CQL corpus: constructs the grammar accepts today.
+  // ---------------------------------------------------------------------------
+
+  it should "accept INSERT with USING TIMESTAMP" in
+    valid("INSERT INTO t (id) VALUES (?) USING TIMESTAMP 123")
+
+  it should "accept UPDATE with USING TTL" in
+    valid("UPDATE t USING TTL 100 SET a = ? WHERE id = ?")
+
+  it should "accept INSERT with a set literal value" in
+    valid("INSERT INTO t (id, tags) VALUES (?, {'a', 'b'})")
+
+  it should "accept INSERT with a map literal value" in
+    valid("INSERT INTO t (id, m) VALUES (?, {'k': 'v'})")
+
+  it should "accept INSERT with a list literal value" in
+    valid("INSERT INTO t (id, l) VALUES (?, [1, 2, 3])")
+
+  it should "accept INSERT with a tuple literal value" in
+    valid("INSERT INTO t (id, tup) VALUES (?, (1, 'a'))")
+
+  it should "accept INSERT with a function-call value" in
+    valid("INSERT INTO t (id, ts) VALUES (?, now())")
+
+  it should "accept SELECT with CONTAINS" in
+    valid("SELECT * FROM t WHERE tags CONTAINS 'x' ALLOW FILTERING")
+
+  it should "accept SELECT with CONTAINS KEY" in
+    valid("SELECT * FROM t WHERE m CONTAINS KEY 'k' ALLOW FILTERING")
+
+  it should "accept SELECT with a tuple IN clause" in
+    valid("SELECT * FROM t WHERE (a, b) IN ((1, 2), (3, 4))")
+
+  it should "accept SELECT with a negative literal" in
+    valid("SELECT * FROM t WHERE n = -1")
+
+  it should "accept SELECT JSON" in
+    valid("SELECT JSON * FROM t")
+
+  it should "accept INSERT JSON" in
+    valid("INSERT INTO t JSON '{\"id\": 1}'")
+
+  it should "accept CREATE TABLE with collection column types" in
+    valid("CREATE TABLE t (id INT PRIMARY KEY, m MAP<TEXT, INT>, l LIST<INT>, s SET<TEXT>)")
+
+  it should "accept CREATE TABLE with a static column" in
+    valid("CREATE TABLE t (id INT, c INT, s TEXT STATIC, PRIMARY KEY (id, c))")
+
+  it should "accept CREATE TABLE with CLUSTERING ORDER" in
+    valid(
+      "CREATE TABLE t (id INT, c INT, PRIMARY KEY (id, c)) WITH CLUSTERING ORDER BY (c DESC)"
+    )
+
+  it should "accept UPDATE with an LWT IF condition" in
+    valid("UPDATE t SET name = ? WHERE id = ? IF name = ?")
+
+  it should "accept DELETE with IF EXISTS" in
+    valid("DELETE FROM t WHERE id = ? IF EXISTS")
+
+  it should "accept CREATE INDEX" in
+    valid("CREATE INDEX ON t (name)")
+
+  it should "accept CREATE TYPE" in
+    valid("CREATE TYPE address (street TEXT, zip INT)")
+
+  it should "accept ALTER TABLE ADD" in
+    valid("ALTER TABLE t ADD age INT")
+
+  it should "accept USE keyspace" in
+    valid("USE my_keyspace")
+
+  // ---------------------------------------------------------------------------
+  // Known grammar gaps: valid CQL the toy grammar does NOT cover yet.
+  //
+  // These are tracked here (and in CqlValidator's scaladoc) so the limitation is explicit. Each
+  // asserts the *current* behaviour: `validate` rejects it. If a grammar improvement makes one of
+  // these parse, the corresponding test will fail, which is the signal to move it up into the valid
+  // corpus above. Users who need one of these today bypass validation with `"...".toUnsafeCQL`.
+  // ---------------------------------------------------------------------------
+
+  it should "currently reject BATCH (known gap)" in {
+    invalid(
+      "BEGIN BATCH INSERT INTO t (id) VALUES (?) INSERT INTO t (id) VALUES (?) APPLY BATCH"
+    )
+  }
+
+  it should "currently reject token() in a WHERE relation (known gap)" in {
+    invalid("SELECT * FROM t WHERE token(id) > token(?)")
+  }
+
+  it should "currently reject FROZEN parameterized collection types (known gap)" in {
+    invalid("CREATE TABLE t (id INT PRIMARY KEY, f FROZEN<LIST<INT>>)")
+  }
+
+  it should "currently reject WRITETIME/TTL selectors in SELECT (known gap)" in {
+    invalid("SELECT WRITETIME(name), TTL(name) FROM t WHERE id = ?")
+  }
+
+  // ---------------------------------------------------------------------------
+  // Bind-inference primitives: `bindMarkerOffsets` and `firstErrorOffset` drive the interpolator's
+  // bind-vs-inject decision, so their behaviour is pinned here directly.
+  // ---------------------------------------------------------------------------
+
+  it should "report the offset of a named bind marker" in {
+    val q = "SELECT * FROM t WHERE id = :id"
+    CqlValidator.bindMarkerOffsets(q) shouldBe Set(q.indexOf(":id"))
+  }
+
+  it should "report every named bind marker offset" in {
+    val q = "SELECT * FROM t WHERE a = :a AND b = :b"
+    CqlValidator.bindMarkerOffsets(q) shouldBe Set(q.indexOf(":a"), q.indexOf(":b"))
+  }
+
+  it should "not treat a positional '?' as a named bind marker" in {
+    CqlValidator.bindMarkerOffsets("SELECT * FROM t WHERE id = ?") shouldBe empty
+  }
+
+  it should "not treat a colon inside a string literal as a named bind marker" in {
+    CqlValidator.bindMarkerOffsets("SELECT * FROM t WHERE s = ':id'") shouldBe empty
+  }
+
+  it should "not treat a map-literal colon as a named bind marker" in {
+    CqlValidator.bindMarkerOffsets(
+      "CREATE KEYSPACE ks WITH REPLICATION = {'class': 'SimpleStrategy', 'replication_factor': 1}"
+    ) shouldBe empty
+  }
+
+  it should "report no first-error offset for a valid statement" in {
+    CqlValidator.firstErrorOffset("SELECT * FROM t WHERE id = ?") shouldBe None
+  }
+
+  it should "report the absolute first-error offset for an invalid statement" in {
+    val q = "SELECT * FROM t WHERE id = foo"
+    CqlValidator.firstErrorOffset(q) shouldBe Some(q.indexOf("foo"))
+  }
+
+  it should "report the absolute (not in-line) offset on a multi-line statement" in {
+    val q = "SELECT *\nFROM t WHERE id = foo"
+    CqlValidator.firstErrorOffset(q) shouldBe Some(q.indexOf("foo"))
+  }
 }
