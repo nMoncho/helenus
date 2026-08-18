@@ -14,6 +14,7 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
 import com.datastax.oss.driver.api.core.CqlSession
+import com.datastax.oss.driver.api.core.cql.AsyncResultSet
 import com.datastax.oss.driver.api.core.cql.ResultSet
 import com.datastax.oss.driver.api.core.cql.Row
 import net.nmoncho.helenus.ScalaBoundStatement
@@ -170,6 +171,22 @@ final case class Update[
       @unused nonEmpty: NonEmpty[Cols]
   ): ResultSet =
     executeStatement(
+      render(prepared = true),
+      // Safe to case this to `Seq[SimpleAssignment[_]]` as there are no unbound parameters
+      assignments.asInstanceOf[Seq[TableDef#BoundAssignment[_, Any]]],
+      // Safe to case this to `Seq[BoundPredicate[_, _]]` as there are no unbound parameters
+      predicates.asInstanceOf[Seq[BoundPredicate[_, _]]]
+    )
+
+  def executeAsync()(
+      implicit session: Future[CqlSession],
+      ec: ExecutionContext,
+      @unused ev: CanUpdate[table.PK, table.CK, Eq, In, Rng],
+      @unused noUnboundSet: SetPm =:= HNil,
+      @unused noUnboundWhere: WherePm =:= HNil,
+      @unused nonEmpty: NonEmpty[Cols]
+  ): Future[AsyncResultSet] =
+    executeStatementAsync(
       render(prepared = true),
       // Safe to case this to `Seq[SimpleAssignment[_]]` as there are no unbound parameters
       assignments.asInstanceOf[Seq[TableDef#BoundAssignment[_, Any]]],

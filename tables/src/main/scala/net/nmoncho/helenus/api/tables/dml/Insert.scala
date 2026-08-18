@@ -14,6 +14,7 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 
 import com.datastax.oss.driver.api.core.CqlSession
+import com.datastax.oss.driver.api.core.cql.AsyncResultSet
 import com.datastax.oss.driver.api.core.cql.ResultSet
 import com.datastax.oss.driver.api.core.cql.Row
 import net.nmoncho.helenus.ScalaBoundStatement
@@ -111,6 +112,18 @@ final case class Insert[T <: TableDef, Params <: HList, Assigned <: HList](
       assignments.asInstanceOf[Seq[TableDef#BoundAssignment[_, Any]]],
       Nil
     )
+
+  def executeAsync()(
+      implicit session: Future[CqlSession],
+      ec: ExecutionContext,
+      @unused noUnboundParams: Params =:= HNil,
+      @unused canInsert: CanInsert[table.PK, table.CK, Assigned]
+  ): Future[AsyncResultSet] = executeStatementAsync(
+    render(prepared = true),
+    // Safe to case this to `Seq[SimpleAssignment[_]]` as there are no unbound parameters
+    assignments.asInstanceOf[Seq[TableDef#BoundAssignment[_, Any]]],
+    Nil
+  )
 
   /** Turn an insert containing `?` markers into a `FunctionN` taking one
     * argument per marker (typed as the bound column, in writing order) and
