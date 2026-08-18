@@ -249,6 +249,22 @@ class SelectExecuteIntegrationSpec extends CassandraIntegrationSpec {
     result.head.getString("payload") shouldBe "p1"
   }
 
+  it should "bind three out-of-order markers across partition, clustering and range" in {
+    // Written ts-first (a range), then year, then device_id — the exact reverse
+    // of key order (device_id, year, ts). The prepared function's arguments
+    // follow writing order, so each ? still lands on its own column; before the
+    // A2 fix the binding walked predicates in key order while the arguments
+    // arrived in writing order, so the UUID column received the Long ts value
+    // and bind threw a codec exception.
+    val fn = SensorsTable
+      .select()
+      .where(SensorsTable.ts > ? and SensorsTable.year === ? and SensorsTable.deviceId === ?)
+      .prepare
+
+    val result = rows(fn(100L, 2026, deviceId))
+    result.map(_.getLong("ts")).toSet shouldBe Set(150L, 250L)
+  }
+
   it should "run a bound non-key range through allowFiltering" in {
     val fn = UsersTable
       .select(UsersTable.id, UsersTable.username, UsersTable.age)
