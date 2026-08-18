@@ -133,6 +133,12 @@ lazy val basicSettings = Seq(
   )
 )
 
+lazy val enforcedCoverage = Seq(
+  coverageMinimumStmtTotal := 70,
+  coverageMinimumBranchTotal := 70,
+  coverageFailOnMinimum := true
+)
+
 def crossSetting[A](
     scalaVersion: String,
     if213AndAbove: List[A] = Nil,
@@ -146,6 +152,7 @@ def crossSetting[A](
 lazy val docs = project
   .in(file("helenus-docs"))
   .enablePlugins(MdocPlugin)
+  // Intentionally not measured: this module only compile-checks the mdoc docs.
   .disablePlugins(ScoverageSbtPlugin)
   .settings(basicSettings)
   .settings(
@@ -172,6 +179,7 @@ lazy val docs = project
 lazy val core = project
   .enablePlugins(Antlr4Plugin)
   .settings(basicSettings)
+  .settings(enforcedCoverage)
   .settings(
     // The CQL lexer/parser are generated from the `.g4` grammars at build time,
     // rather than committing (and hand-regenerating) the generated Java. This
@@ -225,9 +233,6 @@ lazy val core = project
         Dependencies.scalaReflect % Dependencies.Version.scala212
       )
     ),
-    coverageMinimumStmtTotal := 70,
-    coverageMinimumBranchTotal := 70,
-    coverageFailOnMinimum := true,
     mimaPreviousArtifacts := Set("net.nmoncho" %% "helenus-core" % "1.0.0"),
     // F6: the fixed-size primitive codecs now share `FixedSizePrimitiveCodec`, so `decode`/`format`/
     // `parse` moved from each codec object to the shared base. These are internal codecs
@@ -252,6 +257,7 @@ lazy val core = project
 lazy val bench = project
   .settings(basicSettings)
   .enablePlugins(JmhPlugin)
+  // Intentionally not measured: this module holds only JMH benchmarks, no tests.
   .disablePlugins(ScoverageSbtPlugin)
   .dependsOn(core)
   .settings(

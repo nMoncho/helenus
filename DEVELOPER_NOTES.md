@@ -71,3 +71,16 @@ A parameter the parser rejects that *isn't* a compile-time constant can't be inj
 statement stays invalid and `CqlValidator` reports it. In that case the error shows the statement
 with every constant injected, the way the caller wrote it, so it points at the query they typed
 rather than at bind markers they never asked for.
+
+## Test coverage
+
+Coverage is produced with [sbt-scoverage](https://github.com/scoverage/sbt-scoverage) through the
+`testCoverage` alias, which CI runs on JDK 11 / Scala 2.13:
+
+```bash
+$ sbt testCoverage
+```
+
+**What is enforced.** The 70% statement- and branch-coverage floor (`coverageFailOnMinimum`) is
+applied to `core` only.  To start gating another module once its baseline is known, add
+`.settings(enforcedCoverage)` to it.
