@@ -13,6 +13,8 @@ libraryDependencies += "net.nmoncho" %% "helenus-pekko" % helenusVersion
 ## Usage
 
 ```scala mdoc:invisible
+import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
+
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 
@@ -39,11 +41,17 @@ private def cassandraConfig: Config = ConfigFactory
 
 import net.nmoncho.helenus._
 
-case class IceCream(name: String, numCherries: Int, cone: Boolean)
-object IceCream {
-  implicit val rowMapper: RowMapper[IceCream] = RowMapper[IceCream]()
-  implicit val rowAdapter: Adapter[IceCream, (String, Int, Boolean)] = Adapter.builder[IceCream].build
-}
+case class Address(street: String, city: String, stateOrProvince: String, postalCode: String, country: String)
+
+case class Hotel(id: String, name: String, phone: String, address: Address, pois: Set[String])
+
+// We can derive Cassandra TypeCodecs used to map UDTs to case classes
+implicit val typeCodec: TypeCodec[Address] = Codec.of[Address]()
+
+// We can derive how query results map to case classes
+implicit val rowMapper: RowMapper[Hotel] = RowMapper[Hotel]()
+
+implicit val rowAdapter: Adapter[Hotel, (String, String, String, Address, Set[String])] = Adapter.builder[Hotel].build
 ```
 
 ```scala mdoc
@@ -58,14 +66,17 @@ val writeSettings: CassandraWriteSettings = CassandraWriteSettings.defaults
 import system.dispatcher // or bring your own ExecutionContext
 
 // A prepared SELECT becomes a Source:
-val ices: Source[IceCream, NotUsed] =
-  "SELECT * FROM ice_creams".toCQLAsync.prepareUnit.as[IceCream].asReadSource()
+val hotels: Source[Hotel, NotUsed] =
+  "SELECT * FROM hotels".toCQLAsync.prepareUnit.as[Hotel].asReadSource()
+
+val hotelById: Source[Hotel, NotUsed] =
+  "SELECT * FROM hotels WHERE id = ?".toCQLAsync.prepare[String].as[Hotel].asReadSource("h1")
 
 // A prepared INSERT becomes a Sink; each element supplies the bind parameters:
-val insert: Sink[IceCream, Future[Done]] =
-  "INSERT INTO ice_creams(name, numCherries, cone) VALUES(?, ?, ?)".toCQLAsync
-    .prepare[String, Int, Boolean]
-    .from[IceCream]
+val insert: Sink[Hotel, Future[Done]] =
+  "INSERT INTO hotels(id, name, phone, address, pois) VALUES(?, ?, ?, ?, ?)".toCQLAsync
+    .prepare[String, String, String, Address, Set[String]]
+    .from[Hotel]
     .asWriteSink(writeSettings)
 ```
 

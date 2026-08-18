@@ -23,7 +23,7 @@ implicit val system: ActorSystem = ActorSystem("helenus-akka", cassandraConfig)
 // system: ActorSystem = akka://helenus-akka
 
 implicit val session: CassandraSession = CassandraSessionRegistry(system).sessionFor(CassandraSessionSettings())
-// session: CassandraSession = akka.stream.alpakka.cassandra.scaladsl.CassandraSession@332ea85b
+// session: CassandraSession = akka.stream.alpakka.cassandra.scaladsl.CassandraSession@4e99992e
 
 val writeSettings: CassandraWriteSettings = CassandraWriteSettings.defaults
 // writeSettings: CassandraWriteSettings = CassandraWriteSettings(parallelism=1,maxBatchSize=100,maxBatchWait=500 milliseconds,batchType=LOGGED)
@@ -31,16 +31,20 @@ val writeSettings: CassandraWriteSettings = CassandraWriteSettings.defaults
 import system.dispatcher // or bring your own ExecutionContext
 
 // A prepared SELECT becomes a Source:
-val ices: Source[IceCream, NotUsed] =
-  "SELECT * FROM ice_creams".toCQLAsync.prepareUnit.as[IceCream].asReadSource()
-// ices: Source[IceCream, NotUsed] = Source(SourceShape(FutureFlattenSource.out(1843756825)))
+val hotels: Source[Hotel, NotUsed] =
+  "SELECT * FROM hotels".toCQLAsync.prepareUnit.as[Hotel].asReadSource()
+// hotels: Source[Hotel, NotUsed] = Source(SourceShape(FutureFlattenSource.out(1983546948)))
+
+val hotelById: Source[Hotel, NotUsed] =
+  "SELECT * FROM hotels WHERE id = ?".toCQLAsync.prepare[String].as[Hotel].asReadSource("h1")
+// hotelById: Source[Hotel, NotUsed] = Source(SourceShape(FutureFlattenSource.out(1909378320)))
 
 // A prepared INSERT becomes a Sink; each element supplies the bind parameters:
-val insert: Sink[IceCream, Future[Done]] =
-  "INSERT INTO ice_creams(name, numCherries, cone) VALUES(?, ?, ?)".toCQLAsync
-    .prepare[String, Int, Boolean]
-    .from[IceCream]
+val insert: Sink[Hotel, Future[Done]] =
+  "INSERT INTO hotels(id, name, phone, address, pois) VALUES(?, ?, ?, ?, ?)".toCQLAsync
+    .prepare[String, String, String, Address, Set[String]]
+    .from[Hotel]
     .asWriteSink(writeSettings)
-// insert: Sink[IceCream, Future[Done]] = Sink(SinkShape(FlatMapPrefix.in(2116766102)))
+// insert: Sink[Hotel, Future[Done]] = Sink(SinkShape(FlatMapPrefix.in(1326520363)))
 ```
 

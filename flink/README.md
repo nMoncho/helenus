@@ -20,7 +20,7 @@ import net.nmoncho.helenus._
 import net.nmoncho.helenus.flink._
 
 val env = StreamExecutionEnvironment.getExecutionEnvironment.setParallelism(2)
-// env: StreamExecutionEnvironment = org.apache.flink.streaming.api.environment.LocalStreamEnvironment@4bb18881
+// env: StreamExecutionEnvironment = org.apache.flink.streaming.api.environment.LocalStreamEnvironment@572ff1f5
 
 // Derive TypeInformation, or bring your own
 import net.nmoncho.helenus.flink.typeinfo.TypeInformationDerivation._
@@ -40,14 +40,14 @@ val hotels: DataStream[Hotel] = env.fromSource(
   WatermarkStrategy.noWatermarks(),
   "Cassandra Source"
 )
-// hotels: DataStream[Hotel] = org.apache.flink.streaming.api.datastream.DataStreamSource@3d3eb689
+// hotels: DataStream[Hotel] = org.apache.flink.streaming.api.datastream.DataStreamSource@49b259ea
 
 val rows: DataStream[(String, String, String, Address)] =
   hotels.map(new MapFunction[Hotel, (String, String, String, Address)] {
     override def map(h: Hotel): (String, String, String, Address) =
       (h.id, h.name, h.phone, h.address)
   })
-// rows: DataStream[(String, String, String, Address)] = org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator@4a6d4992
+// rows: DataStream[(String, String, String, Address)] = org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator@3ff34c45
 
 // Sink: write a DataStream through a prepared INSERT (statement built per CqlSession).
 rows.addCassandraSink(
@@ -55,7 +55,7 @@ rows.addCassandraSink(
     .prepare[String, String, String, Address],
   CassandraSink.Config()
 )
-// res0: CassandraSink[(String, String, String, Address)] = net.nmoncho.helenus.flink.sink.CassandraSink@552ca977
+// res0: CassandraSink[(String, String, String, Address)] = net.nmoncho.helenus.flink.sink.CassandraSink@7c210270
 ```
 
 Populate `CassandraSource.Config()` / `CassandraSink.Config()` with your driver configuration.
