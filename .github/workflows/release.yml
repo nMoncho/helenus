@@ -2,7 +2,10 @@ name: Release
 
 on:
   push:
-    tags: [ "*" ]
+    tags: [ 'v*' ]
+
+permissions:
+  contents: read
 
 jobs:
   publish:
