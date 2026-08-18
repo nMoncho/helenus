@@ -6,6 +6,8 @@
 
 package net.nmoncho.helenus.api.tables
 
+import scala.annotation.implicitNotFound
+
 import shapeless.::
 import shapeless.HList
 import shapeless.HNil
@@ -36,6 +38,14 @@ final case class ColumnOrder(column: String, descending: Boolean) {
   * from a table's `CK` type. Elements may be a bare column name tag
   * (ascending by default) or wrapped in [[Asc]] / [[Desc]].
   */
+@implicitNotFound(
+  "Could not resolve the clustering column names for ${L}. Every element of a table's `type CK` " +
+    "must be a column's `Tag` (optionally wrapped in `col.Asc` / `col.Desc`), i.e. a concrete " +
+    "singleton of the column name such as `ts.Tag`. The usual cause is ascribing a column val with " +
+    "an explicit type, `val ts: Column[X] = column(\"ts\")`, which widens away the `Tag` refinement " +
+    "and leaves it abstract. Remove the type annotation (write `val ts = column[X](\"ts\")`) so the " +
+    "column keeps its singleton `Tag`."
+)
 trait ClusteringOf[L <: HList] {
   def columns: List[ClusteringSpec]
 }
