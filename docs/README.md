@@ -243,6 +243,30 @@ The DSL also supports computed columns, [frozen](https://docs.datastax.com/en/cq
 columns, secondary and custom (e.g. SAI) indices, named indices, and map key /
 value / entry indices.
 
+### Scope and roadmap
+
+The Tables DSL covers `CREATE`, `DROP`, `SELECT`, `INSERT`, `UPDATE`, and `DELETE`,
+with `USING TTL` / `USING TIMESTAMP`, `IF NOT EXISTS` on inserts, `IF EXISTS` on
+updates and deletes, and the index features listed above.
+
+The following are not implemented yet. Roughly in the order we expect to add them:
+
+- **Static columns.** A column carries a `frozen` flag but no `static` flag.
+- **Collection element operations.** `set(col := value)` and `set(col := ?)` are
+  supported, but not element-level updates such as appending to a list, adding to
+  or removing from a set or map, or setting a single map entry.
+- **Counters.** No counter-increment assignment (`col = col + 1`).
+- **LWT column conditions.** Conditional writes are limited to `IF EXISTS` /
+  `IF NOT EXISTS`; per-column conditions (`IF col = value`) are not supported.
+- **BATCH.** There is no batch builder for grouping several statements.
+
+Static columns and collection element operations are the two most frequently
+requested, so they are prioritized first.
+
+Until a construct lands in the DSL, drop down to the CQL string API for it: build
+the statement with the compile-time-checked `cql"..."` interpolator (or `toCQL`),
+which lives alongside the DSL and interoperates with the same session and codecs.
+
 ## Migrating to v2
 
 The v2 line introduces a few breaking changes:

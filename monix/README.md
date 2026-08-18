@@ -19,11 +19,11 @@ import net.nmoncho.helenus.monix._
 // A prepared SELECT becomes an Observable:
 val hotels: Observable[Hotel] =
   "SELECT * FROM hotels".toCQL.prepareUnit.as[Hotel].asObservable()
-// hotels: Observable[Hotel] = monix.reactive.internal.builders.ReactiveObservable@639c2275
+// hotels: Observable[Hotel] = monix.reactive.internal.builders.ReactiveObservable@6437c2f5
 
 val hotelById: Observable[Hotel] =
   "SELECT * FROM hotels WHERE id = ?".toCQL.prepare[String].as[Hotel].asObservable("h1")
-// hotelById: Observable[Hotel] = monix.reactive.internal.builders.ReactiveObservable@48455e30
+// hotelById: Observable[Hotel] = monix.reactive.internal.builders.ReactiveObservable@2acd8486
 
 // A prepared INSERT becomes a Consumer; each element supplies the bind parameters:
 val insert: Consumer[Hotel, Unit] =
