@@ -137,8 +137,11 @@ class CqlValidatorSpec extends AnyFlatSpec with Matchers {
   it should "accept SELECT with CAST nested inside a function call" in
     valid("SELECT avg(CAST(count AS DOUBLE)) FROM users WHERE id = ?")
 
-  it should "accept SELECT with CAST in a WHERE relation" in
-    valid("SELECT id FROM users WHERE CAST(count AS INT) = 1")
+  it should "reject CAST on the left-hand side of a WHERE relation (not valid CQL)" in
+    // A relation is `column operator term`; CAST is only a selector or a
+    // right-hand term, never the left-hand side. The old hand-grammar wrongly
+    // accepted this; Cassandra's grammar (correctly) rejects it.
+    invalid("SELECT id FROM users WHERE CAST(count AS INT) = 1")
 
   it should "accept SELECT with ALLOW FILTERING" in
     valid("SELECT * FROM users WHERE id = ? AND name = ? ALLOW FILTERING")
@@ -174,8 +177,11 @@ class CqlValidatorSpec extends AnyFlatSpec with Matchers {
   it should "accept INSERT with keyword column names" in
     valid("INSERT INTO t (id, date, text) VALUES (?, ?, ?)")
 
-  it should "accept INSERT with UNSET value" in
-    valid("INSERT INTO users (id, name) VALUES (1, UNSET)")
+  it should "reject INSERT with UNSET as a literal value (not valid CQL)" in
+    // UNSET is a bound protocol value, not a term you can write in CQL text
+    // (`UNSET` is only an unreserved keyword usable as an identifier). The old
+    // hand-grammar wrongly accepted it; Cassandra's grammar rejects it.
+    invalid("INSERT INTO users (id, name) VALUES (1, UNSET)")
 
   // ---------------------------------------------------------------------------
   // UPDATE
@@ -199,8 +205,9 @@ class CqlValidatorSpec extends AnyFlatSpec with Matchers {
   it should "accept UPDATE with counter increment" in
     valid("UPDATE t SET counter_col = counter_col + 1 WHERE id = ?")
 
-  it should "accept UPDATE with UNSET value" in
-    valid("UPDATE users SET name = UNSET WHERE id = ?")
+  it should "reject UPDATE with UNSET as a literal value (not valid CQL)" in
+    // See the INSERT UNSET case above: UNSET is bound, not written in CQL text.
+    invalid("UPDATE users SET name = UNSET WHERE id = ?")
 
   // ---------------------------------------------------------------------------
   // DELETE
@@ -386,31 +393,27 @@ class CqlValidatorSpec extends AnyFlatSpec with Matchers {
     valid("USE my_keyspace")
 
   // ---------------------------------------------------------------------------
-  // Known grammar gaps: valid CQL the toy grammar does NOT cover yet.
+  // Formerly-tracked grammar gaps, now covered.
   //
-  // These are tracked here (and in CqlValidator's scaladoc) so the limitation is explicit. Each
-  // asserts the *current* behaviour: `validate` rejects it. If a grammar improvement makes one of
-  // these parse, the corresponding test will fail, which is the signal to move it up into the valid
-  // corpus above. Users who need one of these today bypass validation with `"...".toUnsafeCQL`.
+  // These four constructs were rejected by the previous hand-maintained grammar and tracked here as
+  // known gaps. Switching to Cassandra's own grammar (see tools/antlr-import/) closes all of them,
+  // so they are now asserted as valid.
   // ---------------------------------------------------------------------------
 
-  it should "currently reject BATCH (known gap)" in {
-    invalid(
-      "BEGIN BATCH INSERT INTO t (id) VALUES (?) INSERT INTO t (id) VALUES (?) APPLY BATCH"
-    )
-  }
+  it should "accept multi-statement BATCH" in
+    valid("BEGIN BATCH INSERT INTO t (id) VALUES (?) INSERT INTO t (id) VALUES (?) APPLY BATCH")
 
-  it should "currently reject token() in a WHERE relation (known gap)" in {
-    invalid("SELECT * FROM t WHERE token(id) > token(?)")
-  }
+  it should "accept token() in a WHERE relation" in
+    valid("SELECT * FROM t WHERE token(id) > token(?)")
 
-  it should "currently reject FROZEN parameterized collection types (known gap)" in {
-    invalid("CREATE TABLE t (id INT PRIMARY KEY, f FROZEN<LIST<INT>>)")
-  }
+  it should "accept FROZEN parameterized collection types" in
+    valid("CREATE TABLE t (id INT PRIMARY KEY, f FROZEN<LIST<INT>>)")
 
-  it should "currently reject WRITETIME/TTL selectors in SELECT (known gap)" in {
-    invalid("SELECT WRITETIME(name), TTL(name) FROM t WHERE id = ?")
-  }
+  it should "accept nested parameterized collection types" in
+    valid("CREATE TABLE t (id INT PRIMARY KEY, m MAP<TEXT, FROZEN<LIST<INT>>>)")
+
+  it should "accept WRITETIME/TTL selectors in SELECT" in
+    valid("SELECT WRITETIME(name), TTL(name) FROM t WHERE id = ?")
 
   // ---------------------------------------------------------------------------
   // Bind-inference primitives: `bindMarkerOffsets` and `firstErrorOffset` drive the interpolator's

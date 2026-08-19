@@ -12,26 +12,28 @@ import org.antlr.v4.runtime._
 
 /** CQL Validator without requiring connection to Cassandra.
   *
-  * This is a best-effort, offline syntactic check built on a hand-maintained ANTLR grammar, not a
-  * full CQL parser. It is the correctness boundary for the compile-time `cql"..."` interpolator and
-  * `"...".toCQL`, so its bias matters: '''accepting''' invalid CQL is harmless (the server rejects it
-  * at runtime), but '''rejecting''' valid CQL turns into a compile error the user cannot bypass on
-  * that path.
+  * This is a best-effort, offline syntactic check. It is the correctness boundary for the
+  * compile-time `cql"..."` interpolator and `"...".toCQL`, so its bias matters: '''accepting'''
+  * invalid CQL is harmless (the server rejects it at runtime), but '''rejecting''' valid CQL turns
+  * into a compile error the user cannot bypass on that path.
   *
-  * ==Known grammar gaps==
+  * ==Grammar provenance==
   *
-  * The grammar does not yet cover the following '''valid''' CQL constructs, so `validate` currently
-  * returns `Left` for them (tracked by `CqlValidatorSpec`'s "known grammar gaps" section):
+  * The lexer and parser are '''derived from Apache Cassandra's own ANTLR grammars''' (see
+  * `tools/antlr-import/`), mechanically converted to recognizer-only ANTLR4: every embedded Java
+  * action, `returns` clause and AST-building hook is stripped, keeping just the syntax. The pinned
+  * Cassandra version lives in `tools/antlr-import/upstream/VERSION`, and re-importing a newer
+  * grammar is a matter of re-running `tools/antlr-import/convert.py`. Because this is Cassandra's
+  * real grammar, coverage tracks the target CQL dialect directly rather than a hand-maintained
+  * approximation.
   *
-  *   - `BEGIN BATCH ... APPLY BATCH`.
-  *   - `token(...)` function calls inside a `WHERE` relation (e.g. `WHERE token(id) > token(?)`).
-  *   - `FROZEN<...>` and other nested parameterized collection types in DDL
-  *     (plain `MAP<K, V>` / `LIST<T>` / `SET<T>` are accepted).
-  *   - `WRITETIME(...)` / `TTL(...)` selectors in a `SELECT` list.
+  * ==Scope==
   *
-  * When you need one of these, bypass validation with `"...".toUnsafeCQL` (or `toUnsafeCQLAsync`),
-  * which builds the statement without this check. Prefer widening the grammar over adding to this
-  * list; keep the list and the spec in sync whenever the grammar changes.
+  * The check is '''syntactic only'''. It runs with no schema, keyspace or types, so it cannot verify
+  * that a column exists or that a value's type matches — the server does that at runtime. When a
+  * construct is rejected but you believe it is valid (e.g. a newer-dialect or DSE-only feature not in
+  * the pinned grammar), bypass validation with `"...".toUnsafeCQL` (or `toUnsafeCQLAsync`), which
+  * builds the statement without this check.
   */
 object CqlValidator {
 
@@ -79,10 +81,19 @@ object CqlValidator {
       if (idx >= tokens.size()) acc
       else {
         val token = tokens.get(idx)
-        val next  =
-          if (token.getType == CqlLexer.NAMED_BIND_MARKER) acc + token.getStartIndex else acc
+        // A named bind marker `:name` lexes as COLON immediately followed by an
+        // identifier (Cassandra's grammar has no single named-marker token).
+        // Require the name to sit right against the colon so a stray `:` (or a
+        // `: name` with a space) isn't mistaken for a marker.
+        val isNamedMarker =
+          token.getType == CqlLexer.COLON && idx + 1 < tokens.size() && {
+            val next = tokens.get(idx + 1)
+            (next.getType == CqlLexer.IDENT || next.getType == CqlLexer.QUOTED_NAME) &&
+            next.getStartIndex == token.getStopIndex + 1
+          }
 
-        inner(idx + 1, next)
+        val acc2 = if (isNamedMarker) acc + token.getStartIndex else acc
+        inner(idx + 1, acc2)
       }
 
     inner(0, Set.empty)
@@ -153,10 +164,24 @@ object CqlValidator {
     override def reportNoViableAlternative(
         recognizer: Parser,
         error: NoViableAltException
-    ): Unit = {
-      val token = error.getOffendingToken
+    ): Unit =
+      // Prefer the token where the failed decision *started* (e.g. `foo` in
+      // `id = foo`). The offending token is often EOF by the time the parser
+      // gives up, since it speculatively consumes input first, which would
+      // misreport the error position.
+      report(recognizer, Option(error.getStartToken).getOrElse(error.getOffendingToken), error)
 
-      val msg = describe(recognizer.getTokenStream, token)
+    override def reportInputMismatch(
+        recognizer: Parser,
+        error: InputMismatchException
+    ): Unit =
+      report(recognizer, error.getOffendingToken, error)
+
+    private def report(recognizer: Parser, token: Token, error: RecognitionException): Unit = {
+      val hint = describe(recognizer.getTokenStream, token)
+        .orElse(expectedHint(recognizer, error))
+
+      val msg = hint
         .fold(s"unexpected ${display(token)}")(exp =>
           s"unexpected ${display(token)}, expected $exp"
         )
@@ -164,17 +189,34 @@ object CqlValidator {
       recognizer.notifyErrorListeners(token, msg, error)
     }
 
+    // Fallback when the previous-token heuristic has nothing to say: derive the
+    // "expected" set from ANTLR itself (the parser state), mapping token types
+    // to friendly names via the vocabulary. Cassandra names every keyword token
+    // `K_XXX`, so stripping the prefix yields the CQL keyword (`K_SELECT` →
+    // `SELECT`). Skipped when the set is too large to be useful as a suggestion.
+    private def expectedHint(recognizer: Parser, error: RecognitionException): Option[String] =
+      Option(error.getExpectedTokens).flatMap { expected =>
+        val vocab = recognizer.getVocabulary
+        val names = expected.toArray.toList.flatMap { tokenType =>
+          Option(vocab.getSymbolicName(tokenType)).map(name =>
+            if (name.startsWith("K_")) name.substring(2) else name
+          )
+        }
+
+        if (names.nonEmpty && names.lengthCompare(20) <= 0) Some("one of: " + names.mkString(", "))
+        else None
+      }
+
     // Infer what was expected from the preceding visible token.
     private def describe(tokens: TokenStream, offending: Token): Option[String] = {
       val prev     = prevVisible(tokens, offending.getTokenIndex)
       val prevPrev = prev.flatMap(token => prevVisible(tokens, token.getTokenIndex))
 
       prev.map(_.getType).flatMap {
-        case CqlLexer.OPERATOR_EQ =>
+        case CqlLexer.EQ =>
           Some("a literal value, NULL, '?' or ':name'")
 
-        case CqlLexer.OPERATOR_LT | CqlLexer.OPERATOR_GT | CqlLexer.OPERATOR_LTE |
-            CqlLexer.OPERATOR_GTE =>
+        case CqlLexer.LT | CqlLexer.GT | CqlLexer.LTE | CqlLexer.GTE =>
           Some("a literal value, '?' or ':name'")
 
         case CqlLexer.K_FROM | CqlLexer.K_INTO | CqlLexer.K_UPDATE | CqlLexer.K_DELETE =>
@@ -195,16 +237,15 @@ object CqlValidator {
           // If prevPrev is a name token (column list, type list) → expected another name.
           prevPrev.map(_.getType) match {
             case Some(
-                  CqlLexer.DECIMAL_LITERAL | CqlLexer.FLOAT_LITERAL | CqlLexer.STRING_LITERAL |
-                  CqlLexer.UUID | CqlLexer.K_NULL | CqlLexer.K_TRUE | CqlLexer.K_FALSE |
-                  CqlLexer.BIND_MARKER | CqlLexer.NAMED_BIND_MARKER
+                  CqlLexer.INTEGER | CqlLexer.FLOAT | CqlLexer.STRING_LITERAL | CqlLexer.UUID |
+                  CqlLexer.K_NULL | CqlLexer.BOOLEAN | CqlLexer.QMARK
                 ) =>
               Some("a literal value, NULL, '?' or ':name'")
             case _ =>
               Some("a column name or literal value")
           }
 
-        case CqlLexer.OBJECT_NAME =>
+        case CqlLexer.IDENT =>
           // Most common case: a column name was just parsed and a data type is expected next
           // (e.g. CREATE TABLE (col_name HERE)).
           // Distinguish from the function-call dead-end (COMMA before the bare name).

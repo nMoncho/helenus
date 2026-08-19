@@ -177,14 +177,14 @@ class CqlMacroSpec extends AnyFlatSpec with Matchers {
   "error diagnostics" should "suggest 'SELECT' for 'SELEKT'" in {
     val msg = errorOf("""cql"SELEKT id FROM users"""")
     msg should include(
-      "mismatched input 'SELEKT' expecting {<EOF>, ';', '--', 'ALTER', 'APPLY', 'BEGIN', 'CREATE', 'DELETE', 'DROP', 'GRANT', 'INSERT', 'REVOKE', 'SELECT', 'TRUNCATE', 'UPDATE', 'USE', 'LIST'}"
+      "unexpected 'SELEKT', expected one of: SELECT, INSERT, UPDATE, USE, BEGIN, TRUNCATE, DELETE, CREATE, DROP, ALTER, ADD, DESC, GRANT, REVOKE, DESCRIBE, LIST"
     )
   }
 
   it should "suggest 'INSERT' for 'INSERTT'" in {
     val msg = errorOf("""cql"INSERTT INTO t (id) VALUES (?)"""")
     msg should include(
-      "mismatched input 'INSERTT' expecting {<EOF>, ';', '--', 'ALTER', 'APPLY', 'BEGIN', 'CREATE', 'DELETE', 'DROP', 'GRANT', 'INSERT', 'REVOKE', 'SELECT', 'TRUNCATE', 'UPDATE', 'USE', 'LIST'}"
+      "unexpected 'INSERTT', expected one of: SELECT, INSERT, UPDATE, USE, BEGIN, TRUNCATE, DELETE, CREATE, DROP, ALTER, ADD, DESC, GRANT, REVOKE, DESCRIBE, LIST"
     )
   }
 

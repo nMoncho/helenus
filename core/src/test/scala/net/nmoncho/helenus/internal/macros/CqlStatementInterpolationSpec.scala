@@ -112,9 +112,11 @@ class CqlStatementInterpolationSpec extends AnyFlatSpec with Matchers {
     "INSERT INTO users(id, name) VALUES (?, ?)"
   }
 
-  it should "inject a constant used where CQL only takes a number" in {
+  it should "bind a constant used as a LIMIT value" in {
+    // LIMIT takes a bindable value in CQL (`LIMIT ?`), so a constant there is
+    // bound like any other value rather than injected.
     statementOf("""cql"SELECT * FROM $tableName LIMIT $DefaultAge"""") shouldBe
-    "SELECT * FROM users LIMIT 42"
+    "SELECT * FROM users LIMIT :p1"
   }
 
   // ---------------------------------------------------------------------------
