@@ -85,6 +85,13 @@ live in `convert.py` as anchored patches that fail if upstream changes:
   there rather than *bind* a value — otherwise `cql"SELECT $col"` would bind
   `$col` as a value and silently build a broken query.
 
+  A knock-on consequence (tracked as a gap, see `CqlValidator`'s scaladoc and
+  `CqlValidatorSpec`): because selector function arguments resolve through the
+  same `unaliasedSelector` rule, a bind marker used as a *function argument in the
+  select list* — e.g. `SELECT similarity_cosine(v, ?) FROM t` — is also rejected.
+  Only bind markers are affected there; column, constant, string and
+  collection-literal arguments parse. Use `"...".toUnsafeCQL` when you need it.
+
 ## Files
 
 | Path                            | Purpose                                                        |

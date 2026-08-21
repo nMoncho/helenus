@@ -233,4 +233,75 @@ class CqlStatementInterpolationSpec extends AnyFlatSpec with Matchers {
     msg should include("Invalid CQL")
     msg should include("SELECT * FROM :tbl")
   }
+
+  // ---------------------------------------------------------------------------
+  // unsafeCql: skips validation, keeps the bind-versus-inject machinery
+  // ---------------------------------------------------------------------------
+
+  // A statement hitting a known grammar gap: a bind marker as a function argument in the SELECT
+  // selector list, which `CqlValidator` rejects (see tools/antlr-import/README.md). `$vec` is a
+  // runtime value, so the machinery binds it, and `$tableName` is a constant identifier, so it is
+  // injected — exactly as for `cql`, only without the final syntactic check.
+  private val gapSnippet =
+    """
+      |val vec = "x"
+      |unsafeCql"SELECT similarity_cosine(v, $vec) FROM $tableName"
+      |""".stripMargin
+
+  "unsafeCql" should "skip validation for a query that hits a known grammar gap" in {
+    statementOf(gapSnippet) shouldBe "SELECT similarity_cosine(v, :vec) FROM users"
+  }
+
+  it should "keep the bind-versus-inject machinery: bind the value, inject the identifier" in {
+    boundOf(gapSnippet) shouldBe Map("vec" -> "vec")
+  }
+
+  it should "build the same statement as cql for a valid query" in {
+    statementOf(
+      """unsafeCql"SELECT * FROM $tableName WHERE $name = $DefaultName ALLOW FILTERING""""
+    ) shouldBe
+    "SELECT * FROM users WHERE name = :p2 ALLOW FILTERING"
+  }
+
+  it should "not break validation of cql: cql still rejects that gap by default" in {
+    val msg = errorOf(
+      """
+        |val vec = "x"
+        |cql"SELECT similarity_cosine(v, $vec) FROM $tableName"
+        |""".stripMargin
+    )
+
+    msg should include("Invalid CQL")
+    msg should include("SELECT similarity_cosine(v, :vec) FROM users")
+  }
+
+  // ---------------------------------------------------------------------------
+  // unsafeCqlAsync: async counterpart, same bypass
+  // ---------------------------------------------------------------------------
+
+  private val asyncPreamble =
+    """import net.nmoncho.helenus._
+      |import com.datastax.oss.driver.api.core.CqlSession
+      |import scala.concurrent.Future
+      |import scala.concurrent.ExecutionContext.Implicits.global
+      |
+      |implicit val session: Future[CqlSession] = Future.successful(null.asInstanceOf[CqlSession])
+      |val vec = "x"
+      |""".stripMargin
+
+  "unsafeCqlAsync" should "compile a query that cqlAsync would reject" in {
+    noException should be thrownBy tb.typecheck(
+      tb.parse(asyncPreamble + """unsafeCqlAsync"SELECT similarity_cosine(v, $vec) FROM users"""")
+    )
+  }
+
+  it should "not break validation of cqlAsync: cqlAsync still rejects that gap by default" in {
+    val msg = intercept[ToolBoxError](
+      tb.typecheck(
+        tb.parse(asyncPreamble + """cqlAsync"SELECT similarity_cosine(v, $vec) FROM users"""")
+      )
+    ).getMessage
+
+    msg should include("Invalid CQL")
+  }
 }

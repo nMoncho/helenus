@@ -9,6 +9,7 @@ package net.nmoncho.helenus.internal.cql
 import scala.annotation.tailrec
 
 import org.antlr.v4.runtime._
+import org.antlr.v4.runtime.misc.IntervalSet
 
 /** CQL Validator without requiring connection to Cassandra.
   *
@@ -34,6 +35,17 @@ import org.antlr.v4.runtime._
   * construct is rejected but you believe it is valid (e.g. a newer-dialect or DSE-only feature not in
   * the pinned grammar), bypass validation with `"...".toUnsafeCQL` (or `toUnsafeCQLAsync`), which
   * builds the statement without this check.
+  *
+  * ==Tracked gaps==
+  *
+  * These are valid CQL constructs this validator knowingly rejects (each is pinned by a test in
+  * `CqlValidatorSpec`, and has the `toUnsafeCQL` escape hatch):
+  *
+  *   - '''A bind marker (`?` / `:name`) as a function argument in the `SELECT` selector list''' (e.g.
+  *     `similarity_cosine(v, ?)`). This follows from the intentional deviation that bind markers are
+  *     not valid `SELECT` selectors (see `tools/antlr-import/README.md`): selector function
+  *     arguments resolve through the same selector rule, so the marker is rejected there too. Only
+  *     bind markers are affected — column, constant, string and collection-literal arguments parse.
   */
 object CqlValidator {
 
@@ -92,7 +104,7 @@ object CqlValidator {
             next.getStartIndex == token.getStopIndex + 1
           }
 
-        val acc2 = if (isNamedMarker) acc + token.getStartIndex else acc
+        val acc2 = if (isNamedMarker) acc + toCharIndex(input, token.getStartIndex) else acc
         inner(idx + 1, acc2)
       }
 
@@ -116,9 +128,9 @@ object CqlValidator {
       ): Unit =
         if (found.isEmpty) {
           val offset = offendingSymbol match {
-            case token: Token => token.getStartIndex
+            case token: Token => toCharIndex(input, token.getStartIndex)
             // Lexer errors don't carry a token, so the offset has to be reconstructed
-            case _ => lineStart(input, line) + charPositionInLine
+            case _ => lineColToCharIndex(input, line, charPositionInLine)
           }
 
           found = Some((msg, charPositionInLine, offset))
@@ -157,6 +169,29 @@ object CqlValidator {
     inner(0, line - 1)
   }
 
+  /** Translates an ANTLR code-point index into a UTF-16 char index into `input`.
+    *
+    * `CharStreams.fromString` indexes tokens by Unicode '''code point''', whereas every consumer of
+    * these offsets — the interpolator's bind-versus-inject logic and the compiler-error position —
+    * indexes the original Scala `String` by '''UTF-16 char'''. The two diverge by one per
+    * supplementary character (e.g. an emoji inside a string literal), so an offset must be
+    * translated back to char space before it leaves this object, or the interpolator would splice at
+    * the wrong place.
+    */
+  private def toCharIndex(input: String, codePointIndex: Int): Int = {
+    val total = input.codePointCount(0, input.length)
+    val cp    = math.max(0, math.min(codePointIndex, total))
+    input.offsetByCodePoints(0, cp)
+  }
+
+  /** Char index of the (code-point) column `col` within the 1-based `line`. */
+  private def lineColToCharIndex(input: String, line: Int, col: Int): Int = {
+    val start        = lineStart(input, line)
+    val remainingCps = input.codePointCount(start, input.length)
+    val cp           = math.max(0, math.min(col, remainingCps))
+    input.offsetByCodePoints(start, cp)
+  }
+
   /** Custom Error Handler to get better diagnostics
     */
   private class CqlErrorHandler extends DefaultErrorStrategy {
@@ -169,43 +204,74 @@ object CqlValidator {
       // `id = foo`). The offending token is often EOF by the time the parser
       // gives up, since it speculatively consumes input first, which would
       // misreport the error position.
-      report(recognizer, Option(error.getStartToken).getOrElse(error.getOffendingToken), error)
+      report(
+        recognizer,
+        Option(error.getStartToken).getOrElse(error.getOffendingToken),
+        Option(error.getExpectedTokens)
+      )
 
     override def reportInputMismatch(
         recognizer: Parser,
         error: InputMismatchException
     ): Unit =
-      report(recognizer, error.getOffendingToken, error)
+      report(recognizer, error.getOffendingToken, Option(error.getExpectedTokens))
 
-    private def report(recognizer: Parser, token: Token, error: RecognitionException): Unit = {
-      val hint = describe(recognizer.getTokenStream, token)
-        .orElse(expectedHint(recognizer, error))
+    // ANTLR's single-token deletion/insertion recovery ("extraneous input" /
+    // "missing X") otherwise emits its own message with the raw expected-token
+    // set — dozens of `K_XXX` names. Route both through `report` so every
+    // diagnostic is formatted the same way and the giant sets fall back to the
+    // heuristic instead of being dumped verbatim.
+    override def reportUnwantedToken(recognizer: Parser): Unit =
+      if (!inErrorRecoveryMode(recognizer)) {
+        beginErrorCondition(recognizer)
+        report(recognizer, recognizer.getCurrentToken, Option(recognizer.getExpectedTokens))
+      }
+
+    override def reportMissingToken(recognizer: Parser): Unit =
+      if (!inErrorRecoveryMode(recognizer)) {
+        beginErrorCondition(recognizer)
+        report(recognizer, recognizer.getCurrentToken, Option(recognizer.getExpectedTokens))
+      }
+
+    private def report(recognizer: Parser, token: Token, expected: Option[IntervalSet]): Unit = {
+      // D1: prefer the parser's own expected-token set (derived from parser
+      // state, not a per-construct table). The hand-written previous-token
+      // heuristic is only a fallback, used where ANTLR's set is too large to be
+      // a useful suggestion (which is exactly where it can name the construct,
+      // e.g. "a table name", "a relation").
+      val hint = expected
+        .flatMap(friendlyExpected(recognizer.getVocabulary, _))
+        .orElse(describe(recognizer.getTokenStream, token))
 
       val msg = hint
         .fold(s"unexpected ${display(token)}")(exp =>
           s"unexpected ${display(token)}, expected $exp"
         )
 
-      recognizer.notifyErrorListeners(token, msg, error)
+      recognizer.notifyErrorListeners(token, msg, null)
     }
 
-    // Fallback when the previous-token heuristic has nothing to say: derive the
-    // "expected" set from ANTLR itself (the parser state), mapping token types
-    // to friendly names via the vocabulary. Cassandra names every keyword token
-    // `K_XXX`, so stripping the prefix yields the CQL keyword (`K_SELECT` →
-    // `SELECT`). Skipped when the set is too large to be useful as a suggestion.
-    private def expectedHint(recognizer: Parser, error: RecognitionException): Option[String] =
-      Option(error.getExpectedTokens).flatMap { expected =>
-        val vocab = recognizer.getVocabulary
-        val names = expected.toArray.toList.flatMap { tokenType =>
-          Option(vocab.getSymbolicName(tokenType)).map(name =>
-            if (name.startsWith("K_")) name.substring(2) else name
-          )
-        }
+    private val maxExpected = 20
 
-        if (names.nonEmpty && names.lengthCompare(20) <= 0) Some("one of: " + names.mkString(", "))
-        else None
-      }
+    // The expected set as a friendly "one of: ..." list, or None when it is
+    // empty or too large to help. Token types are named via the vocabulary,
+    // preferring the literal (`'('`, `','`) and otherwise the symbolic name with
+    // Cassandra's `K_` keyword prefix stripped (`K_SELECT` → `SELECT`).
+    private def friendlyExpected(vocab: Vocabulary, expected: IntervalSet): Option[String] = {
+      val names = expected.toArray.toList.flatMap(friendlyName(vocab, _))
+      if (names.nonEmpty && names.lengthCompare(maxExpected) <= 0)
+        Some("one of: " + names.mkString(", "))
+      else None
+    }
+
+    private def friendlyName(vocab: Vocabulary, tokenType: Int): Option[String] =
+      if (tokenType == Token.EOF) None
+      else
+        Option(vocab.getLiteralName(tokenType))
+          .orElse(
+            Option(vocab.getSymbolicName(tokenType))
+              .map(name => if (name.startsWith("K_")) name.substring(2) else name)
+          )
 
     // Infer what was expected from the preceding visible token.
     private def describe(tokens: TokenStream, offending: Token): Option[String] = {

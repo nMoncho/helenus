@@ -118,6 +118,41 @@ val interpolatedHotelsById = cql"SELECT * FROM hotels WHERE id = $hotelId"
 interpolatedHotelsById.as[Hotel].execute().nextOption()
 ```
 
+### Compile-time CQL validation
+
+Both the `cql"..."` interpolator and `"...".toCQL` (and their `...Async` variants) run a check on
+the query **at compile time**, so a malformed statement fails the build instead of failing at
+runtime.
+
+The check is deliberately **syntactic only**. It runs with no schema, no keyspace and no types, so
+it **cannot** tell you that a column or table does not exist, or that a value's type is wrong; the
+Cassandra server still validates that when the query runs. It targets **Cassandra 5.0 CQL**.
+
+The bias is intentional and asymmetric:
+
+- **Accepting invalid CQL is harmless**: the server rejects it at runtime anyway.
+- **Rejecting valid CQL is harmful**: it would be a compile error you could not work around on that
+  path. So when in doubt the checker accepts.
+
+You may occasionally hit a valid construct the checker rejects: a newer- or DataStax-only feature
+outside the pinned grammar, or a known gap such as a bind marker used as a function argument in the
+`SELECT` selector list (for example `similarity_cosine(v, ?)`). For those, bypass validation with the
+`unsafeCql"..."` / `unsafeCqlAsync"..."` interpolators, or `"...".toUnsafeCQL` / `toUnsafeCQLAsync`
+for a plain string. All build the statement without the check; the interpolator forms keep the usual
+bind-versus-inject behaviour, so an interpolated query need not be hand-built as a string:
+
+```scala mdoc:compile-only
+// Use these only when you are sure the CQL is valid, since it will otherwise only fail at runtime.
+
+// Interpolator form: same bind-versus-inject behaviour as `cql`, without the check.
+val byInterpolation = unsafeCql"SELECT * FROM hotels WHERE id = $hotelId"
+
+// Plain-string form:
+val byString = "SELECT * FROM hotels WHERE id = ?".toUnsafeCQL
+  .prepare[String]
+  .as[Hotel]
+```
+
 ### Reusing derived `RowMapper`s
 
 Deriving a `RowMapper` builds a nested mapper structure and computes the field-to-column

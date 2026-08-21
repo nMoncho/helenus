@@ -176,6 +176,25 @@ package object helenus extends CodecDerivation {
     ): Future[WrappedBoundStatement[Row]] =
       macro CqlQueryInterpolation.cqlAsync
 
+    /** Like [[cql]] but skips the compile-time syntactic check.
+      *
+      * Use it when an interpolated query is valid CQL that the checker wrongly rejects (a newer- or
+      * DataStax-only feature outside the pinned grammar, or a known grammar gap), so it need not be
+      * built as a plain string with `toUnsafeCQL`. The bind-versus-inject machinery is unchanged, so
+      * parameters are still bound or injected exactly as with `cql"..."`.
+      */
+    def unsafeCql(params: Any*)(implicit session: CqlSession): WrappedBoundStatement[Row] =
+      macro CqlQueryInterpolation.unsafeCql
+
+    /** Async counterpart of [[unsafeCql]]: `unsafeCqlAsync"..."` skips validation. */
+    def unsafeCqlAsync(
+        params: Any*
+    )(
+        implicit session: Future[CqlSession],
+        ec: ExecutionContext
+    ): Future[WrappedBoundStatement[Row]] =
+      macro CqlQueryInterpolation.unsafeCqlAsync
+
   }
 
   implicit class SettableByIndexOps[Self <: SettableByIndex[Self]](private val bs: Self)

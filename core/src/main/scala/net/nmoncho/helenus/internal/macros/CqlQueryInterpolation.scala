@@ -6,7 +6,6 @@
 
 package net.nmoncho.helenus.internal.macros
 
-import scala.annotation.tailrec
 import scala.annotation.unused
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
@@ -16,9 +15,9 @@ import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.cql.BoundStatement
 import com.datastax.oss.driver.api.core.cql.PreparedStatement
 import com.datastax.oss.driver.api.core.cql.Row
-import com.datastax.oss.driver.internal.core.util.Strings
 import net.nmoncho.helenus.api.cql.ScalaPreparedStatement.CQLQuery
 import net.nmoncho.helenus.api.cql.WrappedBoundStatement
+import net.nmoncho.helenus.internal.cql.BindInference
 import net.nmoncho.helenus.internal.cql.CqlValidator
 
 object CqlQueryInterpolation {
@@ -90,19 +89,30 @@ object CqlQueryInterpolation {
 
   def cql(
       c: blackbox.Context
-  )(params: c.Expr[Any]*)(session: c.Expr[CqlSession]): c.Expr[WrappedBoundStatement[Row]] = {
+  )(params: c.Expr[Any]*)(session: c.Expr[CqlSession]): c.Expr[WrappedBoundStatement[Row]] =
+    cqlImpl(c)(params: _*)(session, validate = true)
+
+  /** `unsafeCql"..."`: like `cql"..."` but skips the compile-time syntactic check
+    * Use it when an interpolated query is valid CQL the checker wrongly rejects (a
+    * newer-/DSE-only feature, or a known grammar gap) so it need not be hand-built as a string. The
+    * bind-versus-inject machinery is kept, so parameters are still bound or injected as usual.
+    */
+  def unsafeCql(
+      c: blackbox.Context
+  )(params: c.Expr[Any]*)(session: c.Expr[CqlSession]): c.Expr[WrappedBoundStatement[Row]] =
+    cqlImpl(c)(params: _*)(session, validate = false)
+
+  private def cqlImpl(
+      c: blackbox.Context
+  )(params: c.Expr[Any]*)(
+      session: c.Expr[CqlSession],
+      validate: Boolean
+  ): c.Expr[WrappedBoundStatement[Row]] = {
     import c.universe._
 
     val (stmt, bindParameters) = buildStatement(c)(params)
 
-    CqlValidator.validate(stmt) match {
-      case Right(_) => // do nothing, all good
-      case Left((error, pos)) =>
-        c.abort(
-          c.enclosingPosition.withPoint(c.enclosingPosition.point + pos),
-          s"Invalid CQL [$stmt]. Cause: $error"
-        )
-    }
+    if (validate) validateOrAbort(c)(stmt)
 
     val bstmt = c.Expr[BoundStatement](
       q"$session.prepare($stmt).bind()"
@@ -126,19 +136,30 @@ object CqlQueryInterpolation {
   )(params: c.Expr[Any]*)(
       session: c.Expr[Future[CqlSession]],
       ec: c.Expr[ExecutionContext]
+  ): c.Expr[Future[WrappedBoundStatement[Row]]] =
+    cqlAsyncImpl(c)(params: _*)(session, ec, validate = true)
+
+  /** Async counterpart of [[unsafeCql]]: `unsafeCqlAsync"..."` skips validation. */
+  def unsafeCqlAsync(
+      c: blackbox.Context
+  )(params: c.Expr[Any]*)(
+      session: c.Expr[Future[CqlSession]],
+      ec: c.Expr[ExecutionContext]
+  ): c.Expr[Future[WrappedBoundStatement[Row]]] =
+    cqlAsyncImpl(c)(params: _*)(session, ec, validate = false)
+
+  private def cqlAsyncImpl(
+      c: blackbox.Context
+  )(params: c.Expr[Any]*)(
+      session: c.Expr[Future[CqlSession]],
+      ec: c.Expr[ExecutionContext],
+      validate: Boolean
   ): c.Expr[Future[WrappedBoundStatement[Row]]] = {
     import c.universe._
 
     val (stmt, bindParameters) = buildStatement(c)(params)
 
-    CqlValidator.validate(stmt) match {
-      case Right(_) => // do nothing, all good
-      case Left((error, pos)) =>
-        c.abort(
-          c.enclosingPosition.withPoint(c.enclosingPosition.point + pos),
-          s"Invalid CQL [$stmt]. Cause: $error"
-        )
-    }
+    if (validate) validateOrAbort(c)(stmt)
 
     val pstmt = c.Expr[Future[PreparedStatement]](
       q"$session.flatMap(s => _root_.net.nmoncho.helenus.internal.compat.FutureConverters.asScala(s.prepareAsync($stmt)))"
@@ -158,6 +179,17 @@ object CqlQueryInterpolation {
 
     expr
   }
+
+  /** Runs the compile-time syntactic check, aborting with a positioned message on failure. */
+  private def validateOrAbort(c: blackbox.Context)(stmt: String): Unit =
+    CqlValidator.validate(stmt) match {
+      case Right(_) => // do nothing, all good
+      case Left((error, pos)) =>
+        c.abort(
+          c.enclosingPosition.withPoint(c.enclosingPosition.point + pos),
+          s"Invalid CQL [$stmt]. Cause: $error"
+        )
+    }
 
   /** Builds a CQL Statement, considering:
     *   - Parameters sitting where CQL takes a value become 'Named Bound Parameters'
@@ -202,85 +234,14 @@ object CqlQueryInterpolation {
       case _ => None
     })
 
-    val bound = boundParams(parts, names, injectable)
-    val cql   = interleave(parts, tokensOf(names, injectable, bound))
+    val bound = BindInference.boundParams(parts, names, injectable)
+    val cql   = BindInference.interleave(parts, BindInference.tokensOf(names, injectable, bound))
 
     val bindParameters = params.indices.collect {
       case idx if bound(idx) => names(idx) -> params(idx)
     }
 
     cql -> bindParameters
-  }
-
-  /** Decides which parameters can be bound, by asking the grammar where a bind marker fits.
-    *
-    * Every parameter starts out as a bind marker and the statement is handed to the parser as a
-    * whole. Whenever the parser rejects one, that parameter is injected into the query text
-    * instead and the statement is checked again, until the parser is happy. A parameter the
-    * parser rejects and the macro can't inject - anything that isn't a compile-time constant -
-    * is left alone, for the caller's validation to report.
-    *
-    * Each round settles one parameter for good, so this converges in at most one round per
-    * parameter.
-    *
-    * @param parts String Interpolated constant parts
-    * @param names bind marker name of each parameter
-    * @param injectable query text of each parameter that can be injected as is
-    * @return whether each parameter is to be bound
-    */
-  private def boundParams(
-      parts: Seq[String],
-      names: Seq[String],
-      injectable: Seq[Option[String]]
-  ): Seq[Boolean] = {
-    val bound = Array.fill(names.size)(true)
-
-    def statement: String = interleave(parts, tokensOf(names, injectable, bound))
-
-    // Where a parameter's text starts within the statement built out of the current decisions
-    def startOf(idx: Int): Int =
-      parts.take(idx + 1).map(_.length).sum +
-        tokensOf(names, injectable, bound).take(idx).map(_.length).sum
-
-    // A bind marker the parser accepted, but which isn't a marker at all: the caller wrapped it
-    // in quotes, so it ended up as part of a string literal rather than as a token of its own
-    def swallowed(stmt: String): Option[Int] = {
-      val markers = CqlValidator.bindMarkerOffsets(stmt)
-
-      names.indices.find(idx => bound(idx) && injectable(idx).isDefined && !markers(startOf(idx)))
-    }
-
-    // The rightmost parameter the parser could be rejecting: one that starts no later than the
-    // offending token, and that can still be injected instead. Anything further to the right
-    // can't be the cause, since parsing stops at the first error.
-    def rejected(stmt: String): Option[Int] =
-      CqlValidator.firstErrorOffset(stmt).flatMap { offset =>
-        names.indices.reverse
-          .find(idx => bound(idx) && injectable(idx).isDefined && startOf(idx) <= offset)
-      }
-
-    @tailrec
-    def settle(rounds: Int): Unit =
-      if (rounds > 0) {
-        val stmt = statement
-
-        rejected(stmt).orElse(swallowed(stmt)) match {
-          case Some(idx) =>
-            bound(idx) = false
-            settle(rounds - 1)
-
-          // Either the statement is valid, or nothing else can be injected
-          case None => ()
-        }
-      }
-
-    settle(names.size)
-
-    // A statement that can't be made valid is reported with every constant injected as the user
-    // wrote it, so that the error points at the query they typed rather than at bind markers
-    // they never asked for
-    if (CqlValidator.firstErrorOffset(statement).isEmpty) bound.toSeq
-    else injectable.map(_.isEmpty)
   }
 
   /** Name of the bind marker each parameter would use.
@@ -311,35 +272,6 @@ object CqlQueryInterpolation {
       case (None, idx) => Iterator.iterate(s"p$idx")(_ + "_").find(!taken.contains(_)).get
     }
   }
-
-  /** Text each parameter contributes to the query: a bind marker, or the constant it folds to */
-  private def tokensOf(
-      names: Seq[String],
-      injectable: Seq[Option[String]],
-      bound: Seq[Boolean]
-  ): Seq[String] =
-    names.indices.map { idx =>
-      // Only a parameter that can be injected is ever left unbound, so the fallback below is
-      // there to keep this total rather than because it can be reached
-      if (bound(idx)) bindMarker(names(idx))
-      else injectable(idx).getOrElse(bindMarker(names(idx)))
-    }
-
-  /** A named bind marker, quoted if the name calls for it */
-  private def bindMarker(name: String): String =
-    if (Strings.needsDoubleQuotes(name)) s":${Strings.doubleQuote(name)}" else s":$name"
-
-  /** Weaves the constant parts of a String Interpolation and its parameters back into a single
-    * statement
-    */
-  private def interleave(parts: Seq[String], params: Seq[String]): String =
-    parts
-      .zip(params)
-      .foldLeft(new StringBuilder()) { case (acc, (part, param)) =>
-        acc.append(part).append(param)
-      }
-      .append(parts.lastOption.getOrElse(""))
-      .toString
 
   /** Sets a Bind Parameter into a CQL BoundStatement
     *

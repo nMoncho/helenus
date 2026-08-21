@@ -403,6 +403,11 @@ class CqlValidatorSpec extends AnyFlatSpec with Matchers {
   it should "accept multi-statement BATCH" in
     valid("BEGIN BATCH INSERT INTO t (id) VALUES (?) INSERT INTO t (id) VALUES (?) APPLY BATCH")
 
+  it should "reject a BATCH missing its APPLY BATCH (A3)" in
+    // The `batchStatement` rule requires the closing `APPLY BATCH`, so an unterminated block is a
+    // syntax error rather than being silently accepted.
+    invalid("BEGIN BATCH INSERT INTO t (id) VALUES (?) INSERT INTO t (id) VALUES (?)")
+
   it should "accept token() in a WHERE relation" in
     valid("SELECT * FROM t WHERE token(id) > token(?)")
 
@@ -414,6 +419,35 @@ class CqlValidatorSpec extends AnyFlatSpec with Matchers {
 
   it should "accept WRITETIME/TTL selectors in SELECT" in
     valid("SELECT WRITETIME(name), TTL(name) FROM t WHERE id = ?")
+
+  // ---------------------------------------------------------------------------
+  // Tracked grammar gaps.
+  //
+  // Constructs the validator rejects even though Cassandra accepts them, kept here with a rationale
+  // and an escape hatch (per F2, each asserts the *current* rejection, so closing the gap fails its
+  // test and forces the docs to be updated in lockstep).
+  //
+  // Gap: a bind marker (`?` or `:name`) used as a *function argument in the SELECT selector list*
+  // (e.g. `similarity_cosine(v, ?)`). This is a direct consequence of the intentional deviation
+  // "bind markers are not valid as SELECT selectors" (see tools/antlr-import/README.md): selector
+  // function arguments resolve through `unaliasedSelector`, from which the marker alternatives were
+  // removed so the interpolator injects an identifier there rather than binding a value. Only bind
+  // markers are affected — column, constant, string and collection-literal arguments are accepted.
+  // Escape hatch: `"...".toUnsafeCQL`.
+  // ---------------------------------------------------------------------------
+
+  it should "reject a bind marker as a SELECT-selector function argument (tracked gap A4)" in {
+    invalid("SELECT id, similarity_cosine(v, ?) FROM t")
+    invalid("SELECT f(?) FROM t")
+    invalid("SELECT f(:name) FROM t")
+  }
+
+  it should "accept non-marker function arguments in SELECT-selector position (gap is marker-only)" in {
+    // Confirms the gap is narrow: everything except a bind marker is fine in this position.
+    valid("SELECT f(a) FROM t")
+    valid("SELECT f(1) FROM t")
+    valid("SELECT similarity_cosine(v, [0.1, 0.2]) FROM t")
+  }
 
   // ---------------------------------------------------------------------------
   // Bind-inference primitives: `bindMarkerOffsets` and `firstErrorOffset` drive the interpolator's

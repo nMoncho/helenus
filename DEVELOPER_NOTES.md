@@ -50,6 +50,29 @@ lexer and parser are produced (`antlr4GenListener`/`antlr4GenVisitor` are off) b
 `CqlValidator` uses only those; the ANTLR tool version is pinned to
 `Dependencies.Version.antlr4`, the same version as the `antlr4-runtime` dependency.
 
+### Tracked grammar gaps — keep the list and the tests in sync
+
+A few valid CQL constructs are knowingly rejected (for example a bind marker used as a function
+argument in the `SELECT` selector list, a knock-on of the intentional "bind markers are not
+selectors" deviation). These **tracked gaps** are recorded in two places that must agree:
+
+- the "Tracked gaps" section of `CqlValidator`'s scaladoc (the human-readable list, with the
+  `toUnsafeCQL` escape hatch), and
+- a test per gap in `CqlValidatorSpec` that asserts the **current rejection**.
+
+The rejection test is the forcing function that keeps the two in sync: if a grammar change (most
+likely a re-import from a newer Cassandra, see `tools/antlr-import/`) closes a gap, the validator
+starts accepting it and that test **fails**. When it does, do not delete the test to make it green —
+that would let the scaladoc list silently drift. Instead close the gap in lockstep:
+
+1. remove the entry from the "Tracked gaps" scaladoc list in `CqlValidator`,
+2. flip the test to assert acceptance (or delete it) and add the construct to
+   `CqlConformanceCorpus` so C1/C2 guard it going forward, and
+3. update the intentional-deviation note in `tools/antlr-import/README.md` if the gap came from one.
+
+The same convention applies in reverse: a newly discovered gap gets a scaladoc entry, a rejection
+test, and a README note together.
+
 ### CQL String Interpolation - Bind Markers vs Injected Text
 
 An interpolated parameter is either bound, or injected into the query text as is. Which one
