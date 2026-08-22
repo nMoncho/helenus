@@ -49,31 +49,32 @@ package object pekko {
       * emitted rows the retry may re-emit them; this is safe for an idempotent
       * (upsert) load, which is the migration case.
       *
+      * Ranges already recorded in `checkpoint` are skipped, and each range is marked
+      * completed once it has been fully read, so a restart resumes rather than
+      * re-scanning (see [[Checkpoint]]).
+      *
       * @param plan        the ring scan plan from [[TokenRangePlanner]]
       * @param parallelism how many ranges to read at once (defaults to the number
       *                    of available processors); values below 1 are treated as 1
       * @param rateLimit   an optional, opt-in cap on emitted rows; `None` means no cap
       * @param retry       how to retry a range that times out (defaults to halving
       *                    it up to four times)
+      * @param checkpoint  which ranges to skip and where to record completions
+      *                    (defaults to [[Checkpoint.none]], recording nothing)
       */
     def asTokenRangeReadSource(
         plan: RingPlan,
         parallelism: Int             = DefaultParallelism,
         rateLimit: Option[RateLimit] = None,
-        retry: RetryPolicy           = RetryPolicy.Default
+        retry: RetryPolicy           = RetryPolicy.Default,
+        checkpoint: Checkpoint       = Checkpoint.none
     )(implicit session: CassandraSession): Source[Out, NotUsed] = {
       val source =
         if (plan.isEmpty) {
           Source.empty[Out]
         } else {
           Source(plan.splits)
-            .flatMapMerge(
-              Math.max(1, parallelism),
-              split =>
-                readWithRetry(split.range, depth = 0, retry)(range =>
-                  rangeReadSource(boundForRange(pstmt, range))
-                )
-            )
+            .flatMapMerge(Math.max(1, parallelism), scanSplit(pstmt, _, retry, checkpoint))
         }
 
       rateLimit.fold(source)(limit => source.throttle(limit.elements, limit.per))
@@ -100,6 +101,29 @@ package object pekko {
   ): ScalaBoundStatement[Out] =
     pstmt(range.getStart, TokenRing.normalizeUpperBound(range.getEnd))
       .setRoutingToken(range.getStart)
+
+  /** Reads one split: skips it when the checkpoint already has it, otherwise reads
+    * it (with timeout retries) and marks it completed once fully read. Completion is
+    * recorded by concatenating a lazy, empty source so the mark runs in-stream after
+    * the range finishes successfully, and never on failure (`concat` does not run its
+    * second source if the first fails).
+    */
+  private def scanSplit[Out](
+      pstmt: ScalaPreparedStatement2[Token, Token, Out],
+      split: RangeSplit,
+      retry: RetryPolicy,
+      checkpoint: Checkpoint
+  )(implicit session: CassandraSession): Source[Out, NotUsed] =
+    if (checkpoint.isCompleted(split)) {
+      Source.empty[Out]
+    } else {
+      readWithRetry(split.range, depth = 0, retry)(range =>
+        rangeReadSource(boundForRange(pstmt, range))
+      ).concat(Source.lazySource { () =>
+        checkpoint.markCompleted(split)
+        Source.empty[Out]
+      })
+    }
 
   /** Reads a single range, retrying on timeout by splitting it into halves.
     *

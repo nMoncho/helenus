@@ -18,6 +18,7 @@ import com.datastax.oss.driver.api.core.metadata.token.TokenRange
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import net.nmoncho.helenus._
+import net.nmoncho.helenus.migrations.Checkpoint
 import net.nmoncho.helenus.migrations.RateLimit
 import net.nmoncho.helenus.migrations.RetryPolicy
 import net.nmoncho.helenus.migrations.RingPlan
@@ -153,6 +154,35 @@ class TokenRangePekkoReadSpec
 
       whenReady(source.runWith(Sink.seq).failed) { error =>
         error shouldBe a[TokenRangeReadException]
+      }
+    }
+
+    "skip every range already recorded in the checkpoint (A4 resume)" in withSession {
+      implicit cql =>
+        val plan = TokenRangePlanner.plan(splitsPerRange = 8)
+        // Pretend a previous run finished every range.
+        val checkpoint = Checkpoint.inMemory(plan.splits)
+
+        val source = selectByRange.toUnsafeCQL
+          .prepare[Token, Token]
+          .as[Row]
+          .asTokenRangeReadSource(plan, parallelism = 4, checkpoint = checkpoint)
+
+        whenReady(source.runWith(Sink.seq))(_ shouldBe empty)
+    }
+
+    "mark ranges completed as they finish (A4)" in withSession { implicit cql =>
+      val plan       = TokenRangePlanner.plan(splitsPerRange = 8)
+      val checkpoint = Checkpoint.inMemory()
+
+      val source = selectByRange.toUnsafeCQL
+        .prepare[Token, Token]
+        .as[Row]
+        .asTokenRangeReadSource(plan, parallelism = 4, checkpoint = checkpoint)
+
+      whenReady(source.runWith(Sink.seq)) { rows =>
+        rows.map(_.getInt("id")).toSet.size shouldBe total
+        plan.splits.foreach(split => checkpoint.isCompleted(split) shouldBe true)
       }
     }
 
