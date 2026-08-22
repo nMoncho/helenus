@@ -63,18 +63,17 @@ class FlinkMigrationSpec
     flinkCluster.before()
   }
 
-  override def afterEach(): Unit = {
+  override def afterEach(): Unit =
     try flinkCluster.after()
     finally super.afterEach()
-  }
 
   "A Flink Cassandra to Cassandra migration" should {
 
     "read every row via the token-range source and load it into the target" in {
       // Bind table names and config to locals so the source/sink builders do not
       // capture the (non-serializable) test instance in the Flink job graph.
-      val sourceTable = source
-      val targetTable = target
+      val sourceTable  = source
+      val targetTable  = target
       val driverConfig = cassandraConfig
 
       val env = StreamExecutionEnvironment.getExecutionEnvironment.setParallelism(2)
@@ -90,7 +89,8 @@ class FlinkMigrationSpec
 
       stream.addCassandraSink(
         (s: CqlSession) =>
-          s"INSERT INTO $targetTable (id, v) VALUES (?, ?)".toUnsafeCQL(s)
+          s"INSERT INTO $targetTable (id, v) VALUES (?, ?)"
+            .toUnsafeCQL(s)
             .prepare[Int, String]
             .from[Migrated],
         CassandraSink.Config().copy(config = driverConfig)
@@ -98,7 +98,9 @@ class FlinkMigrationSpec
 
       env.execute()
 
-      val migrated = execute(s"SELECT id, v FROM $target").iterator().asScala
+      val migrated = execute(s"SELECT id, v FROM $target")
+        .iterator()
+        .asScala
         .map(row => row.getInt("id") -> row.getString("v"))
         .toMap
 
