@@ -42,7 +42,7 @@ package object pekko {
       *
       * There is no default rate cap: with `rateLimit` left as `None` the scan runs
       * as fast as the cluster and backpressure allow. Pass a [[RateLimit]] only to
-      * deliberately shape the rate (see B3 in PLAN_MIGRATION.md).
+      * deliberately shape the rate.
       *
       * A range that times out is retried by splitting it into halves per `retry`.
       * A retry re-reads the range from the start, so for a range that had already
