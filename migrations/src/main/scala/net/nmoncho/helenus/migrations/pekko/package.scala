@@ -6,6 +6,8 @@
 
 package net.nmoncho.helenus.migrations
 
+import java.util.concurrent.atomic.AtomicReference
+
 import _root_.net.nmoncho.helenus.api.cql.ScalaBoundStatement
 import _root_.net.nmoncho.helenus.internal.cql.ScalaPreparedStatement2
 import _root_.org.apache.pekko.NotUsed
@@ -68,6 +70,8 @@ package object pekko {
       *                         (defaults to [[Checkpoint.none]], recording nothing)
       * @param executionProfile optional driver execution profile name for the read
       *                         statements; `None` uses the session default
+      * @param metrics          observability callback for extracted rows, range
+      *                         completions, and range failures (defaults to a no-op)
       */
     def asTokenRangeReadSource(
         plan: RingPlan,
@@ -75,18 +79,25 @@ package object pekko {
         rateLimit: Option[RateLimit]     = None,
         retry: RetryPolicy               = RetryPolicy.Default,
         checkpoint: Checkpoint           = Checkpoint.none,
-        executionProfile: Option[String] = None
+        executionProfile: Option[String] = None,
+        metrics: MigrationMetrics        = MigrationMetrics.none
     )(implicit session: CassandraSession): Source[Out, NotUsed] = {
-      val source =
+      val progress = new AtomicReference(RingProgress(plan))
+
+      val scanned =
         if (plan.isEmpty) {
           Source.empty[Out]
         } else {
           Source(plan.splits)
             .flatMapMerge(
               Math.max(1, parallelism),
-              scanSplit(pstmt, _, retry, checkpoint, executionProfile)
+              scanSplit(pstmt, _, retry, checkpoint, executionProfile, metrics, progress)
             )
         }
+
+      val source = scanned
+        .map { row => metrics.rowExtracted(); row }
+        .mapError { case error => metrics.rangeFailed(error); error }
 
       rateLimit.fold(source)(limit => source.throttle(limit.elements, limit.per))
     }
@@ -134,15 +145,20 @@ package object pekko {
       split: RangeSplit,
       retry: RetryPolicy,
       checkpoint: Checkpoint,
-      executionProfile: Option[String]
+      executionProfile: Option[String],
+      metrics: MigrationMetrics,
+      progress: AtomicReference[RingProgress]
   )(implicit session: CassandraSession): Source[Out, NotUsed] =
     if (checkpoint.isCompleted(split)) {
+      // Already done on a previous run: advance progress but do not re-read.
+      metrics.rangeCompleted(progress.updateAndGet(_.completing(split)))
       Source.empty[Out]
     } else {
       readWithRetry(split.range, depth = 0, retry)(range =>
         rangeReadSource(boundForRange(pstmt, range, executionProfile))
       ).concat(Source.lazySource { () =>
         checkpoint.markCompleted(split)
+        metrics.rangeCompleted(progress.updateAndGet(_.completing(split)))
         Source.empty[Out]
       })
     }

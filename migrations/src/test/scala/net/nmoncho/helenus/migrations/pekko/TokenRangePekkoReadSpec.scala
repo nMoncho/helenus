@@ -7,6 +7,8 @@
 package net.nmoncho.helenus.migrations.pekko
 
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 
 import scala.concurrent.duration._
 
@@ -19,9 +21,11 @@ import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import net.nmoncho.helenus._
 import net.nmoncho.helenus.migrations.Checkpoint
+import net.nmoncho.helenus.migrations.MigrationMetrics
 import net.nmoncho.helenus.migrations.RateLimit
 import net.nmoncho.helenus.migrations.RetryPolicy
 import net.nmoncho.helenus.migrations.RingPlan
+import net.nmoncho.helenus.migrations.RingProgress
 import net.nmoncho.helenus.migrations.TokenRangePlanner
 import net.nmoncho.helenus.migrations.TokenRangeReadException
 import net.nmoncho.helenus.utils.CassandraSpec
@@ -186,25 +190,45 @@ class TokenRangePekkoReadSpec
       }
     }
 
-    "read under a named execution profile and still read every row" in withSession {
+    "read under a named execution profile and still read every row" in withSession { implicit cql =>
+      val plan  = TokenRangePlanner.plan(splitsPerRange = 8)
+      val pstmt = selectByRange.toUnsafeCQL.prepare[Token, Token].as[Row]
+
+      // Each bound range statement carries the requested profile.
+      pstmt
+        .tokenRangeStatement(plan.splits.head, executionProfile = Some("migration-read"))
+        .getExecutionProfileName shouldBe "migration-read"
+
+      // And reading under that profile (LOCAL_ONE) still returns everything.
+      val source = pstmt.asTokenRangeReadSource(
+        plan,
+        parallelism      = 4,
+        executionProfile = Some("migration-read")
+      )
+
+      whenReady(source.runWith(Sink.seq)) { rows =>
+        rows.map(_.getInt("id")).toSet.size shouldBe total
+      }
+    }
+
+    "report extracted rows, loads, and progress through the metrics hook" in withSession {
       implicit cql =>
-        val plan  = TokenRangePlanner.plan(splitsPerRange = 8)
-        val pstmt = selectByRange.toUnsafeCQL.prepare[Token, Token].as[Row]
+        val plan    = TokenRangePlanner.plan(splitsPerRange = 8)
+        val metrics = new RecordingMetrics
 
-        // Each bound range statement carries the requested profile.
-        pstmt
-          .tokenRangeStatement(plan.splits.head, executionProfile = Some("migration-read"))
-          .getExecutionProfileName shouldBe "migration-read"
+        val ids = selectByRange.toUnsafeCQL
+          .prepare[Token, Token]
+          .as[Row]
+          .asTokenRangeReadSource(plan, parallelism = 4, metrics = metrics)
+          .map { row => metrics.rowLoaded(); row.getInt("id") } // the "load" stage
 
-        // And reading under that profile (LOCAL_ONE) still returns everything.
-        val source = pstmt.asTokenRangeReadSource(
-          plan,
-          parallelism      = 4,
-          executionProfile = Some("migration-read")
-        )
-
-        whenReady(source.runWith(Sink.seq)) { rows =>
-          rows.map(_.getInt("id")).toSet.size shouldBe total
+        whenReady(ids.runWith(Sink.seq)) { result =>
+          result.size shouldBe total
+          metrics.extracted.get() shouldBe total
+          metrics.loaded.get() shouldBe total
+          metrics.failures.get() shouldBe 0
+          metrics.ranges.get() shouldBe plan.splits.size
+          metrics.maxFraction shouldBe (1.0 +- 1e-6)
         }
     }
 
@@ -216,6 +240,26 @@ class TokenRangePekkoReadSpec
 
       whenReady(source.runWith(Sink.seq))(_ shouldBe empty)
     }
+  }
+
+  private final class RecordingMetrics extends MigrationMetrics {
+    val extracted = new AtomicInteger(0)
+    val loaded    = new AtomicInteger(0)
+    val ranges    = new AtomicInteger(0)
+    val failures  = new AtomicInteger(0)
+
+    private val maxFrac     = new AtomicReference[Double](0.0)
+    def maxFraction: Double = maxFrac.get()
+
+    def rowExtracted(): Unit = { val _ = extracted.incrementAndGet() }
+    def rowLoaded(): Unit    = { val _ = loaded.incrementAndGet() }
+
+    def rangeCompleted(progress: RingProgress): Unit = {
+      val _ = ranges.incrementAndGet()
+      val _ = maxFrac.updateAndGet(current => math.max(current, progress.fraction))
+    }
+
+    def rangeFailed(error: Throwable): Unit = { val _ = failures.incrementAndGet() }
   }
 
   private def withSession(fn: CqlSession => Unit): Unit = {
