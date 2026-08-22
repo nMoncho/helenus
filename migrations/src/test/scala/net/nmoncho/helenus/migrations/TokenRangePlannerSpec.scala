@@ -9,12 +9,35 @@ package net.nmoncho.helenus.migrations
 import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.metadata.token.TokenRange
 import net.nmoncho.helenus.utils.CassandraSpec
+import org.scalacheck.Gen
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
-class TokenRangePlannerSpec extends AnyWordSpec with Matchers with CassandraSpec {
+class TokenRangePlannerSpec
+    extends AnyWordSpec
+    with Matchers
+    with CassandraSpec
+    with ScalaCheckDrivenPropertyChecks {
 
   private implicit def implicitSession: CqlSession = session
+
+  // Building a plan hits the cluster metadata, so keep the sample count modest.
+  implicit override val generatorDrivenConfig: PropertyCheckConfiguration =
+    PropertyCheckConfiguration(minSuccessful = 12)
+
+  /** True when the plan's ranges tile the ring: sorted, each end meets the next
+    * start and the last wraps back to the first, so there are no gaps or overlaps.
+    */
+  private def tilesTheRing(plan: RingPlan): Boolean = {
+    val ranges   = plan.splits.map(_.range).sortWith((a, b) => a.compareTo(b) < 0)
+    val adjacent = ranges.sliding(2).forall {
+      case Seq(a, b) => a.getEnd == b.getStart
+      case _ => true
+    }
+
+    adjacent && ranges.last.getEnd == ranges.head.getStart
+  }
 
   "TokenRangePlanner" should {
 
@@ -64,6 +87,17 @@ class TokenRangePlannerSpec extends AnyWordSpec with Matchers with CassandraSpec
       plan.size shouldBe 1
       plan.splits.head.weight shouldBe BigDecimal(1)
       plan.splits.head.range shouldBe a[TokenRange]
+    }
+
+    "cover the ring exactly once for any split factor (property)" in {
+      forAll(Gen.choose(1, 16)) { splitsPerRange =>
+        val plan = TokenRangePlanner.plan(splitsPerRange)
+
+        plan.isEmpty shouldBe false
+        tilesTheRing(plan) shouldBe true
+        plan.totalWeight.toDouble shouldBe (1.0 +- 0.001)
+        plan.splits.foreach(_.replica should not be empty)
+      }
     }
   }
 }

@@ -17,7 +17,6 @@ import com.datastax.oss.driver.api.core.metadata.token.Token
 import com.datastax.oss.driver.api.core.metadata.token.TokenRange
 import com.datastax.oss.driver.internal.core.metadata.token.Murmur3Token
 import com.datastax.oss.driver.internal.core.metadata.token.Murmur3TokenRange
-import com.datastax.oss.driver.internal.core.metadata.token.RandomToken
 
 /** One planned token range to scan.
   *
@@ -150,62 +149,4 @@ object TokenRangePlanner {
 
   private val EntireMurmur3Ring: TokenRange =
     new Murmur3TokenRange(new Murmur3Token(Long.MinValue), new Murmur3Token(Long.MinValue))
-
-  /** Measures the fraction of the ring a range covers, per partitioner. */
-  private sealed trait RingMath {
-    def weight(range: TokenRange): BigDecimal
-  }
-
-  private object RingMath {
-
-    private val Murmur3RingSize: BigDecimal = BigDecimal(2).pow(64)
-    private val Murmur3Max: BigDecimal      = BigDecimal(Long.MaxValue)
-    private val RandomRingSize: BigDecimal  = BigDecimal(2).pow(127)
-
-    /** Selects a measurement strategy from the plan's ranges. Murmur3 and Random
-      * are measured exactly; anything else falls back to uniform weighting so an
-      * unknown partitioner produces a usable plan instead of throwing.
-      */
-    def forRanges(ranges: Vector[TokenRange]): RingMath =
-      ranges.headOption.map(_.getStart) match {
-        case Some(_: Murmur3Token) => Murmur3
-        case Some(_: RandomToken) => Random
-        case _ => Uniform(ranges.size)
-      }
-
-    private case object Murmur3 extends RingMath {
-      def weight(range: TokenRange): BigDecimal = (range.getStart, range.getEnd) match {
-        case (start: Murmur3Token, end: Murmur3Token) =>
-          // The minimum token doubles as the ring's wrap sentinel, so an end at
-          // the minimum means "up to the maximum token".
-          val endValue =
-            if (end.getValue == Long.MinValue) Murmur3Max else BigDecimal(end.getValue)
-
-          ((endValue - BigDecimal(start.getValue)) / Murmur3RingSize).abs
-
-        case _ => BigDecimal(0)
-      }
-    }
-
-    private case object Random extends RingMath {
-      def weight(range: TokenRange): BigDecimal = (range.getStart, range.getEnd) match {
-        case (start: RandomToken, end: RandomToken) =>
-          val length   = BigDecimal(BigInt(end.getValue)) - BigDecimal(BigInt(start.getValue))
-          val positive = if (length <= 0) length + RandomRingSize else length
-
-          (positive / RandomRingSize).abs
-
-        case _ => BigDecimal(0)
-      }
-    }
-
-    private final case class Uniform(count: Int) extends RingMath {
-      private val each: BigDecimal = if (count <= 0) BigDecimal(0) else BigDecimal(1) / count
-
-      def weight(range: TokenRange): BigDecimal = {
-        val _ = range
-        each
-      }
-    }
-  }
 }

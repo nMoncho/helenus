@@ -15,7 +15,7 @@ import net.nmoncho.helenus.utils.CassandraSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-/** A2: the token-range read path binds `Token` bounds with the core token codec
+/** The token-range read path binds `Token` bounds with the core token codec
   * (from `import net.nmoncho.helenus._`), so no hand-rolled codec is needed.
   */
 class TokenCodecReadSpec extends AnyWordSpec with Matchers with CassandraSpec {
@@ -68,7 +68,7 @@ class TokenCodecReadSpec extends AnyWordSpec with Matchers with CassandraSpec {
   }
 
   /** The range ending at the ring's minimum token represents "up to the maximum
-    * token", so its upper bound must be left open. Executors (B1) handle this seam.
+    * token", so its upper bound must be left open. Executors handle this seam.
     */
   private def endsAtRingMinimum(end: Token): Boolean = end match {
     case m: Murmur3Token => m.getValue == Long.MinValue

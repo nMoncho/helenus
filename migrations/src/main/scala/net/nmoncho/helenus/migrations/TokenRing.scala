@@ -6,7 +6,10 @@
 
 package net.nmoncho.helenus.migrations
 
+import scala.jdk.CollectionConverters._
+
 import com.datastax.oss.driver.api.core.metadata.token.Token
+import com.datastax.oss.driver.api.core.metadata.token.TokenRange
 import com.datastax.oss.driver.internal.core.metadata.token.Murmur3Token
 
 /** Internal helpers shared by the per-backend executors. */
@@ -32,4 +35,17 @@ private[migrations] object TokenRing {
     case murmur3: Murmur3Token if murmur3.getValue == Long.MinValue => Murmur3Max
     case other => other
   }
+
+  /** Splits a range into halves (partitioner-agnostic via the driver), unwrapping
+    * any that wrap and dropping empties. Used to retry a range that times out on
+    * read. Returns fewer than two ranges only when the range can no longer be
+    * split, which the caller treats as "cannot retry further".
+    */
+  def halve(range: TokenRange): Vector[TokenRange] =
+    range
+      .splitEvenly(2)
+      .asScala
+      .toVector
+      .flatMap(sub => if (sub.isEmpty) Vector.empty[TokenRange] else sub.unwrap().asScala.toVector)
+      .filterNot(_.isEmpty)
 }
