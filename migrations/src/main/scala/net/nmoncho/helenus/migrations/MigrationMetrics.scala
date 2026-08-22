@@ -36,9 +36,9 @@ object MigrationMetrics {
 
   /** A metrics sink that records nothing. */
   val none: MigrationMetrics = new MigrationMetrics {
-    def rowExtracted(): Unit                          = ()
-    def rowLoaded(): Unit                             = ()
-    def rangeCompleted(progress: RingProgress): Unit  = ()
-    def rangeFailed(error: Throwable): Unit           = ()
+    def rowExtracted(): Unit                         = ()
+    def rowLoaded(): Unit                            = ()
+    def rangeCompleted(progress: RingProgress): Unit = ()
+    def rangeFailed(error: Throwable): Unit          = ()
   }
 }

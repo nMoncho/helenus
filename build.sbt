@@ -372,6 +372,9 @@ lazy val migrations = project
     scalaVersion := Dependencies.Version.scala213,
     crossScalaVersions := List(Dependencies.Version.scala213),
     Test / testOptions += Tests.Setup(() => EmbeddedDatabase.start()),
+    // Forked tests: the Flink MiniCluster tests need process isolation, matching the
+    // `flink` module. Embedded Cassandra runs in the sbt JVM and tests connect over 9142.
+    Test / fork := true,
     // Brand-new artifact: there is no previously published version to check
     // against yet.
     // TODO Pin `mimaPreviousArtifacts` after the first release.
@@ -402,12 +405,14 @@ lazy val migrations = project
       Dependencies.logback       % Test,
       Dependencies.pekkoTestKit  % Test,
       // Adding this until Alpakka aligns version with Pekko TestKit
-      "org.apache.pekko" %% "pekko-stream" % Dependencies.Version.pekkoTestKit % Test
+      "org.apache.pekko"         %% "pekko-stream" % Dependencies.Version.pekkoTestKit % Test,
+      Dependencies.flinkTestUtils % Test
     )
   )
   .dependsOn(
     core  % "compile->compile;test->test",
-    pekko % Provided
+    pekko % Provided,
+    flink % Provided
   )
 
 lazy val tables = project
