@@ -25,7 +25,7 @@ lazy val root = project
     mimaFailOnNoPrevious := false,
     Test / testOptions += Tests.Setup(() => EmbeddedDatabase.start())
   )
-  .aggregate(docs, core, bench, akka, akkaBusl, flink, monix, pekko, tables, zio)
+  .aggregate(docs, core, bench, akka, akkaBusl, flink, migrations, monix, pekko, tables, zio)
 
 lazy val basicSettings = Seq(
   organization := "net.nmoncho",
@@ -362,6 +362,48 @@ lazy val pekko = project
       Dependencies.pekkoTestKit   % Test,
       // Adding this until Alpakka aligns version with Pekko TestKit
       "org.apache.pekko" %% "pekko-stream" % Dependencies.Version.pekkoTestKit
+    )
+  )
+
+lazy val migrations = project
+  .settings(basicSettings)
+  .dependsOn(core % "compile->compile;test->test")
+  .settings(
+    name := "helenus-migrations",
+    scalaVersion := Dependencies.Version.scala213,
+    crossScalaVersions := List(Dependencies.Version.scala213),
+    Test / testOptions += Tests.Setup(() => EmbeddedDatabase.start()),
+    // Brand-new artifact: there is no previously published version to check
+    // against yet.
+    // TODO Pin `mimaPreviousArtifacts` after the first release.
+    mimaFailOnNoPrevious := false,
+    mimaPreviousArtifacts := Set.empty,
+    libraryDependencies ++= Seq(
+      Dependencies.ossJavaDriver % Provided,
+      // Every supported backend is a Provided dependency: a user adds
+      // `helenus-migrations` plus the one backend they already use, and the
+      // executors they do not use are never loaded. Akka BUSL is intentionally
+      // excluded because of BUSL.
+      // cannot coexist with it in a single module.
+      Dependencies.pekkoConnector     % "provided,test",
+      Dependencies.alpakka            % "provided,test",
+      Dependencies.monix              % "provided,test",
+      Dependencies.monixReactive      % "provided,test",
+      Dependencies.zio                % "provided,test",
+      Dependencies.zioStreams         % "provided,test",
+      Dependencies.zioStreamsInterop  % "provided,test",
+      Dependencies.flinkCore          % "provided,test",
+      Dependencies.flinkStreamingJava % "provided,test",
+      Dependencies.flinkConnectorBase % "provided,test",
+      // Test dependencies. Per-backend test kits (Akka, Monix, ZIO, Flink) are
+      // added alongside their executors (B6, B7); Pekko lands first (Milestone 1).
+      Dependencies.scalaTest     % Test,
+      Dependencies.scalaCheck    % Test,
+      Dependencies.scalaTestPlus % Test,
+      Dependencies.logback       % Test,
+      Dependencies.pekkoTestKit  % Test,
+      // Adding this until Alpakka aligns version with Pekko TestKit
+      "org.apache.pekko" %% "pekko-stream" % Dependencies.Version.pekkoTestKit % Test
     )
   )
 
