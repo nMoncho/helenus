@@ -25,10 +25,7 @@ import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
   * model records the expected decision for each slot, which the property checks against, and then
   * asserts the emitted statement is valid CQL.
   */
-class CqlBindInferenceSpec
-    extends AnyFlatSpec
-    with Matchers
-    with ScalaCheckDrivenPropertyChecks {
+class CqlBindInferenceSpec extends AnyFlatSpec with Matchers with ScalaCheckDrivenPropertyChecks {
 
   import CqlBindInferenceSpec._
 
@@ -116,7 +113,7 @@ class CqlBindInferenceSpec
     forAll(genStatement) { frags =>
       val r = render(frags)
       BindInference.boundParams(r.parts, r.names, r.injectable) shouldBe
-        BindInference.boundParams(r.parts, r.names, r.injectable)
+      BindInference.boundParams(r.parts, r.names, r.injectable)
     }
 }
 
@@ -124,7 +121,7 @@ object CqlBindInferenceSpec {
 
   /** A fragment of a modelled interpolation. */
   sealed trait Frag
-  final case class Lit(text: String)  extends Frag // constant text
+  final case class Lit(text: String) extends Frag // constant text
   final case class IdSlot(text: String) extends Frag // interpolated identifier (injectable)
   final case class ValSlot(injectable: Option[String]) extends Frag // interpolated value (bound)
 
@@ -152,9 +149,9 @@ object CqlBindInferenceSpec {
     }
 
     frags.foreach {
-      case Lit(t)      => parts(parts.size - 1) = parts.last + t
-      case IdSlot(t)   => slot(s"c${names.size}", Some(t), bound = false) // identifier → injected
-      case ValSlot(oi) => slot(s"v${names.size}", oi, bound = true)       // value → bound
+      case Lit(t) => parts(parts.size - 1) = parts.last + t
+      case IdSlot(t) => slot(s"c${names.size}", Some(t), bound = false) // identifier → injected
+      case ValSlot(oi) => slot(s"v${names.size}", oi, bound = true) // value → bound
     }
 
     Rendered(parts.toSeq, names.toSeq, injectable.toSeq, expected.toSeq)
@@ -162,8 +159,29 @@ object CqlBindInferenceSpec {
 
   private val safeIdent: Gen[String] =
     Gen.oneOf(
-      "id", "name", "email", "a", "b", "c", "x", "y", "data", "ts", "n", "m", "l", "s", "tags",
-      "addr", "score", "amount", "status", "code", "col", "tbl", "pk"
+      "id",
+      "name",
+      "email",
+      "a",
+      "b",
+      "c",
+      "x",
+      "y",
+      "data",
+      "ts",
+      "n",
+      "m",
+      "l",
+      "s",
+      "tags",
+      "addr",
+      "score",
+      "amount",
+      "status",
+      "code",
+      "col",
+      "tbl",
+      "pk"
     )
 
   private val safeLiteral: Gen[String] =
@@ -201,15 +219,15 @@ object CqlBindInferenceSpec {
 
   private val select: Gen[Seq[Frag]] =
     for {
-      sel   <- selectors
-      tbl   <- idFrag
+      sel <- selectors
+      tbl <- idFrag
       where <- Gen.oneOf(Gen.const(Seq.empty[Frag]), whereClause)
     } yield Seq[Frag](Lit("SELECT ")) ++ sel ++ Seq(Lit(" FROM ")) ++ tbl ++ where
 
   private val insert: Gen[Seq[Frag]] =
     for {
-      tbl  <- idFrag
-      k    <- Gen.choose(1, 4)
+      tbl <- idFrag
+      k <- Gen.choose(1, 4)
       cols <- Gen.listOfN(k, idFrag)
       vals <- Gen.listOfN(k, valSlot)
     } yield Seq[Frag](Lit("INSERT INTO ")) ++ tbl ++ Seq(Lit(" (")) ++ joinFrags(cols, ", ") ++
@@ -217,15 +235,14 @@ object CqlBindInferenceSpec {
 
   private val update: Gen[Seq[Frag]] =
     for {
-      tbl   <- idFrag
-      k     <- Gen.choose(1, 3)
-      sets  <- Gen.listOfN(k, for { c <- idFrag; v <- valSlot } yield c ++ Seq(Lit(" = "), v))
+      tbl <- idFrag
+      k <- Gen.choose(1, 3)
+      sets <- Gen.listOfN(k, for { c <- idFrag; v <- valSlot } yield c ++ Seq(Lit(" = "), v))
       where <- whereClause
     } yield Seq[Frag](Lit("UPDATE ")) ++ tbl ++ Seq(Lit(" SET ")) ++ joinFrags(sets, ", ") ++ where
 
   private val delete: Gen[Seq[Frag]] =
-    for { tbl <- idFrag; where <- whereClause }
-      yield Seq[Frag](Lit("DELETE FROM ")) ++ tbl ++ where
+    for { tbl <- idFrag; where <- whereClause } yield Seq[Frag](Lit("DELETE FROM ")) ++ tbl ++ where
 
   val genStatement: Gen[Seq[Frag]] = Gen.oneOf(select, insert, update, delete)
 }
