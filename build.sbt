@@ -367,7 +367,6 @@ lazy val pekko = project
 
 lazy val migrations = project
   .settings(basicSettings)
-  .dependsOn(core % "compile->compile;test->test")
   .settings(
     name := "helenus-migrations",
     scalaVersion := Dependencies.Version.scala213,
@@ -405,6 +404,10 @@ lazy val migrations = project
       // Adding this until Alpakka aligns version with Pekko TestKit
       "org.apache.pekko" %% "pekko-stream" % Dependencies.Version.pekkoTestKit % Test
     )
+  )
+  .dependsOn(
+    core  % "compile->compile;test->test",
+    pekko % Provided
   )
 
 lazy val tables = project
