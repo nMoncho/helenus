@@ -16,7 +16,7 @@ class WriteTimeTtlSpec extends AnyWordSpec with Matchers {
 
     "take the max writetime and the smallest positive TTL" in {
       WriteTimeTtl.rowLevel(Seq(10L, 30L, 20L), Seq(Some(100), None, Some(50))) shouldBe
-        WriteTimeTtl(30L, Some(50))
+      WriteTimeTtl(30L, Some(50))
     }
 
     "yield no TTL when no cell has a positive TTL" in {

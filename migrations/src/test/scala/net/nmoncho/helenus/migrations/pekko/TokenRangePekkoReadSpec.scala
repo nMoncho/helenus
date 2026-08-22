@@ -186,6 +186,28 @@ class TokenRangePekkoReadSpec
       }
     }
 
+    "read under a named execution profile and still read every row" in withSession {
+      implicit cql =>
+        val plan  = TokenRangePlanner.plan(splitsPerRange = 8)
+        val pstmt = selectByRange.toUnsafeCQL.prepare[Token, Token].as[Row]
+
+        // Each bound range statement carries the requested profile.
+        pstmt
+          .tokenRangeStatement(plan.splits.head, executionProfile = Some("migration-read"))
+          .getExecutionProfileName shouldBe "migration-read"
+
+        // And reading under that profile (LOCAL_ONE) still returns everything.
+        val source = pstmt.asTokenRangeReadSource(
+          plan,
+          parallelism      = 4,
+          executionProfile = Some("migration-read")
+        )
+
+        whenReady(source.runWith(Sink.seq)) { rows =>
+          rows.map(_.getInt("id")).toSet.size shouldBe total
+        }
+    }
+
     "return an empty source for an empty plan" in withSession { implicit cql =>
       val source = selectByRange.toUnsafeCQL
         .prepare[Token, Token]
@@ -207,6 +229,8 @@ class TokenRangePekkoReadSpec
                     |  contact-points = ["$contactPoint"]
                     |  session-keyspace = "$keyspace"
                     |  load-balancing-policy.local-datacenter = "datacenter1"
-                    |}""".stripMargin)
+                    |}
+                    |datastax-java-driver.profiles.migration-read.basic.request.consistency = LOCAL_ONE
+                    |""".stripMargin)
     .withFallback(ConfigFactory.load())
 }

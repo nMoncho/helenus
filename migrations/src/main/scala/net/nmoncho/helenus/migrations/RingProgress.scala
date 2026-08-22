@@ -31,7 +31,10 @@ final case class RingProgress(
   /** Per-replica progress in `[0.0, 1.0]`, keyed as in [[RingProgress.replicaKey]]. */
   def fractionByReplica: Map[String, Double] =
     totalByReplica.map { case (replica, total) =>
-      replica -> RingProgress.fractionOf(completedByReplica.getOrElse(replica, BigDecimal(0)), total)
+      replica -> RingProgress.fractionOf(
+        completedByReplica.getOrElse(replica, BigDecimal(0)),
+        total
+      )
     }
 
   /** Returns a new snapshot with `split`'s weight folded into the totals. */
@@ -39,7 +42,7 @@ final case class RingProgress(
     val replica = RingProgress.replicaKey(split)
 
     copy(
-      completedWeight = completedWeight + split.weight,
+      completedWeight    = completedWeight + split.weight,
       completedByReplica = completedByReplica.updated(
         replica,
         completedByReplica.getOrElse(replica, BigDecimal(0)) + split.weight

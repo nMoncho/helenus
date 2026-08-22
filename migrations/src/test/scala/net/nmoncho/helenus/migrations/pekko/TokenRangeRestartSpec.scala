@@ -47,8 +47,8 @@ class TokenRangeRestartSpec extends AnyWordSpec with Matchers with CassandraSpec
 
   private val source        = "e3_source"
   private val target        = "e3_target"
-  private val migrationName  = "e3-restart"
-  private val total          = 200
+  private val migrationName = "e3-restart"
+  private val total         = 200
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -76,7 +76,7 @@ class TokenRangeRestartSpec extends AnyWordSpec with Matchers with CassandraSpec
 
     "finish the remaining ranges without redoing the completed ones" in withSession {
       implicit cql =>
-        val plan          = TokenRangePlanner.plan(splitsPerRange = 8)
+        val plan           = TokenRangePlanner.plan(splitsPerRange = 8)
         val (firstHalf, _) = plan.splits.splitAt(plan.splits.size / 2)
 
         // Phase 1: an interrupted run that only got through the first half of the ring.
@@ -84,7 +84,7 @@ class TokenRangeRestartSpec extends AnyWordSpec with Matchers with CassandraSpec
         val readInPhase1 = migrate(RingPlan(firstHalf), checkpoint1)
         val afterPhase1  = targetCount(cql)
 
-        afterPhase1 should be > 0     // it made real progress
+        afterPhase1 should be > 0 // it made real progress
         afterPhase1 should be < total // but did not finish
         readInPhase1 shouldBe afterPhase1
 
@@ -93,8 +93,8 @@ class TokenRangeRestartSpec extends AnyWordSpec with Matchers with CassandraSpec
         val checkpoint2  = Checkpoint.cassandra(cql, migrationName)
         val readInPhase2 = migrate(plan, checkpoint2)
 
-        targetCount(cql) shouldBe total                 // the migration is now complete
-        readInPhase2 shouldBe (total - afterPhase1)     // phase 2 did not redo the first half
+        targetCount(cql) shouldBe total // the migration is now complete
+        readInPhase2 shouldBe (total - afterPhase1) // phase 2 did not redo the first half
     }
   }
 

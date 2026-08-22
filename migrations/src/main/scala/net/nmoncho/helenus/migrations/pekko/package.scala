@@ -53,38 +53,53 @@ package object pekko {
       * completed once it has been fully read, so a restart resumes rather than
       * re-scanning (see [[Checkpoint]]).
       *
-      * @param plan        the ring scan plan from [[TokenRangePlanner]]
-      * @param parallelism how many ranges to read at once (defaults to the number
-      *                    of available processors); values below 1 are treated as 1
-      * @param rateLimit   an optional, opt-in cap on emitted rows; `None` means no cap
-      * @param retry       how to retry a range that times out (defaults to halving
-      *                    it up to four times)
-      * @param checkpoint  which ranges to skip and where to record completions
-      *                    (defaults to [[Checkpoint.none]], recording nothing)
+      * Pass `executionProfile` to run the reads under a named driver execution
+      * profile, for example a lower read consistency for throughput. The write side
+      * sets its own profile on its sink, so read and write consistency stay
+      * independent (a common pattern is `LOCAL_ONE` reads and `LOCAL_QUORUM` writes).
+      *
+      * @param plan             the ring scan plan from [[TokenRangePlanner]]
+      * @param parallelism      how many ranges to read at once (defaults to the
+      *                         number of available processors); below 1 means 1
+      * @param rateLimit        an optional, opt-in cap on emitted rows; `None` = no cap
+      * @param retry            how to retry a range that times out (defaults to
+      *                         halving it up to four times)
+      * @param checkpoint       which ranges to skip and where to record completions
+      *                         (defaults to [[Checkpoint.none]], recording nothing)
+      * @param executionProfile optional driver execution profile name for the read
+      *                         statements; `None` uses the session default
       */
     def asTokenRangeReadSource(
         plan: RingPlan,
-        parallelism: Int             = DefaultParallelism,
-        rateLimit: Option[RateLimit] = None,
-        retry: RetryPolicy           = RetryPolicy.Default,
-        checkpoint: Checkpoint       = Checkpoint.none
+        parallelism: Int                 = DefaultParallelism,
+        rateLimit: Option[RateLimit]     = None,
+        retry: RetryPolicy               = RetryPolicy.Default,
+        checkpoint: Checkpoint           = Checkpoint.none,
+        executionProfile: Option[String] = None
     )(implicit session: CassandraSession): Source[Out, NotUsed] = {
       val source =
         if (plan.isEmpty) {
           Source.empty[Out]
         } else {
           Source(plan.splits)
-            .flatMapMerge(Math.max(1, parallelism), scanSplit(pstmt, _, retry, checkpoint))
+            .flatMapMerge(
+              Math.max(1, parallelism),
+              scanSplit(pstmt, _, retry, checkpoint, executionProfile)
+            )
         }
 
       rateLimit.fold(source)(limit => source.throttle(limit.elements, limit.per))
     }
 
-    /** Binds one [[RangeSplit]] into a routing-aware bound statement. Exposed for
-      * testing and advanced use; see [[boundForRange]] for the details.
+    /** Binds one [[RangeSplit]] into a routing-aware bound statement, optionally under
+      * a named execution profile. Exposed for testing and advanced use; see
+      * [[boundForRange]] for the details.
       */
-    def tokenRangeStatement(split: RangeSplit): ScalaBoundStatement[Out] =
-      boundForRange(pstmt, split.range)
+    def tokenRangeStatement(
+        split: RangeSplit,
+        executionProfile: Option[String] = None
+    ): ScalaBoundStatement[Out] =
+      boundForRange(pstmt, split.range, executionProfile)
   }
 
   /** Binds a [[TokenRange]] into a routing-aware bound statement.
@@ -93,14 +108,20 @@ package object pekko {
     * so the wrap seam is not dropped ([[TokenRing.normalizeUpperBound]]), and the
     * routing token is set to the range start so the driver routes the query to an
     * owning replica (the routing keyspace comes from the prepared statement, hence
-    * the session keyspace).
+    * the session keyspace). When `executionProfile` is set, the statement runs under
+    * that named driver profile (for example a read-specific consistency).
     */
   private def boundForRange[Out](
       pstmt: ScalaPreparedStatement2[Token, Token, Out],
-      range: TokenRange
-  ): ScalaBoundStatement[Out] =
-    pstmt(range.getStart, TokenRing.normalizeUpperBound(range.getEnd))
-      .setRoutingToken(range.getStart)
+      range: TokenRange,
+      executionProfile: Option[String]
+  ): ScalaBoundStatement[Out] = {
+    val bound =
+      pstmt(range.getStart, TokenRing.normalizeUpperBound(range.getEnd))
+        .setRoutingToken(range.getStart)
+
+    executionProfile.fold(bound)(bound.setExecutionProfileName)
+  }
 
   /** Reads one split: skips it when the checkpoint already has it, otherwise reads
     * it (with timeout retries) and marks it completed once fully read. Completion is
@@ -112,13 +133,14 @@ package object pekko {
       pstmt: ScalaPreparedStatement2[Token, Token, Out],
       split: RangeSplit,
       retry: RetryPolicy,
-      checkpoint: Checkpoint
+      checkpoint: Checkpoint,
+      executionProfile: Option[String]
   )(implicit session: CassandraSession): Source[Out, NotUsed] =
     if (checkpoint.isCompleted(split)) {
       Source.empty[Out]
     } else {
       readWithRetry(split.range, depth = 0, retry)(range =>
-        rangeReadSource(boundForRange(pstmt, range))
+        rangeReadSource(boundForRange(pstmt, range, executionProfile))
       ).concat(Source.lazySource { () =>
         checkpoint.markCompleted(split)
         Source.empty[Out]
