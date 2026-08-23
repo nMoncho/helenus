@@ -58,13 +58,26 @@ abstract class MigrationApp(config: MigrationApp.Config, healthCheck: HealthChec
 
 object MigrationApp {
 
-  /** Migration knobs: how finely to split each ring range, and an optional rate cap. */
-  final case class Config(splits: Int, rateLimit: Option[RateLimit])
+  /** Migration knobs, one per executor parameter: how finely to split each ring range,
+    * how many ranges to read at once, an optional rate cap, and an optional read
+    * execution profile. The library takes each of these as a plain method parameter,
+    * so this config only exists in the example app.
+    */
+  final case class Config(
+      splits: Int                      = 8,
+      parallelism: Int                 = Runtime.getRuntime.availableProcessors,
+      rateLimit: Option[RateLimit]     = None,
+      executionProfile: Option[String] = None
+  )
 
   object Config {
 
-    /** Reads `token-range-splits` and an optional `throttling { elements, per }` block. */
+    /** Reads `token-range-splits` (required), `parallelism`, an optional
+      * `throttling { elements, per }` block, and an optional `read-execution-profile`.
+      */
     def fromConfig(config: com.typesafe.config.Config): Config = {
+      val defaults = Config()
+
       val rateLimit =
         if (config.hasPath("throttling")) {
           val throttling = config.getConfig("throttling")
@@ -73,7 +86,16 @@ object MigrationApp {
           None
         }
 
-      Config(splits = config.getInt("token-range-splits"), rateLimit = rateLimit)
+      Config(
+        splits      = config.getInt("token-range-splits"),
+        parallelism =
+          if (config.hasPath("parallelism")) config.getInt("parallelism") else defaults.parallelism,
+        rateLimit        = rateLimit,
+        executionProfile =
+          if (config.hasPath("read-execution-profile"))
+            Some(config.getString("read-execution-profile"))
+          else None
+      )
     }
   }
 }

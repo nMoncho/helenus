@@ -53,10 +53,12 @@ final class HotelsMigrationApp(config: MigrationApp.Config, healthCheck: HealthC
       .as[Hotel]
       .asTokenRangeMigration(
         plan,
-        transform = Flow[Hotel].map(hotel => HotelByCity(hotel.city, hotel.id, hotel.name)),
-        sink      = load,
-        rateLimit = rateLimit,
-        metrics   = metrics
+        transform        = Flow[Hotel].map(hotel => HotelByCity(hotel.city, hotel.id, hotel.name)),
+        sink             = load,
+        parallelism      = config.parallelism,
+        rateLimit        = rateLimit,
+        executionProfile = config.executionProfile,
+        metrics          = metrics
       )
   }
 }

@@ -24,7 +24,7 @@ import org.scalatest.time.Seconds
 import org.scalatest.time.Span
 import org.scalatest.wordspec.AnyWordSpec
 
-/** C3: the example runner app (with its liveness endpoint) runs a full migration end
+/** The example runner app (with its liveness endpoint) runs a full migration end
   * to end.
   */
 class MigrationAppExampleSpec

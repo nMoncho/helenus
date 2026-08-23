@@ -24,7 +24,7 @@ import org.scalatest.BeforeAndAfterEach
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-/** C2 (Flink): the same neutral hotels-to-hotels_by_city denormalization as the Pekko
+/** The same neutral hotels-to-hotels_by_city denormalization as the Pekko
   * example, run as a Flink job through `asTokenRangeMigration`.
   */
 class FlinkHotelsMigrationExampleSpec
@@ -84,8 +84,9 @@ class FlinkHotelsMigrationExampleSpec
         read = (s: CqlSession) =>
           "SELECT id, name, city FROM hotels".toUnsafeCQL(s).prepareUnit.as[Hotel].apply(),
         transform = (hotel: Hotel) => HotelByCity(hotel.city, hotel.id, hotel.name),
-        write = (s: CqlSession) =>
-          "INSERT INTO hotels_by_city (city, id, name) VALUES (?, ?, ?)".toUnsafeCQL(s)
+        write     = (s: CqlSession) =>
+          "INSERT INTO hotels_by_city (city, id, name) VALUES (?, ?, ?)"
+            .toUnsafeCQL(s)
             .prepare[String, String, String]
             .from[HotelByCity],
         sourceConfig = CassandraSource.Config().copy(config = driverConfig),
@@ -102,7 +103,7 @@ class FlinkHotelsMigrationExampleSpec
         .map { case (city, rows) => city -> rows.map(_.getString("id")).toSet }
 
       byCity shouldBe Map(
-        "Paris"  -> Set("h1", "h2"),
+        "Paris" -> Set("h1", "h2"),
         "London" -> Set("h3", "h4"),
         "Berlin" -> Set("h5")
       )

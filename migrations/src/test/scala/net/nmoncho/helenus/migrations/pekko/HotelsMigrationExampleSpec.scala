@@ -74,7 +74,9 @@ class HotelsMigrationExampleSpec
 
   override def beforeEach(): Unit = {
     super.beforeEach()
-    hotels.foreach(h => execute(s"INSERT INTO hotels (id, name, city) VALUES ('${h.id}', '${h.name}', '${h.city}')"))
+    hotels.foreach(h =>
+      execute(s"INSERT INTO hotels (id, name, city) VALUES ('${h.id}', '${h.name}', '${h.city}')")
+    )
   }
 
   override def afterAll(): Unit = {
@@ -115,7 +117,7 @@ class HotelsMigrationExampleSpec
           .map { case (city, rows) => city -> rows.map(_.getString("id")).toSet }
 
         byCity shouldBe Map(
-          "Paris"  -> Set("h1", "h2"),
+          "Paris" -> Set("h1", "h2"),
           "London" -> Set("h3", "h4"),
           "Berlin" -> Set("h5")
         )
