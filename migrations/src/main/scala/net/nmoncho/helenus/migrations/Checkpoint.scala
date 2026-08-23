@@ -108,6 +108,7 @@ object Checkpoint {
 
     private val done = ConcurrentHashMap.newKeySet[String]()
 
+    // TODO use ScalaPreparedStatements!
     session.execute(
       s"CREATE TABLE IF NOT EXISTS $table " +
         "(migration text, range_key text, PRIMARY KEY (migration, range_key))"
