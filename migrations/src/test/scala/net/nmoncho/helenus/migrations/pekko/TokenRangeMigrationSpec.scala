@@ -15,6 +15,7 @@ import com.datastax.oss.driver.api.core.cql.Row
 import com.datastax.oss.driver.api.core.metadata.token.Token
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
+import net.nmoncho.helenus.migrations.MigrationMetrics
 import net.nmoncho.helenus.migrations.TokenRangePlanner
 import net.nmoncho.helenus.utils.CassandraSpec
 import org.apache.pekko.Done
@@ -23,6 +24,7 @@ import org.apache.pekko.stream.connectors.cassandra.CassandraSessionSettings
 import org.apache.pekko.stream.connectors.cassandra.CassandraWriteSettings
 import org.apache.pekko.stream.connectors.cassandra.scaladsl.CassandraSession
 import org.apache.pekko.stream.connectors.cassandra.scaladsl.CassandraSessionRegistry
+import org.apache.pekko.stream.scaladsl.Flow
 import org.apache.pekko.stream.scaladsl.Sink
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
@@ -94,6 +96,40 @@ class TokenRangeMigrationSpec
         val migrated = cql.execute(s"SELECT id, v FROM $target").as[Migrated].iter.toList
 
         migrated.map(m => m.id -> m.v).toMap shouldBe (1 to total).map(i => i -> s"V$i").toMap
+      }
+    }
+
+    "run as one composed migration via asTokenRangeMigration, reporting metrics" in
+    withSession { implicit cql =>
+      val plan    = TokenRangePlanner.plan(splitsPerRange = 8)
+      val metrics = MigrationMetrics.counting()
+
+      val load: Sink[Migrated, Future[Done]] =
+        s"INSERT INTO $target (id, v) VALUES (?, ?)".toUnsafeCQL
+          .prepare[Int, String]
+          .from[Migrated]
+          .asWriteSink(CassandraWriteSettings.defaults)
+
+      val migration =
+        s"SELECT id, v FROM $source WHERE token(id) > ? AND token(id) <= ?".toUnsafeCQL
+          .prepare[Token, Token]
+          .as[Row]
+          .asTokenRangeMigration(
+            plan,
+            transform =
+              Flow[Row].map(row => Migrated(row.getInt("id"), row.getString("v").toUpperCase)),
+            sink        = load,
+            parallelism = 4,
+            metrics     = metrics
+          )
+
+      whenReady(migration.run()) { _ =>
+        val migrated = cql.execute(s"SELECT id, v FROM $target").as[Migrated].iter.toList
+
+        migrated.map(m => m.id -> m.v).toMap shouldBe (1 to total).map(i => i -> s"V$i").toMap
+        metrics.extracted shouldBe total.toLong
+        metrics.loaded shouldBe total.toLong
+        metrics.rangesCompleted shouldBe plan.splits.size.toLong
       }
     }
   }

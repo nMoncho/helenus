@@ -55,12 +55,13 @@ class FlinkMigrationSpec
     super.beforeAll()
     executeDDL(s"CREATE TABLE IF NOT EXISTS $source (id int PRIMARY KEY, v text)")
     executeDDL(s"CREATE TABLE IF NOT EXISTS $target (id int PRIMARY KEY, v text)")
-    (1 to total).foreach(i => execute(s"INSERT INTO $source (id, v) VALUES ($i, 'v$i')"))
   }
 
+  // `CassandraSpec.afterEach` truncates the keyspace, so re-seed the source each test.
   override def beforeEach(): Unit = {
     super.beforeEach()
     flinkCluster.before()
+    (1 to total).foreach(i => execute(s"INSERT INTO $source (id, v) VALUES ($i, 'v$i')"))
   }
 
   override def afterEach(): Unit =
@@ -94,6 +95,38 @@ class FlinkMigrationSpec
             .prepare[Int, String]
             .from[Migrated],
         CassandraSink.Config().copy(config = driverConfig)
+      )
+
+      env.execute()
+
+      val migrated = execute(s"SELECT id, v FROM $target")
+        .iterator()
+        .asScala
+        .map(row => row.getInt("id") -> row.getString("v"))
+        .toMap
+
+      migrated shouldBe (1 to total).map(i => i -> s"v$i").toMap
+    }
+
+    "run as one composed migration via asTokenRangeMigration (C1)" in {
+      val sourceTable  = source
+      val targetTable  = target
+      val driverConfig = cassandraConfig
+
+      val env = StreamExecutionEnvironment.getExecutionEnvironment.setParallelism(2)
+
+      asTokenRangeMigration(
+        env,
+        read = (s: CqlSession) =>
+          s"SELECT id, v FROM $sourceTable".toUnsafeCQL(s).prepareUnit.as[Migrated].apply(),
+        transform = (migrated: Migrated) => migrated,
+        write     = (s: CqlSession) =>
+          s"INSERT INTO $targetTable (id, v) VALUES (?, ?)"
+            .toUnsafeCQL(s)
+            .prepare[Int, String]
+            .from[Migrated],
+        sourceConfig = CassandraSource.Config().copy(config = driverConfig),
+        sinkConfig   = CassandraSink.Config().copy(config = driverConfig)
       )
 
       env.execute()

@@ -8,10 +8,17 @@ package net.nmoncho.helenus.migrations
 
 import java.util.concurrent.atomic.AtomicReference
 
+import scala.concurrent.Future
+
 import _root_.net.nmoncho.helenus.api.cql.ScalaBoundStatement
 import _root_.net.nmoncho.helenus.internal.cql.ScalaPreparedStatement2
+import _root_.org.apache.pekko.Done
 import _root_.org.apache.pekko.NotUsed
 import _root_.org.apache.pekko.stream.connectors.cassandra.scaladsl.CassandraSession
+import _root_.org.apache.pekko.stream.scaladsl.Flow
+import _root_.org.apache.pekko.stream.scaladsl.Keep
+import _root_.org.apache.pekko.stream.scaladsl.RunnableGraph
+import _root_.org.apache.pekko.stream.scaladsl.Sink
 import _root_.org.apache.pekko.stream.scaladsl.Source
 import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.metadata.token.Token
@@ -101,6 +108,43 @@ package object pekko {
 
       rateLimit.fold(source)(limit => source.throttle(limit.elements, limit.per))
     }
+
+    /** Composes a whole Cassandra to Cassandra migration as a runnable graph: read the
+      * table with [[asTokenRangeReadSource]], apply `transform`, and write with `sink`.
+      *
+      * All the executor read options are forwarded, and the load side is counted via
+      * `metrics.rowLoaded`, so one call wires extract, transform, load, and full
+      * observability. For a plain function transform pass `Flow[Out].map(f)`; for a
+      * filtering transform use `collect`/`mapConcat`, in which case fewer rows load
+      * than are extracted. Call `.run()` on the result with a `Materializer` (or an
+      * `ActorSystem`) in scope.
+      *
+      * @param transform how to turn each read row into a row to write
+      * @param sink      the write sink, typically `...prepareFrom[...].asWriteSink(...)`
+      */
+    def asTokenRangeMigration[B](
+        plan: RingPlan,
+        transform: Flow[Out, B, NotUsed],
+        sink: Sink[B, Future[Done]],
+        parallelism: Int                 = DefaultParallelism,
+        rateLimit: Option[RateLimit]     = None,
+        retry: RetryPolicy               = RetryPolicy.Default,
+        checkpoint: Checkpoint           = Checkpoint.none,
+        executionProfile: Option[String] = None,
+        metrics: MigrationMetrics        = MigrationMetrics.none
+    )(implicit session: CassandraSession): RunnableGraph[Future[Done]] =
+      asTokenRangeReadSource(
+        plan,
+        parallelism,
+        rateLimit,
+        retry,
+        checkpoint,
+        executionProfile,
+        metrics
+      )
+        .via(transform)
+        .map { loaded => metrics.rowLoaded(); loaded }
+        .toMat(sink)(Keep.right)
 
     /** Binds one [[RangeSplit]] into a routing-aware bound statement, optionally under
       * a named execution profile. Exposed for testing and advanced use; see
