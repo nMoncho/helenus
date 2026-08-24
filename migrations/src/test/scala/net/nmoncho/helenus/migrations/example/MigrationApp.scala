@@ -67,13 +67,15 @@ object MigrationApp {
       splits: Int                      = 8,
       parallelism: Int                 = Runtime.getRuntime.availableProcessors,
       rateLimit: Option[RateLimit]     = None,
-      executionProfile: Option[String] = None
+      executionProfile: Option[String] = None,
+      dryRun: Boolean                  = false
   )
 
   object Config {
 
     /** Reads `token-range-splits` (required), `parallelism`, an optional
-      * `throttling { elements, per }` block, and an optional `read-execution-profile`.
+      * `throttling { elements, per }` block, an optional `read-execution-profile`, and
+      * an optional `dry-run` flag.
       */
     def fromConfig(config: com.typesafe.config.Config): Config = {
       val defaults = Config()
@@ -94,7 +96,8 @@ object MigrationApp {
         executionProfile =
           if (config.hasPath("read-execution-profile"))
             Some(config.getString("read-execution-profile"))
-          else None
+          else None,
+        dryRun = config.hasPath("dry-run") && config.getBoolean("dry-run")
       )
     }
   }

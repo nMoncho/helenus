@@ -132,6 +132,35 @@ class TokenRangeMigrationSpec
         metrics.rangesCompleted shouldBe plan.splits.size.toLong
       }
     }
+
+    "write nothing in dry-run while still reporting counts (E4)" in withSession { implicit cql =>
+      val plan    = TokenRangePlanner.plan(splitsPerRange = 8)
+      val metrics = MigrationMetrics.counting()
+
+      val load: Sink[Migrated, Future[Done]] =
+        s"INSERT INTO $target (id, v) VALUES (?, ?)".toUnsafeCQL
+          .prepare[Int, String]
+          .from[Migrated]
+          .asWriteSink(CassandraWriteSettings.defaults)
+
+      val migration =
+        s"SELECT id, v FROM $source WHERE token(id) > ? AND token(id) <= ?".toUnsafeCQL
+          .prepare[Token, Token]
+          .as[Row]
+          .asTokenRangeMigration(
+            plan,
+            transform = Flow[Row].map(row => Migrated(row.getInt("id"), row.getString("v"))),
+            sink      = load,
+            dryRun    = true,
+            metrics   = metrics
+          )
+
+      whenReady(migration.run()) { _ =>
+        cql.execute(s"SELECT COUNT(*) FROM $target").one().getLong(0) shouldBe 0L // wrote nothing
+        metrics.extracted shouldBe total.toLong // but read all
+        metrics.loaded shouldBe total.toLong // and transformed all
+      }
+    }
   }
 
   private def withSession(fn: CqlSession => Unit): Unit = {

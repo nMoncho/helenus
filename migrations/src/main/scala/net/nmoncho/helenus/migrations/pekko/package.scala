@@ -119,8 +119,14 @@ package object pekko {
       * than are extracted. Call `.run()` on the result with a `Materializer` (or an
       * `ActorSystem`) in scope.
       *
+      * With `dryRun = true` the load `sink` is replaced by a discarding sink, so the
+      * migration reads and transforms (and counts, so `metrics` still reports the
+      * extracted and transformed rows) but writes nothing. This validates the extract
+      * and transform without touching the target.
+      *
       * @param transform how to turn each read row into a row to write
       * @param sink      the write sink, typically `...prepareFrom[...].asWriteSink(...)`
+      * @param dryRun    when true, do not write; read, transform, and count only
       */
     def asTokenRangeMigration[B](
         plan: RingPlan,
@@ -131,7 +137,8 @@ package object pekko {
         retry: RetryPolicy               = RetryPolicy.Default,
         checkpoint: Checkpoint           = Checkpoint.none,
         executionProfile: Option[String] = None,
-        metrics: MigrationMetrics        = MigrationMetrics.none
+        metrics: MigrationMetrics        = MigrationMetrics.none,
+        dryRun: Boolean                  = false
     )(implicit session: CassandraSession): RunnableGraph[Future[Done]] =
       asTokenRangeReadSource(
         plan,
@@ -144,7 +151,7 @@ package object pekko {
       )
         .via(transform)
         .map { loaded => metrics.rowLoaded(); loaded }
-        .toMat(sink)(Keep.right)
+        .toMat(if (dryRun) Sink.ignore else sink)(Keep.right)
 
     /** Binds one [[RangeSplit]] into a routing-aware bound statement, optionally under
       * a named execution profile. Exposed for testing and advanced use; see

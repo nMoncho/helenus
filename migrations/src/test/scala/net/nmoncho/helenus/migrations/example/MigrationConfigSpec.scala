@@ -29,6 +29,13 @@ class MigrationConfigSpec extends AnyWordSpec with Matchers {
       migration.rateLimit.map(_.elements) shouldBe Some(1000)
       migration.rateLimit.map(_.per.toSeconds) shouldBe Some(1L)
       migration.executionProfile shouldBe Some("migration-read")
+      migration.dryRun shouldBe false
+    }
+
+    "read the dry-run flag" in {
+      MigrationApp.Config
+        .fromConfig(ConfigFactory.parseString("token-range-splits = 4\ndry-run = true"))
+        .dryRun shouldBe true
     }
 
     "document the liveness endpoint" in {

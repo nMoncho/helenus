@@ -58,7 +58,8 @@ final class HotelsMigrationApp(config: MigrationApp.Config, healthCheck: HealthC
         parallelism      = config.parallelism,
         rateLimit        = rateLimit,
         executionProfile = config.executionProfile,
-        metrics          = metrics
+        metrics          = metrics,
+        dryRun           = config.dryRun
       )
   }
 }
