@@ -25,7 +25,7 @@ lazy val root = project
     mimaFailOnNoPrevious := false,
     Test / testOptions += Tests.Setup(() => EmbeddedDatabase.start())
   )
-  .aggregate(docs, core, bench, akka, akkaBusl, flink, migrations, monix, pekko, tables, zio)
+  .aggregate(docs, core, bench, akka, akkaBusl, flink, migrations, monix, pekko, spark, tables, zio)
 
 lazy val basicSettings = Seq(
   organization := "net.nmoncho",
@@ -170,6 +170,9 @@ lazy val docs = project
       Dependencies.flinkConnectorBase,
       Dependencies.flinkTestUtils,
       Dependencies.pekkoConnector,
+      Dependencies.sparkCore,
+      Dependencies.sparkSql,
+      Dependencies.sparkCassandraConnector,
       Dependencies.monix,
       Dependencies.monixReactive,
       Dependencies.zio,
@@ -178,7 +181,7 @@ lazy val docs = project
       Dependencies.cassandraUnit
     )
   )
-  .dependsOn(core, akka, flink, monix, pekko, tables, zio)
+  .dependsOn(core, akka, flink, monix, pekko, spark, tables, zio)
 
 lazy val core = project
   .enablePlugins(Antlr4Plugin)
@@ -238,7 +241,7 @@ lazy val core = project
       )
     ),
     mimaPreviousArtifacts := Set("net.nmoncho" %% "helenus-core" % "1.0.0"),
-    // F6: the fixed-size primitive codecs now share `FixedSizePrimitiveCodec`, so `decode`/`format`/
+    // The fixed-size primitive codecs now share `FixedSizePrimitiveCodec`, so `decode`/`format`/
     // `parse` moved from each codec object to the shared base. These are internal codecs
     // (`internal.codec`), and the move is source- and runtime-compatible (verified by the codec
     // specs, including the "on par with Java Codec" checks); only the erased bytecode signatures on
@@ -332,6 +335,39 @@ lazy val flink = project
     )
   )
 
+lazy val spark = project
+  .settings(basicSettings)
+  .dependsOn(core % "compile->compile;test->test")
+  .settings(
+    name := "helenus-spark",
+    scalaVersion := Dependencies.Version.scala213,
+    crossScalaVersions := List(Dependencies.Version.scala212, Dependencies.Version.scala213),
+    Test / testOptions += Tests.Setup(() => EmbeddedDatabase.start()),
+    Test / fork := true,
+    mimaFailOnNoPrevious := false, // until the first release
+    libraryDependencies ++= Seq(
+      Dependencies.sparkCore               % "provided,test",
+      Dependencies.sparkSql                % "provided,test",
+      Dependencies.sparkCassandraConnector % "provided,test"
+    ),
+    // Helenus core depends on the *unshaded* `org.apache.cassandra:java-driver-core`
+    // and the spark-cassandra-connector (3.5.1) depends on the *shaded*
+    // `org.apache.cassandra:java-driver-core-shaded` (4.18.1). Both jars carry the
+    // same un-relocated public API `com.datastax.oss.driver.api.core.*`, so having
+    // both on one classpath means duplicate classes and a load-order-dependent
+    // winner (a real LinkageError / NoSuchMethodError risk).
+    //
+    // We converge on a single provider by letting the connector's shaded core supply
+    // the driver on every classpath (compile via `provided`, test, and — since the
+    // user deploys the connector — runtime). The unshaded `java-driver-core` (and its
+    // guava relocation) is excluded so it cannot leak in transitively via
+    // `core % test->test` and collide with the connector's shaded copy.
+    excludeDependencies ++= Seq(
+      ExclusionRule("org.apache.cassandra", "java-driver-core"),
+      ExclusionRule("org.apache.cassandra", "java-driver-guava-shaded")
+    )
+  )
+
 lazy val monix = project
   .settings(basicSettings)
   .dependsOn(core % "compile->compile;test->test")
@@ -398,7 +434,7 @@ lazy val migrations = project
       Dependencies.flinkStreamingJava % "provided,test",
       Dependencies.flinkConnectorBase % "provided,test",
       // Test dependencies. Per-backend test kits (Akka, Monix, ZIO, Flink) are
-      // added alongside their executors (B6, B7); Pekko lands first (Milestone 1).
+      // added alongside their executors; Pekko lands first.
       Dependencies.scalaTest     % Test,
       Dependencies.scalaCheck    % Test,
       Dependencies.scalaTestPlus % Test,

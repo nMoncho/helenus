@@ -21,6 +21,9 @@ object Dependencies {
 
     val flink = "2.3.0"
 
+    val spark              = "3.5.1" // Spark 3.5 line; connector 3.5.1 targets it
+    val sparkCassandraConn = "3.5.1"
+
     val monix = "3.4.1"
 
     val pekkoConnector = "1.3.0"
@@ -61,6 +64,12 @@ object Dependencies {
   val flinkStreamingJava = "org.apache.flink" % "flink-streaming-java" % Version.flink
   val flinkConnectorBase = "org.apache.flink" % "flink-connector-base" % Version.flink
   val flinkTestUtils     = "org.apache.flink" % "flink-test-utils"     % Version.flink
+
+  // 'spark' dependencies
+  val sparkCore               = "org.apache.spark" %% "spark-core" % Version.spark
+  val sparkSql                = "org.apache.spark" %% "spark-sql"  % Version.spark
+  val sparkCassandraConnector =
+    "com.datastax.spark" %% "spark-cassandra-connector" % Version.sparkCassandraConn
 
   // 'monix' dependencies
   val monix         = "io.monix" %% "monix"          % Version.monix
