@@ -36,9 +36,11 @@ final class SessionRegressionSpec extends AnyWordSpec with Matchers {
   // aggregate/root path (`spark/src/...`) is the fallback when they do not.
   private def mainSources: Seq[File] = {
     val candidates = Seq(new File("src/main/scala"), new File("spark/src/main/scala"))
-    val root = candidates
+    val root       = candidates
       .find(_.isDirectory)
-      .getOrElse(fail(s"could not locate the spark main sources; tried ${candidates.mkString(", ")}"))
+      .getOrElse(
+        fail(s"could not locate the spark main sources; tried ${candidates.mkString(", ")}")
+      )
 
     scalaFilesUnder(root)
   }
@@ -55,7 +57,9 @@ final class SessionRegressionSpec extends AnyWordSpec with Matchers {
         forbidden.collect { case token if content.contains(token) => s"${file.getPath} -> $token" }
       }
 
-      withClue("D1: sessions must come from CassandraConnector.withSessionDo, not a self-built session: ") {
+      withClue(
+        "Sessions must come from CassandraConnector.withSessionDo, not a self-built session: "
+      ) {
         offenders shouldBe empty
       }
     }
