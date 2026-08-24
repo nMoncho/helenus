@@ -45,8 +45,10 @@ class MigrationConfigSpec extends AnyWordSpec with Matchers {
         .asScala should contain("localhost:9042")
 
       config
-        .getString("datastax-java-driver.profiles.migration-read.basic.request.consistency") shouldBe
-        "LOCAL_ONE"
+        .getString(
+          "datastax-java-driver.profiles.migration-read.basic.request.consistency"
+        ) shouldBe
+      "LOCAL_ONE"
     }
   }
 
