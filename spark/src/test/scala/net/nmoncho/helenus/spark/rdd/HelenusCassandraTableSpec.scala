@@ -16,12 +16,11 @@ import net.nmoncho.helenus.models.Hotel
 import net.nmoncho.helenus.spark._
 import net.nmoncho.helenus.utils.CassandraSpec
 import net.nmoncho.helenus.utils.HotelsTestData
-import org.apache.spark.SparkConf
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.SparkContext
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-/** End-to-end B1 acceptance: `sc.cassandraTable[Hotel]` returns an `RDD[Hotel]` mapped by
+/** End-to-end acceptance: `sc.cassandraTable[Hotel]` returns an `RDD[Hotel]` mapped by
   * Helenus codecs — UDT column included — against embedded Cassandra and a local Spark
   * context. The connector owns the token-aware scan; Helenus owns only the `Row => Hotel`
   * conversion via [[HelenusRowReaderFactory]].
@@ -30,34 +29,17 @@ import org.scalatest.wordspec.AnyWordSpec
   * provider, `ClassTag`) into the task binary and deserializes it before computing each
   * partition — so a green run is the proof that the bridge ships to a real executor
   * without `NotSerializableException`, and that the mapper is (re)derived on the executor
-  * rather than being shipped materialized. It is also the live proof of the D2 classpath
+  * rather than being shipped materialized. It is also the live proof of the classpath
   * decision: Helenus statements and codecs run against the connector's shaded driver.
   */
 final class HelenusCassandraTableSpec extends AnyWordSpec with Matchers with CassandraSpec {
 
-  private var spark: SparkSession = _
+  private def sc: SparkContext = LocalSpark.session.sparkContext
 
   override def beforeAll(): Unit = {
     super.beforeAll() // creates the keyspace and `USE`s it
     executeFile("hotels.cql")
     HotelsTestData.insertTestData()(session)
-
-    val conf = new SparkConf()
-      .setMaster("local[2]")
-      .setAppName("helenus-spark-b1")
-      .set("spark.ui.enabled", "false")
-      .set("spark.driver.host", "localhost")
-      .set("spark.driver.bindAddress", "localhost")
-      .set("spark.cassandra.connection.host", "localhost")
-      .set("spark.cassandra.connection.port", "9142")
-      .set("spark.cassandra.connection.localDC", "datacenter1")
-
-    spark = SparkSession.builder().config(conf).getOrCreate()
-  }
-
-  override def afterAll(): Unit = {
-    if (spark != null) spark.stop()
-    super.afterAll()
   }
 
   // Data is inserted once in `beforeAll` and both read tests share it, so skip
@@ -73,7 +55,7 @@ final class HelenusCassandraTableSpec extends AnyWordSpec with Matchers with Cas
       implicit val rrf: RowReaderFactory[Hotel] =
         HelenusRowReaderFactory(new CountingHotelMapper)
 
-      val rdd           = spark.sparkContext.cassandraTable[Hotel](keyspace, "hotels")
+      val rdd           = sc.cassandraTable[Hotel](keyspace, "hotels")
       val numPartitions = rdd.getNumPartitions
       val hotels        = rdd.collect().toList
 
@@ -89,7 +71,7 @@ final class HelenusCassandraTableSpec extends AnyWordSpec with Matchers with Cas
       CountingHotelMapper.providerCalls.get() should be <= numPartitions
     }
 
-    "resolve the bridge via the helenusRowReaderFactory entry point, outranking the connector default (B2)" in {
+    "resolve the bridge via the helenusRowReaderFactory entry point, outranking the connector default" in {
       CountingHotelMapper.reset()
 
       // `helenusRowReaderFactory` is the `net.nmoncho.helenus.spark` package-object entry
@@ -99,7 +81,7 @@ final class HelenusCassandraTableSpec extends AnyWordSpec with Matchers with Cas
       // mapper, not the connector's, actually mapped the rows.
       implicit val rrf: RowReaderFactory[Hotel] = helenusRowReaderFactory(new CountingHotelMapper)
 
-      val hotels = spark.sparkContext.cassandraTable[Hotel](keyspace, "hotels").collect().toList
+      val hotels = sc.cassandraTable[Hotel](keyspace, "hotels").collect().toList
 
       hotels should contain theSameElementsAs HotelsTestData.Hotels.all
       CountingHotelMapper.applies.get() shouldBe HotelsTestData.Hotels.all.size

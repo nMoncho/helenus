@@ -8,9 +8,13 @@ package net.nmoncho.helenus
 
 import scala.reflect.ClassTag
 
+import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.spark.connector.rdd.reader.RowReaderFactory
 import net.nmoncho.helenus.api.RowMapper
+import net.nmoncho.helenus.api.cql.ScalaPreparedStatement
 import net.nmoncho.helenus.spark.rdd.HelenusRowReaderFactory
+import net.nmoncho.helenus.spark.sink.CassandraSink
+import org.apache.spark.rdd.RDD
 
 package object spark {
 
@@ -54,5 +58,43 @@ package object spark {
       mapper: => RowMapper[T]
   )(implicit ct: ClassTag[T]): RowReaderFactory[T] =
     HelenusRowReaderFactory[T](mapper)
+
+  /** Adds the CQL-first `foreachPartitionCql` sink to any `RDD`. */
+  implicit final class CqlSinkOps[In](private val rdd: RDD[In]) extends AnyVal {
+
+    /** Writes every record through a Helenus [[ScalaPreparedStatement]], prepared once per
+      * partition inside the connector's session, with compile-time bind-arity safety.
+      *
+      * This is the primary typed write path, for what `saveToCassandra` cannot express —
+      * LWT / conditional writes (`IF NOT EXISTS`, `IF ...`), custom-`WHERE` updates and
+      * deletes, and arbitrary CQL. Because the RDD element type must equal the statement's
+      * `In`, either map to the bind tuple first and use a multi-arg `.prepare[...]`, or use
+      * `.prepareFrom[T]` for a domain object:
+      *
+      * {{{
+      * import net.nmoncho.helenus._
+      * import net.nmoncho.helenus.spark._
+      * import net.nmoncho.helenus.spark.sink.CassandraSink
+      *
+      * hotels
+      *   .map(h => (h.id, h.name, h.phone, h.address, h.pois))
+      *   .foreachPartitionCql(
+      *     "INSERT INTO hotels(id, name, phone, address, pois) VALUES (?, ?, ?, ?, ?) IF NOT EXISTS"
+      *       .toCQL(_)
+      *       .prepare[String, String, String, Address, Set[String]],
+      *     CassandraSink.Config()
+      *   )
+      * }}}
+      *
+      * Pass the statement builder as a lambda so it is prepared on the executor; only the
+      * small function crosses the wire (its implicit codecs are re-resolved there). The
+      * connector's session is used, configured by the `spark.cassandra.*` keys.
+      */
+    def foreachPartitionCql[Out](
+        builder: CqlSession => ScalaPreparedStatement[In, Out],
+        config: CassandraSink.Config = CassandraSink.Config()
+    ): Unit =
+      CassandraSink.write(rdd, builder, config)
+  }
 
 }
