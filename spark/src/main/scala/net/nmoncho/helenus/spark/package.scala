@@ -15,6 +15,7 @@ import net.nmoncho.helenus.api.cql.ScalaPreparedStatement
 import net.nmoncho.helenus.spark.rdd.HelenusRowReaderFactory
 import net.nmoncho.helenus.spark.sink.CassandraSink
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.Dataset
 
 package object spark {
 
@@ -95,6 +96,44 @@ package object spark {
         config: CassandraSink.Config = CassandraSink.Config()
     ): Unit =
       CassandraSink.write(rdd, builder, config)
+  }
+
+  /** Adds the CQL-first `foreachPartitionCql` sink to any `Dataset`.
+    *
+    * A thin forward to the [[CqlSinkOps]] `RDD` sink via `Dataset.rdd`, so a typed dataset
+    * can be written through a Helenus prepared statement without dropping to `.rdd` by hand.
+    * Typed Catalyst encoders and a Helenus DataSource are explicitly out of scope — the
+    * structured (DataFrame / Dataset) read and write path stays the connector's format.
+    */
+  implicit final class CqlDatasetSinkOps[In](private val ds: Dataset[In]) extends AnyVal {
+
+    /** As [[CqlSinkOps.foreachPartitionCql]], but sourced from a `Dataset[In]`.
+      *
+      * Because the element type must equal the statement's `In`, use `.prepareFrom[T]` for a
+      * domain object (its `Mapping[T]` binds the record) or map to the bind tuple first and
+      * use a multi-arg `.prepare[...]`:
+      *
+      * {{{
+      * import net.nmoncho.helenus._
+      * import net.nmoncho.helenus.spark._
+      * import net.nmoncho.helenus.spark.sink.CassandraSink
+      *
+      * implicit val hotelMapping: Mapping[Hotel] = Mapping[Hotel]()
+      *
+      * val ds: org.apache.spark.sql.Dataset[Hotel] = // ...
+      * ds.foreachPartitionCql(
+      *   "INSERT INTO hotels(id, name, phone, address, pois) VALUES (?, ?, ?, ?, ?)"
+      *     .toCQL(_)
+      *     .prepareFrom[Hotel],
+      *   CassandraSink.Config()
+      * )
+      * }}}
+      */
+    def foreachPartitionCql[Out](
+        builder: CqlSession => ScalaPreparedStatement[In, Out],
+        config: CassandraSink.Config = CassandraSink.Config()
+    ): Unit =
+      CassandraSink.write(ds.rdd, builder, config)
   }
 
 }

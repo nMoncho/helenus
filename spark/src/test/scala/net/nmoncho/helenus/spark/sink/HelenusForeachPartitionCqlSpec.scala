@@ -10,12 +10,15 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import com.datastax.oss.driver.api.core.cql.SimpleStatement
 import net.nmoncho.helenus._
+import net.nmoncho.helenus.api.cql.Mapping
 import net.nmoncho.helenus.models.Address
 import net.nmoncho.helenus.models.Hotel
 import net.nmoncho.helenus.spark._
 import net.nmoncho.helenus.utils.CassandraSpec
 import net.nmoncho.helenus.utils.HotelsTestData
 import org.apache.spark.SparkContext
+import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.Encoders
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
@@ -116,6 +119,37 @@ final class HelenusForeachPartitionCqlSpec extends AnyWordSpec with Matchers wit
       ids.foreach(id => hotelName(id) shouldBe Some(s"name-$id"))
     }
 
+    // Ignored, not deleted: the body compiles (so the E2 bridge stays type-checked and its
+    // Mapping-serialization contract is exercised at compile time), but it cannot RUN in this
+    // module. Any Dataset operation triggers Spark SQL's Catalyst parser, whose ANTLR 4.9.3
+    // ATN cannot be read by Helenus core's ANTLR 4.13.2 runtime — and there is no single
+    // ANTLR version that satisfies both the compile-time `toCQL` macro (needs 4.13.2) and
+    // Spark SQL at runtime (needs 4.9.3). Enabling this requires shading ANTLR inside
+    // helenus-core; see the "DataFrame / Dataset" limitation in the module README.
+    "write a Dataset[Hotel] through the sink via .prepareFrom" ignore {
+      // `prepareFrom[Hotel]` binds via an implicit `Mapping[Hotel]`, which — like any
+      // derived mapper — is not serializable. It must be a stable global reference (here a
+      // top-level object val) so the builder re-accesses it on the executor rather than
+      // capturing the instance into the shipped closure.
+      import DatasetSinkFixtures.hotelMapping
+
+      // A Kryo encoder gives a genuine Dataset[Hotel] without needing a Catalyst product
+      // encoder for the UDT and Set fields (typed encoders are out of scope for this bridge).
+      val ds: Dataset[Hotel] =
+        LocalSpark.session.createDataset(
+          Seq(HotelsTestData.Hotels.h1, HotelsTestData.Hotels.h2)
+        )(Encoders.kryo[Hotel])
+
+      ds.foreachPartitionCql(
+        "INSERT INTO helenus_spark_c3.hotels(id, name, phone, address, pois) VALUES (?, ?, ?, ?, ?)"
+          .toCQL(_)
+          .prepareFrom[Hotel]
+      )
+
+      hotelName(HotelsTestData.Hotels.h1.id) shouldBe Some(HotelsTestData.Hotels.h1.name)
+      hotelName(HotelsTestData.Hotels.h2.id) shouldBe Some(HotelsTestData.Hotels.h2.name)
+    }
+
     "surface a write failure through the configured handler rather than swallowing it" in {
       FailureCounter.count.set(0)
       val config = CassandraSink.Config(
@@ -172,4 +206,12 @@ object PrepareCounter {
   */
 object FailureCounter {
   val count: AtomicInteger = new AtomicInteger(0)
+}
+
+/** Holds the `Mapping[Hotel]` for the E2 `Dataset` sink test as a stable, top-level `val`,
+  * so the statement builder re-accesses it on the executor instead of shipping the
+  * non-serializable derived mapping captured from a local scope.
+  */
+object DatasetSinkFixtures {
+  implicit val hotelMapping: Mapping[Hotel] = Mapping[Hotel]()
 }
