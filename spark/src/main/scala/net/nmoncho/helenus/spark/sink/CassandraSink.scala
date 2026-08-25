@@ -35,16 +35,33 @@ object CassandraSink {
     * only make sense for the async throttling the Flink sink implements and this
     * synchronous sink does not.
     *
+    * ==At-least-once semantics==
+    *
+    * Spark re-executes a failed task, re-running the '''whole''' partition, and this
+    * CQL-first path bypasses the connector's `WriteConf` (it executes user statements
+    * directly through the yielded session), so its idempotency and consistency options do
+    * not apply here. A partition's statements may therefore be applied more than once. Keep
+    * them idempotent — plain inserts/upserts and `IF NOT EXISTS` are safe to replay — and
+    * for statements that are '''not''' (counter updates, non-idempotent conditional writes)
+    * set `idempotent = false` and design for the possibility of a replay.
+    *
     * @param batchSize      how many bound statements to group into one `UNLOGGED` batch per
     *                       execute. `1` (the default) executes each record on its own,
     *                       which is what LWT / conditional writes require — those cannot be
     *                       batched, and a multi-partition batch is a Cassandra anti-pattern,
     *                       so raise this only for many small same-partition writes.
+    * @param idempotent     applied to every statement via `setIdempotent`; `true` (the
+    *                       default) lets the driver retry them and matches the safe-to-replay
+    *                       majority (upserts, `IF NOT EXISTS`). Set `false` for counters or
+    *                       non-idempotent conditional writes, which must not be replayed by
+    *                       the driver's retry policy.
     * @param failureHandler invoked with a write failure before it is rethrown, so a failing
-    *                       partition surfaces through the handler rather than being lost.
+    *                       partition surfaces through the handler rather than being lost;
+    *                       failures are never silently swallowed.
     */
   final case class Config(
       batchSize: Int                    = Config.DefaultBatchSize,
+      idempotent: Boolean               = Config.DefaultIdempotent,
       failureHandler: Throwable => Unit = Config.NoOpFailureHandler
   ) {
     require(batchSize > 0, "batchSize is expected to be positive")
@@ -52,6 +69,7 @@ object CassandraSink {
 
   object Config {
     val DefaultBatchSize: Int                 = 1
+    val DefaultIdempotent: Boolean            = true
     val NoOpFailureHandler: Throwable => Unit = _ => ()
   }
 
@@ -80,12 +98,12 @@ object CassandraSink {
           try {
             chunk match {
               case Seq(single) =>
-                session.execute(pstmt.tupled(single))
+                session.execute(pstmt.tupled(single).setIdempotent(config.idempotent))
 
               case many =>
                 val batch = BatchStatement.builder(DefaultBatchType.UNLOGGED)
                 many.foreach(record => batch.addStatement(pstmt.tupled(record)))
-                session.execute(batch.build())
+                session.execute(batch.build().setIdempotent(config.idempotent))
             }
             ()
           } catch {

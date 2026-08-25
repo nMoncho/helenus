@@ -75,8 +75,10 @@ final class HelenusForeachPartitionCqlSpec extends AnyWordSpec with Matchers wit
           "DELETE FROM helenus_spark_c3.hotels WHERE id = ? IF EXISTS".toCQL(_).prepare[String]
         )
 
-      hotelName(HotelsTestData.Hotels.h1.id) shouldBe None                                // deleted
-      hotelName(HotelsTestData.Hotels.h2.id) shouldBe Some(HotelsTestData.Hotels.h2.name) // untouched
+      hotelName(HotelsTestData.Hotels.h1.id) shouldBe None // deleted
+      hotelName(HotelsTestData.Hotels.h2.id) shouldBe Some(
+        HotelsTestData.Hotels.h2.name
+      ) // untouched
     }
 
     "apply arbitrary CQL the column-mapping model cannot express (a collection append)" in {
@@ -113,6 +115,27 @@ final class HelenusForeachPartitionCqlSpec extends AnyWordSpec with Matchers wit
       PrepareCounter.calls.get() shouldBe 2
       ids.foreach(id => hotelName(id) shouldBe Some(s"name-$id"))
     }
+
+    "surface a write failure through the configured handler rather than swallowing it" in {
+      FailureCounter.count.set(0)
+      val config = CassandraSink.Config(
+        failureHandler = _ => { FailureCounter.count.incrementAndGet(); () }
+      )
+
+      // A null partition key binds fine but is rejected server-side at execute time. The
+      // job must fail (the exception is rethrown, not swallowed) and the handler must see it.
+      intercept[Exception] {
+        sc.parallelize(Seq((null.asInstanceOf[String], "orphan")), numSlices = 1)
+          .foreachPartitionCql(
+            "INSERT INTO helenus_spark_c3.hotels(id, name) VALUES (?, ?)"
+              .toCQL(_)
+              .prepare[String, String],
+            config
+          )
+      }
+
+      FailureCounter.count.get() should be >= 1
+    }
   }
 
   private def insertHotel(hotel: Hotel): Unit = {
@@ -125,12 +148,14 @@ final class HelenusForeachPartitionCqlSpec extends AnyWordSpec with Matchers wit
   }
 
   private def hotelName(id: String): Option[String] = {
-    val row = session.execute(SimpleStatement.newInstance("SELECT name FROM hotels WHERE id = ?", id)).one()
+    val row =
+      session.execute(SimpleStatement.newInstance("SELECT name FROM hotels WHERE id = ?", id)).one()
     Option(row).map(_.getString("name"))
   }
 
   private def poisContains(id: String, poi: String): Boolean = {
-    val row = session.execute(SimpleStatement.newInstance("SELECT pois FROM hotels WHERE id = ?", id)).one()
+    val row =
+      session.execute(SimpleStatement.newInstance("SELECT pois FROM hotels WHERE id = ?", id)).one()
     row != null && row.getSet("pois", classOf[String]).contains(poi)
   }
 }
@@ -140,4 +165,11 @@ final class HelenusForeachPartitionCqlSpec extends AnyWordSpec with Matchers wit
   */
 object PrepareCounter {
   val calls: AtomicInteger = new AtomicInteger(0)
+}
+
+/** Counts write failures seen by the sink's failure handler, shared in-JVM like
+  * [[PrepareCounter]] so the driver can assert it after the (failed) job.
+  */
+object FailureCounter {
+  val count: AtomicInteger = new AtomicInteger(0)
 }
