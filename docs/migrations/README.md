@@ -23,7 +23,7 @@ Pekko connector, or `helenus-flink` plus Flink).
 
 ## Usage with Pekko
 
-```scala
+```scala mdoc:compile-only
 object pekkoExample {
   import scala.concurrent.Future
   import scala.concurrent.duration._
@@ -83,7 +83,7 @@ object pekkoExample {
 
 ## Usage with Flink
 
-```scala
+```scala mdoc:compile-only
 object flinkExample {
   import com.datastax.oss.driver.api.core.CqlSession
   import com.datastax.oss.driver.api.core.cql.Row

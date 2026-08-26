@@ -38,6 +38,31 @@ top-level vals: the bridges re-access them on the executor rather than shipping 
 a derived mapper closes over non-serializable driver codecs and must be re-derivable by name
 instead of captured from a local scope.
 
+```scala mdoc:invisible
+import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
+
+import net.nmoncho.helenus._
+import net.nmoncho.helenus.api.cql.Mapping
+
+final case class Address(
+    street: String,
+    city: String,
+    stateOrProvince: String,
+    postalCode: String,
+    country: String
+)
+object Address {
+  // In the type's own companion, so it is in implicit scope for every RowMapper, Mapping,
+  // and bound statement that touches an Address.
+  implicit val codec: TypeCodec[Address] = Codec.of[Address]()
+}
+
+final case class Hotel(id: String, name: String, phone: String, address: Address, pois: Set[String])
+object Hotel {
+  implicit val rowMapper: RowMapper[Hotel] = RowMapper[Hotel]()
+  implicit val mapping: Mapping[Hotel]     = Mapping[Hotel]()
+}
+```
 
 ### Read path (RDD)
 
@@ -45,7 +70,7 @@ instead of captured from a local scope.
 connector still does the token-aware scan. Bind the Helenus `RowReaderFactory` from the
 package-object entry point next to the call:
 
-```scala
+```scala mdoc:compile-only
 import org.apache.spark.SparkContext
 
 import com.datastax.spark.connector._
@@ -77,7 +102,7 @@ writes (`IF NOT EXISTS`, `IF ...`), custom-`WHERE` updates and deletes, and arbi
 The RDD element type must equal the statement's `In`, so map to the bind tuple first and use
 a multi-arg `.prepare[...]`:
 
-```scala
+```scala mdoc:compile-only
 import org.apache.spark.rdd.RDD
 
 import net.nmoncho.helenus._
@@ -120,7 +145,7 @@ connector's, used unchanged. Helenus does not wrap them, and typed Catalyst enco
 of scope (building them would re-enter the DataSource V2 territory this module refuses to
 compete in):
 
-```scala
+```scala mdoc:compile-only
 import org.apache.spark.sql.{ DataFrame, SparkSession }
 
 def hotelsDataFrame(spark: SparkSession): DataFrame =
@@ -137,7 +162,7 @@ sink via `Dataset.rdd`. Because the element type must equal the statement's `In`
 val, so the builder re-accesses it on the executor instead of shipping the non-serializable
 mapping:
 
-```scala
+```scala mdoc:compile-only
 import org.apache.spark.sql.Dataset
 
 import net.nmoncho.helenus._

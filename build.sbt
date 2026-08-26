@@ -181,7 +181,7 @@ lazy val docs = project
       Dependencies.cassandraUnit
     )
   )
-  .dependsOn(core, akka, flink, monix, pekko, spark, tables, zio)
+  .dependsOn(core, akka, flink, migrations, monix, pekko, spark, tables, zio)
 
 lazy val core = project
   .enablePlugins(Antlr4Plugin)

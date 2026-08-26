@@ -21,6 +21,10 @@ guide in its own README):
 - [Pekko](pekko/README.md)
 - [ZIO](zio/README.md)
 
+Cassandra to Cassandra data migrations have their own module:
+
+- [Migrations](migrations/README.md)
+
 ## Installation
 
 Include the library into you project definition:
