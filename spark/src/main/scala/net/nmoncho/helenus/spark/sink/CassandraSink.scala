@@ -17,7 +17,7 @@ import org.apache.spark.rdd.RDD
 /** The CQL-first `foreachPartition` write path.
   *
   * This is the primary, recommended typed write path on Spark. Unlike the connector's
-  * `saveToCassandra` — which maps a domain object to a single INSERT — it runs a
+  * `saveToCassandra`, which maps a domain object to a single INSERT. It runs a
   * user-provided `CqlSession => ScalaPreparedStatement[In, Out]` and binds each record
   * with compile-time bind-arity safety, so it can express what the column-mapping model
   * cannot: LWT / conditional writes (`IF NOT EXISTS`, `IF ...`), custom-`WHERE` updates and
@@ -41,13 +41,13 @@ object CassandraSink {
     * CQL-first path bypasses the connector's `WriteConf` (it executes user statements
     * directly through the yielded session), so its idempotency and consistency options do
     * not apply here. A partition's statements may therefore be applied more than once. Keep
-    * them idempotent — plain inserts/upserts and `IF NOT EXISTS` are safe to replay — and
+    * them idempotent. Plain inserts/upserts and `IF NOT EXISTS` are safe to replay, and
     * for statements that are '''not''' (counter updates, non-idempotent conditional writes)
     * set `idempotent = false` and design for the possibility of a replay.
     *
     * @param batchSize      how many bound statements to group into one `UNLOGGED` batch per
     *                       execute. `1` (the default) executes each record on its own,
-    *                       which is what LWT / conditional writes require — those cannot be
+    *                       which is what LWT / conditional writes require, those cannot be
     *                       batched, and a multi-partition batch is a Cassandra anti-pattern,
     *                       so raise this only for many small same-partition writes.
     * @param idempotent     applied to every statement via `setIdempotent`; `true` (the
@@ -76,8 +76,8 @@ object CassandraSink {
   /** Runs `builder` once per partition inside the connector's session and executes a bound
     * statement per record (or per `config.batchSize` group).
     *
-    * The statement is prepared lazily on the executor — only the small `builder` function
-    * crosses the wire, exactly as the Flink sink does — so a non-serializable capture in
+    * The statement is prepared lazily on the executor, only the small `builder` function
+    * crosses the wire, exactly as the Flink sink does, so a non-serializable capture in
     * `builder` surfaces as a real cross-executor failure rather than working by accident on
     * a local run. The `SparkConf` is read on the driver (it is serializable; a
     * `SparkContext` is not) and the connector is rebuilt per partition.

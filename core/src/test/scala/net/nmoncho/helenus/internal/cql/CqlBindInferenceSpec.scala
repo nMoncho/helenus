@@ -15,13 +15,13 @@ import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
   *
   * [[BindInference.boundParams]] decides, per interpolated parameter, whether it is a '''value''' to
   * bind (a `:name` marker) or a fragment to '''inject''' into the query text (a table or column
-  * name). It is subtle — it iterates, flipping parameters from bound to injected until the statement
-  * parses — and was previously only exercised indirectly through end-to-end interpolation. Here it is
+  * name). It is subtle, it iterates, flipping parameters from bound to injected until the statement
+  * parses, and was previously only exercised indirectly through end-to-end interpolation. Here it is
   * driven directly, over generated interpolations that mix table names, column names and values.
   *
   * An interpolation is modelled as a list of [[CqlBindInferenceSpec.Frag]]s: literal text, an
-  * '''identifier''' slot (a compile-time constant, so injectable — expected to be injected), or a
-  * '''value''' slot (a runtime value or a constant in value position — expected to be bound). The
+  * '''identifier''' slot (a compile-time constant, so injectable, expected to be injected), or a
+  * '''value''' slot (a runtime value or a constant in value position, expected to be bound). The
   * model records the expected decision for each slot, which the property checks against, and then
   * asserts the emitted statement is valid CQL.
   */

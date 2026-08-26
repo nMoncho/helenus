@@ -14,7 +14,7 @@ import org.scalatest.matchers.should.Matchers
 /** Differential (oracle) testing of [[CqlValidator]] against a real Cassandra.
   *
   * A large corpus only encodes '''our''' assumptions about what valid CQL is. This spec removes that
-  * bias by asking a real Cassandra — the in-process embedded server the test suite already starts —
+  * bias by asking a real Cassandra, the in-process embedded server the test suite already starts,
   * the same accept/reject question, for every entry of [[CqlConformanceCorpus]].
   *
   * ==The oracle==
@@ -24,8 +24,8 @@ import org.scalatest.matchers.should.Matchers
   * kinds:
   *
   *   - a [[SyntaxError]] means Cassandra '''rejects the syntax''';
-  *   - anything else — a successful prepare, or an `InvalidQueryException` such as "unconfigured
-  *     table" — means the '''syntax is fine''' and only semantics (a missing table/keyspace/column)
+  *   - anything else, a successful prepare, or an `InvalidQueryException` such as "unconfigured
+  *     table", means the '''syntax is fine''' and only semantics (a missing table/keyspace/column)
   *     failed. Since [[CqlValidator]] is syntactic-only, a semantic failure counts as acceptance.
   *
   * ==The asymmetry==
@@ -79,7 +79,7 @@ class CqlDifferentialSpec extends AnyFlatSpec with Matchers with CassandraSpec {
     val benign =
       CqlConformanceCorpus.queries.filter(q => validatorAccepts(q) && !cassandraAccepts(q))
     info(
-      s"${benign.size} benign divergence(s) (validator accepts, embedded Cassandra rejects — " +
+      s"${benign.size} benign divergence(s) (validator accepts, embedded Cassandra rejects, " +
         "expected for 5.0-only syntax):"
     )
     benign.foreach(q => info(s"  - $q"))
@@ -104,7 +104,7 @@ class CqlDifferentialSpec extends AnyFlatSpec with Matchers with CassandraSpec {
 
   it should "reject only CQL that Cassandra also rejects (intentional rejections cross-check)" in
     intentionalRejections.foreach { q =>
-      withClue(s"$q\n  validator and Cassandra must agree this is invalid — ") {
+      withClue(s"$q\n  validator and Cassandra must agree this is invalid, ") {
         validatorAccepts(q) shouldBe false
         cassandraAccepts(q) shouldBe false
       }
@@ -115,7 +115,7 @@ class CqlDifferentialSpec extends AnyFlatSpec with Matchers with CassandraSpec {
   // invalid CQL rather than accidentally pinning a reject-valid defect.
   it should "confirm the C4 negative corpus is genuinely invalid (oracle rejects it too)" in
     CqlNegativeCorpus.queries.foreach { q =>
-      withClue(s"$q\n  the negative corpus must contain only CQL Cassandra also rejects — ") {
+      withClue(s"$q\n  the negative corpus must contain only CQL Cassandra also rejects, ") {
         validatorAccepts(q) shouldBe false
         cassandraAccepts(q) shouldBe false
       }

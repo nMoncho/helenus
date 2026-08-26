@@ -8,7 +8,7 @@ package net.nmoncho.helenus.internal.cql
 
 /** Curated negative corpus for the CQL validator.
   *
-  * Invalid CQL — typos, missing clauses, wrong ordering, and malformed fragments — that
+  * Invalid CQL, typos, missing clauses, wrong ordering, and malformed fragments, that
   * [[CqlValidator]] must '''reject''', paired with the position and a stable, useful fragment of the
   * message. It regression-protects the diagnostics (Workstream D) and locks in the rejection
   * behaviour, so a grammar change that silently starts accepting garbage, or degrades a message, is

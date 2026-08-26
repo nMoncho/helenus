@@ -12,8 +12,8 @@ import org.scalacheck.Gen
   *
   * The generators are '''template-driven''': they assemble statements from grammar-shaped pieces
   * (identifiers, data types, literals, terms, relations, selectors) with random structure, nesting
-  * and arity. They aim to emit CQL that is '''valid''' — accepted by both [[CqlValidator]] and a real
-  * Cassandra — so the differential property has something to disagree about; invalid emissions are
+  * and arity. They aim to emit CQL that is '''valid''', accepted by both [[CqlValidator]] and a real
+  * Cassandra, so the differential property has something to disagree about; invalid emissions are
   * harmless there (both sides reject).
   *
   * Two deliberate exclusions keep the generators honest against the embedded 3.11 oracle and the one
@@ -22,7 +22,7 @@ import org.scalacheck.Gen
   *   - no '''bind markers in `SELECT` selector position''' (bare `?`, or as a function argument),
   *     which helenus intentionally rejects (see `tools/antlr-import/README.md`);
   *   - no constructs known to be '''5.0-only''' (arithmetic, element selection, `VECTOR`, ...), which
-  *     the 3.11 oracle rejects — those are covered, and logged as benign, by the corpus in
+  *     the 3.11 oracle rejects, those are covered, and logged as benign, by the corpus in
   *     `CqlDifferentialSpec`.
   */
 object CqlGenerators {
@@ -90,7 +90,7 @@ object CqlGenerators {
       "ASCII"
     )
 
-  /** Recursive data type, depth-bounded — the targeted generator for nested / frozen types. */
+  /** Recursive data type, depth-bounded, the targeted generator for nested / frozen types. */
   def dataType(depth: Int): Gen[String] =
     if (depth <= 0) nativeType
     else
@@ -120,7 +120,7 @@ object CqlGenerators {
       Gen.const("0x00ff")
     )
 
-  /** Recursive literal, depth-bounded — the targeted generator for (nested) collection literals. */
+  /** Recursive literal, depth-bounded, the targeted generator for (nested) collection literals. */
   def literal(depth: Int): Gen[String] =
     if (depth <= 0) scalarLiteral
     else {

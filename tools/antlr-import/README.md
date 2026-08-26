@@ -13,7 +13,7 @@ rule has a `returns [...]` type and embedded Java actions that build objects lik
 `SelectStatement.RawStatement`. They only compile with the whole `cassandra-all`
 jar on the classpath.
 
-Helenus needs none of that — only a **recognizer** (accept/reject a string, plus
+Helenus needs none of that, only a **recognizer** (accept/reject a string, plus
 token types). So `convert.py` mechanically strips all the Java and emits
 recognizer-only **ANTLR4** grammars that plug into the existing `sbt-antlr4`
 build with no runtime dependency on Cassandra.
@@ -39,7 +39,7 @@ upstream/Parser.g  ─┼─ convert.py ────►┤
    ```
    python3 tools/antlr-import/convert.py
    ```
-   It **fails loudly** if an anchor it depends on is missing — that is the signal
+   It **fails loudly** if an anchor it depends on is missing, that is the signal
    that a hand-reviewed part of the grammar changed shape (see below).
 3. Regenerate + run the tests:
    ```
@@ -59,7 +59,7 @@ upstream/Parser.g  ─┼─ convert.py ────►┤
   labels (`x=`, `x+=`)
 - strips ANTLR3 syntactic predicates `( ... )=>`
 - rewrites the grammar headers and adds a `root` entry rule
-- copies keyword and fragment rules **verbatim** — so a new CQL keyword in a
+- copies keyword and fragment rules **verbatim**, so a new CQL keyword in a
   future Cassandra release flows through automatically
 
 **Judgment (hand-written in `convert.py`, revisit on a new version):**
@@ -82,13 +82,13 @@ live in `convert.py` as anchored patches that fail if upstream changes:
   them at prepare time). helenus drops the two marker alternatives from
   `selectionLiteral` because the interpolator relies on a marker being invalid in
   a selector position to decide it must *inject* an identifier (a column name)
-  there rather than *bind* a value — otherwise `cql"SELECT $col"` would bind
+  there rather than *bind* a value, otherwise `cql"SELECT $col"` would bind
   `$col` as a value and silently build a broken query.
 
   A knock-on consequence (tracked as a gap, see `CqlValidator`'s scaladoc and
   `CqlValidatorSpec`): because selector function arguments resolve through the
   same `unaliasedSelector` rule, a bind marker used as a *function argument in the
-  select list* — e.g. `SELECT similarity_cosine(v, ?) FROM t` — is also rejected.
+  select list* (e.g. `SELECT similarity_cosine(v, ?) FROM t`) is also rejected.
   Only bind markers are affected there; column, constant, string and
   collection-literal arguments parse. Use `"...".toUnsafeCQL` when you need it.
 

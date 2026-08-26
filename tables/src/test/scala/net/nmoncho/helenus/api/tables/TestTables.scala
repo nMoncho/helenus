@@ -156,8 +156,8 @@ object SnapshotsTable extends Table[Snapshot]("blog", "snapshots") {
 }
 
 // A table with an indexed scalar column (`email`) alongside a plain,
-// non-indexed one (`age`), used to test that ANY column type — not just
-// collections — becomes queryable by === without allowFiltering once
+// non-indexed one (`age`), used to test that ANY column type, not just
+// collections, becomes queryable by === without allowFiltering once
 // indexed.
 case class Customer(id: UUID, email: String, age: Int)
 
@@ -228,7 +228,7 @@ object DocumentsTable extends Table[Document]("blog", "documents") {
 
 // A table with a frozen MAP column (`labels`), indexed (only FULL is
 // possible for a frozen collection), alongside a plain non-indexed frozen
-// map (`tags`) — used to test that freezing a map removes ALL of its
+// map (`tags`), used to test that freezing a map removes ALL of its
 // per-element operations (contains, containsKey, entry), not just
 // containsKey, and that only whole-value equality remains, exactly like a
 // frozen Set/List.

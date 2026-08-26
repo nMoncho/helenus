@@ -250,7 +250,7 @@ class SelectExecuteIntegrationSpec extends CassandraIntegrationSpec {
   }
 
   it should "bind three out-of-order markers across partition, clustering and range" in {
-    // Written ts-first (a range), then year, then device_id — the exact reverse
+    // Written ts-first (a range), then year, then `device_id`, the exact reverse
     // of key order (device_id, year, ts). The prepared function's arguments
     // follow writing order, so each ? still lands on its own column; before the
     // A2 fix the binding walked predicates in key order while the arguments

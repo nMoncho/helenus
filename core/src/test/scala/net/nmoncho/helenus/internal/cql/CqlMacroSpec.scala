@@ -52,7 +52,7 @@ class CqlMacroSpec extends AnyFlatSpec with Matchers {
   }
 
   // ---------------------------------------------------------------------------
-  // cql) macro — valid queries
+  // cql) macro, valid queries
   // ---------------------------------------------------------------------------
 
   "cql) macro" should "compile SELECT with literal" in
@@ -85,7 +85,7 @@ class CqlMacroSpec extends AnyFlatSpec with Matchers {
     shouldCompile("""cql"UPDATE t SET date = ?, text = ? WHERE id = ?"""")
 
   // ---------------------------------------------------------------------------
-  // cql) macro — invalid queries (compile-time errors)
+  // cql) macro, invalid queries (compile-time errors)
   // ---------------------------------------------------------------------------
 
   it should "reject a statement keyword typo" in {
@@ -111,7 +111,7 @@ class CqlMacroSpec extends AnyFlatSpec with Matchers {
   }
 
   // ---------------------------------------------------------------------------
-  // toCQL extension method — valid queries
+  // toCQL extension method, valid queries
   // ---------------------------------------------------------------------------
 
   "toCQL extension method" should "compile a valid SELECT literal" in
@@ -124,7 +124,7 @@ class CqlMacroSpec extends AnyFlatSpec with Matchers {
     shouldCompile(""""SELECT date FROM t WHERE id = ?".toCQL""")
 
   // ---------------------------------------------------------------------------
-  // toCQL — stripMargin / trim chains
+  // toCQL, stripMargin / trim chains
   // ---------------------------------------------------------------------------
 
   it should "compile a multiline string with stripMargin" in
@@ -146,7 +146,7 @@ class CqlMacroSpec extends AnyFlatSpec with Matchers {
   }
 
   // ---------------------------------------------------------------------------
-  // toCQL — CqlSession implicit requirement
+  // toCQL, CqlSession implicit requirement
   // ---------------------------------------------------------------------------
 
   it should "require an implicit CqlSession in scope" in {
@@ -158,7 +158,7 @@ class CqlMacroSpec extends AnyFlatSpec with Matchers {
     shouldCompile(""""SELECT id FROM users WHERE id = ?".toCQL""")
 
   // ---------------------------------------------------------------------------
-  // toCQL — non-literal rejection
+  // toCQL, non-literal rejection
   // ---------------------------------------------------------------------------
 
   it should "reject a runtime variable" in {

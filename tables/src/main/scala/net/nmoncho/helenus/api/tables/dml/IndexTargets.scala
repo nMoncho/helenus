@@ -14,7 +14,7 @@ package dml
   * needs), but a map's KEYS need a separate `CREATE INDEX ON t (KEYS(col))`
   * for `containsKey`, and its ENTRIES need `CREATE INDEX ON t (ENTRIES(col))`
   * for `entry` (`col[key] = value`). Every other column type needs only the
-  * plain column index — EXCEPT a [[Frozen]] collection, which is serialized
+  * plain column index, EXCEPT a [[Frozen]] collection, which is serialized
   * as a single value and so can only be indexed with `FULL(col)` (no
   * per-element KEYS / VALUES / ENTRIES indexing once frozen).
   *

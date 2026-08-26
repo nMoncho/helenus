@@ -31,7 +31,7 @@ import org.antlr.v4.runtime.misc.IntervalSet
   * ==Scope==
   *
   * The check is '''syntactic only'''. It runs with no schema, keyspace or types, so it cannot verify
-  * that a column exists or that a value's type matches — the server does that at runtime. When a
+  * that a column exists or that a value's type matches, the server does that at runtime. When a
   * construct is rejected but you believe it is valid (e.g. a newer-dialect or DSE-only feature not in
   * the pinned grammar), bypass validation with `"...".toUnsafeCQL` (or `toUnsafeCQLAsync`), which
   * builds the statement without this check.
@@ -45,7 +45,7 @@ import org.antlr.v4.runtime.misc.IntervalSet
   *     `similarity_cosine(v, ?)`). This follows from the intentional deviation that bind markers are
   *     not valid `SELECT` selectors (see `tools/antlr-import/README.md`): selector function
   *     arguments resolve through the same selector rule, so the marker is rejected there too. Only
-  *     bind markers are affected — column, constant, string and collection-literal arguments parse.
+  *     bind markers are affected, column, constant, string and collection-literal arguments parse.
   */
 object CqlValidator {
 
@@ -172,7 +172,7 @@ object CqlValidator {
   /** Translates an ANTLR code-point index into a UTF-16 char index into `input`.
     *
     * `CharStreams.fromString` indexes tokens by Unicode '''code point''', whereas every consumer of
-    * these offsets — the interpolator's bind-versus-inject logic and the compiler-error position —
+    * these offsets, the interpolator's bind-versus-inject logic and the compiler-error position,
     * indexes the original Scala `String` by '''UTF-16 char'''. The two diverge by one per
     * supplementary character (e.g. an emoji inside a string literal), so an offset must be
     * translated back to char space before it leaves this object, or the interpolator would splice at
@@ -218,7 +218,7 @@ object CqlValidator {
 
     // ANTLR's single-token deletion/insertion recovery ("extraneous input" /
     // "missing X") otherwise emits its own message with the raw expected-token
-    // set — dozens of `K_XXX` names. Route both through `report` so every
+    // set, dozens of `K_XXX` names. Route both through `report` so every
     // diagnostic is formatted the same way and the giant sets fall back to the
     // heuristic instead of being dumped verbatim.
     override def reportUnwantedToken(recognizer: Parser): Unit =

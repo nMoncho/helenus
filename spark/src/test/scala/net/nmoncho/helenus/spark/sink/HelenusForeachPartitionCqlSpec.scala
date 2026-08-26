@@ -122,13 +122,13 @@ final class HelenusForeachPartitionCqlSpec extends AnyWordSpec with Matchers wit
     // Ignored, not deleted: the body compiles (so the E2 bridge stays type-checked and its
     // Mapping-serialization contract is exercised at compile time), but it cannot RUN in this
     // module. Any Dataset operation triggers Spark SQL's Catalyst parser, whose ANTLR 4.9.3
-    // ATN cannot be read by Helenus core's ANTLR 4.13.2 runtime — and there is no single
+    // ATN cannot be read by Helenus core's ANTLR 4.13.2 runtime, and there is no single
     // ANTLR version that satisfies both the compile-time `toCQL` macro (needs 4.13.2) and
     // Spark SQL at runtime (needs 4.9.3). Enabling this requires shading ANTLR inside
     // helenus-core; see the "DataFrame / Dataset" limitation in the module README.
     "write a Dataset[Hotel] through the sink via .prepareFrom" ignore {
-      // `prepareFrom[Hotel]` binds via an implicit `Mapping[Hotel]`, which — like any
-      // derived mapper — is not serializable. It must be a stable global reference (here a
+      // `prepareFrom[Hotel]` binds via an implicit `Mapping[Hotel]`, which like any
+      // derived mapper is not serializable. It must be a stable global reference (here a
       // top-level object val) so the builder re-accesses it on the executor rather than
       // capturing the instance into the shipped closure.
       import DatasetSinkFixtures.hotelMapping

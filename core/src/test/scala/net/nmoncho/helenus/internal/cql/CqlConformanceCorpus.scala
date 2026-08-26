@@ -206,7 +206,7 @@ object CqlConformanceCorpus {
     // (`batchStatement` models the whole block); pinned here so a future re-import that regresses it
     // turns red. The separator `;` is optional, mixed statement types are allowed, and the block
     // takes optional UNLOGGED/COUNTER modifiers and a USING clause. A malformed batch (missing
-    // APPLY BATCH) is rejected — see `CqlValidatorSpec`.
+    // APPLY BATCH) is rejected, see `CqlValidatorSpec`.
     "A3 multi-statement BATCH" -> Seq(
       "BEGIN BATCH INSERT INTO t (id) VALUES (1) APPLY BATCH",
       "BEGIN BATCH INSERT INTO t (id) VALUES (1); UPDATE t SET n = 1 WHERE id = 2; DELETE FROM t WHERE id = 3; APPLY BATCH",
@@ -431,7 +431,7 @@ object CqlConformanceCorpus {
     ),
     // constructs surfaced by triaging a broad candidate set against the C2 oracle and
     // confirmed valid on the embedded (3.11-compatible) Cassandra. These are the "gaps we did not
-    // find by hand" — trailing separators, comments, quoted identifiers, arithmetic assignments,
+    // find by hand", trailing separators, comments, quoted identifiers, arithmetic assignments,
     // duration/scientific literals, bind markers in USING/tuple/condition positions, and DDL option
     // and auth-scope variants.
     "A4 additional constructs (oracle-confirmed)" -> Seq(
@@ -476,7 +476,7 @@ object CqlConformanceCorpus {
     ),
     // genuinely-valid Cassandra 5.0 constructs the grammar targets but the older
     // embedded oracle (3.11) rejects. They appear as the '''benign''' direction in
-    // `CqlDifferentialSpec` (validator accepts, embedded Cassandra rejects) — that is expected and
+    // `CqlDifferentialSpec` (validator accepts, embedded Cassandra rejects), that is expected and
     // logged, not a failure.
     "Cassandra 5.0-only constructs (benign against older oracles)" -> Seq(
       "SELECT n + 1 FROM t",

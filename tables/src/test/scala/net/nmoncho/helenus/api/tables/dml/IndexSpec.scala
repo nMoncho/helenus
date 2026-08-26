@@ -351,7 +351,7 @@ class IndexSpec extends AnyFlatSpec with Matchers {
     // Verifies the type-level contributions compound correctly: each is
     // "free" (Eq = In = Rng = HNil), so `and`-ing three of them, plus a real
     // primary-key ===, still satisfies the ungated execute gate. NOTE: real
-    // Cassandra is stricter than this — it only allows ONE index-driven
+    // Cassandra is stricter than this, it only allows ONE index-driven
     // restriction without ALLOW FILTERING, so this exact shape is rejected
     // by the server (see IndexIntegrationSpec); this test is purely about
     // the compile-time HList merging, not a claim the query is efficient.

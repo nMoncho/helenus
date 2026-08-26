@@ -24,7 +24,7 @@ object IndexKind {
     * `usingClass` is deliberately a free-form string rather than a fixed set
     * of choices: which classes are available, and under what name, depends on
     * the cluster (e.g. SAI ships under a different class name in open-source
-    * Cassandra than in DataStax Enterprise — see [[SAI]] for both).
+    * Cassandra than in DataStax Enterprise, see [[SAI]] for both).
     */
   final case class Custom(usingClass: String, options: Map[String, String] = Map.empty)
       extends IndexKind

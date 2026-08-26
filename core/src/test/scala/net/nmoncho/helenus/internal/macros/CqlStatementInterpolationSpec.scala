@@ -241,7 +241,7 @@ class CqlStatementInterpolationSpec extends AnyFlatSpec with Matchers {
   // A statement hitting a known grammar gap: a bind marker as a function argument in the SELECT
   // selector list, which `CqlValidator` rejects (see tools/antlr-import/README.md). `$vec` is a
   // runtime value, so the machinery binds it, and `$tableName` is a constant identifier, so it is
-  // injected — exactly as for `cql`, only without the final syntactic check.
+  // injected, exactly as for `cql`, only without the final syntactic check.
   private val gapSnippet =
     """
       |val vec = "x"

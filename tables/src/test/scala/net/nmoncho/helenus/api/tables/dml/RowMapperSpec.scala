@@ -13,7 +13,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 /** `Table.rowMapper`, built by `registerAllColumns` from the table's OWN
-  * registered columns — not from an independent `LabelledGeneric` derivation
+  * registered columns, not from an independent `LabelledGeneric` derivation
   * that could disagree with the table's `naming` scheme (see [[TestRow]] for
   * how these tests mock the driver `Row`).
   */

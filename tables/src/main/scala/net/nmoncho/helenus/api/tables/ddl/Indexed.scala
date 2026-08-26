@@ -98,8 +98,8 @@ trait EntriesIndexed[T] { self: TableDef#Column[T] =>
 /** Every index-backed exemption combined: `===`, `contains`, `containsKey`,
   * and `entry` are all exempt from `allowFiltering`. Mixed in by the
   * no-choice `Table.index(col)`, which grants everything applicable to
-  * `col`'s type (see [[IndexTargets]]) — the same as it always has. For a
-  * map column with only SOME of its physical indexes declared, use the
+  * `col`'s type (see [[IndexTargets]]). For a map column with only SOME
+  * of its physical indexes declared, use the
   * `on`-parameterized `Table.index` overloads instead, which mix in only
   * the matching one(s) of [[ValuesIndexed]] / [[KeysIndexed]] /
   * [[EntriesIndexed]].

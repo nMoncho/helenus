@@ -29,12 +29,12 @@ import shapeless.ops.function
 import shapeless.ops.function.FnFromProduct
 
 /** Dispatches a [[Select]]'s `Params` `HList` (the bound `?` marker types, in
-  * writing order) to the matching arity-specific `helenus` constructor —
+  * writing order) to the matching arity-specific `helenus` constructor
   * `CQLQuery#prepareUnit` for no parameters, `CQLQuery#prepare[T1]` for one,
   * `CQLQuery#prepare[T1, T2]` for two, and so on through 22 (the same ceiling
   * `helenus` itself supports). There is no generic, arity-agnostic entry
-  * point on the `helenus` side to delegate to instead — its
-  * `ScalaPreparedStatementN` classes are hand-numbered, not `HList`-driven —
+  * point on the `helenus` side to delegate to instead, its
+  * `ScalaPreparedStatementN` classes are hand-numbered, not `HList`-driven,
   * so this typeclass exists purely to bridge our `HList` to that numbering,
   * one implicit per arity, each requiring a driver [[TypeCodec]] per bound
   * parameter (`helenus` binds by position, not by our [[com.example.cql.CQLType]]).

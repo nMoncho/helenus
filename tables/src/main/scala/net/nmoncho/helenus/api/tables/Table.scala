@@ -372,7 +372,7 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
     * WRAPPED type: `frozenColumn[Set[String]]("tags")` for a field declared
     * as `tags: Frozen[Set[String]]`. Exactly `column[Frozen[V]](name0)`
     * (same checks, same DDL, same `frozen<...>` rendering) but without
-    * having to spell `Frozen[...]` out again at the call site — the field
+    * having to spell `Frozen[...]` out again at the call site, the field
     * itself must still be declared `Frozen[V]`, since that's what makes the
     * case class the source of truth for the `frozen<...>` DDL type.
     */
@@ -401,13 +401,12 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
     * (and, for a map column, `col.containsKey` / `col.entry`) can be
     * satisfied by CQL directly through the index: `execute` no longer
     * requires `allowFiltering` for it (see [[TableDef.Indexed]]). Also
-    * registers the index(es) so they can be created with [[createIndexes]] —
+    * registers the index(es) so they can be created with [[createIndexes]],
     * a map column registers a values index (for `contains`), a `KEYS(...)`
     * index (for `containsKey`), AND an `ENTRIES(...)` index (for `entry`),
     * all three at once; a [[Frozen]] column registers a single `FULL(...)`
     * index instead, since a frozen collection has no per-element indexing
-    * (and none of `contains` / `containsKey` / `entry` either — see
-    * [[IndexTargets]]).
+    * (and none of `contains` / `containsKey` / `entry` either, see [[IndexTargets]]).
     *
     * The index name defaults to `tableName_columnName` (suffixed per target,
     * see below); pass `name` to override that base, e.g. because two indexes
@@ -415,7 +414,7 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
     *
     * `kind` picks the index implementation: [[IndexKind.Secondary]] (the
     * default, the database's built-in index) or [[IndexKind.Custom]] (e.g.
-    * Storage-Attached Indexing — see [[SAI]] for common `USING` classes).
+    * Storage-Attached Indexing, see [[SAI]] for common `USING` classes).
     * It only affects the DDL [[createIndexes]] generates; the `contains` /
     * `containsKey` / `entry` / `===` exemption from `allowFiltering` applies
     * the same way regardless of kind.
@@ -472,7 +471,7 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
 
   /** Declare a secondary index covering only SOME of a map column's
     * independently indexable aspects, instead of the no-choice `index(col)`
-    * (which grants everything at once — `contains`, `containsKey`, AND
+    * (which grants everything at once, `contains`, `containsKey`, AND
     * `entry`). Pick the method matching what physical index(es) you actually
     * have (or will have): [[indexValues]] alone backs `contains`,
     * [[indexKeys]] alone backs `containsKey`, [[indexEntries]] alone backs

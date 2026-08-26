@@ -12,7 +12,7 @@ import org.scalatest.matchers.should.Matchers
 /** Conformance corpus check.
   *
   * Asserts [[CqlValidator]] accepts every entry of the shared [[CqlConformanceCorpus]]. It is the
-  * safety net for grammar changes — in particular for re-importing a newer Cassandra grammar (see
+  * safety net for grammar changes, in particular for re-importing a newer Cassandra grammar (see
   * `tools/antlr-import/`): if an import silently drops a construct, the corresponding entry here
   * turns red.
   *

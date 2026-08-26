@@ -19,11 +19,11 @@ import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
   * Hand-written and doc-sourced corpora cover the constructs we thought of. This spec attacks
   * the long tail with generated CQL ([[CqlGenerators]]) and asserts two properties:
   *
-  *   1. '''the validator never throws''' — for any input at all (generated statements, mutations of
+  *   1. '''the validator never throws''', for any input at all (generated statements, mutations of
   *      them, and arbitrary garbage), `validate` / `firstErrorOffset` / `bindMarkerOffsets` return a
   *      value rather than blowing up. A parser that throws on some input is a latent compile-time
   *      crash on the `cql"..."` path.
-  *   2. '''the decision matches the C2 oracle''' — for generated valid CQL, the validator never
+  *   2. '''the decision matches the C2 oracle''', for generated valid CQL, the validator never
   *      rejects what a real Cassandra accepts (the harmful reject-valid direction). The benign
   *      direction (validator accepts, the 3.11 oracle rejects a 5.0 construct) is tolerated, exactly
   *      as in [[CqlDifferentialSpec]].

@@ -358,8 +358,8 @@ lazy val spark = project
     // winner (a real LinkageError / NoSuchMethodError risk).
     //
     // We converge on a single provider by letting the connector's shaded core supply
-    // the driver on every classpath (compile via `provided`, test, and — since the
-    // user deploys the connector — runtime). The unshaded `java-driver-core` (and its
+    // the driver on every classpath (compile via `provided`, test, and since the
+    // user deploys the connector runtime). The unshaded `java-driver-core` (and its
     // guava relocation) is excluded so it cannot leak in transitively via
     // `core % test->test` and collide with the connector's shaded copy.
     excludeDependencies ++= Seq(

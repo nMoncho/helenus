@@ -50,7 +50,7 @@ package object helenus extends CodecDerivation {
     * so the subsequent `map`/`flatMap` on it may run on the calling thread depending
     * on the [[ExecutionContext]]. Because this is always in scope via
     * `import net.nmoncho.helenus._`, an async execution can be selected from a plain
-    * `CqlSession` without an explicit `Future[CqlSession]` — keep that in mind when
+    * `CqlSession` without an explicit `Future[CqlSession]`, keep that in mind when
     * reasoning about which thread the driver call runs on.
     */
   implicit def cqlSessionAdapter(implicit session: CqlSession): Future[CqlSession] =

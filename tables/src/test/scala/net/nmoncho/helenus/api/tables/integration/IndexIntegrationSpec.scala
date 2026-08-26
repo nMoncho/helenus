@@ -23,11 +23,11 @@ import org.scalatest.DoNotDiscover
   * Known gate limitation (found here, like the clustering-IN + collection
   * projection case in SelectExecuteIntegrationSpec): Cassandra allows AT MOST
   * ONE index-driven restriction without ALLOW FILTERING, even alongside a
-  * full primary key. The gate does not model that cap — every such predicate
-  * is treated as unconditionally "free" — so combining two or more of them
+  * full primary key. The gate does not model that cap. every such predicate
+  * is treated as unconditionally "free", so combining two or more of them
   * compiles and passes the gate, but the server still rejects it; see the
   * dedicated test below. Confirmed on both Cassandra 3.11.19 and 5.0.6 (the
-  * embedded version used here) — not a version-specific quirk.
+  * embedded version used here), not a version-specific quirk.
   */
 @DoNotDiscover
 class IndexIntegrationSpec extends CassandraIntegrationSpec {
@@ -370,7 +370,7 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
   // two or more of them (on the same column or different ones) needs ALLOW
   // FILTERING regardless. Our gate treats every such predicate as
   // unconditionally "free", so it admits `.execute` here where the server
-  // does not — confirmed via raw toCQL below (see the analogous note in
+  // does not, confirmed via raw toCQL below (see the analogous note in
   // SelectExecuteIntegrationSpec for the clustering-IN + collection-
   // projection limitation).
   it should "actually need ALLOW FILTERING once combined, even though the gate admits .execute" in {
@@ -495,7 +495,7 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
 
   // ---- Frozen maps: only whole-value equality works, via a FULL index -----
   // contains / containsKey / entry aren't even expressible on a Frozen map
-  // (compile-time rejection, see IndexSpec) — nothing to check against the
+  // (compile-time rejection, see IndexSpec), nothing to check against the
   // server for those. Only === is left, exactly like a frozen Set/List.
 
   "equality on a FULL-indexed Frozen map column" should "run without ALLOW FILTERING and find the matching row" in {

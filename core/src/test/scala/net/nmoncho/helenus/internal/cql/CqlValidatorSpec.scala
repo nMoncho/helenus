@@ -432,7 +432,7 @@ class CqlValidatorSpec extends AnyFlatSpec with Matchers {
   // "bind markers are not valid as SELECT selectors" (see tools/antlr-import/README.md): selector
   // function arguments resolve through `unaliasedSelector`, from which the marker alternatives were
   // removed so the interpolator injects an identifier there rather than binding a value. Only bind
-  // markers are affected — column, constant, string and collection-literal arguments are accepted.
+  // markers are affected, column, constant, string and collection-literal arguments are accepted.
   // Escape hatch: `"...".toUnsafeCQL`.
   // ---------------------------------------------------------------------------
 

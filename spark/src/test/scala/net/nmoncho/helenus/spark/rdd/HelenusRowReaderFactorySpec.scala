@@ -23,9 +23,9 @@ import org.scalatest.wordspec.AnyWordSpec
   * the shipping property (a reader serializes even though its materialized mapper would
   * not) directly.
   *
-  * The end-to-end acceptance — `sc.cassandraTable[Hotel]("ks", "hotels")` returning an
+  * The end-to-end acceptance `sc.cassandraTable[Hotel]("ks", "hotels")` returning an
   * `RDD[Hotel]` (UDT column included), one derivation per partition, and a real
-  * cross-executor run — lives in [[HelenusCassandraTableSpec]] against embedded Cassandra
+  * cross-executor run, lives in [[HelenusCassandraTableSpec]] against embedded Cassandra
   * and a local Spark context.
   */
 final class HelenusRowReaderFactorySpec extends AnyWordSpec with Matchers {
@@ -76,7 +76,7 @@ final class HelenusRowReaderFactorySpec extends AnyWordSpec with Matchers {
 
     "serialize a reader without shipping the mapper, then re-derive on the far side" in {
       // ReaderSampleMapper holds a non-serializable field, so a *materialized* mapper
-      // cannot cross the wire — exactly the connector's driver-to-executor situation. The
+      // cannot cross the wire, exactly the connector's driver-to-executor situation. The
       // reader still serializes because the mapper is a transient lazy val behind a
       // serializable provider, and it re-derives after deserialization.
       ReaderSampleMapper.constructions.set(0)
@@ -102,7 +102,7 @@ object ReaderSampleMapper {
 }
 
 /** A mapper that ignores the row so tests need no real driver `Row`. It holds a
-  * non-serializable field, so a materialized instance cannot be serialized — proving the
+  * non-serializable field, so a materialized instance cannot be serialized, proving the
   * reader ships the provider rather than the mapper. It counts constructions (to prove the
   * reader derives once) and applies (to prove per-row reuse), and is a named top-level
   * class so the provider lambda that builds it carries no outer reference.

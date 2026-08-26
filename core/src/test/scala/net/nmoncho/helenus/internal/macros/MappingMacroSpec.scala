@@ -45,7 +45,7 @@ class MappingMacroSpec extends AnyFlatSpec with Matchers {
   }
 
   // ---------------------------------------------------------------------------
-  // Mapping macro — valid derivations
+  // Mapping macro, valid derivations
   // ---------------------------------------------------------------------------
 
   "Mapping macro" should "derive a Mapping for a case class" in
@@ -68,7 +68,7 @@ class MappingMacroSpec extends AnyFlatSpec with Matchers {
     shouldCompile("""Mapping[Hotel]((hotel: Hotel) => hotel.name -> "hotel_name")""")
 
   // ---------------------------------------------------------------------------
-  // Mapping macro — invalid derivations (compile-time errors)
+  // Mapping macro, invalid derivations (compile-time errors)
   // ---------------------------------------------------------------------------
 
   it should "reject a tuple" in {

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-jmh_plot.py — Convert JMH benchmark CSV reports to SVG plots.
+`jmh_plot.py` Convert JMH benchmark CSV reports to SVG plots.
 
 Usage:
     python3 jmh_plot.py results.csv                  # single file

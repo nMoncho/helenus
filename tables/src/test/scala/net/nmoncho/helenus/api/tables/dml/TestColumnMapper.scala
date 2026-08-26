@@ -17,7 +17,7 @@ import org.mockito.stubbing.Answer
   * already exist elsewhere, per the driver's `TypeCodec` registry): a single
   * fully generic instance that reads a real (mocked) `Row` through its
   * generic `get(name, Class)` accessor. [[apply]] builds that mock, stubbing
-  * `get` to answer from the given `Map` by column name — enough to exercise
+  * `get` to answer from the given `Map` by column name, enough to validate
   * `Table.rowMapper`'s wiring (does it read the right column, by the right
   * name, in the right order?) against a genuine `Row`, without a live
   * Cassandra connection or a real driver codec.

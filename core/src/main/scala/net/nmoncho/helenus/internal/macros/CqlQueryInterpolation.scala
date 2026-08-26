@@ -319,7 +319,7 @@ object CqlQueryInterpolation {
   // rather than Apply(Select(lit, "stripMargin"), Nil).
   // We handle this by (a) recognising the method names as Select nodes and
   // (b) treating any single-arg Apply as a transparent wrapper and recursing
-  // into its argument — this covers augmentString and similar identity lifts.
+  // into its argument, this covers augmentString and similar identity lifts.
   //
   // Returns Left((reason, pos)) pointing at the *specific* sub-expression that
   // isn't foldable, rather than just failing the whole tree, so the abort
@@ -382,7 +382,7 @@ object CqlQueryInterpolation {
         }
 
       // Single-arg application: transparent wrapper (e.g. Predef.augmentString).
-      // Recurse into the wrapped value — if it's not a constant we return None.
+      // Recurse into the wrapped value, if it's not a constant we return None.
       case Apply(_, List(inner)) =>
         evalString(c)(inner)
 

@@ -21,13 +21,13 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
 /** End-to-end acceptance: `sc.cassandraTable[Hotel]` returns an `RDD[Hotel]` mapped by
-  * Helenus codecs — UDT column included — against embedded Cassandra and a local Spark
+  * Helenus codecs, UDT column included, against embedded Cassandra and a local Spark
   * context. The connector owns the token-aware scan; Helenus owns only the `Row => Hotel`
   * conversion via [[HelenusRowReaderFactory]].
   *
   * Because the whole job runs on `local[2]`, Spark serializes the scan RDD (factory,
   * provider, `ClassTag`) into the task binary and deserializes it before computing each
-  * partition — so a green run is the proof that the bridge ships to a real executor
+  * partition, so a green run is the proof that the bridge ships to a real executor
   * without `NotSerializableException`, and that the mapper is (re)derived on the executor
   * rather than being shipped materialized. It is also the live proof of the classpath
   * decision: Helenus statements and codecs run against the connector's shaded driver.
@@ -77,7 +77,7 @@ final class HelenusCassandraTableSpec extends AnyWordSpec with Matchers with Cas
       // `helenusRowReaderFactory` is the `net.nmoncho.helenus.spark` package-object entry
       // point. Bound as a local implicit it outranks the connector's own default
       // RowReaderFactory (`import com.datastax.spark.connector._`, imported above), so the
-      // call resolves unambiguously — and the non-zero apply count proves the Helenus
+      // call resolves unambiguously, and the non-zero apply count proves the Helenus
       // mapper, not the connector's, actually mapped the rows.
       implicit val rrf: RowReaderFactory[Hotel] = helenusRowReaderFactory(new CountingHotelMapper)
 

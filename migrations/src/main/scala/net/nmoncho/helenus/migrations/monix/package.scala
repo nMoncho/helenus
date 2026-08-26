@@ -101,7 +101,16 @@ package object monix {
             Observable
               .fromIterable(group)
               .flatMap(split =>
-                scanSplit(pstmt, split, retry, checkpoint, executionProfile, routing, metrics, progress)
+                scanSplit(
+                  pstmt,
+                  split,
+                  retry,
+                  checkpoint,
+                  executionProfile,
+                  routing,
+                  metrics,
+                  progress
+                )
               )
           }
 
@@ -110,7 +119,9 @@ package object monix {
 
       val source = scanned
         .map { row => metrics.rowExtracted(); row }
-        .onErrorRecoverWith { case error => metrics.rangeFailed(error); Observable.raiseError(error) }
+        .onErrorRecoverWith { case error =>
+          metrics.rangeFailed(error); Observable.raiseError(error)
+        }
 
       rateLimit.fold(source)(limit => source.throttle(limit.per, limit.elements))
     }
@@ -199,7 +210,9 @@ package object monix {
         val halves = if (depth < retry.maxSplits) TokenRing.halve(range) else Vector.empty
 
         if (halves.size >= 2) {
-          Observable.fromIterable(halves).flatMap(half => readWithRetry(half, depth + 1, retry)(read))
+          Observable
+            .fromIterable(halves)
+            .flatMap(half => readWithRetry(half, depth + 1, retry)(read))
         } else {
           Observable.raiseError(new TokenRangeReadException(range, ex))
         }

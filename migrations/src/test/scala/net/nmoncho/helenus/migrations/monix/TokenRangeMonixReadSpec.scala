@@ -56,7 +56,7 @@ class TokenRangeMonixReadSpec extends AnyWordSpec with Matchers with CassandraSp
 
     "read every row exactly once across concurrent ranges, uncapped by default" in {
       val plan = TokenRangePlanner.plan(splitsPerRange = 8)
-      val ids  = collect(statement.asTokenRangeObservable(plan, parallelism = 4)).map(_.getInt("id"))
+      val ids = collect(statement.asTokenRangeObservable(plan, parallelism = 4)).map(_.getInt("id"))
 
       ids.size shouldBe total // no range read a row twice
       ids.toSet shouldBe (1 to total).toSet // every row covered, seam included
@@ -74,8 +74,12 @@ class TokenRangeMonixReadSpec extends AnyWordSpec with Matchers with CassandraSp
 
     "apply an opt-in rate limit when one is configured" in {
       val plan = TokenRangePlanner.plan(splitsPerRange = 8)
-      val ids = collect(
-        statement.asTokenRangeObservable(plan, parallelism = 4, rateLimit = Some(RateLimit(20, 1.second)))
+      val ids  = collect(
+        statement.asTokenRangeObservable(
+          plan,
+          parallelism = 4,
+          rateLimit   = Some(RateLimit(20, 1.second))
+        )
       ).map(_.getInt("id"))
 
       ids.toSet shouldBe (1 to total).toSet
@@ -86,7 +90,8 @@ class TokenRangeMonixReadSpec extends AnyWordSpec with Matchers with CassandraSp
       val checkpoint = Checkpoint.inMemory()
       plan.splits.take(plan.size / 2).foreach(checkpoint.markCompleted)
 
-      val rows = collect(statement.asTokenRangeObservable(plan, parallelism = 4, checkpoint = checkpoint))
+      val rows =
+        collect(statement.asTokenRangeObservable(plan, parallelism = 4, checkpoint = checkpoint))
 
       rows.size should be < total
       plan.splits.forall(checkpoint.isCompleted) shouldBe true

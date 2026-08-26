@@ -14,7 +14,7 @@ import org.apache.spark.sql.SparkSession
   * Only one `SparkContext` can be live per JVM, and `getOrCreate` hands every caller the
   * same one; if each spec built and then `stop()`ed its own, one suite would tear the
   * context down while another still used it. So the session is created once, lazily, and
-  * left running for the JVM to reclaim at exit — specs reference it and never stop it.
+  * left running for the JVM to reclaim at exit, specs reference it and never stop it.
   */
 object LocalSpark {
 

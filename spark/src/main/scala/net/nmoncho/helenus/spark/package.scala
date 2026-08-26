@@ -41,15 +41,15 @@ package object spark {
     * companion / implicit scope), so `sc.cassandraTable[T]` resolves this factory
     * unambiguously even with `import com.datastax.spark.connector._` also in scope. A
     * global `implicit def` is deliberately '''not''' provided: it would silently override
-    * the connector's default for every type that has a `RowMapper`, and — because the
-    * mapper must be re-derivable on the executor (see below) — it could not be made both
-    * seamless and serializable.
+    * the connector's default for every type that has a `RowMapper`, and because the
+    * mapper must be re-derivable on the executor (see below).
+    * It could not be made both seamless and serializable.
     *
     * ==Pass the derivation by name==
     *
-    * `mapper` is by-name: pass the derivation itself — `RowMapper.of[T]`,
+    * `mapper` is by-name: pass the derivation itself (`RowMapper.of[T]`),
     * `RowMapper.cached[T]()`, or a stable companion/object `val` such as `Hotel.rowMapper`
-    * — never a local val captured from an enclosing scope. The connector serializes the
+    * never a local val captured from an enclosing scope. The connector serializes the
     * scan RDD to executors, and a derived mapper closes over non-serializable driver
     * codecs; the by-name expression is re-evaluated on the executor so the mapper is
     * rebuilt there rather than shipped. See
@@ -66,7 +66,7 @@ package object spark {
     /** Writes every record through a Helenus [[ScalaPreparedStatement]], prepared once per
       * partition inside the connector's session, with compile-time bind-arity safety.
       *
-      * This is the primary typed write path, for what `saveToCassandra` cannot express —
+      * This is the primary typed write path, for what `saveToCassandra` cannot express
       * LWT / conditional writes (`IF NOT EXISTS`, `IF ...`), custom-`WHERE` updates and
       * deletes, and arbitrary CQL. Because the RDD element type must equal the statement's
       * `In`, either map to the bind tuple first and use a multi-arg `.prepare[...]`, or use
@@ -102,8 +102,8 @@ package object spark {
     *
     * A thin forward to the [[CqlSinkOps]] `RDD` sink via `Dataset.rdd`, so a typed dataset
     * can be written through a Helenus prepared statement without dropping to `.rdd` by hand.
-    * Typed Catalyst encoders and a Helenus DataSource are explicitly out of scope — the
-    * structured (DataFrame / Dataset) read and write path stays the connector's format.
+    * Typed Catalyst encoders and a Helenus DataSource are explicitly out of scope.
+    * The structured (DataFrame / Dataset) read and write path stays the connector's format.
     */
   implicit final class CqlDatasetSinkOps[In](private val ds: Dataset[In]) extends AnyVal {
 

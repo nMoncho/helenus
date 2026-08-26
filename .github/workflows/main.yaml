@@ -45,7 +45,7 @@ jobs:
 
       # `testCoverage` above only exercises the default Scala 2.13. Cross-test the
       # modules that also cross-build to 2.12 so a 2.12-only breakage cannot ship
-      # unnoticed (the 2.13-only modules — tables, akka, pekko — are excluded).
+      # unnoticed (the 2.13-only modules, tables, akka, pekko, are excluded).
       - name: Test Scala 2.12
         run: sbt ++2.12.21 core/test monix/test zio/test flink/test
 

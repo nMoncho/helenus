@@ -12,7 +12,7 @@ import scala.annotation.unused
 /** Witnesses that `Column.contains` accepts a value of type `V` for a column
   * of type `T`, mirroring CQL's own overloading of `CONTAINS`: for a
   * collection (`Set[V]`, `List[V]`) it is the element type; for a map
-  * (`Map[K, V]`) it is the value type — CQL's `m CONTAINS v` checks
+  * (`Map[K, V]`) it is the value type, CQL's `m CONTAINS v` checks
   * membership among the map's VALUES, distinct from `containsKey` (its keys)
   * and `entry` (a specific key/value pair).
   */

@@ -12,14 +12,14 @@ import org.scalatest.matchers.should.Matchers
 /** Offset and position accuracy across edge cases.
   *
   * `bindMarkerOffsets` and `firstErrorOffset` drive the interpolator's bind-versus-inject decision,
-  * so an off-by-one — on a multi-line statement, around comments, or with multi-byte characters — is
+  * so an off-by-one, on a multi-line statement, around comments, or with multi-byte characters, is
   * a correctness bug, not a cosmetic one. Every assertion here pins the '''absolute''' offset
   * exactly, expressed as an index into the original Scala `String` (`indexOf` / `lastIndexOf`), which
   * is the space the interpolator indexes.
   *
   * The multi-byte cases matter because ANTLR indexes tokens by Unicode code point while the `String`
   * is indexed by UTF-16 char; `CqlValidator` translates back to char space (see `toCharIndex`), and
-  * these tests are the regression net for that translation — in particular for supplementary
+  * these tests are the regression net for that translation, in particular for supplementary
   * characters (emoji), where one code point is two chars.
   */
 class CqlOffsetSpec extends AnyFlatSpec with Matchers {

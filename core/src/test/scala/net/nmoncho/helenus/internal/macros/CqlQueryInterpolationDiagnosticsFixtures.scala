@@ -11,7 +11,7 @@ package net.nmoncho.helenus.internal.macros
   * These need to be real, separately-compiled top-level members (not declared inline inside a
   * `ToolBox`-parsed snippet) because the diagnostics distinguish a `val` member of a module from
   * a local/parameter by checking `Symbol.isStatic`, which only holds for members of a real
-  * top-level (or nested-in-object) module — a snippet wrapped by `ToolBox` for evaluation does
+  * top-level (or nested-in-object) module, a snippet wrapped by `ToolBox` for evaluation does
   * not qualify.
   */
 object CqlQueryInterpolationDiagnosticsFixtures {

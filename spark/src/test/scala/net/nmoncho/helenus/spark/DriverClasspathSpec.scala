@@ -19,7 +19,7 @@ import org.scalatest.wordspec.AnyWordSpec
   * Helenus core depends on the unshaded `org.apache.cassandra:java-driver-core`, while the
   * spark-cassandra-connector ships the shaded `java-driver-core-shaded`. Both carry the same
   * un-relocated `com.datastax.oss.driver.api.core.*` API, so having both on one classpath
-  * means duplicate classes and a load-order-dependent winner — a real
+  * means duplicate classes and a load-order-dependent winner, a real
   * `LinkageError` / `NoSuchMethodError` risk. The connector's shaded driver
   * as the single provider; this spec fails loudly if a future dependency bump silently
   * reintroduces a second one.
@@ -39,7 +39,7 @@ final class DriverClasspathSpec extends AnyWordSpec with Matchers {
     "provide exactly one com.datastax.oss.driver.api.core.CqlSession" in {
       val providers = cqlSessionProviders
 
-      withClue(s"CqlSession providers found: ${providers.mkString(", ")} — ") {
+      withClue(s"CqlSession providers found: ${providers.mkString(", ")} - ") {
         providers should have size 1
       }
     }
