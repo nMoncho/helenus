@@ -5,10 +5,12 @@ approach: extract from a source table with a token-range full-table scan, transf
 each row, and load into a target table.
 
 The token-range planner lives in `net.nmoncho.helenus.migrations`. The per-backend
-executors live in `net.nmoncho.helenus.migrations.pekko` and, for Flink, reuse
-`net.nmoncho.helenus.flink`'s `CassandraSource`. A whole migration is one call,
-`asTokenRangeMigration(...)`, which extracts, transforms, and loads with full
-observability. Runnable example apps live under the `example` package.
+executors live in `net.nmoncho.helenus.migrations.pekko`, `.monix`, and `.zio`, and,
+for Flink, reuse `net.nmoncho.helenus.flink`'s `CassandraSource`. On Pekko a whole
+migration is one call, `asTokenRangeMigration(...)`, which extracts, transforms, and
+loads with full observability; the Monix and ZIO executors return a read stream that
+composes with that backend's own write path. Runnable example apps live under the
+`example` package.
 
 ## Setup
 
@@ -128,6 +130,83 @@ object flinkExample {
     )
 
     env.execute()
+  }
+}
+```
+
+## Usage with Monix
+
+The Monix executor returns an `Observable` of the read rows, with the same options as
+Pekko: bounded concurrency, token-aware routing, split-retry on timeout, checkpoint
+resume, an opt-in rate limit, and metrics. Compose it with your own Monix write
+pipeline (for example `helenus-monix`'s `asConsumer`).
+
+```scala
+object monixExample {
+  import scala.concurrent.duration._
+
+  import com.datastax.oss.driver.api.core.CqlSession
+  import com.datastax.oss.driver.api.core.cql.Row
+  import com.datastax.oss.driver.api.core.metadata.token.Token
+  import monix.reactive.Observable
+
+  import net.nmoncho.helenus._
+  import net.nmoncho.helenus.migrations._
+  import net.nmoncho.helenus.migrations.monix._
+
+  def scanHotels(implicit session: CqlSession): Observable[Row] = {
+    val plan = TokenRangePlanner.plan(splitsPerRange = 8)
+
+    "SELECT id, name, city FROM hotels WHERE token(id) > ? AND token(id) <= ?".toCQL
+      .prepare[Token, Token]
+      .as[Row]
+      .asTokenRangeObservable(
+        plan,
+        parallelism = 4,
+        rateLimit   = Some(RateLimit(1000, 1.second)),
+        metrics     = MigrationMetrics.logging("hotels")
+      )
+  }
+}
+```
+
+## Usage with ZIO
+
+The ZIO executor returns a `ZCqlStream` (a `ZStream` of `Chunk` pages in the
+`ZCqlSession` environment) built from the plan, with concurrency, checkpoint resume,
+and metrics. Because ZIO's stream operations bind and execute internally, the ZIO
+executor does not set a routing token or split-retry a timed-out range: bound the
+range size with `splitsPerRange` and rely on the driver's retry policy. Routing-aware
+reads and split-retry are available on the Pekko and Monix executors.
+
+```scala
+object zioExample {
+  import com.datastax.oss.driver.api.core.CqlSession
+  import com.datastax.oss.driver.api.core.cql.Row
+  import com.datastax.oss.driver.api.core.metadata.token.Token
+
+  import net.nmoncho.helenus.api.RowMapper
+  import net.nmoncho.helenus.zio._
+  import net.nmoncho.helenus.migrations._
+  import net.nmoncho.helenus.migrations.zio._
+
+  final case class Hotel(id: String, name: String, city: String)
+  object Hotel {
+    implicit val rowMapper: RowMapper[Hotel] = new RowMapper[Hotel] {
+      override def apply(row: Row): Hotel =
+        Hotel(row.getString("id"), row.getString("name"), row.getString("city"))
+    }
+  }
+
+  // The plan is built from a CqlSession (to read the ring); the scan then runs in the
+  // ZCqlSession environment.
+  def scanHotels(implicit session: CqlSession): ZCqlStream[Hotel] = {
+    val plan = TokenRangePlanner.plan(splitsPerRange = 8)
+
+    "SELECT id, name, city FROM hotels WHERE token(id) > ? AND token(id) <= ?".toZCQL
+      .prepare[Token, Token]
+      .to[Hotel]
+      .asTokenRangeStream(plan, parallelism = 4, metrics = MigrationMetrics.logging("hotels"))
   }
 }
 ```

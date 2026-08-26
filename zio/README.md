@@ -20,11 +20,11 @@ import net.nmoncho.helenus.zio._
 // A prepared SELECT becomes a ZStream over the ZCqlSession environment:
 val hotels: ZCqlStream[Try[Hotel]] =
   "SELECT * FROM hotels".toZCQL.prepareUnit.to[Hotel].stream()
-// hotels: ZCqlStream[Try[Hotel]] = zio.stream.ZStream@41e4de5e
+// hotels: ZCqlStream[Try[Hotel]] = zio.stream.ZStream@3bca687
 
 val hotelById: ZCqlStream[Try[Hotel]] =
   "SELECT * FROM hotels WHERE id = ?".toZCQL.prepare[String].to[Hotel].stream("h1")
-// hotelById: ZCqlStream[Try[Hotel]] = zio.stream.ZStream@3068c980
+// hotelById: ZCqlStream[Try[Hotel]] = zio.stream.ZStream@76a0e2ad
 
 // A prepared INSERT becomes a ZSink; each element supplies the bind parameters:
 val insert =
@@ -32,7 +32,7 @@ val insert =
     .prepare[String, String, String, Address, Set[String]]
     .from[Hotel]
     .sink()
-// insert: zio.stream.ZSink[ZCqlSession, Throwable, Hotel, Nothing, Unit] = zio.stream.ZSink@23af23b0
+// insert: zio.stream.ZSink[ZCqlSession, Throwable, Hotel, Nothing, Unit] = zio.stream.ZSink@c6c373c6
 ```
 
 Note ZIO uses `to[T]` to map result rows, where the other modules use `as[T]`. This divergence is

@@ -10,16 +10,12 @@ import java.util.concurrent.atomic.AtomicReference
 
 import scala.concurrent.Future
 
+import _root_.akka.Done
+import _root_.akka.NotUsed
+import _root_.akka.stream.alpakka.cassandra.scaladsl.CassandraSession
+import _root_.akka.stream.scaladsl._
 import _root_.net.nmoncho.helenus.api.cql.ScalaBoundStatement
 import _root_.net.nmoncho.helenus.internal.cql.ScalaPreparedStatement2
-import _root_.org.apache.pekko.Done
-import _root_.org.apache.pekko.NotUsed
-import _root_.org.apache.pekko.stream.connectors.cassandra.scaladsl.CassandraSession
-import _root_.org.apache.pekko.stream.scaladsl.Flow
-import _root_.org.apache.pekko.stream.scaladsl.Keep
-import _root_.org.apache.pekko.stream.scaladsl.RunnableGraph
-import _root_.org.apache.pekko.stream.scaladsl.Sink
-import _root_.org.apache.pekko.stream.scaladsl.Source
 import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.metadata.token.Token
 import com.datastax.oss.driver.api.core.metadata.token.TokenRange
@@ -32,7 +28,7 @@ import com.datastax.oss.driver.api.core.metadata.token.TokenRange
   * the driver sends the query to an owning replica. A range that times out is
   * retried by splitting it into halves (see [[RetryPolicy]]).
   */
-package object pekko {
+package object akka {
 
   /** A sensible default read concurrency: one in-flight range per available core. */
   final val DefaultParallelism: Int = Runtime.getRuntime.availableProcessors
@@ -228,7 +224,7 @@ package object pekko {
     * a [[TokenRangeReadException]] naming the range. `read` is a parameter so the
     * split-and-retry orchestration is unit-testable with an injected failing read.
     */
-  private[pekko] def readWithRetry[Out](
+  private[akka] def readWithRetry[Out](
       range: TokenRange,
       depth: Int,
       retry: RetryPolicy

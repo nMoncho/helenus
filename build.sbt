@@ -448,7 +448,8 @@ lazy val migrations = project
   .dependsOn(
     core  % "compile->compile;test->test",
     pekko % Provided,
-    flink % Provided
+    flink % Provided,
+    zio   % Provided
   )
 
 lazy val tables = project
