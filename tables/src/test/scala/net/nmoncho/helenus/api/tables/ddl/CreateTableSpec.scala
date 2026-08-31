@@ -43,5 +43,19 @@ class CreateTableSpec extends AnyWordSpec with Matchers {
       "(id uuid, labels frozen<set<text>>, tags frozen<set<text>>, " +
       "PRIMARY KEY (id))"
     }
+
+    "render a static column with the STATIC keyword" in {
+      TransactionsTable.create.toCQL shouldBe
+      "CREATE TABLE banking.transactions " +
+      "(account_id uuid, tx_id uuid, account_name text STATIC, amount double, " +
+      "PRIMARY KEY (account_id, tx_id))"
+    }
+
+    "append STATIC only to the static column, leaving the others unchanged" in {
+      val cql = TransactionsTable.create.toCQL
+      cql should include("account_name text STATIC")
+      (cql should not).include("amount double STATIC")
+      (cql should not).include("account_id uuid STATIC")
+    }
   }
 }

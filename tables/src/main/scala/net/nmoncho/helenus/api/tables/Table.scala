@@ -62,7 +62,12 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
     * class; `fieldName` is the case-class field, `name` the CQL column name
     * produced by the table's [[ColumnNamingScheme]].
     */
-  class Column[T](val fieldName: String, val name: String, val frozen: Boolean)(
+  class Column[T](
+      val fieldName: String,
+      val name: String,
+      val frozen: Boolean = false,
+      val static: Boolean = false
+  )(
       implicit val codec: TypeCodec[T]
   ) { self =>
 
@@ -188,10 +193,16 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
     /** A bound assignment: `col := ?` (value supplied via `toFunction`). */
     def :=(@unused m: BindMarker): BindAssignment[Tag, T] = new BindAssignment[Tag, T](this)
 
-    override def toString: String =
-      s"Column($fieldName -> $name ${codec.getCqlType.asCql(frozen, false)})"
+    override def toString: String = s"Column($fieldName -> $toCQL)"
 
-    def toCQL: String = s"$name ${codec.getCqlType.asCql(frozen, false)}"
+    /** The CQL column definition: `name type`, with ` STATIC` appended for a
+      * static column (whose single value is shared by every row of a partition,
+      * see [[Table.staticColumn]]).
+      */
+    def toCQL: String = {
+      val staticStr = if (static) " STATIC" else ""
+      s"$name ${codec.getCqlType.asCql(frozen, false)}$staticStr"
+    }
   }
 
   sealed trait Assignment[T] {
@@ -358,11 +369,15 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
     * ascription widens away the `Tag` refinement and genuinely breaks
     * `PK` / `CK` derivation.
     */
-  protected def column[V](name0: String with Singleton, frozen: Boolean = false)(
+  protected def column[V](
+      name0: String with Singleton,
+      frozen: Boolean = false,
+      static: Boolean = false
+  )(
       implicit @unused field: FieldOfType[A, name0.type, V],
       codec: TypeCodec[V]
   ): Column[V] { type Tag = name0.type } = {
-    val col = new Column[V](name0, naming.apply(name0), frozen) { type Tag = name0.type }
+    val col = new Column[V](name0, naming.apply(name0), frozen, static) { type Tag = name0.type }
 
     registeredColumns += col
     registeredColumnsByName += name0 -> col
@@ -381,7 +396,30 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
   protected def frozenColumn[V: TypeCodec](name0: String with Singleton)(
       implicit field: FieldOfType[A, name0.type, Frozen[V]]
   ): Column[Frozen[V]] { type Tag = name0.type } =
-    column[Frozen[V]](name0, true)
+    // All arguments positional (no defaults): a default argument would widen
+    // away `name0.type`, breaking the FieldOfType singleton check.
+    column[Frozen[V]](name0, true, false)
+
+  /** Reference a STATIC field of `A` as a column: `staticColumn[String]("label")`
+    * for a field declared as `label: String`. A static column stores a single
+    * value shared by every row of a partition (rendered `label text STATIC` in
+    * DDL) instead of one value per row.
+    *
+    * It is otherwise an ordinary column: same field check against `A`, same row
+    * mapping, and it can be selected, assigned, and used in predicates like any
+    * other. Two rules Cassandra enforces at `create` time: the table must have
+    * at least one clustering column (a static column is meaningless without
+    * one), and a static column may not be part of the primary key.
+    *
+    * For a static frozen collection, spell it out as
+    * `column[Frozen[V]](name, frozen = true, static = true)`.
+    */
+  protected def staticColumn[V: TypeCodec](name0: String with Singleton)(
+      implicit field: FieldOfType[A, name0.type, V]
+  ): Column[V] { type Tag = name0.type } =
+    // All arguments positional (no defaults): a default argument would widen
+    // away `name0.type`, breaking the FieldOfType singleton check.
+    column[V](name0, false, true)
 
   /** Declare a computed column: a stored column whose value is derived from an
     * `A` via `compute`. Unlike [[column]] it is not a field of `A`, so it is

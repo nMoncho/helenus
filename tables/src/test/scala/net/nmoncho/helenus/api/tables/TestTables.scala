@@ -76,6 +76,25 @@ object SensorsTable extends Table[Sensors]("iot", "sensor_readings") {
   type CK = year.Tag :: ts.Desc :: HNil
 }
 
+// A table with a STATIC column (`accountName`): a single value shared by every
+// row (transaction) of a partition (account), alongside per-row columns.
+// Static columns require a clustering column, which `txId` provides.
+case class Transaction(accountId: UUID, txId: UUID, accountName: String, amount: Double)
+
+object TransactionsTable extends Table[Transaction]("banking", "transactions") {
+  override protected def naming: ColumnNamingScheme = ColumnNamingScheme.SnakeCase
+
+  val accountId   = column[UUID]("accountId")
+  val txId        = column[UUID]("txId")
+  val accountName = staticColumn[String]("accountName")
+  val amount      = column[Double]("amount")
+
+  protected val columns = registerAllColumns(accountId :: txId :: accountName :: amount :: HNil)
+
+  type PK = accountId.Tag :: HNil
+  type CK = txId.Tag :: HNil
+}
+
 // A table with a computed column (`shard`, derived from `name`) that is part
 // of the partition key. `shard` is not a field of Metric, so the RowMapper
 // ignores it, but it is written by insertFrom and required in queries.
