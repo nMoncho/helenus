@@ -7,6 +7,8 @@
 package net.nmoncho.helenus.api.tables
 package integration
 
+import java.util.UUID
+
 import org.scalatest.DoNotDiscover
 
 @DoNotDiscover
@@ -74,5 +76,22 @@ class DdlIntegrationSpec extends CassandraIntegrationSpec {
 
   it should "not fail with IF EXISTS on a missing table" in {
     noException should be thrownBy execute("DROP TABLE IF EXISTS my_keyspace.throwaway")
+  }
+
+  "TruncateTable" should "remove every row but keep the table and its schema" in {
+    UsersTable.drop.ifExists.execute()
+    UsersTable.create.execute()
+    execute(
+      s"INSERT INTO my_keyspace.users (id, username, age) VALUES (${UUID.randomUUID()}, 'a', 1)"
+    )
+    execute(
+      s"INSERT INTO my_keyspace.users (id, username, age) VALUES (${UUID.randomUUID()}, 'b', 2)"
+    )
+    rows("SELECT * FROM my_keyspace.users") should not be empty
+
+    UsersTable.truncate.execute()
+
+    rows("SELECT * FROM my_keyspace.users") shouldBe empty
+    tableNames("my_keyspace") should contain("users") // table itself survives
   }
 }

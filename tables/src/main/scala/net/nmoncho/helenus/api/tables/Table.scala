@@ -49,6 +49,8 @@ sealed abstract class TableDef(val keyspace: String, val tableName: String) {
 
   def drop: DropTable = DropTable(this)
 
+  def truncate: TruncateTable = TruncateTable(this)
+
   def insert: Insert[this.type, HNil, HNil] = Insert[this.type](this)
 
   def update: Update[this.type, HNil, HNil, HNil, HNil, HNil, HNil] = Update[this.type](this)
