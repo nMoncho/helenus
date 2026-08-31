@@ -512,97 +512,73 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
   /** Declare a secondary index covering only SOME of a map column's
     * independently indexable aspects, instead of the no-choice `index(col)`
     * (which grants everything at once, `contains`, `containsKey`, AND
-    * `entry`). Pick the method matching what physical index(es) you actually
-    * have (or will have): [[indexValues]] alone backs `contains`,
-    * [[indexKeys]] alone backs `containsKey`, [[indexEntries]] alone backs
-    * `entry`, and [[indexValuesAndKeys]] / [[indexValuesAndEntries]] /
-    * [[indexKeysAndEntries]] grant two at once. Only the predicate method(s)
-    * backed by a chosen aspect are exempted from `allowFiltering`; the
-    * others keep requiring it, exactly as if `col` had never been indexed
-    * for them:
+    * `entry`). Pick the aspect(s) you actually have (or will have), and
+    * COMPOSE them by nesting: [[indexValues]] backs `contains`, [[indexKeys]]
+    * backs `containsKey`, [[indexEntries]] backs `entry`, and nesting grants
+    * their union. Only the predicate method(s) backed by a chosen aspect are
+    * exempted from `allowFiltering`; the others keep requiring it, exactly as
+    * if `col` had never been indexed for them:
     *
     * {{{
-    * val labels = indexKeys(column[Map[String, String]]("labels"))
-    * // labels.containsKey(...) is now allowFiltering-free; labels.contains(...)
-    * // and labels.entry(...) still require it, same as an unindexed column.
+    * // keys only: containsKey is allowFiltering-free; contains and entry still require it
+    * val tags     = indexKeys(column[Map[String, String]]("tags"))
+    * // values AND keys, composed by nesting; entry still requires allowFiltering
+    * val metadata = indexKeys(indexValues(column[Map[String, String]]("metadata")))
     * }}}
+    *
+    * Each wrapper registers its own physical index and takes its own optional
+    * `name` / `kind`, so composed aspects can carry distinct index names or a
+    * different index implementation (e.g. a custom [[SAI]] index on values, a
+    * built-in secondary index on keys). The nesting order does not matter.
+    *
+    * Composition works because each wrapper returns `col.type with <aspect>`:
+    * `col.type` carries whatever aspects the argument already had, so nesting
+    * accumulates them at the type level, while the returned value is always a
+    * fully [[Indexed]] instance (see [[maximalMapIndex]]) so every statically
+    * exposed override really exists at runtime.
     */
   protected def indexValues[K, V](
       col: Column[Map[K, V]],
       name: Option[String] = None,
       kind: IndexKind      = IndexKind.Secondary
-  ): (Column[Map[K, V]] with ValuesIndexed[Map[K, V]]) { type Tag = col.Tag } = {
+  ): col.type with ValuesIndexed[Map[K, V]] = {
     registerIndexTargets(col.name, valuesTarget(col.name), name, kind)
-    new Column[Map[K, V]](col.fieldName, col.name, false)(col.codec) with ValuesIndexed[Map[K, V]] {
-      type Tag = col.Tag
-    }
+    maximalMapIndex(col).asInstanceOf[col.type with ValuesIndexed[Map[K, V]]]
   }
 
   protected def indexKeys[K, V](
       col: Column[Map[K, V]],
       name: Option[String] = None,
       kind: IndexKind      = IndexKind.Secondary
-  ): (Column[Map[K, V]] with KeysIndexed[Map[K, V]]) { type Tag = col.Tag } = {
+  ): col.type with KeysIndexed[Map[K, V]] = {
     registerIndexTargets(col.name, keysTarget(col.name), name, kind)
-    new Column[Map[K, V]](col.fieldName, col.name, false)(col.codec) with KeysIndexed[Map[K, V]] {
-      type Tag = col.Tag
-    }
+    maximalMapIndex(col).asInstanceOf[col.type with KeysIndexed[Map[K, V]]]
   }
 
   protected def indexEntries[K, V](
       col: Column[Map[K, V]],
       name: Option[String] = None,
       kind: IndexKind      = IndexKind.Secondary
-  ): (Column[Map[K, V]] with EntriesIndexed[Map[K, V]]) { type Tag = col.Tag } = {
+  ): col.type with EntriesIndexed[Map[K, V]] = {
     registerIndexTargets(col.name, entriesTarget(col.name), name, kind)
-    new Column[Map[K, V]](col.fieldName, col.name, false)(col.codec)
-      with EntriesIndexed[Map[K, V]] {
-      type Tag = col.Tag
-    }
+    maximalMapIndex(col).asInstanceOf[col.type with EntriesIndexed[Map[K, V]]]
   }
 
-  protected def indexValuesAndKeys[K, V](
-      col: Column[Map[K, V]],
-      name: Option[String] = None,
-      kind: IndexKind      = IndexKind.Secondary
-  ): (Column[Map[K, V]] with ValuesIndexed[Map[K, V]] with KeysIndexed[Map[K, V]]) {
-    type Tag = col.Tag
-  } = {
-    registerIndexTargets(col.name, valuesTarget(col.name) ++ keysTarget(col.name), name, kind)
-    new Column[Map[K, V]](col.fieldName, col.name, false)(col.codec)
-      with ValuesIndexed[Map[K, V]]
-      with KeysIndexed[Map[K, V]] {
-      type Tag = col.Tag
-    }
-  }
-
-  protected def indexValuesAndEntries[K, V](
-      col: Column[Map[K, V]],
-      name: Option[String] = None,
-      kind: IndexKind      = IndexKind.Secondary
-  ): (Column[Map[K, V]] with ValuesIndexed[Map[K, V]] with EntriesIndexed[Map[K, V]]) {
-    type Tag = col.Tag
-  } = {
-    registerIndexTargets(col.name, valuesTarget(col.name) ++ entriesTarget(col.name), name, kind)
-    new Column[Map[K, V]](col.fieldName, col.name, false)(col.codec)
-      with ValuesIndexed[Map[K, V]]
-      with EntriesIndexed[Map[K, V]] {
-      type Tag = col.Tag
-    }
-  }
-
-  protected def indexKeysAndEntries[K, V](
-      col: Column[Map[K, V]],
-      name: Option[String] = None,
-      kind: IndexKind      = IndexKind.Secondary
-  ): (Column[Map[K, V]] with KeysIndexed[Map[K, V]] with EntriesIndexed[Map[K, V]]) {
-    type Tag = col.Tag
-  } = {
-    registerIndexTargets(col.name, keysTarget(col.name) ++ entriesTarget(col.name), name, kind)
-
-    new Column[Map[K, V]](col.fieldName, col.name, false)(col.codec)
-      with KeysIndexed[Map[K, V]]
-      with EntriesIndexed[Map[K, V]] {
+  /** The runtime column object shared by every composable map-index wrapper: a
+    * column carrying ALL of [[Indexed]]'s overrides. No matter which aspect(s)
+    * a caller composes (and therefore which subset of marker traits the
+    * returned static type exposes), the underlying instance really implements
+    * the overridden predicate method that static type selects, so narrowing to
+    * `col.type with <aspect>` never leaves a call site dispatching to a
+    * missing override. The cast is sound at the value level ([[Indexed]] is a
+    * subtype of every single aspect); only the STATICALLY exposed aspects are
+    * `allowFiltering`-free, the others resolve to the plain [[Column]] methods
+    * and keep requiring it (see [[TableDef.Indexed]]).
+    */
+  private def maximalMapIndex[K, V](
+      col: Column[Map[K, V]]
+  ): Column[Map[K, V]] with Indexed[Map[K, V]] { type Tag = col.Tag } =
+    new Column[Map[K, V]](col.fieldName, col.name, false)(col.codec) with Indexed[Map[K, V]] {
       type Tag = col.Tag
     }
   }

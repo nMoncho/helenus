@@ -455,9 +455,10 @@ class IndexIntegrationSpec extends CassandraIntegrationSpec {
     result.map(_.id) shouldBe List(document1)
   }
 
-  // ---- Table.indexValuesAndKeys: only VALUES + KEYS indexes exist ----------
-  // `metadata` was declared with indexValuesAndKeys: contains and containsKey
-  // both run without allowFiltering; entry (no entries index) is rejected.
+  // ---- composed values + keys: only VALUES + KEYS indexes exist ------------
+  // `metadata` was declared with indexKeys(indexValues(...)): contains and
+  // containsKey both run without allowFiltering; entry (no entries index) is
+  // rejected.
 
   "contains on a values+keys indexed column" should "run without allowFiltering and find the matching row" in {
     val result =
