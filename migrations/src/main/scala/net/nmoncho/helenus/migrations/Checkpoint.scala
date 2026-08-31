@@ -25,7 +25,7 @@ import com.datastax.oss.driver.api.core.CqlSession
   *
   * Implementations must be safe to call concurrently: the executor reads several
   * ranges at once. [[Checkpoint.cassandra]] is durable across processes (and
-  * cluster-wide); [[Checkpoint.file]] is durable on one host; [[Checkpoint.none]]
+  * cluster-wide); [[Checkpoint.file]] is durable on one host; [[Checkpoint.None]]
   * and [[Checkpoint.inMemory]] do not survive a process restart.
   */
 trait Checkpoint {
@@ -39,7 +39,7 @@ object Checkpoint {
   def key(split: RangeSplit): String = s"${split.start}:${split.end}"
 
   /** Records nothing: every range is read on every run. */
-  val none: Checkpoint = new Checkpoint {
+  final val None: Checkpoint = new Checkpoint {
     def isCompleted(split: RangeSplit): Boolean = false
     def markCompleted(split: RangeSplit): Unit  = ()
   }

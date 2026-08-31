@@ -61,8 +61,8 @@ package object monix {
       * @param rateLimit        an optional, opt-in cap on emitted rows; `None` = no cap
       * @param retry            how to retry a range that times out (defaults to
       *                         halving it up to four times)
-      * @param checkpoint       which ranges to skip and where to record completions
-      *                         (defaults to [[Checkpoint.none]], recording nothing)
+      * @param checkpoint which ranges to skip and where to record completions
+      *                   (defaults to [[Checkpoint.None]], recording nothing)
       * @param executionProfile optional driver execution profile name for the read
       *                         statements; `None` uses the session default
       * @param metrics          observability callback for extracted rows, range
@@ -76,7 +76,7 @@ package object monix {
         parallelism: Int                 = DefaultParallelism,
         rateLimit: Option[RateLimit]     = None,
         retry: RetryPolicy               = RetryPolicy.Default,
-        checkpoint: Checkpoint           = Checkpoint.none,
+        checkpoint: Checkpoint           = Checkpoint.None,
         executionProfile: Option[String] = None,
         metrics: MigrationMetrics        = MigrationMetrics.none,
         routing: Boolean                 = true

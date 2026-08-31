@@ -6,6 +6,8 @@
 
 package net.nmoncho.helenus.migrations
 
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
 import scala.jdk.CollectionConverters._
 import scala.jdk.OptionConverters._
 
@@ -18,6 +20,7 @@ import com.datastax.oss.driver.api.core.metadata.token.TokenRange
 import com.datastax.oss.driver.internal.core.metadata.token.Murmur3Token
 import com.datastax.oss.driver.internal.core.metadata.token.Murmur3TokenRange
 
+// FIXME we should reject `None` on `replica`
 /** One planned token range to scan.
   *
   * Token ranges are lower-bound exclusive and upper-bound inclusive, so a
@@ -102,6 +105,16 @@ object TokenRangePlanner {
       case _ =>
         wholeRing
     }
+
+  /** Builds a scan plan for the session's current keyspace.
+    *
+    * @param splitsPerRange how many sub-ranges to split each ring range into;
+    *                       values below `1` are treated as `1`
+    */
+  def planAsync(
+      splitsPerRange: Int = 1
+  )(implicit session: Future[CqlSession], ec: ExecutionContext): Future[RingPlan] =
+    session.map(implicit s => plan(splitsPerRange))
 
   /** Fallback single-range plan covering the whole ring, used when the token map
     * is unavailable (for example when token metadata is disabled). It assumes the

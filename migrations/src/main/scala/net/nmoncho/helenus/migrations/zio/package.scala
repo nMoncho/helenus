@@ -54,15 +54,15 @@ package object zio {
       * @param plan        the ring scan plan from [[TokenRangePlanner]]
       * @param parallelism how many ranges to read at once (defaults to the number of
       *                    available processors); below 1 means 1
-      * @param checkpoint  which ranges to skip and where to record completions
-      *                    (defaults to [[Checkpoint.none]], recording nothing)
+      * @param checkpoint which ranges to skip and where to record completions
+      *                   (defaults to [[Checkpoint.None]], recording nothing)
       * @param metrics     observability callback for extracted rows and range
       *                    completions (defaults to a no-op)
       */
     def asTokenRangeStream(
         plan: RingPlan,
         parallelism: Int          = DefaultParallelism,
-        checkpoint: Checkpoint    = Checkpoint.none,
+        checkpoint: Checkpoint    = Checkpoint.None,
         metrics: MigrationMetrics = MigrationMetrics.none
     )(implicit mapper: RowMapper[Out]): ZCqlStream[Out] =
       ZStream.unwrap {
