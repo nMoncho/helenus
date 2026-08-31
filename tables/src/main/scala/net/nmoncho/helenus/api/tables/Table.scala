@@ -581,7 +581,6 @@ abstract class Table[A](keyspace0: String, tableName0: String)(
     new Column[Map[K, V]](col.fieldName, col.name, false)(col.codec) with Indexed[Map[K, V]] {
       type Tag = col.Tag
     }
-  }
 
   // ---- entry points that derive from the case class -----------------------
 

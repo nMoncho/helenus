@@ -24,4 +24,10 @@ package object tables {
   val :: = shapeless.::
 
   final val ? = net.nmoncho.helenus.api.tables.dml.?
+
+  /** Group several INSERT / UPDATE / DELETE statements into one CQL `BATCH`;
+    * see [[net.nmoncho.helenus.api.tables.dml.Batch]].
+    */
+  type Batch[Params <: HList] = net.nmoncho.helenus.api.tables.dml.Batch[Params]
+  val Batch = net.nmoncho.helenus.api.tables.dml.Batch
 }

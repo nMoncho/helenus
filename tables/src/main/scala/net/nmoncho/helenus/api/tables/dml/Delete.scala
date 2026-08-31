@@ -59,7 +59,7 @@ final case class Delete[
     predicates: Seq[Predicate[_, _]]       = Seq.empty,
     timestampMicros: Option[Duration]      = None,
     ifExistsFlag: Boolean                  = false
-) {
+) extends Batchable {
 
   /** Delete only the specified column (rather than the entire row). Switches
     * the builder to [[DeleteMode.Columns]], whose `execute` requires the

@@ -45,7 +45,7 @@ final case class Insert[T <: TableDef, Params <: HList, Assigned <: HList](
     ttlSeconds: Option[Duration]             = None,
     timestampMicros: Option[Duration]        = None,
     ifNotExistsFlag: Boolean                 = false
-) {
+) extends Batchable {
 
   def value[Col, V](
       assignment: table.BoundAssignment[Col, V]

@@ -226,18 +226,17 @@ object AuthorsTable extends Table[Author]("blog", "authors") {
   type CK = HNil
 }
 
-// A table exercising Table.indexKeys / indexValuesAndKeys: `tags` has an
-// index ONLY on its keys, so only containsKey is allowFiltering-free;
-// contains and entry still require it, exactly as if `tags` were never
-// indexed for them. `metadata` has TWO of the three (values + keys),
-// showing combinations work too: contains and containsKey are free, entry
-// is not.
+// A table exercising the composable map-index wrappers: `tags` has an index
+// ONLY on its keys, so only containsKey is allowFiltering-free; contains and
+// entry still require it, exactly as if `tags` were never indexed for them.
+// `metadata` composes TWO of the three (values + keys) by nesting, showing
+// combinations work too: contains and containsKey are free, entry is not.
 case class Document(id: UUID, tags: Map[String, String], metadata: Map[String, String])
 
 object DocumentsTable extends Table[Document]("blog", "documents") {
   val id       = column[UUID]("id")
   val tags     = indexKeys(column[Map[String, String]]("tags"))
-  val metadata = indexValuesAndKeys(column[Map[String, String]]("metadata"))
+  val metadata = indexKeys(indexValues(column[Map[String, String]]("metadata")))
 
   protected val columns = registerAllColumns(id :: tags :: metadata :: HNil)
 

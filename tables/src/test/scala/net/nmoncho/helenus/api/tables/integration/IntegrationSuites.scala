@@ -17,6 +17,7 @@ import org.scalatest.Suites
   */
 class IntegrationSuites
     extends Suites(
+      new BatchIntegrationSpec,
       new BindMarkerSpec,
       new ComputedColumnIntegrationSpec,
       new DdlIntegrationSpec,

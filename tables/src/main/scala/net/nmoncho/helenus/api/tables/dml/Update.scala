@@ -70,7 +70,7 @@ final case class Update[
     ttlSeconds: Option[Duration]             = None,
     timestampMicros: Option[Duration]        = None,
     ifExistsFlag: Boolean                    = false
-) {
+) extends Batchable {
 
   def set[V](assignment: table.Assignment[V]): Update[T, Eq, In, Rng, SetPm, WherePm, V :: Cols] =
     new Update[T, Eq, In, Rng, SetPm, WherePm, V :: Cols](

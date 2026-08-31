@@ -32,4 +32,10 @@ package object tables {
 
   /** Bind-marker placeholder used to leave a hole in a statement for a prepared parameter. */
   final val ? = net.nmoncho.helenus.api.tables.?
+
+  /** Group several INSERT / UPDATE / DELETE statements into one CQL `BATCH`;
+    * see [[net.nmoncho.helenus.api.tables.dml.Batch]].
+    */
+  type Batch[Param <: HList] = net.nmoncho.helenus.api.tables.Batch[Param]
+  val Batch = net.nmoncho.helenus.api.tables.Batch
 }
