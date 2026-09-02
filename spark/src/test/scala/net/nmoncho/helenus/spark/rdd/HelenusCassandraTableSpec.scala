@@ -59,10 +59,11 @@ final class HelenusCassandraTableSpec extends AnyWordSpec with Matchers with Cas
       val numPartitions = rdd.getNumPartitions
       val hotels        = rdd.collect().toList
 
-      // Every row mapped correctly, including the frozen `address` UDT and the `pois` set.
-      hotels should contain theSameElementsAs HotelsTestData.Hotels.all
-      hotels.find(_.id == "h1").map(_.address) shouldBe Some(HotelsTestData.Hotels.h1.address)
-      hotels.find(_.id == "h1").map(_.pois) shouldBe Some(HotelsTestData.Hotels.h1.pois)
+      withClue("Every row mapped correctly, including the frozen `address` UDT and the `pois` set") {
+        hotels should contain theSameElementsAs HotelsTestData.Hotels.all
+        hotels.find(_.id == "h1").map(_.address) shouldBe Some(HotelsTestData.Hotels.h1.address)
+        hotels.find(_.id == "h1").map(_.pois) shouldBe Some(HotelsTestData.Hotels.h1.pois)
+      }
 
       // One derivation per partition, reused for every row: the mapper is constructed at
       // most once per partition (never per row), yet applied exactly once per row.
@@ -74,11 +75,6 @@ final class HelenusCassandraTableSpec extends AnyWordSpec with Matchers with Cas
     "resolve the bridge via the helenusRowReaderFactory entry point, outranking the connector default" in {
       CountingHotelMapper.reset()
 
-      // `helenusRowReaderFactory` is the `net.nmoncho.helenus.spark` package-object entry
-      // point. Bound as a local implicit it outranks the connector's own default
-      // RowReaderFactory (`import com.datastax.spark.connector._`, imported above), so the
-      // call resolves unambiguously, and the non-zero apply count proves the Helenus
-      // mapper, not the connector's, actually mapped the rows.
       implicit val rrf: RowReaderFactory[Hotel] = helenusRowReaderFactory(new CountingHotelMapper)
 
       val hotels = sc.cassandraTable[Hotel](keyspace, "hotels").collect().toList

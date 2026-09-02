@@ -10,7 +10,7 @@ import net.nmoncho.helenus._
 import net.nmoncho.helenus.api.RowMapper
 
 implicit val session: CqlSession = getSession
-// session: CqlSession = com.datastax.oss.driver.internal.core.session.DefaultSession@6f67c7a8
+// session: CqlSession = com.datastax.oss.driver.internal.core.session.DefaultSession@5a870e63
 
 case class Address(
     street: String,
@@ -24,10 +24,10 @@ case class Hotel(id: String, name: String, phone: String, address: Address, pois
 implicit val addressCodec: TypeCodec[Address] = Codec.of[Address]()
 // addressCodec: TypeCodec[Address] = UtdCodec[Address]
 implicit val hotelMapper: RowMapper[Hotel]    = RowMapper[Hotel]()
-// hotelMapper: RowMapper[Hotel] = net.nmoncho.helenus.internal.CaseClassRowMapperDerivation$$anonfun$net$nmoncho$helenus$internal$CaseClassRowMapperDerivation$$$nestedInanonfun$genericCCRowMapperBuilder$1$1@4432305f
+// hotelMapper: RowMapper[Hotel] = net.nmoncho.helenus.internal.CaseClassRowMapperDerivation$$anonfun$net$nmoncho$helenus$internal$CaseClassRowMapperDerivation$$$nestedInanonfun$genericCCRowMapperBuilder$1$1@739f4a21
 
 val hotels = "SELECT * FROM hotels".toCQL.prepareUnit.as[Hotel]
-// hotels: internal.cql.ScalaPreparedStatementUnit[Hotel] = net.nmoncho.helenus.internal.cql.ScalaPreparedStatementUnit@6331e9de
+// hotels: internal.cql.ScalaPreparedStatementUnit[Hotel] = net.nmoncho.helenus.internal.cql.ScalaPreparedStatementUnit@6db87c0d
 ```
 
 ## Consuming results

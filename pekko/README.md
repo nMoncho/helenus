@@ -20,7 +20,7 @@ implicit val system: ActorSystem = ActorSystem("helenus-pekko", cassandraConfig)
 // system: ActorSystem = pekko://helenus-pekko
 
 implicit val session: CassandraSession = CassandraSessionRegistry(system).sessionFor(CassandraSessionSettings())
-// session: CassandraSession = org.apache.pekko.stream.connectors.cassandra.scaladsl.CassandraSession@626bb5f5
+// session: CassandraSession = org.apache.pekko.stream.connectors.cassandra.scaladsl.CassandraSession@5389774e
 
 val writeSettings: CassandraWriteSettings = CassandraWriteSettings.defaults
 // writeSettings: CassandraWriteSettings = CassandraWriteSettings(parallelism=1,maxBatchSize=100,maxBatchWait=500 milliseconds,batchType=LOGGED)
@@ -30,11 +30,11 @@ import system.dispatcher // or bring your own ExecutionContext
 // A prepared SELECT becomes a Source:
 val hotels: Source[Hotel, NotUsed] =
   "SELECT * FROM hotels".toCQLAsync.prepareUnit.as[Hotel].asReadSource()
-// hotels: Source[Hotel, NotUsed] = Source(SourceShape(FutureFlattenSource.out(256474068)))
+// hotels: Source[Hotel, NotUsed] = Source(SourceShape(FutureFlattenSource.out(1390151028)))
 
 val hotelById: Source[Hotel, NotUsed] =
   "SELECT * FROM hotels WHERE id = ?".toCQLAsync.prepare[String].as[Hotel].asReadSource("h1")
-// hotelById: Source[Hotel, NotUsed] = Source(SourceShape(FutureFlattenSource.out(1460071200)))
+// hotelById: Source[Hotel, NotUsed] = Source(SourceShape(FutureFlattenSource.out(355996314)))
 
 // A prepared INSERT becomes a Sink; each element supplies the bind parameters:
 val insert: Sink[Hotel, Future[Done]] =
@@ -42,6 +42,6 @@ val insert: Sink[Hotel, Future[Done]] =
     .prepare[String, String, String, Address, Set[String]]
     .from[Hotel]
     .asWriteSink(writeSettings)
-// insert: Sink[Hotel, Future[Done]] = Sink(SinkShape(FlatMapPrefix.in(69657183)))
+// insert: Sink[Hotel, Future[Done]] = Sink(SinkShape(FlatMapPrefix.in(1954697102)))
 ```
 

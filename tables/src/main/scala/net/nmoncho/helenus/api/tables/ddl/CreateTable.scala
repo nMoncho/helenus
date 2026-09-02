@@ -7,6 +7,8 @@
 package net.nmoncho.helenus.api.tables
 package ddl
 
+import java.time.Duration
+
 import scala.annotation.unused
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
@@ -23,12 +25,19 @@ import net.nmoncho.helenus.internal.compat.FutureConverters.CompletionStageOps
   * fills every field from the mapped case class and the table's `PK` / `CK`
   * declarations. Rendering the CQL always emits the full column list, the
   * `PRIMARY KEY` clause (parenthesising the partition key when it is composite
-  * or when clustering columns follow), and a `CLUSTERING ORDER BY` clause only
-  * when at least one clustering column is declared descending (ASC being the
-  * CQL default).
+  * or when clustering columns follow), a `CLUSTERING ORDER BY` clause only when
+  * at least one clustering column is declared descending (ASC being the CQL
+  * default), and then any table [[options]] set through the fluent `with*`
+  * methods. `CLUSTERING ORDER BY` and every option share one `WITH` clause,
+  * joined with ` AND `.
   *
   * {{{
-  * UsersTable.create.ifNotExists.execute()
+  * UsersTable.create
+  *   .ifNotExists
+  *   .withComment("users")
+  *   .withGcGraceSeconds(864000)
+  *   .withCompaction(Map("class" -> "LeveledCompactionStrategy"))
+  *   .execute()
   * }}}
   *
   * @param table             the table this statement creates.
@@ -38,19 +47,103 @@ import net.nmoncho.helenus.internal.compat.FutureConverters.CompletionStageOps
   * @param clusteringColumns clustering columns with their sort direction, in
   *                          declaration order.
   * @param ifNotExistsFlag   whether to emit `IF NOT EXISTS` (set via [[ifNotExists]]).
+  * @param options           the table's `WITH` options (see [[TableOptions]]),
+  *                          set through the fluent `with*` methods.
   */
 case class CreateTable(
     table: TableDef,
     columns: Seq[TableDef#Column[_]],
     partitionKey: Seq[String],
     clusteringColumns: Seq[ClusteringSpec],
-    ifNotExistsFlag: Boolean = false
+    ifNotExistsFlag: Boolean = false,
+    options: TableOptions    = TableOptions.empty
 ) {
 
   /** Emit `CREATE TABLE IF NOT EXISTS`, making the statement a no-op when the
     * table already exists instead of failing.
     */
   def ifNotExists: CreateTable = copy(ifNotExistsFlag = true)
+
+  // ---- table options (WITH ...): each returns a copy, so they chain ---------
+
+  /** Replace all table options at once (see [[TableOptions]]). */
+  def withOptions(options: TableOptions): CreateTable = copy(options = options)
+
+  /** A human-readable comment stored with the table. */
+  def withComment(comment: String): CreateTable =
+    copy(options = options.copy(comment = Some(comment)))
+
+  /** When to speculatively retry reads, e.g. `99percentile`, `50ms`, `ALWAYS`, `NONE`. */
+  def withSpeculativeRetry(value: String): CreateTable =
+    copy(options = options.copy(speculativeRetry = Some(value)))
+
+  /** Speculative-retry policy applied to writes (Cassandra 4.0+). */
+  def withAdditionalWritePolicy(value: String): CreateTable =
+    copy(options = options.copy(additionalWritePolicy = Some(value)))
+
+  /** Seconds tombstones are retained before becoming eligible for GC. */
+  def withGcGraceSeconds(seconds: Duration): CreateTable =
+    copy(options = options.copy(gcGraceSeconds = Some(seconds)))
+
+  /** Target false-positive probability for the SSTable bloom filters. */
+  def withBloomFilterFpChance(chance: Double): CreateTable =
+    copy(options = options.copy(bloomFilterFpChance = Some(chance)))
+
+  /** Default TTL (seconds) for inserted data; `0` disables it. */
+  def withDefaultTimeToLive(seconds: Duration): CreateTable =
+    copy(options = options.copy(defaultTimeToLive = Some(seconds)))
+
+  /** Forced memtable flush period in milliseconds; `0` disables it. */
+  def withMemtableFlushPeriodInMs(millis: Duration): CreateTable =
+    copy(options = options.copy(memtableFlushPeriodInMs = Some(millis)))
+
+  /** Minimum sampling interval for the partition index. */
+  def withMinIndexInterval(value: Int): CreateTable =
+    copy(options = options.copy(minIndexInterval = Some(value)))
+
+  /** Maximum sampling interval for the partition index. */
+  def withMaxIndexInterval(value: Int): CreateTable =
+    copy(options = options.copy(maxIndexInterval = Some(value)))
+
+  /** Read-repair behaviour: `BLOCKING` (default) or `NONE` (Cassandra 4.0+). */
+  def withReadRepair(value: String): CreateTable =
+    copy(options = options.copy(readRepair = Some(value)))
+
+  /** Probability of verifying SSTable checksums on read. */
+  def withCrcCheckChance(chance: Double): CreateTable =
+    copy(options = options.copy(crcCheckChance = Some(chance)))
+
+  /** Enable or disable change-data-capture for the table. */
+  def withCdc(enabled: Boolean): CreateTable =
+    copy(options = options.copy(cdc = Some(enabled)))
+
+  /** Caching options, e.g. `Map("keys" -> "ALL", "rows_per_partition" -> "NONE")`. */
+  def withCaching(caching: Map[String, String]): CreateTable =
+    copy(options = options.copy(caching = caching))
+
+  /** Compaction options, e.g. `Map("class" -> "LeveledCompactionStrategy")`. */
+  def withCompaction(compaction: Map[String, String]): CreateTable =
+    copy(options = options.copy(compaction = compaction))
+
+  /** Compression options, e.g. `Map("class" -> "LZ4Compressor")`. */
+  def withCompression(compression: Map[String, String]): CreateTable =
+    copy(options = options.copy(compression = compression))
+
+  /** Named memtable configuration (Cassandra 4.1+). */
+  def withMemtable(name: String): CreateTable =
+    copy(options = options.copy(memtable = Some(name)))
+
+  /** Explicit table id (a UUID string), e.g. to recreate a dropped table. */
+  def withId(id: String): CreateTable =
+    copy(options = options.copy(id = Some(id)))
+
+  /** Escape hatch for any option without a typed method (DSE-only options, or
+    * ones added by a newer server). Rendered verbatim as `name = value`, so
+    * supply CQL-ready syntax (a string value must already be quoted, e.g.
+    * `withOption("nodesync", "{'enabled': 'true'}")`).
+    */
+  def withOption(name: String, value: String): CreateTable =
+    copy(options = options.copy(extra = options.extra :+ (name -> value)))
 
   /** Run this statement synchronously and return the driver [[ResultSet]]. */
   def execute()(implicit session: CqlSession): ResultSet =
@@ -72,7 +165,7 @@ case class CreateTable(
     val ifNotExistsStr = if (ifNotExistsFlag) " IF NOT EXISTS" else ""
 
     val columnDefs = columns
-      .map(col => s"${col.name} ${col.codec.getCqlType.asCql(col.frozen, false)}")
+      .map(_.toCQL)
       .mkString(", ")
 
     val pkCols      = partitionKey
@@ -90,15 +183,20 @@ case class CreateTable(
 
     // The clustering order comes from the table's CK declaration (Asc / Desc
     // markers). ASC is the CQL default, so the clause is only emitted when at
-    // least one column deviates from it.
-    val withClause =
-      if (!clusteringColumns.exists(_.descending)) ""
+    // least one column deviates from it. It leads the WITH clause, before any
+    // table option.
+    val clusteringOrder: Option[String] =
+      if (!clusteringColumns.exists(_.descending)) None
       else {
         val orderStr = clusteringColumns
           .map(c => s"${c.name} ${c.direction}")
           .mkString(", ")
-        s" WITH CLUSTERING ORDER BY ($orderStr)"
+        Some(s"CLUSTERING ORDER BY ($orderStr)")
       }
+
+    val withElements = clusteringOrder.toSeq ++ options.render
+    val withClause   =
+      if (withElements.isEmpty) "" else s" WITH ${withElements.mkString(" AND ")}"
 
     s"CREATE TABLE$ifNotExistsStr ${table.fullTableName} ($columnDefs, $primaryKey)$withClause"
   }

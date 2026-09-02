@@ -370,15 +370,15 @@ class IndexSpec extends AnyFlatSpec with Matchers {
     "AND attributes CONTAINS 'red' AND attributes CONTAINS KEY 'color' AND attributes['color'] = 'red'"
   }
 
-  // ---- Table.indexKeys / indexValuesAndKeys / etc.: pick which of a map's
-  // ---- aspects are actually indexed --------------------------------------
+  // ---- composable map-index wrappers (indexKeys / indexValues / indexEntries,
+  // ---- nested): pick which of a map's aspects are actually indexed ----------
 
   "Table.indexKeys" should "register only a KEYS index" in {
     DocumentsTable.createIndexes.filter(_.target.contains("tags")).map(_.toCQL) shouldBe
     Seq("CREATE INDEX documents_tags_keys_idx ON blog.documents (KEYS(tags))")
   }
 
-  "Table.indexValuesAndKeys" should "register both a values and a KEYS index, but no ENTRIES index" in {
+  "indexKeys(indexValues(...))" should "register both a values and a KEYS index, but no ENTRIES index" in {
     DocumentsTable.createIndexes.filter(_.target.contains("metadata")).map(_.toCQL) shouldBe
     Seq(
       "CREATE INDEX documents_metadata_idx ON blog.documents (metadata)",

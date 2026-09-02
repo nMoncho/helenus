@@ -119,7 +119,7 @@ final class HelenusForeachPartitionCqlSpec extends AnyWordSpec with Matchers wit
       ids.foreach(id => hotelName(id) shouldBe Some(s"name-$id"))
     }
 
-    // Ignored, not deleted: the body compiles (so the E2 bridge stays type-checked and its
+    // Ignored, not deleted: the body compiles (so the bridge stays type-checked and its
     // Mapping-serialization contract is exercised at compile time), but it cannot RUN in this
     // module. Any Dataset operation triggers Spark SQL's Catalyst parser, whose ANTLR 4.9.3
     // ATN cannot be read by Helenus core's ANTLR 4.13.2 runtime, and there is no single
@@ -208,7 +208,7 @@ object FailureCounter {
   val count: AtomicInteger = new AtomicInteger(0)
 }
 
-/** Holds the `Mapping[Hotel]` for the E2 `Dataset` sink test as a stable, top-level `val`,
+/** Holds the `Mapping[Hotel]` for the `Dataset` sink test as a stable, top-level `val`,
   * so the statement builder re-accesses it on the executor instead of shipping the
   * non-serializable derived mapping captured from a local scope.
   */

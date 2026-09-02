@@ -57,7 +57,7 @@ object pekkoExample {
   def migrateHotels(
       implicit system: ActorSystem,
       session: CassandraSession,
-      cql: CqlSession // FIXME should be taking only `CassandraSession`
+      cql: CqlSession
   ): Future[Done] = {
     val plan = TokenRangePlanner.plan(splitsPerRange = 8)
 

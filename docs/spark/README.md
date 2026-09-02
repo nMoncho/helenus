@@ -4,8 +4,8 @@ Apache Spark integration for Helenus. `helenus-spark` complements the
 [spark-cassandra-connector](https://github.com/apache/cassandra-spark-connector)
 rather than competing with it. The connector keeps ownership of every distributed-scale
 concern (token-range splitting, partitioner awareness, predicate pushdown, the DataSource
-V2 Catalyst source, and RDD/DataFrame integration), while Helenus contributes only what it
-is uniquely good at: CQL-first, type-safe statement building and codec-based mapping.
+V2 Catalyst source, and RDD/DataFrame integration), while Helenus contributes what it
+is good at: CQL-first, type-safe statement building and codec-based mapping.
 
 ## Setup
 
@@ -33,8 +33,8 @@ Spark SQL).
 
 ## Usage
 
-The examples below share this domain model. Derive the codecs once and keep them as stable,
-top-level vals: the bridges re-access them on the executor rather than shipping them, because
+The examples below share this domain model. Derive the codecs once and keep them as stable:
+the bridges re-access them on the executor rather than shipping them, because
 a derived mapper closes over non-serializable driver codecs and must be re-derivable by name
 instead of captured from a local scope.
 
@@ -142,8 +142,7 @@ session is the connector's, driven by the `spark.cassandra.*` keys in the `Spark
 
 DataFrame read and write, including predicate pushdown and the Catalyst source, are the
 connector's, used unchanged. Helenus does not wrap them, and typed Catalyst encoders are out
-of scope (building them would re-enter the DataSource V2 territory this module refuses to
-compete in):
+of scope:
 
 ```scala mdoc:compile-only
 import org.apache.spark.sql.{ DataFrame, SparkSession }
@@ -179,7 +178,7 @@ def writeDataset(ds: Dataset[Hotel]): Unit =
 #### Known limitation: ANTLR conflict with Spark SQL
 
 The structured path above (any DataFrame or Dataset operation, and therefore the `Dataset`
-bridge) requires Spark SQL, whose Catalyst parser is generated with ANTLR 4.9.3. Helenus core
+bridge) requires Spark SQL, whose Catalyst parser is generated with ANTLR 4.9.3. Helenus
 depends on ANTLR 4.13.2 for its compile-time `toCQL` grammar, and because both use the same
 `org.antlr:antlr4-runtime` coordinate, the higher version wins on a combined classpath. Spark
 SQL's parser then fails to initialize (`InvalidClassException: ... ATN ... version 3 (expected
@@ -242,27 +241,21 @@ through Helenus codecs with no extra wrapper.
 
 ## Compatibility
 
-The module pins one connector line to keep maintenance low, mirroring how `helenus-flink`
-pins one Flink line. The recommended pin is connector 3.5.1 (the latest stable), which targets
+The module pins one connector version to keep maintenance low, just like `helenus-flink`
+does it for Flink. The pin is for the connector is 3.5.1 (the latest stable), which targets
 Spark 3.5 and cross-publishes Scala 2.12 and 2.13.
 
-| helenus-spark target | Spark | spark-cassandra-connector | Scala       | Connector's java driver | Min Java |
-|----------------------|-------|---------------------------|-------------|-------------------------|----------|
-| Recommended pin      | 3.5   | 3.5.1                     | 2.12, 2.13  | 4.18.1 (shaded)         | 11       |
+| Spark | Connector | Scala       | Connector's java driver | Min Java |
+|-------|-----------|-------------|-------------------------|----------|
+| 3.5   | 3.5.1     | 2.12, 2.13  | 4.18.1 (shaded)         | 11       |
 
 - Spark 4.0 is not supported. The connector's compatibility matrix tops out at Spark 3.5;
-  there is no Spark 4.x row yet. `helenus-spark` will not support Spark 4.0 until the connector
-  does.
+  there is no Spark 4.x row yet. We won't support Spark 4.0 until the connector does.
 - Scala 2.13 support in the connector starts at connector 3.4, so the 2.13 cross-build requires
-  connector 3.4 or later. The recommended 3.5.1 pin covers both 2.12 and 2.13.
-- Min Java is 11, matching Helenus core. Spark 3.5 and the java driver themselves allow Java 8,
-  but `helenus-spark` inherits core's JDK 11 baseline, so 11 is the floor.
+  connector 3.4 or later.
+- Minimum JDK is 11. Spark and the connector are compiled to JDK8 though.
 - The connector 3.5.1 pins java driver 4.18.1 (shaded); Helenus core is on 4.19.3 (unshaded).
   The public `com.datastax.oss.driver.*` API is un-relocated in both, so `CqlSession` is the
   identical type, but two providers on one classpath must be reduced to one: the module
   converges on the connector's shaded driver on every classpath, so add only the connector at
-  runtime, not a second unshaded `java-driver-core`.
-- The connector has moved from DataStax to the ASF (`apache/cassandra-spark-connector`);
-  coordinates and package names are unchanged today, and the module depends only on the
-  connector's small, stable public SPI (`RowReaderFactory[T]`, `RowReader[T]`, and
-  `CassandraConnector.withSessionDo`).
+  runtime, not a second unshaded `java-driver-core` (i.e. you don't need to do anything).

@@ -13,7 +13,7 @@ import java.nio.file.Files
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-/** the Spark module must never open its own [[com.datastax.oss.driver.api.core.CqlSession]].
+/** The Spark module must never open its own [[com.datastax.oss.driver.api.core.CqlSession]].
   *
   * It borrows the connector's session through `CassandraConnector.withSessionDo`
   * (centralized in `net.nmoncho.helenus.spark.sink.CassandraSessions`), inheriting the

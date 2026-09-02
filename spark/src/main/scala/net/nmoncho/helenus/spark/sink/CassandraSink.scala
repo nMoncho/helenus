@@ -87,10 +87,10 @@ object CassandraSink {
       builder: CqlSession => ScalaPreparedStatement[In, Out],
       config: Config
   ): Unit = {
-    val conf = rdd.sparkContext.getConf
+    val sparkConfig = rdd.sparkContext.getConf
 
     rdd.foreachPartition { rows =>
-      CassandraSessions.withSession(conf) { session =>
+      CassandraSessions.withSession(sparkConfig) { session =>
         // Prepared once per partition on the executor, then reused for every record.
         val pstmt = builder(session)
 
@@ -105,7 +105,6 @@ object CassandraSink {
                 many.foreach(record => batch.addStatement(pstmt.tupled(record)))
                 session.execute(batch.build().setIdempotent(config.idempotent))
             }
-            ()
           } catch {
             case NonFatal(t) =>
               config.failureHandler(t)

@@ -19,7 +19,7 @@ import org.apache.spark.sql.Dataset
 
 package object spark {
 
-  /** Convenience entry point for the Helenus read bridge (B2).
+  /** Convenience entry point for the Helenus read bridge.
     *
     * Bind the result as an implicit `RowReaderFactory[T]` next to the `sc.cassandraTable[T]`
     * call so the connector maps rows through Helenus codecs while still owning the

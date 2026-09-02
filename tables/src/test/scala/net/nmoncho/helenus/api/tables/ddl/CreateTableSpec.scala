@@ -7,6 +7,8 @@
 package net.nmoncho.helenus.api.tables
 package ddl
 
+import java.time.Duration
+
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
@@ -56,6 +58,58 @@ class CreateTableSpec extends AnyWordSpec with Matchers {
       cql should include("account_name text STATIC")
       (cql should not).include("amount double STATIC")
       (cql should not).include("account_id uuid STATIC")
+    }
+
+    "emit no WITH clause when there are no options and no descending clustering" in {
+      (UsersTable.create.toCQL should not).include(" WITH ")
+    }
+
+    "append a single string option, quoted" in {
+      UsersTable.create.withComment("primary user table").toCQL should
+      endWith(" WITH comment = 'primary user table'")
+    }
+
+    "escape single quotes inside string options" in {
+      UsersTable.create.withComment("it's here").toCQL should
+      include("comment = 'it''s here'")
+    }
+
+    "render numeric and boolean options unquoted" in {
+      val cql = UsersTable.create
+        .withGcGraceSeconds(Duration.ofSeconds(864000))
+        .withBloomFilterFpChance(0.01)
+        .withCdc(true)
+        .toCQL
+      cql should include("gc_grace_seconds = 864000")
+      cql should include("bloom_filter_fp_chance = 0.01")
+      cql should include("cdc = true")
+    }
+
+    "render map options as CQL string maps with sorted keys" in {
+      UsersTable.create
+        .withCaching(Map("rows_per_partition" -> "NONE", "keys" -> "ALL"))
+        .toCQL should include("caching = {'keys': 'ALL', 'rows_per_partition': 'NONE'}")
+    }
+
+    "combine several options with AND, in canonical order regardless of call order" in {
+      UsersTable.create
+        .withCompaction(Map("class" -> "LeveledCompactionStrategy"))
+        .withComment("c")
+        .withGcGraceSeconds(Duration.ofSeconds(100))
+        .toCQL should endWith(
+        " WITH comment = 'c' AND gc_grace_seconds = 100 " +
+          "AND compaction = {'class': 'LeveledCompactionStrategy'}"
+      )
+    }
+
+    "put table options after CLUSTERING ORDER BY in one WITH clause" in {
+      SensorsTable.create.withComment("readings").toCQL should
+      endWith(" WITH CLUSTERING ORDER BY (year ASC, ts DESC) AND comment = 'readings'")
+    }
+
+    "support an arbitrary option via withOption, rendered verbatim" in {
+      UsersTable.create.withOption("nodesync", "{'enabled': 'true'}").toCQL should
+      include("nodesync = {'enabled': 'true'}")
     }
   }
 }

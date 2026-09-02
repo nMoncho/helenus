@@ -21,7 +21,7 @@ object Dependencies {
 
     val flink = "2.3.0"
 
-    val spark              = "3.5.1" // Spark 3.5 line; connector 3.5.1 targets it
+    val spark              = "3.5.1" // Connector 3.5.1 targets it
     val sparkCassandraConn = "3.5.1"
 
     val monix = "3.4.1"

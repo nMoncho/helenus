@@ -6,17 +6,16 @@
 
 package net.nmoncho.helenus.spark.rdd
 
-import scala.reflect.ClassTag
-
 import com.datastax.oss.driver.api.core.cql.Row
-import com.datastax.spark.connector.CassandraRowMetadata
-import com.datastax.spark.connector.ColumnRef
+import com.datastax.spark.connector.{ CassandraRowMetadata, ColumnRef }
 import com.datastax.spark.connector.cql.TableDef
-import com.datastax.spark.connector.rdd.reader.RowReader
-import com.datastax.spark.connector.rdd.reader.RowReaderFactory
+import com.datastax.spark.connector.rdd.reader.{ RowReader, RowReaderFactory }
 import net.nmoncho.helenus.api.RowMapper
 
-/** Adapts a Helenus [[RowMapper]] into the connector's [[RowReaderFactory]] SPI (B1).
+import scala.annotation.unused
+import scala.reflect.ClassTag
+
+/** Adapts a Helenus [[RowMapper]] into the connector's [[RowReaderFactory]] SPI.
   *
   * The connector maps rows through its own `RowReaderFactory[T]` / `RowReader[T]` SPI,
   * which knows nothing about Helenus codecs, derivation, or UDT handling. This factory
@@ -65,7 +64,9 @@ object HelenusRowReaderFactory {
     * enclosing scope. The expression is re-evaluated on the executor, so the mapper and
     * its non-serializable driver codecs are rebuilt there instead of being shipped.
     */
-  def apply[T](mapper: => RowMapper[T])(implicit ct: ClassTag[T]): HelenusRowReaderFactory[T] =
+  def apply[T](mapper: => RowMapper[T])(
+      implicit @unused ct: ClassTag[T]
+  ): HelenusRowReaderFactory[T] =
     new HelenusRowReaderFactory[T](() => mapper)
 }
 
