@@ -59,7 +59,9 @@ final class HelenusCassandraTableSpec extends AnyWordSpec with Matchers with Cas
       val numPartitions = rdd.getNumPartitions
       val hotels        = rdd.collect().toList
 
-      withClue("Every row mapped correctly, including the frozen `address` UDT and the `pois` set") {
+      withClue(
+        "Every row mapped correctly, including the frozen `address` UDT and the `pois` set"
+      ) {
         hotels should contain theSameElementsAs HotelsTestData.Hotels.all
         hotels.find(_.id == "h1").map(_.address) shouldBe Some(HotelsTestData.Hotels.h1.address)
         hotels.find(_.id == "h1").map(_.pois) shouldBe Some(HotelsTestData.Hotels.h1.pois)

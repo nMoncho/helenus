@@ -6,14 +6,16 @@
 
 package net.nmoncho.helenus.spark.rdd
 
-import com.datastax.oss.driver.api.core.cql.Row
-import com.datastax.spark.connector.{ CassandraRowMetadata, ColumnRef }
-import com.datastax.spark.connector.cql.TableDef
-import com.datastax.spark.connector.rdd.reader.{ RowReader, RowReaderFactory }
-import net.nmoncho.helenus.api.RowMapper
-
 import scala.annotation.unused
 import scala.reflect.ClassTag
+
+import com.datastax.oss.driver.api.core.cql.Row
+import com.datastax.spark.connector.CassandraRowMetadata
+import com.datastax.spark.connector.ColumnRef
+import com.datastax.spark.connector.cql.TableDef
+import com.datastax.spark.connector.rdd.reader.RowReader
+import com.datastax.spark.connector.rdd.reader.RowReaderFactory
+import net.nmoncho.helenus.api.RowMapper
 
 /** Adapts a Helenus [[RowMapper]] into the connector's [[RowReaderFactory]] SPI.
   *
