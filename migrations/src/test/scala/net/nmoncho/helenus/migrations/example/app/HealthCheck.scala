@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-package net.nmoncho.helenus.migrations.example
+package net.nmoncho.helenus.migrations.example.app
 
 import java.net.InetSocketAddress
 import java.nio.charset.StandardCharsets.UTF_8

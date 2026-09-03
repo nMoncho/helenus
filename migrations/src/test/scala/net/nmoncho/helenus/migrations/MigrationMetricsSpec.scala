@@ -11,7 +11,7 @@ import scala.collection.mutable
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-/** B8: the progress and count utilities built on [[MigrationMetrics]]. Pure, no cluster. */
+/** The progress and count utilities built on [[MigrationMetrics]]. Pure, no cluster. */
 class MigrationMetricsSpec extends AnyWordSpec with Matchers {
 
   private def progress(fraction: Double): RingProgress =

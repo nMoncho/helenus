@@ -32,7 +32,7 @@ import org.scalatest.time.Seconds
 import org.scalatest.time.Span
 import org.scalatest.wordspec.AnyWordSpec
 
-/** H2: a full Cassandra to Cassandra ETL end to end (extract via the token-range
+/** A full Cassandra to Cassandra ETL end to end (extract via the token-range
   * executor, transform, load via the Helenus write sink).
   */
 class TokenRangeMigrationSpec
@@ -51,9 +51,9 @@ class TokenRangeMigrationSpec
   private implicit lazy val as: CassandraSession =
     CassandraSessionRegistry(system).sessionFor(CassandraSessionSettings())
 
-  private val source = "h2_source"
-  private val target = "h2_target"
-  private val total  = 150
+  private final val source = "pekko_source"
+  private final val target = "pekko_target"
+  private val total        = 150
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -77,13 +77,13 @@ class TokenRangeMigrationSpec
       val plan = TokenRangePlanner.plan(splitsPerRange = 8)
 
       val extract =
-        s"SELECT id, v FROM $source WHERE token(id) > ? AND token(id) <= ?".toUnsafeCQL
+        s"SELECT id, v FROM $source WHERE token(id) > ? AND token(id) <= ?".toCQL
           .prepare[Token, Token]
           .as[Row]
           .asTokenRangeReadSource(plan, parallelism = 4)
 
       val load: Sink[Migrated, Future[Done]] =
-        s"INSERT INTO $target (id, v) VALUES (?, ?)".toUnsafeCQL
+        s"INSERT INTO $target (id, v) VALUES (?, ?)".toCQL
           .prepare[Int, String]
           .from[Migrated]
           .asWriteSink(CassandraWriteSettings.defaults)
@@ -105,13 +105,13 @@ class TokenRangeMigrationSpec
       val metrics = MigrationMetrics.counting()
 
       val load: Sink[Migrated, Future[Done]] =
-        s"INSERT INTO $target (id, v) VALUES (?, ?)".toUnsafeCQL
+        s"INSERT INTO $target (id, v) VALUES (?, ?)".toCQL
           .prepare[Int, String]
           .from[Migrated]
           .asWriteSink(CassandraWriteSettings.defaults)
 
       val migration =
-        s"SELECT id, v FROM $source WHERE token(id) > ? AND token(id) <= ?".toUnsafeCQL
+        s"SELECT id, v FROM $source WHERE token(id) > ? AND token(id) <= ?".toCQL
           .prepare[Token, Token]
           .as[Row]
           .asTokenRangeMigration(
@@ -133,18 +133,18 @@ class TokenRangeMigrationSpec
       }
     }
 
-    "write nothing in dry-run while still reporting counts (E4)" in withSession { implicit cql =>
+    "write nothing in dry-run while still reporting counts" in withSession { implicit cql =>
       val plan    = TokenRangePlanner.plan(splitsPerRange = 8)
       val metrics = MigrationMetrics.counting()
 
       val load: Sink[Migrated, Future[Done]] =
-        s"INSERT INTO $target (id, v) VALUES (?, ?)".toUnsafeCQL
+        s"INSERT INTO $target (id, v) VALUES (?, ?)".toCQL
           .prepare[Int, String]
           .from[Migrated]
           .asWriteSink(CassandraWriteSettings.defaults)
 
       val migration =
-        s"SELECT id, v FROM $source WHERE token(id) > ? AND token(id) <= ?".toUnsafeCQL
+        s"SELECT id, v FROM $source WHERE token(id) > ? AND token(id) <= ?".toCQL
           .prepare[Token, Token]
           .as[Row]
           .asTokenRangeMigration(

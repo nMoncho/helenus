@@ -32,7 +32,7 @@ import org.scalatest.time.Seconds
 import org.scalatest.time.Span
 import org.scalatest.wordspec.AnyWordSpec
 
-/** C2: a neutral, realistic migration example. It denormalizes `hotels` (keyed by
+/** A neutral, realistic migration example. It denormalizes `hotels` (keyed by
   * id) into `hotels_by_city` (keyed by city) so the data can be queried by city, a
   * classic reason to migrate data between Cassandra tables. The whole ETL is one
   * `asTokenRangeMigration` call: extract with the token-range executor, reshape each

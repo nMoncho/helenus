@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-package net.nmoncho.helenus.migrations.example
+package net.nmoncho.helenus.migrations.example.app
 
 import scala.concurrent.Future
 
@@ -33,8 +33,7 @@ final class HotelsMigrationApp(config: MigrationApp.Config, healthCheck: HealthC
     session: CassandraSession
 ) extends MigrationApp(config, healthCheck) {
 
-  import HotelsMigrationApp.Hotel
-  import HotelsMigrationApp.HotelByCity
+  import HotelsMigrationApp.{ Hotel, HotelByCity }
 
   override protected def migration(
       rateLimit: Option[RateLimit],
@@ -43,12 +42,12 @@ final class HotelsMigrationApp(config: MigrationApp.Config, healthCheck: HealthC
     val plan = TokenRangePlanner.plan(splitsPerRange = config.splits)
 
     val load =
-      "INSERT INTO hotels_by_city (city, id, name) VALUES (?, ?, ?)".toUnsafeCQL
+      "INSERT INTO hotels_by_city (city, id, name) VALUES (?, ?, ?)".toCQL
         .prepare[String, String, String]
         .from[HotelByCity]
         .asWriteSink(CassandraWriteSettings.defaults)
 
-    "SELECT id, name, city FROM hotels WHERE token(id) > ? AND token(id) <= ?".toUnsafeCQL
+    "SELECT id, name, city FROM hotels WHERE token(id) > ? AND token(id) <= ?".toCQL
       .prepare[Token, Token]
       .as[Hotel]
       .asTokenRangeMigration(

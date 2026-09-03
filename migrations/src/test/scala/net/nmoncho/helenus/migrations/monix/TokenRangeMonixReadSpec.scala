@@ -14,16 +14,12 @@ import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.cql.Row
 import com.datastax.oss.driver.api.core.metadata.token.Token
 import net.nmoncho.helenus._
-import net.nmoncho.helenus.migrations.Checkpoint
-import net.nmoncho.helenus.migrations.MigrationMetrics
-import net.nmoncho.helenus.migrations.RateLimit
-import net.nmoncho.helenus.migrations.RingPlan
-import net.nmoncho.helenus.migrations.TokenRangePlanner
+import net.nmoncho.helenus.migrations._
 import net.nmoncho.helenus.utils.CassandraSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-/** B7 for Monix: the token-range executor reads a whole table concurrently, sets a
+/** The token-range executor reads a whole table concurrently, sets a
   * routing token per range, honors the checkpoint, and reports metrics. Streams are
   * run against the embedded session with Monix's global scheduler.
   */
@@ -31,26 +27,25 @@ class TokenRangeMonixReadSpec extends AnyWordSpec with Matchers with CassandraSp
 
   private implicit def cql: CqlSession = session
 
-  private val table = "monix_token_read"
-  private val total = 100
+  private final val table = "monix_token_read"
+  private val total       = 100
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    executeDDL(s"CREATE TABLE IF NOT EXISTS $table (id int PRIMARY KEY, v text)")
+    executeDDL(s"CREATE TABLE IF NOT EXISTS $keyspace.$table (id int PRIMARY KEY, v text)")
   }
 
   // `CassandraSpec.afterEach` truncates the keyspace after every test, so re-seed
   // the table before each one.
   override def beforeEach(): Unit = {
     super.beforeEach()
-    (1 to total).foreach(i => execute(s"INSERT INTO $table (id, v) VALUES ($i, 'v$i')"))
+    (1 to total).foreach(i => execute(s"INSERT INTO $keyspace.$table (id, v) VALUES ($i, 'v$i')"))
   }
 
-  private val selectByRange =
-    s"SELECT id FROM $table WHERE token(id) > ? AND token(id) <= ?"
-
   private def statement =
-    selectByRange.toUnsafeCQL.prepare[Token, Token].as[Row]
+    s"SELECT id FROM $keyspace.$table WHERE token(id) > ? AND token(id) <= ?".toUnsafeCQL
+      .prepare[Token, Token]
+      .as[Row]
 
   "asTokenRangeObservable (Monix)" should {
 

@@ -22,7 +22,7 @@ class TokenCodecReadSpec extends AnyWordSpec with Matchers with CassandraSpec {
 
   private implicit def implicitSession: CqlSession = session
 
-  private val table = "a2_token_read"
+  private val table = "token_read"
   private val total = 50
 
   override def beforeAll(): Unit = {

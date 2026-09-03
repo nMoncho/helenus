@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: MIT
  */
 
-package net.nmoncho.helenus.migrations.example
+package net.nmoncho.helenus.migrations.example.app
 
 import scala.concurrent.Future
 import scala.jdk.DurationConverters.JavaDurationOps

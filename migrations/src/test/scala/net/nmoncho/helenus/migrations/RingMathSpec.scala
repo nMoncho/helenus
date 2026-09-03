@@ -18,7 +18,7 @@ import com.datastax.oss.driver.internal.core.metadata.token.RandomTokenRange
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-/** H1: the per-partitioner weight math on synthetic ranges, so Random and
+/** The per-partitioner weight math on synthetic ranges, so Random and
   * ByteOrdered are covered even though the embedded cluster is Murmur3.
   */
 class RingMathSpec extends AnyWordSpec with Matchers {

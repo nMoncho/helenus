@@ -21,7 +21,7 @@ import net.nmoncho.helenus.zio._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-/** B7 for ZIO: the token-range executor reads a whole table concurrently, honoring
+/** The token-range executor reads a whole table concurrently, honoring
   * the checkpoint and reporting metrics. The stream is a `ZStream` in the
   * `ZCqlSession` environment, so the test wraps the embedded session in a
   * `ZDefaultCqlSession` and runs each stream with the default ZIO runtime.
@@ -32,8 +32,8 @@ class TokenRangeZioReadSpec extends AnyWordSpec with Matchers with CassandraSpec
 
   private implicit def cql: CqlSession = session
 
-  private val table = "zio_token_read"
-  private val total = 100
+  private final val table = "zio_token_read"
+  private val total       = 100
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -45,7 +45,7 @@ class TokenRangeZioReadSpec extends AnyWordSpec with Matchers with CassandraSpec
     (1 to total).foreach(i => execute(s"INSERT INTO $table (id, v) VALUES ($i, 'v$i')"))
   }
 
-  private def readStatement =
+  private final val readStatement =
     s"SELECT id FROM $table WHERE token(id) > ? AND token(id) <= ?".toZCQL
       .prepare[Token, Token]
       .to[Scanned]

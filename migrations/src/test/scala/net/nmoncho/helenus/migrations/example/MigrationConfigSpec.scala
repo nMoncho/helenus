@@ -9,6 +9,7 @@ package net.nmoncho.helenus.migrations.example
 import scala.jdk.CollectionConverters._
 
 import com.typesafe.config.ConfigFactory
+import net.nmoncho.helenus.migrations.example.app.MigrationApp
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 

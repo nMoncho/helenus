@@ -11,7 +11,7 @@ import com.datastax.oss.driver.internal.core.metadata.token.Murmur3TokenRange
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-/** H-style unit tests for the pure progress math, with no cluster. */
+/** Unit tests for the pure progress math, with no cluster. */
 class RingProgressSpec extends AnyWordSpec with Matchers {
 
   private val range = new Murmur3TokenRange(new Murmur3Token(0L), new Murmur3Token(1L << 62))

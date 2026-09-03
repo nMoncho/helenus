@@ -13,6 +13,7 @@ import scala.jdk.CollectionConverters._
 
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
+import net.nmoncho.helenus.migrations.example.app._
 import net.nmoncho.helenus.utils.CassandraSpec
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.stream.connectors.cassandra.CassandraSessionSettings

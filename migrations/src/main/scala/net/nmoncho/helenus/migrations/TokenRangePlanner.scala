@@ -20,7 +20,6 @@ import com.datastax.oss.driver.api.core.metadata.token.TokenRange
 import com.datastax.oss.driver.internal.core.metadata.token.Murmur3Token
 import com.datastax.oss.driver.internal.core.metadata.token.Murmur3TokenRange
 
-// FIXME we should reject `None` on `replica`
 /** One planned token range to scan.
   *
   * Token ranges are lower-bound exclusive and upper-bound inclusive, so a
