@@ -56,7 +56,7 @@ case class CreateTable(
     partitionKey: Seq[String],
     clusteringColumns: Seq[ClusteringSpec],
     ifNotExistsFlag: Boolean = false,
-    options: TableOptions    = TableOptions.empty
+    options: TableOptions    = TableOptions.Empty
 ) {
 
   /** Emit `CREATE TABLE IF NOT EXISTS`, making the statement a no-op when the
@@ -74,11 +74,11 @@ case class CreateTable(
     copy(options = options.copy(comment = Some(comment)))
 
   /** When to speculatively retry reads, e.g. `99percentile`, `50ms`, `ALWAYS`, `NONE`. */
-  def withSpeculativeRetry(value: String): CreateTable =
+  def withSpeculativeRetry(value: TableOptions.SpeculativeRetry): CreateTable =
     copy(options = options.copy(speculativeRetry = Some(value)))
 
   /** Speculative-retry policy applied to writes (Cassandra 4.0+). */
-  def withAdditionalWritePolicy(value: String): CreateTable =
+  def withAdditionalWritePolicy(value: TableOptions.SpeculativeRetry): CreateTable =
     copy(options = options.copy(additionalWritePolicy = Some(value)))
 
   /** Seconds tombstones are retained before becoming eligible for GC. */
@@ -105,8 +105,10 @@ case class CreateTable(
   def withMaxIndexInterval(value: Int): CreateTable =
     copy(options = options.copy(maxIndexInterval = Some(value)))
 
-  /** Read-repair behaviour: `BLOCKING` (default) or `NONE` (Cassandra 4.0+). */
-  def withReadRepair(value: String): CreateTable =
+  /** Read-repair behaviour: `BLOCKING` (default) or `NONE` (Cassandra 4.0+).
+    * See <a href="https://cassandra.apache.org/doc/stable/cassandra/managing/operating/read_repair.html">Read repair</a>
+    */
+  def withReadRepair(value: TableOptions.ReadRepair): CreateTable =
     copy(options = options.copy(readRepair = Some(value)))
 
   /** Probability of verifying SSTable checksums on read. */
@@ -118,16 +120,16 @@ case class CreateTable(
     copy(options = options.copy(cdc = Some(enabled)))
 
   /** Caching options, e.g. `Map("keys" -> "ALL", "rows_per_partition" -> "NONE")`. */
-  def withCaching(caching: Map[String, String]): CreateTable =
-    copy(options = options.copy(caching = caching))
+  def withCaching(caching: TableOptions.Caching): CreateTable =
+    copy(options = options.copy(caching = Some(caching)))
 
   /** Compaction options, e.g. `Map("class" -> "LeveledCompactionStrategy")`. */
-  def withCompaction(compaction: Map[String, String]): CreateTable =
-    copy(options = options.copy(compaction = compaction))
+  def withCompaction(compaction: TableOptions.CompactionStrategy): CreateTable =
+    copy(options = options.copy(compaction = Some(compaction)))
 
   /** Compression options, e.g. `Map("class" -> "LZ4Compressor")`. */
-  def withCompression(compression: Map[String, String]): CreateTable =
-    copy(options = options.copy(compression = compression))
+  def withCompression(compression: TableOptions.Compression): CreateTable =
+    copy(options = options.copy(compression = Some(compression)))
 
   /** Named memtable configuration (Cassandra 4.1+). */
   def withMemtable(name: String): CreateTable =

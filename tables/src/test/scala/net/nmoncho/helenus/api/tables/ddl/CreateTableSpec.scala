@@ -87,13 +87,18 @@ class CreateTableSpec extends AnyWordSpec with Matchers {
 
     "render map options as CQL string maps with sorted keys" in {
       UsersTable.create
-        .withCaching(Map("rows_per_partition" -> "NONE", "keys" -> "ALL"))
+        .withCaching(
+          TableOptions.Caching(
+            TableOptions.Caching.Keys.All,
+            TableOptions.Caching.Rows.None
+          )
+        )
         .toCQL should include("caching = {'keys': 'ALL', 'rows_per_partition': 'NONE'}")
     }
 
     "combine several options with AND, in canonical order regardless of call order" in {
       UsersTable.create
-        .withCompaction(Map("class" -> "LeveledCompactionStrategy"))
+        .withCompaction(TableOptions.CompactionStrategy.LeveledCompactionStrategy())
         .withComment("c")
         .withGcGraceSeconds(Duration.ofSeconds(100))
         .toCQL should endWith(
