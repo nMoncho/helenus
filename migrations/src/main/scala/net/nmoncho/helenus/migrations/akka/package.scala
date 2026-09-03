@@ -20,9 +20,9 @@ import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.metadata.token.Token
 import com.datastax.oss.driver.api.core.metadata.token.TokenRange
 
-/** Pekko executor for a token-range full-table scan.
+/** Akka executor for a token-range full-table scan.
   *
-  * Turns a [[RingPlan]] into a Pekko `Source`, reading several ranges concurrently
+  * Turns a [[RingPlan]] into a Akka `Source`, reading several ranges concurrently
   * so throughput is decoupled from the number of nodes. Each range is bound with
   * the core token codec (see [[TokenRangePlanner]]) and carries a routing token, so
   * the driver sends the query to an owning replica. A range that times out is
@@ -33,7 +33,7 @@ package object akka {
   /** A sensible default read concurrency: one in-flight range per available core. */
   final val DefaultParallelism: Int = Runtime.getRuntime.availableProcessors
 
-  implicit class TokenRangePekkoReadOps[Out](
+  implicit class TokenRangeAkkaReadOps[Out](
       private val pstmt: ScalaPreparedStatement2[Token, Token, Out]
   ) extends AnyVal {
 
@@ -244,7 +244,7 @@ package object akka {
     )
 
   /** Reads a single already-bound range statement as a `Source`, mirroring the
-    * reactive read path in `net.nmoncho.helenus.pekko`, for a bound statement we
+    * reactive read path in `net.nmoncho.helenus.akka`, for a bound statement we
     * have already tagged with a routing token.
     */
   private def rangeReadSource[Out](
