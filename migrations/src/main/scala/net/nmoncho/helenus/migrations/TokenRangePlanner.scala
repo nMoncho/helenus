@@ -6,19 +6,14 @@
 
 package net.nmoncho.helenus.migrations
 
-import scala.concurrent.ExecutionContext
-import scala.concurrent.Future
+import com.datastax.oss.driver.api.core.{ CqlIdentifier, CqlSession }
+import com.datastax.oss.driver.api.core.metadata.{ Node, TokenMap }
+import com.datastax.oss.driver.api.core.metadata.token.{ Token, TokenRange }
+import com.datastax.oss.driver.internal.core.metadata.token.{ Murmur3Token, Murmur3TokenRange }
+
+import scala.concurrent.{ ExecutionContext, Future }
 import scala.jdk.CollectionConverters._
 import scala.jdk.OptionConverters._
-
-import com.datastax.oss.driver.api.core.CqlIdentifier
-import com.datastax.oss.driver.api.core.CqlSession
-import com.datastax.oss.driver.api.core.metadata.Node
-import com.datastax.oss.driver.api.core.metadata.TokenMap
-import com.datastax.oss.driver.api.core.metadata.token.Token
-import com.datastax.oss.driver.api.core.metadata.token.TokenRange
-import com.datastax.oss.driver.internal.core.metadata.token.Murmur3Token
-import com.datastax.oss.driver.internal.core.metadata.token.Murmur3TokenRange
 
 /** One planned token range to scan.
   *
@@ -78,11 +73,7 @@ final case class RingPlan(splits: Vector[RangeSplit]) {
   * ==Binding the range bounds==
   *
   * A [[RangeSplit]] is meant to bind a query shaped like
-  * `WHERE token(pk) > ? AND token(pk) <= ?`. There is no need to hand-roll a
-  * token codec: `import net.nmoncho.helenus._` brings the core `TypeCodec[Token]`
-  * into implicit scope, and it encodes every partitioner's token by dispatching
-  * on the concrete token type. So `query.prepare[Token, Token]` binds
-  * [[RangeSplit.start]] and [[RangeSplit.end]] directly.
+  * `WHERE token(pk) > ? AND token(pk) <= ?`.
   *
   * One boundary needs care: the range whose end is the ring's minimum token
   * represents "up to the maximum token", so its upper bound must be left open
@@ -120,10 +111,8 @@ object TokenRangePlanner {
     * Murmur3 partitioner, the Cassandra default, since without a token map the
     * partitioner cannot be determined from metadata.
     */
-  def wholeRing(implicit session: CqlSession): RingPlan = {
-    val _ = session
+  def wholeRing: RingPlan =
     RingPlan(Vector(RangeSplit(EntireMurmur3Ring, None, BigDecimal(1))))
-  }
 
   private def planFrom(
       tokenMap: TokenMap,
