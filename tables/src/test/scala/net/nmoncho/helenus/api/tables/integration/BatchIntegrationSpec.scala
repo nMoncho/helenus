@@ -58,7 +58,9 @@ class BatchIntegrationSpec extends CassandraIntegrationSpec with BeforeAndAfterE
     rows(
       SensorsTable
         .select(SensorsTable.reading)
-        .where(SensorsTable.deviceId === deviceId and SensorsTable.year === 2026 and SensorsTable.ts === ts)
+        .where(
+          SensorsTable.deviceId === deviceId and SensorsTable.year === 2026 and SensorsTable.ts === ts
+        )
         .execute()
     ).headOption
 

@@ -71,7 +71,9 @@ class BatchSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "switch batch type fluently" in {
-    Batch(UsersTable.insert.value(UsersTable.id := fixedId).value(UsersTable.username := "a")).unlogged.toCQL should
+    Batch(
+      UsersTable.insert.value(UsersTable.id := fixedId).value(UsersTable.username := "a")
+    ).unlogged.toCQL should
     startWith("BEGIN UNLOGGED BATCH")
   }
 
