@@ -6,14 +6,19 @@
 
 package net.nmoncho.helenus.migrations
 
-import com.datastax.oss.driver.api.core.{ CqlIdentifier, CqlSession }
-import com.datastax.oss.driver.api.core.metadata.{ Node, TokenMap }
-import com.datastax.oss.driver.api.core.metadata.token.{ Token, TokenRange }
-import com.datastax.oss.driver.internal.core.metadata.token.{ Murmur3Token, Murmur3TokenRange }
-
-import scala.concurrent.{ ExecutionContext, Future }
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
 import scala.jdk.CollectionConverters._
 import scala.jdk.OptionConverters._
+
+import com.datastax.oss.driver.api.core.CqlIdentifier
+import com.datastax.oss.driver.api.core.CqlSession
+import com.datastax.oss.driver.api.core.metadata.Node
+import com.datastax.oss.driver.api.core.metadata.TokenMap
+import com.datastax.oss.driver.api.core.metadata.token.Token
+import com.datastax.oss.driver.api.core.metadata.token.TokenRange
+import com.datastax.oss.driver.internal.core.metadata.token.Murmur3Token
+import com.datastax.oss.driver.internal.core.metadata.token.Murmur3TokenRange
 
 /** One planned token range to scan.
   *

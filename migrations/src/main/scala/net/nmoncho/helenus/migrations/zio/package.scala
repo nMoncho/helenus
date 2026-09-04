@@ -30,9 +30,6 @@ import com.datastax.oss.driver.api.core.metadata.token.Token
   */
 package object zio {
 
-  /** A sensible default read concurrency: one in-flight range per available core. */
-  final val DefaultParallelism: Int = Runtime.getRuntime.availableProcessors
-
   implicit class TokenRangeZioReadOps[Out](
       private val pstmt: ZScalaPreparedStatement2[Token, Token, Out]
   ) {

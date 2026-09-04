@@ -24,9 +24,6 @@ import com.datastax.oss.driver.api.core.metadata.token.TokenRange
   */
 package object monix {
 
-  /** A sensible default read concurrency: one in-flight range per available core. */
-  final val DefaultParallelism: Int = Runtime.getRuntime.availableProcessors
-
   implicit class TokenRangeMonixReadOps[Out](
       private val pstmt: ScalaPreparedStatement2[Token, Token, Out]
   ) extends AnyVal {
@@ -118,7 +115,10 @@ package object monix {
         }
 
       val source = scanned
-        .map { row => metrics.rowExtracted(); row }
+        .map { row =>
+          metrics.rowExtracted()
+          row
+        }
         .onErrorRecoverWith { case error =>
           metrics.rangeFailed(error); Observable.raiseError(error)
         }
@@ -136,26 +136,6 @@ package object monix {
         routing: Boolean                 = true
     ): ScalaBoundStatement[Out] =
       boundForRange(pstmt, split.range, executionProfile, routing)
-  }
-
-  /** Binds a [[TokenRange]] into a routing-aware bound statement.
-    *
-    * The bounds are bound with the core token codec, the upper bound is normalized so
-    * the wrap seam is not dropped ([[TokenRing.normalizeUpperBound]]), and the routing
-    * token is set to the range start so the driver routes the query to an owning
-    * replica. When `executionProfile` is set, the statement runs under that named
-    * driver profile (for example a read-specific consistency).
-    */
-  private def boundForRange[Out](
-      pstmt: ScalaPreparedStatement2[Token, Token, Out],
-      range: TokenRange,
-      executionProfile: Option[String],
-      routing: Boolean
-  ): ScalaBoundStatement[Out] = {
-    val bound  = pstmt(range.getStart, TokenRing.normalizeUpperBound(range.getEnd))
-    val routed = if (routing) bound.setRoutingToken(range.getStart) else bound
-
-    executionProfile.fold(routed)(routed.setExecutionProfileName)
   }
 
   /** Reads one split: skips it when the checkpoint already has it, otherwise reads it
