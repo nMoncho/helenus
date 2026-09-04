@@ -270,7 +270,7 @@ object TableOptions {
     case class SizeTieredCompactionStrategy(
         enabled: Option[Boolean]                      = None,
         tombstoneCompactionInterval: Option[Duration] = None,
-        tombstoneThreshold: Option[Duration]          = None,
+        tombstoneThreshold: Option[Double]            = None,
         uncheckedTombstoneCompaction: Option[Boolean] = None,
         logAll: Option[Boolean]                       = None,
         minThreshold: Option[Int]                     = None,
@@ -348,7 +348,7 @@ object TableOptions {
         compactionWindowSize.map(v => "compaction_window_size" -> v.toString),
         timestampResolution.map(v => "timestamp_resolution" -> v.toString),
         expiredSSTableCheckFrequencySeconds.map(v =>
-          "expired_sstable_check_frequency_seconds" -> v.toString
+          "expired_sstable_check_frequency_seconds" -> v.getSeconds.toString
         ),
         unsafeAggressiveSSTableExpiration.map(v =>
           "unsafe_aggressive_sstable_expiration" -> v.toString

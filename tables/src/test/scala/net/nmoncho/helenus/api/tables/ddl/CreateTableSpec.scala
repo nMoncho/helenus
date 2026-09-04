@@ -116,5 +116,19 @@ class CreateTableSpec extends AnyWordSpec with Matchers {
       UsersTable.create.withOption("nodesync", "{'enabled': 'true'}").toCQL should
       include("nodesync = {'enabled': 'true'}")
     }
+
+    "render the newer typed options via their with* methods" in {
+      val cql = UsersTable.create
+        .withSpeculativeRetry(TableOptions.SpeculativeRetry.Percentile(99))
+        .withAdditionalWritePolicy(TableOptions.SpeculativeRetry.None)
+        .withReadRepair(TableOptions.ReadRepair.Blocking)
+        .withCompression(TableOptions.Compression.Disabled)
+        .toCQL
+
+      cql should include("speculative_retry = '99PERCENTILE'")
+      cql should include("additional_write_policy = 'NONE'")
+      cql should include("read_repair = 'BLOCKING'")
+      cql should include("compression = {'enabled': 'false'}")
+    }
   }
 }
