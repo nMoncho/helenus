@@ -63,7 +63,7 @@ case class Address(
 )
 
 implicit val snake: ColumnNamingScheme = ColumnNamingScheme.SnakeCase
-// snake: ColumnNamingScheme = net.nmoncho.helenus.api.ColumnNamingScheme$SnakeCase$@98824ad
+// snake: ColumnNamingScheme = net.nmoncho.helenus.api.ColumnNamingScheme$SnakeCase$@5c9b418e
 
 val snakeCodec: TypeCodec[Address] = Codec.of[Address]()
 // snakeCodec: TypeCodec[Address] = UtdCodec[Address]

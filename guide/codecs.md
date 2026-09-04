@@ -44,7 +44,7 @@ val maybeInt: TypeCodec[Option[Int]] = TypeCodecs.optionOf(TypeCodecs.intCodec)
 
 val intOrText: TypeCodec[Either[Int, String]] =
   TypeCodecs.eitherOf(TypeCodecs.intCodec, TypeCodecs.stringCodec)
-// intOrText: TypeCodec[Either[Int, String]] = net.nmoncho.helenus.internal.codec.EitherCodec@74640ca
+// intOrText: TypeCodec[Either[Int, String]] = net.nmoncho.helenus.internal.codec.EitherCodec@65caeb9d
 ```
 
 ## Case classes and tuples

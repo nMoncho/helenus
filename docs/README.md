@@ -19,9 +19,10 @@ guide in its own README):
 - [Flink 2.x](flink/README.md)
 - [Monix](monix/README.md)
 - [Pekko](pekko/README.md)
+- [Spark](spark/README.md)
 - [ZIO](zio/README.md)
 
-Cassandra to Cassandra data migrations have their own module:
+Cassandra to Cassandra data migrations, or anything to Cassandra, or Cassandra to anything, have their own module:
 
 - [Migrations](migrations/README.md)
 
