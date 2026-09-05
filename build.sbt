@@ -63,74 +63,7 @@ lazy val basicSettings = Seq(
     "-Xlog-implicits"),
   (Test / testOptions) += Tests.Argument("-oF"),
   semanticdbEnabled := true,
-  semanticdbVersion := scalafixSemanticdb.revision,
-  mimaBinaryIssueFilters ++= Seq(
-    ProblemFilters.exclude[ReversedMissingMethodProblem](
-      "net.nmoncho.helenus.api.cql.ScalaPreparedStatement.as"
-    ),
-    ProblemFilters.exclude[IncompatibleResultTypeProblem]("net.nmoncho.helenus.internal.cql.*.as"),
-    ProblemFilters.exclude[MissingClassProblem](
-      "net.nmoncho.helenus.pekko.package$*Akka*"
-    ),
-    ProblemFilters.exclude[DirectMissingMethodProblem](
-      "net.nmoncho.helenus.pekko.package.*Akka*"
-    ),
-    ProblemFilters.exclude[DirectMissingMethodProblem](
-      "net.nmoncho.helenus.api.cql.ScalaPreparedStatement.tag"
-    ),
-    ProblemFilters.exclude[MissingClassProblem](
-      "net.nmoncho.helenus.api.cql.ScalaPreparedStatement$BoundStatementOps"
-    ),
-    ProblemFilters.exclude[MissingClassProblem](
-      "net.nmoncho.helenus.api.cql.ScalaPreparedStatement$BoundStatementOps$"
-    ),
-    ProblemFilters.exclude[DirectMissingMethodProblem](
-      "net.nmoncho.helenus.api.cql.StatementOptions.copy*"
-    ),
-    ProblemFilters.exclude[DirectMissingMethodProblem](
-      "net.nmoncho.helenus.api.cql.StatementOptions.this"
-    ),
-    ProblemFilters.exclude[IncompatibleResultTypeProblem](
-      "net.nmoncho.helenus.api.cql.StatementOptions.copy*"
-    ),
-    ProblemFilters.exclude[DirectMissingMethodProblem](
-      "net.nmoncho.helenus.api.cql.StatementOptions.apply"
-    ),
-    ProblemFilters.exclude[ReversedMissingMethodProblem](
-      "net.nmoncho.helenus.api.type.codec.CodecDerivation.tokenCodec"
-    ),
-    ProblemFilters.exclude[ReversedMissingMethodProblem](
-      "net.nmoncho.helenus.api.type.codec.CodecDerivation.net$nmoncho$helenus$api$type$codec$CodecDerivation$_setter_$tokenCodec_="
-    ),
-    ProblemFilters.exclude[ReversedMissingMethodProblem](
-      "net.nmoncho.helenus.api.type.codec.CodecDerivation.murmur3TokenCodec"
-    ),
-    ProblemFilters.exclude[ReversedMissingMethodProblem](
-      "net.nmoncho.helenus.api.type.codec.CodecDerivation.net$nmoncho$helenus$api$type$codec$CodecDerivation$_setter_$murmur3TokenCodec_="
-    ),
-    ProblemFilters.exclude[ReversedMissingMethodProblem](
-      "net.nmoncho.helenus.api.type.codec.CodecDerivation.randomTokenCodec"
-    ),
-    ProblemFilters.exclude[ReversedMissingMethodProblem](
-      "net.nmoncho.helenus.api.type.codec.CodecDerivation.net$nmoncho$helenus$api$type$codec$CodecDerivation$_setter_$randomTokenCodec_="
-    ),
-    ProblemFilters.exclude[ReversedMissingMethodProblem](
-      "net.nmoncho.helenus.api.type.codec.CodecDerivation.byteOrderedTokenCodec"
-    ),
-    ProblemFilters.exclude[ReversedMissingMethodProblem](
-      "net.nmoncho.helenus.api.type.codec.CodecDerivation.net$nmoncho$helenus$api$type$codec$CodecDerivation$_setter_$byteOrderedTokenCodec_="
-    ),
-    // `Mapping.withStrictMapping` (opt-in strict mapping) added in v2
-    ProblemFilters.exclude[ReversedMissingMethodProblem](
-      "net.nmoncho.helenus.api.cql.Mapping.withStrictMapping"
-    ),
-    ProblemFilters.exclude[ReversedMissingMethodProblem](
-      "net.nmoncho.helenus.api.cql.Mapping.withStrictMapping$default$1"
-    ),
-    ProblemFilters.exclude[DirectMissingMethodProblem](
-      "net.nmoncho.helenus.internal.cql.DerivedMapping$DefaultCaseClassDerivedMapping.this"
-    )
-  )
+  semanticdbVersion := scalafixSemanticdb.revision
 )
 
 lazy val enforcedCoverage = Seq(
@@ -240,25 +173,7 @@ lazy val core = project
         Dependencies.scalaReflect % Dependencies.Version.scala212
       )
     ),
-    mimaPreviousArtifacts := Set("net.nmoncho" %% "helenus-core" % "1.0.0"),
-    // The fixed-size primitive codecs now share `FixedSizePrimitiveCodec`, so `decode`/`format`/
-    // `parse` moved from each codec object to the shared base. These are internal codecs
-    // (`internal.codec`), and the move is source- and runtime-compatible (verified by the codec
-    // specs, including the "on par with Java Codec" checks); only the erased bytecode signatures on
-    // the objects changed. Scoped per method so the filter cannot hide anything else.
-    mimaBinaryIssueFilters ++= Seq(
-      "BooleanCodec",
-      "ByteCodec",
-      "DoubleCodec",
-      "FloatCodec",
-      "IntCodec",
-      "LongCodec",
-      "ShortCodec"
-    ).flatMap { codec =>
-      Seq("decode", "format", "parse").map { method =>
-        ProblemFilters.exclude[Problem](s"net.nmoncho.helenus.internal.codec.$codec.$method")
-      }
-    }
+    mimaFailOnNoPrevious := false // TODO change me _after_ release
   )
 
 lazy val bench = project
@@ -284,7 +199,7 @@ lazy val akka = project
     scalaVersion := Dependencies.Version.scala213,
     crossScalaVersions := List(Dependencies.Version.scala213),
     Test / testOptions += Tests.Setup(() => EmbeddedDatabase.start()),
-    mimaPreviousArtifacts := Set("net.nmoncho" %% "helenus-akka" % "1.0.0"),
+    mimaFailOnNoPrevious := false, // TODO change me _after_ release
     // 5.x changed to business license
     dependencyUpdatesFilter -= moduleFilter(organization = "com.lightbend.akka"),
     // 2.7.x changed to business license
@@ -306,7 +221,7 @@ lazy val akkaBusl = project
     scalaVersion := Dependencies.Version.scala213,
     Test / testOptions += Tests.Setup(() => EmbeddedDatabase.start()),
     crossScalaVersions := List(Dependencies.Version.scala213),
-    mimaPreviousArtifacts := Set("net.nmoncho" %% "helenus-akka-busl" % "1.0.0"),
+    mimaFailOnNoPrevious := false, // TODO change me _after_ release
     libraryDependencies ++= Seq(
       Dependencies.alpakkaBusl     % "provided,test",
       Dependencies.akkaTestKitBusl % Test,
@@ -325,7 +240,7 @@ lazy val flink = project
     Test / testOptions += Tests.Setup(() => EmbeddedDatabase.start()),
     Test / fork := true,
     crossScalaVersions := List(Dependencies.Version.scala212, Dependencies.Version.scala213),
-    mimaPreviousArtifacts := Set("net.nmoncho" %% "helenus-flink" % "1.7.0"),
+    mimaFailOnNoPrevious := false, // TODO change me _after_ release
     libraryDependencies ++= Seq(
       Dependencies.ossJavaDriver      % "provided,test",
       Dependencies.flinkCore          % "provided,test",
@@ -344,7 +259,7 @@ lazy val spark = project
     crossScalaVersions := List(Dependencies.Version.scala212, Dependencies.Version.scala213),
     Test / testOptions += Tests.Setup(() => EmbeddedDatabase.start()),
     Test / fork := true,
-    mimaFailOnNoPrevious := false, // until the first release
+    mimaFailOnNoPrevious := false, // TODO change me _after_ release
     libraryDependencies ++= Seq(
       Dependencies.sparkCore               % "provided,test",
       Dependencies.sparkSql                % "provided,test",
@@ -376,7 +291,7 @@ lazy val monix = project
     scalaVersion := Dependencies.Version.scala213,
     crossScalaVersions := List(Dependencies.Version.scala213, Dependencies.Version.scala212),
     Test / testOptions += Tests.Setup(() => EmbeddedDatabase.start()),
-    mimaPreviousArtifacts := Set("net.nmoncho" %% "helenus-monix" % "1.7.0"),
+    mimaFailOnNoPrevious := false, // TODO change me _after_ release
     libraryDependencies ++= Seq(
       Dependencies.ossJavaDriver % Provided,
       Dependencies.monix         % "provided,test",
@@ -391,7 +306,7 @@ lazy val pekko = project
     name := "helenus-pekko",
     scalaVersion := Dependencies.Version.scala213,
     Test / testOptions += Tests.Setup(() => EmbeddedDatabase.start()),
-    mimaPreviousArtifacts := Set("net.nmoncho" %% "helenus-pekko" % "1.0.0"),
+    mimaFailOnNoPrevious := false, // TODO change me _after_ release
     crossScalaVersions := List(Dependencies.Version.scala213),
     libraryDependencies ++= Seq(
       Dependencies.pekkoConnector % "provided,test",
@@ -411,11 +326,7 @@ lazy val migrations = project
     // Forked tests: the Flink MiniCluster tests need process isolation, matching the
     // `flink` module. Embedded Cassandra runs in the sbt JVM and tests connect over 9142.
     Test / fork := true,
-    // Brand-new artifact: there is no previously published version to check
-    // against yet.
-    // TODO Pin `mimaPreviousArtifacts` after the first release.
-    mimaFailOnNoPrevious := false,
-    mimaPreviousArtifacts := Set.empty,
+    mimaFailOnNoPrevious := false, // TODO change me _after_ release
     libraryDependencies ++= Seq(
       Dependencies.ossJavaDriver % Provided,
       // Every supported backend is a Provided dependency: a user adds
@@ -459,6 +370,7 @@ lazy val tables = project
     name := "helenus-tables",
     scalaVersion := Dependencies.Version.scala213,
     crossScalaVersions := List(Dependencies.Version.scala213),
+    mimaFailOnNoPrevious := false, // TODO change me _after_ release
     Test / testOptions += Tests.Setup(() => EmbeddedDatabase.start()),
     libraryDependencies ++= Seq(
       Dependencies.ossJavaDriver % Provided
@@ -473,7 +385,7 @@ lazy val zio = project
     scalaVersion := Dependencies.Version.scala213,
     crossScalaVersions := List(Dependencies.Version.scala213, Dependencies.Version.scala212),
     Test / testOptions += Tests.Setup(() => EmbeddedDatabase.start()),
-    mimaPreviousArtifacts := Set("net.nmoncho" %% "helenus-zio" % "1.8.1"),
+    mimaFailOnNoPrevious := false, // TODO change me _after_ release
     libraryDependencies ++= Seq(
       Dependencies.ossJavaDriver     % Provided,
       Dependencies.zio               % "provided,test",
