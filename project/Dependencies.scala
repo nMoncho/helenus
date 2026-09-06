@@ -7,6 +7,7 @@ object Dependencies {
 
     val antlr4                = "4.13.2"
     val cassandraUnit         = "3.11.19.2"
+    val enumeratum            = "1.9.8"
     val ossJavaDriver         = "4.19.3"
     val scalaCollectionCompat = "2.14.0"
     val scalaJava8Compat      = "1.0.2"
@@ -43,6 +44,7 @@ object Dependencies {
   // 'core' dependencies
   val antlr4        = "org.antlr"            % "antlr4-runtime"   % Version.antlr4
   val cassandraUnit = "net.nmoncho"          % "cassandra-unit"   % Version.cassandraUnit
+  val enumeratum    = "com.beachape"        %% "enumeratum"       % Version.enumeratum
   val ossJavaDriver = "org.apache.cassandra" % "java-driver-core" % Version.ossJavaDriver
   val scalaReflect  = "org.scala-lang"       % "scala-reflect" // This is Scala version dependent
   val scalaCollectionCompat =

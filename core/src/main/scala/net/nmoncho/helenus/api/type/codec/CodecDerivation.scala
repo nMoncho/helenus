@@ -177,6 +177,9 @@ trait CodecDerivation extends TupleCodecDerivation { that =>
         implicit @implicitNotFound(
           "If ${T} is a simple type, then it isn't defined in `net.nmoncho.helenus`. " +
             "If ${T} is an Enumeration, it must tagged with some enum annotation. " +
+            "If ${T} is an Enumeratum EnumEntry, import `net.nmoncho.helenus.EnumeratumCodecs._`, " +
+            "annotate the sealed trait (not the Enum object) with @NominalEncoded or @OrdinalEncoded, " +
+            "and provide an implicit Enum[${T}] (usually `= this` in the companion). " +
             "Also make sure you aren't shadowing any implicit definition"
         )
         codec: TypeCodec[T]
@@ -281,6 +284,9 @@ trait CodecDerivation extends TupleCodecDerivation { that =>
         implicit @implicitNotFound(
           "If ${T} is a simple type, then it isn't defined in `net.nmoncho.helenus`. " +
             "If ${T} is an Enumeration, it must tagged with some enum annotation. " +
+            "If ${T} is an Enumeratum EnumEntry, import `net.nmoncho.helenus.EnumeratumCodecs._`, " +
+            "annotate the sealed trait (not the Enum object) with @NominalEncoded or @OrdinalEncoded, " +
+            "and provide an implicit Enum[${T}] (usually `= this` in the companion). " +
             "Also make sure you aren't shadowing any implicit definition"
         )
         codec: TypeCodec[T]

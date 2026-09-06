@@ -101,6 +101,7 @@ lazy val docs = project
     mdocOut := file("."),
     libraryDependencies ++= Seq(
       Dependencies.ossJavaDriver,
+      Dependencies.enumeratum,
       Dependencies.alpakka,
       Dependencies.flinkCore,
       Dependencies.flinkStreamingJava,
@@ -140,6 +141,9 @@ lazy val core = project
     crossScalaVersions := List(Dependencies.Version.scala213, Dependencies.Version.scala212),
     libraryDependencies ++= Seq(
       Dependencies.ossJavaDriver % Provided,
+      // Enumeratum is an optional integration: users who map an `enumeratum.Enum`
+      // to a CQL column pull it in themselves.
+      Dependencies.enumeratum % Provided,
       Dependencies.scalaCollectionCompat,
       Dependencies.shapeless,
       Dependencies.slf4j,
