@@ -291,14 +291,12 @@ updates and deletes, and the index features listed above.
 
 The following are not implemented yet. Roughly in the order we expect to add them:
 
-- **Static columns.** A column carries a `frozen` flag but no `static` flag.
 - **Collection element operations.** `set(col := value)` and `set(col := ?)` are
   supported, but not element-level updates such as appending to a list, adding to
   or removing from a set or map, or setting a single map entry.
 - **Counters.** No counter-increment assignment (`col = col + 1`).
 - **LWT column conditions.** Conditional writes are limited to `IF EXISTS` /
   `IF NOT EXISTS`; per-column conditions (`IF col = value`) are not supported.
-- **BATCH.** There is no batch builder for grouping several statements.
 
 Static columns and collection element operations are the two most frequently
 requested, so they are prioritized first.
