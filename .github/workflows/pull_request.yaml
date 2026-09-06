@@ -11,9 +11,13 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Keep CI logs quiet and fast: at DEBUG the DataStax driver alone emitted ~170k
+# lines per run, which slows the tests (synchronous console I/O) and made the
+# embedded Cassandra more likely to miss request deadlines. Test failures still
+# print their stack traces regardless of these levels.
 env:
-  LOG_LEVEL: DEBUG
-  CASSANDRA_LOG_LEVEL: DEBUG
+  LOG_LEVEL: WARN
+  CASSANDRA_LOG_LEVEL: WARN
 
 jobs:
   build:

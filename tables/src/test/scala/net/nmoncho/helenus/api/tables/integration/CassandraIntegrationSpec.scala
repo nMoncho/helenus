@@ -7,11 +7,14 @@
 package net.nmoncho.helenus.api.tables.integration
 
 import java.net.InetSocketAddress
+import java.time.Duration
 
 import scala.jdk.CollectionConverters._
 
 import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.PagingIterable
+import com.datastax.oss.driver.api.core.config.DefaultDriverOption
+import com.datastax.oss.driver.api.core.config.DriverConfigLoader
 import com.datastax.oss.driver.api.core.cql.BoundStatement
 import com.datastax.oss.driver.api.core.cql.ResultSet
 import com.datastax.oss.driver.api.core.cql.Row
@@ -38,6 +41,16 @@ trait CassandraIntegrationSpec extends AnyFlatSpec with Matchers with BeforeAndA
       .builder()
       .addContactPoint(new InetSocketAddress(hostname, port))
       .withLocalDatacenter("datacenter1")
+      // The embedded single-node Cassandra can take well over the driver's default 2s
+      // `basic.request.timeout` to answer a DDL statement under CI load, which surfaced
+      // as a flaky `DriverTimeoutException: Query timed out after PT2S`. Give requests
+      // generous headroom so a slow (but healthy) response never fails a test.
+      .withConfigLoader(
+        DriverConfigLoader
+          .programmaticBuilder()
+          .withDuration(DefaultDriverOption.REQUEST_TIMEOUT, Duration.ofSeconds(30))
+          .build()
+      )
       .build()
 
     // create keyspaces for all tests

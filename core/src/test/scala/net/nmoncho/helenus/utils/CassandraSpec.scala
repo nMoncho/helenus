@@ -7,6 +7,7 @@
 package net.nmoncho.helenus.utils
 
 import java.net.InetSocketAddress
+import java.time.Duration
 import java.util.UUID
 import java.util.concurrent.locks.ReentrantLock
 
@@ -14,6 +15,8 @@ import com.datastax.oss.driver.api.core.ConsistencyLevel
 import com.datastax.oss.driver.api.core.CqlSession
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
 import com.datastax.oss.driver.api.core.`type`.codec.registry.MutableCodecRegistry
+import com.datastax.oss.driver.api.core.config.DefaultDriverOption
+import com.datastax.oss.driver.api.core.config.DriverConfigLoader
 import com.datastax.oss.driver.api.core.cql.ResultSet
 import com.datastax.oss.driver.api.core.cql.SimpleStatement
 import com.datastax.oss.driver.api.core.cql.Statement
@@ -36,6 +39,16 @@ trait CassandraSpec extends BeforeAndAfterAll with BeforeAndAfterEach { this: Su
     .builder()
     .addContactPoint(new InetSocketAddress(hostname, port))
     .withLocalDatacenter("datacenter1")
+    // The embedded single-node Cassandra can take well over the driver's default 2s
+    // `basic.request.timeout` to answer a DDL statement under CI load, which used to
+    // surface as a flaky `DriverTimeoutException: Query timed out after PT2S`. Give
+    // requests generous headroom so a slow (but healthy) response never fails a test.
+    .withConfigLoader(
+      DriverConfigLoader
+        .programmaticBuilder()
+        .withDuration(DefaultDriverOption.REQUEST_TIMEOUT, Duration.ofSeconds(30))
+        .build()
+    )
     .build()
 
   override def afterEach(): Unit = {

@@ -1,6 +1,10 @@
 import com.typesafe.tools.mima.core.*
 
-Global / concurrentRestrictions += Tags.limit(Tags.Test, 2)
+// Every module's tests talk to a single, shared, in-process embedded Cassandra
+// node, and CI runners only have 2 vCPUs. Running two test tasks at once therefore
+// mostly contends on that one node (slow DDL, occasional request-deadline misses)
+// rather than buying real parallelism, so serialize test execution.
+Global / concurrentRestrictions += Tags.limit(Tags.Test, 1)
 
 addCommandAlias(
   "testCoverage",
