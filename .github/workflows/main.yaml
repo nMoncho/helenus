@@ -41,6 +41,9 @@ jobs:
       - name: Check MiMa
         run: sbt mimaReportBinaryIssues
 
+      - name: Run OSV Scan
+        run: sbt -Dlog4j2.level=info 'osvScan all-projects single-report list-unused-suppressions offending-vulnerabilities-summary'
+
       - name: Check docs
         run: sbt docs/mdoc
 

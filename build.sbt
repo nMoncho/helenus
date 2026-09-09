@@ -67,7 +67,12 @@ lazy val basicSettings = Seq(
     "-Xlog-implicits"),
   (Test / testOptions) += Tests.Argument("-oF"),
   semanticdbEnabled := true,
-  semanticdbVersion := scalafixSemanticdb.revision
+  semanticdbVersion := scalafixSemanticdb.revision,
+  osvFailBuildOnCVSS := 9.0,
+  osvScopes := net.nmoncho.sbt.osv.settings.ScopesSettings.Default.copy(
+    provided = false,
+    optional = false
+  )
 )
 
 lazy val enforcedCoverage = Seq(
@@ -94,6 +99,7 @@ lazy val docs = project
   .settings(basicSettings)
   .settings(
     publish / skip := true,
+    osvSkip := true,
     mimaFailOnNoPrevious := false,
     mdocVariables := Map(
       "VERSION" -> version.value
@@ -192,6 +198,7 @@ lazy val bench = project
   .dependsOn(core)
   .settings(
     publish / skip := true,
+    osvSkip := true,
     mimaFailOnNoPrevious := false,
     libraryDependencies ++= Seq(
       Dependencies.ossJavaDriver,
@@ -217,7 +224,7 @@ lazy val akka = project
       Dependencies.alpakka     % "provided,test",
       Dependencies.akkaTestKit % Test,
       // Adding this until Alpakka aligns version with Akka TestKit
-      "com.typesafe.akka" %% "akka-stream" % Dependencies.Version.akka
+      "com.typesafe.akka" %% "akka-stream" % Dependencies.Version.akka % "provided,test"
     )
   )
 
@@ -236,7 +243,7 @@ lazy val akkaBusl = project
       Dependencies.alpakkaBusl     % "provided,test",
       Dependencies.akkaTestKitBusl % Test,
       // Adding this until Alpakka aligns version with Akka TestKit
-      "com.typesafe.akka" %% "akka-stream" % Dependencies.Version.akkaBusl
+      "com.typesafe.akka" %% "akka-stream" % Dependencies.Version.akkaBusl % "provided,test"
     )
   )
 lazy val flink = project
@@ -326,7 +333,7 @@ lazy val pekko = project
       Dependencies.pekkoConnector % "provided,test",
       Dependencies.pekkoTestKit   % Test,
       // Adding this until Alpakka aligns version with Pekko TestKit
-      "org.apache.pekko" %% "pekko-stream" % Dependencies.Version.pekkoTestKit
+      "org.apache.pekko" %% "pekko-stream" % Dependencies.Version.pekkoTestKit % "provided,test"
     )
   )
 
