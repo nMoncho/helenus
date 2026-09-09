@@ -28,3 +28,12 @@ jobs:
       - uses: sbt/setup-sbt@v1
 
       - uses: scalacenter/sbt-dependency-submission@v3
+        with:
+          # Mirror the sbt-osv configuration (see build.sbt) so the Dependency Graph
+          # covers the same surface that is scanned for CVEs:
+          #  - `osvSkip := true` is set on the `docs` and `bench` modules, so ignore them here.
+          #  - `osvScopes` disables provided and optional (and test is off by default), so
+          #    ignore the test, provided, and optional configurations: only compile/runtime
+          #    dependencies are submitted.
+          modules-ignore: docs_2.13 bench_2.13
+          configs-ignore: test provided optional
