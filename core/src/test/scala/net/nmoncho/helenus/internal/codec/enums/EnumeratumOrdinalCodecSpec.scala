@@ -84,7 +84,7 @@ object EnumeratumOrdinalCodecSpec {
   sealed trait Finger extends EnumEntry
 
   object Finger extends Enum[Finger] {
-    override val values: IndexedSeq[Finger] = findValues
+    override val values: scala.collection.immutable.IndexedSeq[Finger] = findValues
 
     case object Thumb extends Finger
     case object Index extends Finger
