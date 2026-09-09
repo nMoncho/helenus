@@ -21,7 +21,9 @@ import com.datastax.dse.driver.api.core.data.geometry.LineString
 import com.datastax.dse.driver.api.core.data.geometry.Point
 import com.datastax.dse.driver.api.core.data.geometry.Polygon
 import com.datastax.dse.driver.api.core.data.time.DateRange
+import com.datastax.oss.driver.api.core.`type`.VectorType
 import com.datastax.oss.driver.api.core.`type`.codec.TypeCodec
+import com.datastax.oss.driver.api.core.data.CqlVector
 import com.datastax.oss.driver.api.core.metadata.token.Token
 import com.datastax.oss.driver.internal.core.metadata.token.ByteOrderedToken
 import com.datastax.oss.driver.internal.core.metadata.token.Murmur3Token
@@ -169,6 +171,20 @@ object TypeCodecs {
     * element.
     */
   def vectorOf[T](inner: TypeCodec[T]): TypeCodec[Vector[T]] = VectorCodec.frozen(inner)
+
+  /** Builds a codec for a CQL Vector
+    *
+    * See <a href="https://cassandra.apache.org/doc/stable/cassandra/getting-started/vector-search-quickstart.html">Vector Search Quickstart</a>
+    */
+  def cqlVectorOf[T](vectorType: VectorType, inner: TypeCodec[T]): TypeCodec[CqlVector[T]] =
+    com.datastax.oss.driver.api.core.`type`.codec.TypeCodecs.vectorOf(vectorType, inner)
+
+  /** Builds a codec for a CQL Vector
+    *
+    * See <a href="https://cassandra.apache.org/doc/stable/cassandra/getting-started/vector-search-quickstart.html">Vector Search Quickstart</a>
+    */
+  def cqlVectorOf[T](dimensions: Int, inner: TypeCodec[T]): TypeCodec[CqlVector[T]] =
+    com.datastax.oss.driver.api.core.`type`.codec.TypeCodecs.vectorOf(dimensions, inner)
 
   /** Builds a new codec that maps a CQL set to a Scala Set, using the given codec to map each
     * element.
