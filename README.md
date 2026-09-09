@@ -218,6 +218,7 @@ These in-repo guides cover the core concepts and are compile-checked against the
 - [Enumeratum Codecs](guide/enumeratum.md): encoding `Enumeratum`s `EnumEntry` by name or by order.
 - [UDTs](guide/udts.md): mapping case classes to UDTs, and the field-ordering rules.
 - [Paging](guide/paging.md): consuming results and driving paging.
+- [Connecting Securely](guide/security.md): TLS/mTLS and authentication to Cassandra.
 - [Statement Options](guide/options.md): tuning consistency, paging, timeouts, idempotency, and session helpers.
 
 The [wiki](https://github.com/nMoncho/helenus/wiki) remains available as supplementary material.

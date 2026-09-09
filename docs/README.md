@@ -145,7 +145,15 @@ outside the pinned grammar, or a known gap such as a bind marker used as a funct
 `SELECT` selector list (for example `similarity_cosine(v, ?)`). For those, bypass validation with the
 `unsafeCql"..."` / `unsafeCqlAsync"..."` interpolators, or `"...".toUnsafeCQL` / `toUnsafeCQLAsync`
 for a plain string. All build the statement without the check; the interpolator forms keep the usual
-bind-versus-inject behaviour, so an interpolated query need not be hand-built as a string:
+bind-versus-inject behaviour, so an interpolated query need not be hand-built as a string.
+
+**Security note.** These paths bypass binding to varying degrees, so they carry a CQL-injection
+risk. `toUnsafeCQL` / `toUnsafeCQLAsync` prepare the string verbatim; `unsafeCql"..."` skips only the
+compile-time check and still binds interpolated values. Never splice a runtime value into the query
+text on any of these paths: pass it as a `?` or `:name` bind marker, and prefer `unsafeCql"..."` over
+the plain-string form when you have interpolated values.
+
+Examples:
 
 ```scala mdoc:compile-only
 // Use these only when you are sure the CQL is valid, since it will otherwise only fail at runtime.
@@ -189,6 +197,7 @@ These in-repo guides cover the core concepts and are compile-checked against the
 - [UDTs](guide/udts.md): mapping case classes to UDTs, and the field-ordering rules.
 - [Paging](guide/paging.md): consuming results and driving paging.
 - [Statement Options](guide/options.md): tuning consistency, paging, timeouts, idempotency, and session helpers.
+- [Connecting Securely](guide/security.md): TLS/mTLS and authentication to Cassandra.
 
 The [wiki](https://github.com/nMoncho/helenus/wiki) remains available as supplementary material.
 
