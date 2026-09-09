@@ -136,6 +136,6 @@ trait Options[In, Out] {
     */
   def withIdempotent(idempotent: Boolean): Self =
     withOptions(
-      options.copy(bstmtOptions = options.bstmtOptions.copy(idempotent = idempotent))
+      options.copy(bstmtOptions = options.bstmtOptions.copy(idempotent = Some(idempotent)))
     )
 }

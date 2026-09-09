@@ -56,7 +56,6 @@ class StatementOptionsSpec extends AnyWordSpec with Matchers {
         // Always applied
         verify(builder).setTracing(StatementOptions.default.bstmtOptions.tracing)
         verify(builder).setPageSize(StatementOptions.default.bstmtOptions.pageSize)
-        verify(builder).setIdempotence(StatementOptions.default.bstmtOptions.idempotent)
 
         // Applied because they are 'Some'
         verify(builder).setRoutingKeyspace(any[CqlIdentifier]())

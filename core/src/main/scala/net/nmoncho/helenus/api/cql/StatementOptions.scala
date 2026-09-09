@@ -29,11 +29,9 @@ case class StatementOptions(
   def apply[Out](bs: ScalaBoundStatement[Out]): ScalaBoundStatement[Out] =
     if (bstmtOptions == StatementOptions.default.bstmtOptions) bs
     else {
-      // FIXME
       val builder = new BoundStatementBuilder(bs)
         .setTracing(bstmtOptions.tracing)
         .setPageSize(bstmtOptions.pageSize)
-        .setIdempotence(bstmtOptions.idempotent)
 
       bstmtOptions.profile.foreach(p => builder.setExecutionProfile(p))
       bstmtOptions.routingKeyspace.foreach(ks => builder.setRoutingKeyspace(ks))
@@ -41,6 +39,7 @@ case class StatementOptions(
       bstmtOptions.timeout.foreach(t => builder.setTimeout(t))
       bstmtOptions.pagingState.foreach(ps => builder.setPagingState(ps))
       bstmtOptions.consistencyLevel.foreach(cl => builder.setConsistencyLevel(cl))
+      bstmtOptions.idempotent.foreach(b => builder.setIdempotence(b))
 
       ScalaBoundStatement[Out](
         bs.getPreparedStatement,
@@ -80,7 +79,7 @@ object StatementOptions {
       pagingState: Option[ByteBuffer],
       pageSize: Int,
       consistencyLevel: Option[ConsistencyLevel],
-      idempotent: Boolean
+      idempotent: Option[Boolean]
   ): StatementOptions =
     StatementOptions(
       default.pstmtOptions,
@@ -119,7 +118,7 @@ object StatementOptions {
       pagingState: Option[ByteBuffer],
       pageSize: Int,
       consistencyLevel: Option[ConsistencyLevel],
-      idempotent: Boolean
+      idempotent: Option[Boolean]
   )
 
   /** Default Options, takes all configuration options from the session */
@@ -136,7 +135,7 @@ object StatementOptions {
       pagingState      = None,
       pageSize         = 0, // 0 or negative uses default value defined in configuration
       consistencyLevel = None,
-      idempotent       = false
+      idempotent       = None
     )
   )
 
