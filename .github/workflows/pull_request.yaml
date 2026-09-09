@@ -51,7 +51,7 @@ jobs:
       # modules that also cross-build to 2.12 so a 2.12-only breakage cannot ship
       # unnoticed (the 2.13-only modules, tables, akka, pekko, are excluded).
       - name: Test Scala 2.12
-        run: sbt ++2.12.21 core/test monix/test zio/test flink/test
+        run: sbt ++2.12.21 core/test monix/test zio/test flink/test spark/test
 
   # The test suite embeds Cassandra 3.11 (cassandra-unit), which only runs on
   # JDK 11, so the tests execute in the `build` job above. Here we at least verify
