@@ -139,6 +139,15 @@ object ScalaPreparedStatement {
 
   private val log = LoggerFactory.getLogger(classOf[ScalaPreparedStatement[_, _]])
 
+  /** Wraps a raw CQL string that will be prepared '''verbatim''', with no compile-time syntactic
+    * check and no bind-versus-inject rewriting.
+    *
+    * '''CQL injection warning.''' The `query` is passed straight to `session.prepare`, so it must be
+    * trusted, static CQL. Never assemble it by splicing runtime values into the string; supply every
+    * runtime value as a `?` / `:name` bind marker via `prepare`/`bind`. This type is produced by the
+    * `toUnsafeCQL` / `toUnsafeCQLAsync` escape hatches; the validated `toCQL` path produces the same
+    * type after checking the query.
+    */
   case class CQLQuery(query: String, session: CqlSession) extends SyncCQLQuery with AsyncCQLQuery
 
   // $COVERAGE-OFF$

@@ -328,9 +328,24 @@ package object helenus extends CodecDerivation {
     ): Future[CQLQuery] =
       macro internal.macros.CqlQueryInterpolation.toCQLAsync
 
+    /** Builds a [[CQLQuery]] from this string '''without''' the compile-time syntactic check.
+      *
+      * '''CQL injection warning.''' This bypasses both the validation and the bind-versus-inject
+      * machinery of the `cql"..."` / `toCQL` path: the string is prepared verbatim. Never build the
+      * string by concatenating runtime values into it. Any runtime value must be a `?` (or `:name`)
+      * bind marker and supplied through `prepare`/`bind` so it goes through its `TypeCodec`. If you
+      * only need to skip validation on an interpolated query (for a grammar gap or a newer-CQL
+      * feature), prefer the `unsafeCql"..."` interpolator, which still binds interpolated values.
+      *
+      * Use this only when you are certain the CQL is valid, since an invalid query will otherwise
+      * fail at runtime instead of at compile time.
+      */
     def toUnsafeCQL(implicit session: CqlSession): CQLQuery =
       CQLQuery(query, session)
 
+    /** Asynchronous counterpart of [[toUnsafeCQL]]. The same CQL-injection warning applies: build
+      * the query text only from trusted, static CQL and pass every runtime value as a bind marker.
+      */
     def toUnsafeCQLAsync(
         implicit futSession: Future[CqlSession],
         ec: ExecutionContext
