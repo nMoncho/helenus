@@ -201,6 +201,7 @@ lazy val bench = project
 
 lazy val akka = project
   .settings(basicSettings)
+  .settings(enforcedCoverage)
   .dependsOn(core % "compile->compile;test->test")
   .settings(
     name := "helenus-akka",
@@ -223,6 +224,7 @@ lazy val akka = project
 lazy val akkaBusl = project
   .in(file("akka-busl"))
   .settings(basicSettings)
+  .settings(enforcedCoverage)
   .dependsOn(core % "compile->compile;test->test")
   .settings(
     name := "helenus-akka-busl",
@@ -239,6 +241,7 @@ lazy val akkaBusl = project
   )
 lazy val flink = project
   .settings(basicSettings)
+  .settings(enforcedCoverage)
   .dependsOn(
     core % "compile->compile;test->test"
   )
@@ -260,6 +263,7 @@ lazy val flink = project
 
 lazy val spark = project
   .settings(basicSettings)
+  .settings(enforcedCoverage)
   .dependsOn(core % "compile->compile;test->test")
   .settings(
     name := "helenus-spark",
@@ -293,6 +297,7 @@ lazy val spark = project
 
 lazy val monix = project
   .settings(basicSettings)
+  .settings(enforcedCoverage)
   .dependsOn(core % "compile->compile;test->test")
   .settings(
     name := "helenus-monix",
@@ -309,6 +314,7 @@ lazy val monix = project
 
 lazy val pekko = project
   .settings(basicSettings)
+  .settings(enforcedCoverage)
   .dependsOn(core % "compile->compile;test->test")
   .settings(
     name := "helenus-pekko",
@@ -326,6 +332,7 @@ lazy val pekko = project
 
 lazy val migrations = project
   .settings(basicSettings)
+  .settings(enforcedCoverage)
   .settings(
     name := "helenus-migrations",
     scalaVersion := Dependencies.Version.scala213,
@@ -373,6 +380,7 @@ lazy val migrations = project
 
 lazy val tables = project
   .settings(basicSettings)
+  .settings(enforcedCoverage)
   .dependsOn(core % "compile->compile;test->test")
   .settings(
     name := "helenus-tables",
@@ -387,6 +395,7 @@ lazy val tables = project
 
 lazy val zio = project
   .settings(basicSettings)
+  .settings(enforcedCoverage)
   .dependsOn(core % "compile->compile;test->test")
   .settings(
     name := "helenus-zio",
