@@ -192,11 +192,24 @@ final case class Select[
   def orderBy(col: table.Column[_]): Select[T, Eq, In, Rng, Params, Out] =
     orderBy(col.asc)
 
+  /** Renders this SELECT as a CQL string with any predicate values '''inlined as literals''',
+    * for inspection, logging, and debugging.
+    *
+    * '''Not a safe execution path.''' The inlined literals are produced by each value's
+    * `TypeCodec.format`, whose escaping is only as correct as that codec (a custom codec that does
+    * not escape its output would reintroduce CQL injection). Do not feed this output back into
+    * `session.execute` or `toUnsafeCQL` with untrusted values. To run the query, use `execute` /
+    * `executeAsync` or `prepare` (as shown in the DSL docs), which bind values through their codecs
+    * instead of inlining them.
+    */
   def toCQL(
       implicit @unused ev: CanSelect[table.PK, table.CK, Eq, In, Rng],
       @unused noUnboundParams: Params =:= HNil
   ): String = Select.render(this, allowFiltering = false)
 
+  /** Same inlined-literal rendering as [[toCQL]], for inspection only. See [[toCQL]] for why this
+    * output must not be executed with untrusted values.
+    */
   override def toString: String = Select.render(this, allowFiltering = false)
 }
 
