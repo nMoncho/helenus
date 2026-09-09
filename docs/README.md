@@ -73,7 +73,8 @@ As of this version, Helenus supports the following types:
 - Collections: `Seq`, `List`, `Vector`, `Map`, `Set`, `SortedMap`, `SortedSet`. See the
   [Codecs guide](guide/codecs.md).
 - Enumerations: Can be encoded by name or by order. See the
-  [Enumeration Codecs guide](guide/enumerations.md).
+  [Enumeration Codecs guide](guide/enumerations.md). We also
+  support enumerations defined with [Enumeratum](guide/enumeratum.md).
 - Tuples: Encoded as regular Cassandra tuples.
 - Case Classes: Encoded as regular Cassandra UDTs. See the [UDTs guide](guide/udts.md).
 - Others: `Option`, and `Either` (encoded as a tuple).
@@ -184,6 +185,7 @@ These in-repo guides cover the core concepts and are compile-checked against the
 
 - [Codecs](guide/codecs.md): built-in, collection, `Option`/`Either` codecs.
 - [Enumeration Codecs](guide/enumerations.md): encoding `Enumeration`s by name or by order.
+- [Enumeratum Codecs](guide/enumeratum.md): encoding `Enumeratum`s `EnumEntry` by name or by order.
 - [UDTs](guide/udts.md): mapping case classes to UDTs, and the field-ordering rules.
 - [Paging](guide/paging.md): consuming results and driving paging.
 
