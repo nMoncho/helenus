@@ -163,6 +163,35 @@ class MonixSpec extends AnyWordSpec with Matchers with CassandraSpec with ScalaF
         }
       }
     }
+
+    "write in partition-key-grouped batches with asBatchedConsumer" in {
+      import scala.concurrent.duration._
+
+      import com.datastax.oss.driver.api.core.cql.DefaultBatchType
+
+      val insert = "INSERT INTO ice_creams(name, numCherries, cone) VALUES(?, ?, ?)".toCQL
+        .prepare[String, Int, Boolean]
+        .from[IceCream]
+
+      val query = "SELECT * FROM ice_creams".toCQL.prepareUnit.as[IceCream].asObservable()
+
+      val tx = for {
+        _ <- Observable
+          .from(ijes)
+          .asBatchedConsumer(
+            insert,
+            (ij: IceCream) => ij.name.charAt(0),
+            maxBatchSize = 2,
+            maxBatchWait = 1.second,
+            DefaultBatchType.UNLOGGED
+          )
+        values <- query.consumeWith(Consumer.toList)
+      } yield values
+
+      whenReady(tx.runToFuture) { dbValues =>
+        dbValues.toSet shouldBe ijes.toSet
+      }
+    }
   }
 
   /** Inserts data with a sink, and reads it back with source to compare it

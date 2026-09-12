@@ -293,6 +293,11 @@ object ToPrepared {
       }
     }
 
+  // $COVERAGE-OFF$
+  // Arities 7 to 22 are generated boilerplate that mirrors arities 1 to 6 exactly (same
+  // create / apply / async shape, just more type parameters). Exercising each would need an
+  // ever-wider test table for no added assurance, so they are excluded from coverage. Arities
+  // 1 to 6 are covered end to end (see PreparedArityIntegrationSpec and the DML integration specs).
   implicit def arity7[T1, T2, T3, T4, T5, T6, T7](implicit tc1: TypeCodec[T1], tc2: TypeCodec[T2], tc3: TypeCodec[T3], tc4: TypeCodec[T4], tc5: TypeCodec[T5], tc6: TypeCodec[T6], tc7: TypeCodec[T7]): Aux[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: HNil, ScalaPreparedStatement7[T1, T2, T3, T4, T5, T6, T7, Row]] =
     new ToPrepared[T1 :: T2 :: T3 :: T4 :: T5 :: T6 :: T7 :: HNil] {
       type Out = ScalaPreparedStatement7[T1, T2, T3, T4, T5, T6, T7, Row]
@@ -660,5 +665,6 @@ object ToPrepared {
         }
       }
     }
+  // $COVERAGE-ON$
   // format: on
 }

@@ -17,6 +17,7 @@ import org.scalatest.Suites
   */
 class IntegrationSuites
     extends Suites(
+      new AsyncExecuteIntegrationSpec,
       new BatchIntegrationSpec,
       new BindMarkerSpec,
       new ComputedColumnIntegrationSpec,
@@ -24,6 +25,7 @@ class IntegrationSuites
       new DeleteIntegrationSpec,
       new IndexIntegrationSpec,
       new InsertIntegrationSpec,
+      new PreparedArityIntegrationSpec,
       new SelectExecuteIntegrationSpec,
       new UpdateIntegrationSpec
     )
