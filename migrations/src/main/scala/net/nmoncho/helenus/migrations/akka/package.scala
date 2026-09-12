@@ -29,6 +29,11 @@ import com.datastax.oss.driver.api.core.metadata.token.TokenRange
   * retried by splitting it into halves (see [[RetryPolicy]]).
   */
 package object akka {
+  // $COVERAGE-OFF$
+  // This akka executor is a line-for-line duplicate of the pekko executor (identical logic;
+  // only the akka-vs-pekko stream imports differ), and the pekko executor is covered end to end.
+  // The migrations module ships no akka-stream/akka-testkit test kit, so this twin is excluded
+  // from coverage rather than duplicating the whole pekko harness for no added assurance.
 
   implicit class TokenRangeAkkaReadOps[Out](
       private val pstmt: ScalaPreparedStatement2[Token, Token, Out]
@@ -229,4 +234,5 @@ package object akka {
     Source
       .future(session.underlying())
       .flatMapConcat((cql: CqlSession) => Source.fromPublisher(bstmt.executeReactive()(cql)))
+  // $COVERAGE-ON$
 }
