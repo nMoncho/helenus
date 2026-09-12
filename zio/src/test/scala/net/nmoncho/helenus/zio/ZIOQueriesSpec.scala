@@ -16,6 +16,7 @@ import _root_.zio.test._
 import com.datastax.oss.driver.api.core.cql.Row
 import net.nmoncho.helenus.api.RowMapper
 import net.nmoncho.helenus.api.cql.Adapter
+import net.nmoncho.helenus.api.cql.StatementOptions
 
 @nowarn("cat=unused-imports")
 object ZIOQueriesSpec extends ZCassandraSpec {
@@ -35,7 +36,10 @@ object ZIOQueriesSpec extends ZCassandraSpec {
     errorStreamHandlingTest,
     syncPaginationNextOptionTest,
     asyncPaginationTest,
-    asyncPaginationNextOptionTest
+    asyncPaginationNextOptionTest,
+    arity3QueryTest,
+    streamTryTest,
+    withOptionsDirectTest
   ) @@ TestAspect.beforeAll(beforeAll()) @@ TestAspect.before(beforeEach()) @@ TestAspect.sequential
 
   private def syncSimpleInsertQueryTest = test("should insert and query (sync) using ZIO") {
@@ -350,6 +354,72 @@ object ZIOQueriesSpec extends ZCassandraSpec {
         assertTrue(forth.isEmpty) &&
         assertTrue(all.toSet == ijes.toSet)
       }
+    }
+
+  private def arity3QueryTest =
+    test("should query with three parameters (sync and async) using ZIO") {
+      def queryAllThreeSync(name: String, numCherries: Int, cone: Boolean) =
+        "SELECT * FROM ice_creams WHERE name = ? AND numCherries = ? AND cone = ? ALLOW FILTERING".toZCQL
+          .prepare[String, Int, Boolean]
+          .to[IceCream]
+          .execute(name, numCherries, cone)
+          .oneOption
+
+      def queryAllThreeAsync(name: String, numCherries: Int, cone: Boolean) =
+        "SELECT * FROM ice_creams WHERE name = ? AND numCherries = ? AND cone = ? ALLOW FILTERING".toZCQL
+          .prepareAsync[String, Int, Boolean]
+          .to[IceCream]
+          .executeAsync(name, numCherries, cone)
+          .oneOption
+
+      for {
+        _        <- ZIO.foreach(ijes)(SyncQueries.insertFrom)
+        syncHit  <- queryAllThreeSync("vanilla", 2, cone    = true)
+        syncMiss <- queryAllThreeSync("vanilla", 99, cone   = true)
+        asyncHit <- queryAllThreeAsync("the answer", 42, cone = true)
+      } yield {
+        assertTrue(syncHit.contains(vanilla)) &&
+        assertTrue(syncMiss.isEmpty) &&
+        assertTrue(asyncHit.contains(theAnswer))
+      }
+    }
+
+  private def streamTryTest =
+    test("should stream results as Try values (stream) using ZIO") {
+      def queryAll() =
+        "SELECT * FROM ice_creams".toZCQL.prepareUnitAsync
+          .to[IceCream]
+          .withOptions(_.withPageSize(2))
+          .stream()
+
+      for {
+        _     <- ZIO.foreach(ijes)(SyncQueries.insertFrom)
+        // `stream()` emits a page (chunk) of `Try[Out]` per element, like `streamValidated`.
+        pages <- queryAll().run(ZSink.collectAll)
+        tries  = pages.toList.flatMap(_.toList)
+        values = tries.flatMap(_.toOption)
+      } yield {
+        assertTrue(tries.nonEmpty) &&
+        assertTrue(tries.forall(_.isSuccess)) &&
+        assertTrue(values.toSet == ijes.toSet)
+      }
+    }
+
+  private def withOptionsDirectTest =
+    test("should apply a StatementOptions through the direct overload") {
+      val options = StatementOptions.default.copy(
+        bstmtOptions = StatementOptions.default.bstmtOptions.copy(pageSize = 1)
+      )
+
+      val query = "SELECT * FROM ice_creams".toZCQL.prepareUnit
+        .to[IceCream]
+        .withOptions(options)
+        .execute()
+
+      for {
+        _   <- ZIO.foreach(ijes)(SyncQueries.insertFrom)
+        all <- query.to(List)
+      } yield assertTrue(all.toSet == ijes.toSet)
     }
 
   private def beforeAll() = for {

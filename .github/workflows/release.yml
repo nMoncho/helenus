@@ -4,27 +4,58 @@ on:
   push:
     tags: [ 'v*' ]
 
+# Least privilege. Publishing itself authenticates to Sonatype and signs with PGP
+# via the secrets below, so no repo write token is needed (contents: read). The
+# `id-token` and `attestations` scopes are required only by the build-provenance
+# step, which records a Sigstore attestation for the published jars.
 permissions:
   contents: read
+  id-token: write
+  attestations: write
+
+# Serialize releases: a publish to Maven Central is irreversible, so overlapping
+# tag pushes must not run at once. cancel-in-progress is false so an in-flight
+# publish is never interrupted; a second tag waits instead.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Publishing runs through a protected GitHub Environment. Create `release`
+    # under Settings -> Environments with required reviewers, and move
+    # PGP_SECRET / PGP_PASSPHRASE / SONATYPE_USERNAME / SONATYPE_PASSWORD into that
+    # environment, so the signing key is only reachable after an approval on a
+    # tag push rather than on any tag push automatically.
+    environment: release
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Set up JDK 11
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
         with:
           distribution: 'temurin'
           java-version: '11'
           cache: 'sbt'
 
-      - uses: sbt/setup-sbt@v1
-      - run: sbt ci-release
+      - uses: sbt/setup-sbt@c7d2d6258b4bd0d3ec5129e6b3453199d3c79729 # v1
+
+      - name: Publish signed artifacts to Maven Central
+        run: sbt ci-release
         env:
           PGP_PASSPHRASE: ${{ secrets.PGP_PASSPHRASE }}
           PGP_SECRET: ${{ secrets.PGP_SECRET }}
           SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
           SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
+
+      # Record a signed SLSA build-provenance attestation (Sigstore) for every
+      # published module jar, so a consumer can run
+      # `gh attestation verify <jar> --repo nMoncho/helenus` to prove the artifact
+      # was built by this workflow, from this commit. docs and bench are
+      # publish-skipped, so only helenus-* jars are attested.
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
+        with:
+          subject-path: '**/target/**/helenus-*.jar'

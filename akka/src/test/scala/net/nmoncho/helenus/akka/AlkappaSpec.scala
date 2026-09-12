@@ -9,6 +9,8 @@ package net.nmoncho.helenus.akka
 import scala.collection.immutable
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
+import scala.util.Failure
+import scala.util.Try
 
 import akka.Done
 import akka.NotUsed
@@ -290,6 +292,106 @@ class AlkappaSpec extends AnyWordSpec with Matchers with CassandraSpec with Scal
           .asWriteSinkBatched(writeSettings, _.name.charAt(0))
 
       testStream(batchIjs, query, batchedInsert)(identity)
+    }
+
+    "read using a 3-parameter prepared statement (sync)" in withSession { implicit session =>
+      import system.dispatcher
+
+      val insert: Sink[IceCream, Future[Done]] =
+        "INSERT INTO ice_creams(name, numCherries, cone) VALUES(?, ?, ?)".toCQL
+          .prepare[String, Int, Boolean]
+          .from[IceCream]
+          .asWriteSink(writeSettings)
+
+      val query: Source[IceCream, NotUsed] =
+        "SELECT * FROM ice_creams WHERE name = ? AND numCherries = ? AND cone = ? ALLOW FILTERING".toCQL
+          .prepare[String, Int, Boolean]
+          .as[IceCream]
+          .asReadSource("vanilla", 2, true)
+
+      val tx = for {
+        _    <- Source(ijes).runWith(insert)
+        rows <- query.runWith(Sink.seq[IceCream])
+      } yield rows
+
+      whenReady(tx) { rows =>
+        rows should contain(IceCream("vanilla", numCherries = 2, cone = true))
+      }
+    }
+
+    "read using a 3-parameter prepared statement (async)" in {
+      import system.dispatcher
+
+      val insert: Sink[IceCream, Future[Done]] =
+        "INSERT INTO ice_creams(name, numCherries, cone) VALUES(?, ?, ?)".toCQLAsync
+          .prepare[String, Int, Boolean]
+          .from[IceCream]
+          .asWriteSink(writeSettings)
+
+      val query: Source[IceCream, NotUsed] =
+        "SELECT * FROM ice_creams WHERE name = ? AND numCherries = ? AND cone = ? ALLOW FILTERING".toCQLAsync
+          .prepare[String, Int, Boolean]
+          .as[IceCream]
+          .asReadSource("vanilla", 2, true)
+
+      val tx = for {
+        _    <- Source(ijes).runWith(insert)
+        rows <- query.runWith(Sink.seq[IceCream])
+      } yield rows
+
+      whenReady(tx) { rows =>
+        rows should contain(IceCream("vanilla", numCherries = 2, cone = true))
+      }
+    }
+
+    // Unlike asWriteSink, asWriteFlow re-emits each persisted element downstream, so the
+    // stream should carry every input through unchanged.
+    "emit persisted elements through asWriteFlow (sync)" in withSession { implicit session =>
+      val flow =
+        "INSERT INTO ice_creams(name, numCherries, cone) VALUES(?, ?, ?)".toCQL
+          .prepare[String, Int, Boolean]
+          .from[IceCream]
+          .asWriteFlow(writeSettings)
+
+      whenReady(Source(ijes).via(flow).runWith(Sink.seq[IceCream])) { rows =>
+        rows.toSet shouldBe ijes.toSet
+      }
+    }
+
+    "emit persisted elements through asWriteFlow (async)" in {
+      import system.dispatcher
+
+      val flow =
+        "INSERT INTO ice_creams(name, numCherries, cone) VALUES(?, ?, ?)".toCQLAsync
+          .prepare[String, Int, Boolean]
+          .from[IceCream]
+          .asWriteFlow(writeSettings)
+
+      whenReady(Source(ijes).via(flow).runWith(Sink.seq[IceCream])) { rows =>
+        rows.toSet shouldBe ijes.toSet
+      }
+    }
+
+    "fail the stream when the pager cannot be created (sync and async)" in {
+      import system.dispatcher
+
+      val boom = new RuntimeException("bad paging state")
+
+      // A failed `Try[Pager]` / `Future[Try[Pager]]` exercises the Failure branch of
+      // `createPagerSource`, which must surface the error through the stream rather than swallow it.
+      val syncSource =
+        (Failure(boom): Try[Pager[IceCream]]).asReadSource(pageSize)
+
+      val asyncSource =
+        Future.successful(Failure(boom): Try[Pager[IceCream]]).asReadSource(pageSize)
+
+      whenReady(syncSource.runWith(Sink.seq[IceCream]).failed) { ex =>
+        ex.getMessage should include("bad paging state")
+      }
+
+      whenReady(asyncSource.runWith(Sink.seq[IceCream]).failed) { ex =>
+        ex.getMessage should include("bad paging state")
+      }
     }
   }
 
