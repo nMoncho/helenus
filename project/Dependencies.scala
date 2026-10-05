@@ -12,7 +12,7 @@ object Dependencies {
     val scalaCollectionCompat = "2.14.0"
     val scalaJava8Compat      = "1.0.2"
     val shapeless             = "2.3.13"
-    val slf4j                 = "2.0.18"
+    val slf4j                 = "2.0.20"
 
     val akka    = "2.6.20" // 2.7 changed to business license
     val alpakka = "4.0.0" // 5.x changed to business license
@@ -28,7 +28,7 @@ object Dependencies {
     val monix = "3.4.1"
 
     val pekkoConnector = "1.3.0"
-    val pekkoTestKit   = "1.6.0"
+    val pekkoTestKit   = "1.7.1"
 
     val zio               = "2.1.26"
     val zioStreamsInterop = "2.0.2"
