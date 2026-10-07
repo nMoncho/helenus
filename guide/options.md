@@ -53,17 +53,17 @@ import net.nmoncho.helenus.api.RowMapper
 case class Hotel(id: String, name: String, phone: String, address: Address, pois: Set[String])
 
 implicit val hotelMapper: RowMapper[Hotel] = RowMapper[Hotel]()
-// hotelMapper: RowMapper[Hotel] = net.nmoncho.helenus.internal.CaseClassRowMapperDerivation$$anonfun$net$nmoncho$helenus$internal$CaseClassRowMapperDerivation$$$nestedInanonfun$genericCCRowMapperBuilder$1$1@3b098bab
+// hotelMapper: RowMapper[Hotel] = net.nmoncho.helenus.internal.CaseClassRowMapperDerivation$$anonfun$net$nmoncho$helenus$internal$CaseClassRowMapperDerivation$$$nestedInanonfun$genericCCRowMapperBuilder$1$1@3c9d4202
 
 val hotels = "SELECT * FROM hotels".toCQL.prepareUnit.as[Hotel]
-// hotels: internal.cql.ScalaPreparedStatementUnit[Hotel] = net.nmoncho.helenus.internal.cql.ScalaPreparedStatementUnit@369131e7
+// hotels: internal.cql.ScalaPreparedStatementUnit[Hotel] = net.nmoncho.helenus.internal.cql.ScalaPreparedStatementUnit@1a91a41
 
 val tuned = hotels
   .withConsistencyLevel(ConsistencyLevel.LOCAL_ONE)
   .withPageSize(100)
   .withIdempotent(true)
   .withTimeout(Duration.ofSeconds(5))
-// tuned: internal.cql.ScalaPreparedStatementUnit[Hotel] = net.nmoncho.helenus.internal.cql.ScalaPreparedStatementUnit@58a5f19e
+// tuned: internal.cql.ScalaPreparedStatementUnit[Hotel] = net.nmoncho.helenus.internal.cql.ScalaPreparedStatementUnit@21124965
 
 tuned.execute().nextOption()
 // res4: Option[Hotel] = Some(
