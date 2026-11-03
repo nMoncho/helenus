@@ -208,8 +208,8 @@ class CassandraUdtCodecSpec extends AnyWordSpec with Matchers with CassandraSpec
         exception.getMessage should include("Expected 4 or 0 byte int")
       }
 
-      // this adaptation would be done after a statement is prepared,
-      // so we're hacking this in the middle for this test
+      // this adaptation is done when a statement is prepared (see `UnifiedUdtCodecAdaptationSpec`
+      // for that path), so we're hacking this in the middle for this test
       codec.asInstanceOf[UnifiedUDTCodec[_]].adapt(iceCreamUDT())
 
       insert(id, ice, IceCreamShuffled.codec)

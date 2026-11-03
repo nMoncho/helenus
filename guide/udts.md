@@ -38,10 +38,26 @@ val decoded = addressCodec.decode(encoded, ProtocolVersion.DEFAULT)
 `Codec.of[A]` maps case class fields to UDT fields **by position**, so the case class field order
 must match the CQL type's column order. This is the recommended, fastest path.
 
-When the codec is registered against a session whose UDT declares the fields in a different order,
-`Codec.of[A]` adapts automatically by mapping on field **names** instead. For that name matching to
-work, the case class field names must line up with the UDT column names once the
-`ColumnNamingScheme` is applied.
+When a statement is prepared with a `Codec.of[A]` codec bound directly to a UDT parameter, the codec
+compares its fields with the UDT:
+
+- Same field names (once the `ColumnNamingScheme` is applied) in a different order: the codec adapts
+  by mapping on field **names** instead.
+- Same field names in the same order: the codec is left as is.
+- Field names that don't line up with the UDT: the codec stays position-based, and a warning is
+  logged. The statement still works as long as the field types line up by position.
+
+Adaptation only happens on that prepare path, so a codec needs the case class and UDT in the same
+order in these cases:
+
+- **Read-only statements**: nothing adapts a codec that's only used to read results, so decoding a
+  reordered UDT fails.
+- **UDTs wrapped in another codec**: for example `prepare[UUID, List[A]]` or
+  `prepare[UUID, Option[A]]`, since the parameter's codec is the wrapper's. Binding a reordered UDT
+  this way fails.
+
+Use `Codec.nonIdenticalUdtOf[A]` or `Codec.udtFromFields[A]` when you know the order differs and one
+of these applies.
 
 ## Naming scheme
 
@@ -63,7 +79,7 @@ case class Address(
 )
 
 implicit val snake: ColumnNamingScheme = ColumnNamingScheme.SnakeCase
-// snake: ColumnNamingScheme = net.nmoncho.helenus.api.ColumnNamingScheme$SnakeCase$@5c9b418e
+// snake: ColumnNamingScheme = net.nmoncho.helenus.api.ColumnNamingScheme$SnakeCase$@5bb97eb3
 
 val snakeCodec: TypeCodec[Address] = Codec.of[Address]()
 // snakeCodec: TypeCodec[Address] = UtdCodec[Address]

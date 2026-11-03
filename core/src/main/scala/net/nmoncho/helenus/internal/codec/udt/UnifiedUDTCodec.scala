@@ -40,6 +40,23 @@ class UnifiedUDTCodec[A <: Product](
     underlying.accepts(udt)
   }
 
+  /** Adapts this codec only if `udt` declares the same fields in a different order. A codec whose
+    * field names don't line up with `udt` can only work by position, so it's left untouched, as
+    * is a codec already in the right order.
+    *
+    * @return true if this codec accepts `udt` after this call
+    */
+  private[helenus] def adaptIfReordered(udt: UserDefinedType): Boolean =
+    underlying.getCqlType() match {
+      case expected: UserDefinedType
+          if expected.getFieldNames != udt.getFieldNames &&
+            expected.getFieldNames.size() == udt.getFieldNames.size() &&
+            expected.getFieldNames.containsAll(udt.getFieldNames) =>
+        adapt(udt)
+
+      case _ => underlying.accepts(udt)
+    }
+
   override def getCqlType(): DataType = underlying.getCqlType()
 
   override def getJavaType(): GenericType[A] = underlying.getJavaType()

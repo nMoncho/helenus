@@ -93,9 +93,9 @@ abstract class ScalaPreparedStatement[In, Out](pstmt: PreparedStatement, val map
     }
 
     actualParams.iterator().asScala.zip(codecs.iterator).zipWithIndex.foreach {
-      case ((udt: UserDefinedType, codec: UnifiedUDTCodec[_]), idx) =>
-        if (!codec.adapt(udt)) {
-          log.warn("Invalid PreparedStatement expected parameter with type {} at index {} but got type {}", udt.getType.toString, idx.toString, codec.getCqlType.toString)
+      case ((param, codec: UnifiedUDTCodec[_]), idx) if param.getType.isInstanceOf[UserDefinedType] =>
+        if (!codec.adaptIfReordered(param.getType.asInstanceOf[UserDefinedType])) {
+          log.warn("Invalid PreparedStatement expected parameter with type {} at index {} but got type {}", param.getType.toString, idx.toString, codec.getCqlType.toString)
         }
 
       case ((param, codec), idx) =>
