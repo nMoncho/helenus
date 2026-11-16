@@ -23,9 +23,9 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
 /** `Codec.of` must adapt to the actual field order of a UDT when a statement binding it is
- * prepared. These tests deliberately never call `UnifiedUDTCodec.adapt` by hand, since the
- * prepare path is what's being verified.
- */
+  * prepared. These tests deliberately never call `UnifiedUDTCodec.adapt` by hand, since the
+  * prepare path is what's being verified.
+  */
 class UnifiedUdtCodecAdaptationSpec extends AnyWordSpec with Matchers with CassandraSpec {
   import UnifiedUdtCodecAdaptationSpec._
 
