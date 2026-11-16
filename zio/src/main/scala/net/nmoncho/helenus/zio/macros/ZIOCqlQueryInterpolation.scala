@@ -97,17 +97,13 @@ object ZIOCqlQueryInterpolation {
     // Params that are constants will be replaced as is,
     // whereas other are defined as named bind parameters
     val paramsTokens = params.map { expr =>
-      expr.tree match {
-        case Literal(Constant(value)) =>
-          value
+      constantOf(c)(expr.tree).getOrElse {
+        val symbol = expr.tree.symbol.name.toString
+        val named  =
+          if (Strings.needsDoubleQuotes(symbol)) Strings.doubleQuote(symbol)
+          else symbol
 
-        case other =>
-          val symbol = other.symbol.name.toString
-          val named  =
-            if (Strings.needsDoubleQuotes(symbol)) Strings.doubleQuote(symbol)
-            else symbol
-
-          s":$named"
+        s":$named"
       }
     }
 
@@ -119,14 +115,29 @@ object ZIOCqlQueryInterpolation {
       .append(parts.lastOption.getOrElse(""))
       .toString
 
-    val bindParameters = params.filter {
-      _.tree match {
-        case Literal(Constant(_)) => false
-        case _ => true
-      }
-    }
+    val bindParameters = params.filter(p => constantOf(c)(p.tree).isEmpty)
 
     cql -> bindParameters
+  }
+
+  // Value of a compile-time constant
+  //
+  // scalac folds a constant reference into a literal before the macro runs, but Scaladoc
+  // doesn't (it keeps the name for the docs), they arrive as a references typed `String("...")`.
+  // Only references qualify, since a block typed as a constant may still carry side effects.
+  private def constantOf(c: blackbox.Context)(tree: c.universe.Tree): Option[Any] = {
+    import c.universe._
+
+    tree match {
+      case Literal(Constant(value)) =>
+        Some(value)
+
+      case Select(_, _) | Ident(_) =>
+        Option(tree.tpe).collect { case ConstantType(Constant(value)) => value }
+
+      case _ =>
+        None
+    }
   }
 
   /** Sets a Bind Parameter into a CQL BoundStatement

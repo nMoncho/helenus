@@ -47,6 +47,11 @@ jobs:
       - name: Check docs
         run: sbt docs/mdoc
 
+      # Scaladoc's typer doesn't fold constants like scalac does, so macros can
+      # expand under `compile` yet fail under `doc`
+      - name: Check Scaladoc
+        run: sbt doc Test/doc
+
       - name: Test Coverage (Scala 2.13)
         run: sbt testCoverage
 

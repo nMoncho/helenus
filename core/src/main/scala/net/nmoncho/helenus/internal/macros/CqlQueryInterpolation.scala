@@ -229,10 +229,7 @@ object CqlQueryInterpolation {
     // A constant is the only kind of parameter that can be injected into the query text. The
     // compiler folds those into literals before the macro sees them, which is also why their
     // name is no longer around to build a bind marker out of.
-    val injectable = params.map(_.tree match {
-      case Literal(Constant(value)) => Some(String.valueOf(value))
-      case _ => None
-    })
+    val injectable = params.map(p => constantOf(c)(p.tree).map(String.valueOf))
 
     val bound = BindInference.boundParams(parts, names, injectable)
     val cql   = BindInference.interleave(parts, BindInference.tokensOf(names, injectable, bound))
@@ -255,10 +252,8 @@ object CqlQueryInterpolation {
     * @return bind marker name of each parameter, in the same order
     */
   private def bindMarkerNames(c: blackbox.Context)(params: Seq[c.Expr[Any]]): Seq[String] = {
-    import c.universe._
-
     val named = params.map(_.tree match {
-      case Literal(Constant(_)) => None
+      case const if constantOf(c)(const).isDefined => None
       case other => Some(other.symbol.name.toString)
     })
 
@@ -387,7 +382,29 @@ object CqlQueryInterpolation {
         evalString(c)(inner)
 
       case other =>
-        Left(diagnoseNonConstant(c)(other))
+        constantOf(c)(other)
+          .collect { case s: String => s }
+          .toRight(diagnoseNonConstant(c)(other))
+    }
+  }
+
+  // Value of a compile-time constant
+  //
+  // scalac folds a constant reference into a literal before the macro runs, but Scaladoc
+  // doesn't (it keeps the name for the docs), they arrive as a references typed `String("...")`.
+  // Only references qualify, since a block typed as a constant may still carry side effects.
+  private def constantOf(c: blackbox.Context)(tree: c.universe.Tree): Option[Any] = {
+    import c.universe._
+
+    tree match {
+      case Literal(Constant(value)) =>
+        Some(value)
+
+      case Select(_, _) | Ident(_) =>
+        Option(tree.tpe).collect { case ConstantType(Constant(value)) => value }
+
+      case _ =>
+        None
     }
   }
 
