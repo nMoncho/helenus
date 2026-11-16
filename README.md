@@ -31,7 +31,7 @@ Cassandra to Cassandra data migrations, or anything to Cassandra, or Cassandra t
 Include the library into you project definition:
 
 ```scala
-libraryDependencies += "net.nmoncho" %% "helenus-core" % "2.0.0"
+libraryDependencies += "net.nmoncho" %% "helenus-core" % "2.0.1"
 ```
 
 The type-safe [Tables DSL](#tables-dsl) lives in its own module (currently published for Scala 2.13 only):
