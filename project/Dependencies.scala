@@ -8,7 +8,7 @@ object Dependencies {
     val antlr4                = "4.13.2"
     val cassandraUnit         = "3.11.19.2"
     val enumeratum            = "1.9.8"
-    val ossJavaDriver         = "4.19.3"
+    val ossJavaDriver         = "4.19.4"
     val scalaCollectionCompat = "2.14.0"
     val scalaJava8Compat      = "1.0.2"
     val shapeless             = "2.3.13"
